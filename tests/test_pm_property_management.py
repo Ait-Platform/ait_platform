@@ -14,6 +14,10 @@ from sqlalchemy.orm import registry, Session
 from dotenv import dotenv_values
 
 ROOT = Path(__file__).resolve().parents[1]
+pdf_spec=importlib.util.spec_from_file_location('isolated_pdf_render',ROOT/'app/utils/pdf_render.py')
+pdf_renderer=importlib.util.module_from_spec(pdf_spec);pdf_spec.loader.exec_module(pdf_renderer)
+render_pdf=pdf_renderer.html_to_pdf_bytes
+
 
 class Identity(UserMixin):
     def __init__(self, identifier): self.id = identifier; self.email=f'manager{identifier}@example.com'; self.name='Manager'
@@ -64,6 +68,11 @@ class PropertyManagementTests(unittest.TestCase):
         owner_spec=importlib.util.spec_from_file_location('app.program_billing.owner_management',ROOT/'app/program_billing/owner_management.py')
         owner_mod=importlib.util.module_from_spec(owner_spec);sys.modules[owner_spec.name]=owner_mod;owner_spec.loader.exec_module(owner_mod)
         self.owner_module=owner_mod
+        modules['app.utils.pdf_render']=types.SimpleNamespace(html_to_pdf_bytes=render_pdf)
+        sys.modules['app.utils.pdf_render']=modules['app.utils.pdf_render']
+        pdf_spec=importlib.util.spec_from_file_location('app.program_billing.portfolio_pdf',ROOT/'app/program_billing/portfolio_pdf.py')
+        pdf_mod=importlib.util.module_from_spec(pdf_spec);sys.modules[pdf_spec.name]=pdf_mod;pdf_spec.loader.exec_module(pdf_mod)
+        self.addCleanup(sys.modules.pop,pdf_spec.name,None)
         # Include the real main route, without starting the AIT application factory.
         tree = ast.parse((ROOT/'app/program_billing/routes.py').read_text(encoding='utf-8'))
         for function in ('property_owner', 'learner_dashboard', 'property_portfolio'):
@@ -71,9 +80,36 @@ class PropertyManagementTests(unittest.TestCase):
             exec(compile(ast.Module(body=[node],type_ignores=[]),'property-owner-route','exec'),dict(billing_bp=blueprint,login_required=login_required))
         for endpoint in ('pm_lease_management','utilities_hub','tenant_accounts'):
             blueprint.add_url_rule('/fixture/'+endpoint,endpoint=endpoint,view_func=lambda:'fixture')
+        bridge=Blueprint('bridge_bp',__name__)
+        bridge.add_url_rule('/bridge',endpoint='bridge',view_func=login_required(lambda:'Bridge'))
+        self.app.register_blueprint(bridge)
         self.app.register_blueprint(blueprint)
         self.client = self.app.test_client()
         self.sign_in(7)
+
+    def test_dashboard_bridge_and_five_item_menu_order(self):
+        from html.parser import HTMLParser
+        from html import unescape
+        html=self.client.get('/billing/dashboard').get_data(as_text=True)
+        self.assertIn('>Property Management</h1>',html)
+        self.assertIn('href="/bridge"',html)
+        self.assertIn('>Property &amp; Owner</h2>',html)
+        class Menu(HTMLParser):
+            def __init__(self):super().__init__();self.inside=False;self.labels=[];self.link=False
+            def handle_starttag(self,tag,attrs):
+                if tag=='nav' and dict(attrs).get('aria-label')=='Property Management':self.inside=True
+                if self.inside and tag=='a':self.link=True
+            def handle_endtag(self,tag):
+                if tag=='nav':self.inside=False
+                if tag=='a':self.link=False
+            def handle_data(self,data):
+                if self.inside and self.link:self.labels.append(unescape(data.strip()))
+        menu=Menu();menu.feed(html)
+        self.assertEqual(menu.labels,['Property & Owner','Lease Management','METSOA','Occupier SOA','Property Portfolio'])
+        self.assertEqual(html.count('>Property Portfolio</a>'),1)
+        self.assertEqual(self.client.get('/bridge').status_code,200)
+        with self.client.session_transaction() as session:session.clear()
+        self.assertEqual(self.client.get('/bridge').status_code,401)
 
     def sign_in(self, identifier):
         with self.client.session_transaction() as session:

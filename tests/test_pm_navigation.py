@@ -153,7 +153,7 @@ class PropertyNavigationTests(unittest.TestCase):
         env.globals['csrf_token']=lambda:'synthetic'
         env.globals['current_user']=dict(id=7)
         context=dict(properties=[],selected_property=None,parties={},duration={},duration_days=None,error=None,leases=[],available=False,associated=False,property_name='',debtors=[],total_owed=0,start_date='',end_date='',current_month='2026-10')
-        for page,endpoint in [('property_owner','learner_dashboard'),('lease_management','pm_lease_management'),('lease_property','pm_lease_management'),('lease_parties','pm_lease_management'),('lease_duration','pm_lease_management'),('utilities_hub','utilities_hub'),('tenant_accounts','tenant_accounts')]:
+        for page,endpoint in [('property_owner','learner_dashboard'),('lease_management','pm_lease_management'),('lease_property','pm_lease_management'),('lease_parties','pm_lease_management'),('lease_duration','pm_lease_management'),('utilities_hub','utilities_hub'),('tenant_accounts','tenant_accounts'),('property_portfolio','property_portfolio')]:
             with self.subTest(page=page):
                 html=env.get_template('program_billing/'+page+'.html').render(**context)
                 parser=ActiveLinks();parser.feed(html)
@@ -161,6 +161,8 @@ class PropertyNavigationTests(unittest.TestCase):
                 self.assertNotIn('<iframe',html)
                 self.assertIn('Property & Owner',unescape(html))
                 self.assertIn('Occupier SOA',html)
+                headings={'utilities_hub':'METSOA','tenant_accounts':'Occupier SOA','property_portfolio':'Property Portfolio'}
+                if page in headings:self.assertRegex(html,r'<h1[^>]*>'+headings[page]+r'</h1>')
 
     def test_locked_entry_preserves_unlock_control(self):
         env = Environment(loader=FileSystemLoader(ROOT / 'templates'))

@@ -3,7 +3,8 @@
     ('property_owner', 'Property & Owner', 'billing_bp.learner_dashboard'),
     ('leases', 'Lease Management', 'billing_bp.pm_lease_management'),
     ('metsoa', 'METSOA', 'billing_bp.utilities_hub'),
-    ('occupier', 'Occupier SOA', 'billing_bp.tenant_accounts')
+    ('occupier', 'Occupier SOA', 'billing_bp.tenant_accounts'),
+    ('portfolio', 'Property Portfolio', 'billing_bp.property_portfolio')
   ] %}
   <a href="{{ url_for(endpoint) }}" {% if pm_menu_active == key %}aria-current="page"{% endif %} class="border-b-2 px-4 py-3 text-sm font-semibold {% if pm_menu_active == key %}border-orange-600 bg-orange-50 text-orange-900{% else %}border-transparent text-slate-600 hover:border-orange-300 hover:bg-orange-50{% endif %}">{{ label }}</a>
   {% endfor %}

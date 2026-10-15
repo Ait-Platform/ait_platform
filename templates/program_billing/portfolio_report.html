@@ -3,19 +3,23 @@
 .portfolio-report article {margin:24px 0;padding:16px;border:1px solid #ccd3dd}
 .portfolio-report dl {margin:12px 0}.portfolio-report dt {font-weight:bold}
 .portfolio-report dd {margin:0 0 8px;white-space:pre-wrap;overflow-wrap:anywhere}
+.owner-fields {width:100%;border-collapse:collapse;font-size:inherit}
+.owner-fields td {padding:4px 8px 4px 0;vertical-align:top;white-space:pre-wrap;overflow-wrap:anywhere}
+.owner-fields .field-label {width:34%;font-weight:bold}
 .portfolio-report h1,.portfolio-report h2,.portfolio-report h3 {font-weight:bold;margin:12px 0}
-@page {size:A4;margin:16mm}
+@page {size:A4;margin:22mm 16mm 18mm}
 @media print {
  .no-print {display:none!important}
  .portfolio-report article {break-inside:auto}
+ .portfolio-report .owner-details {break-inside:avoid;page-break-inside:avoid}
  .portfolio-report h2,.portfolio-report h3 {break-after:avoid}
 }
 </style>
 <div id="portfolio-report" class="portfolio-report">
-<h1>Property Portfolio</h1>
+<h1>AIT Platform | Property Portfolio</h1>
 {% for property in properties %}
 <article>
-<h2>{{ property.name }} — {{ 'Inactive' if property.is_archived else 'Active' }}</h2>
+<h2>{{ property.name }} - {{ 'Inactive' if property.is_archived else 'Active' }}</h2>
 <dl>
 <dt>Property ID</dt><dd>{{ property.id }}</dd>
 <dt>Complete physical address</dt><dd>{{ property.address or 'Not recorded' }}</dd>
@@ -26,15 +30,15 @@
 <h3>Owners and ownership assignment history</h3>
 {% if owners_enabled %}
 {% for owner in owners_by_property.get(property.id, []) %}
-<section style="margin-top:16px;border-top:1px solid #ccd3dd;padding-top:8px">
-<h3>{{ owner.name }} — {{ owner.type }}{% if not owner.current_assignment %} (Historical assignment version){% elif owner.active %} (Active){% else %} (Inactive){% endif %}</h3>
-<dl>
+<section class="owner-details" style="margin-top:16px;border-top:1px solid #ccd3dd;padding-top:8px">
+<h3>{{ owner.name }} - {{ owner.type }}{% if not owner.current_assignment %} (Historical assignment version){% elif owner.active %} (Active){% else %} (Inactive){% endif %}</h3>
+<table class="owner-fields"><tbody>
 {% for key,label in [('owner_id','Owner ID'),('identity_number','ID / registration number'),('email','Email'),('phone','Telephone'),('residential_address','Residential / registered address'),('postal_address','Postal address'),('ownership_percentage','Ownership percentage'),('effective_from','Effective from'),('effective_to','Effective to (exclusive)'),('created_at','Assignment recorded at'),('assignment_id','Assignment ID'),('supersedes_id','Supersedes assignment')] %}
-<dt>{{ label }}</dt><dd>{{ owner[key] if owner[key] is not none else 'Not recorded' }}{% if key=='ownership_percentage' and owner[key] is not none %}%{% endif %}</dd>
+<tr><td class="field-label">{{ label }}</td><td>{{ owner[key] if owner[key] is not none else 'Not recorded' }}{% if key=='ownership_percentage' and owner[key] is not none %}%{% endif %}</td></tr>
 {% endfor %}
-{% if owner.owner_identity_snapshot %}<dt>Identity details recorded with this assignment</dt><dd>{% for key,value in owner.owner_identity_snapshot.items() %}{{ key|replace('_',' ')|title }}: {{ value or 'Not recorded' }}
-{% endfor %}</dd>{% endif %}
-</dl>
+{% if owner.owner_identity_snapshot %}<tr><td class="field-label">Identity details recorded with this assignment</td><td>{% for key,value in owner.owner_identity_snapshot.items() %}{{ key|replace('_',' ')|title }}: {{ value or 'Not recorded' }}
+{% endfor %}</td></tr>{% endif %}
+</tbody></table>
 </section>
 {% else %}<p>No registered owners.</p>{% endfor %}
 {% else %}<p>Owner information is not yet available.</p>{% endif %}

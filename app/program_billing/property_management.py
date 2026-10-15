@@ -1,5 +1,5 @@
 """Property-only operations; no ownership schema or legacy wizard dependency."""
-from flask import abort, flash, redirect, request, url_for, current_app, render_template
+from flask import abort, flash, redirect, request, url_for, current_app, render_template, Response
 from flask_login import current_user, login_required
 from sqlalchemy import select, text
 from sqlalchemy.exc import SQLAlchemyError
@@ -155,10 +155,9 @@ def portfolio_email():
     if current_app.config.get('MAIL_SUPPRESS_SEND'):
         return failed("Email sending is unavailable. No report was sent.")
     from app.utils.mailer import send_standard_report_email
-    from app.utils.pdf_render import html_to_pdf_bytes
+    from app.program_billing.portfolio_pdf import build_portfolio_pdf
     try:
-        html=render_template("program_billing/portfolio_document.html", **context)
-        pdf=html_to_pdf_bytes(html,base_url=request.host_url,orientation="Portrait")
+        pdf=build_portfolio_pdf(context)
         if not pdf or not pdf.startswith(b'%PDF-'):raise ValueError("Invalid report PDF")
         accepted=send_standard_report_email(to_email=recipient,subject="Property Portfolio",
             pdf_url=url_for('billing_bp.property_portfolio',_external=True),
@@ -186,4 +185,13 @@ def property_owners_edit(property_id):
 @billing_bp.get("/billing/portfolio/print", endpoint="portfolio_print")
 @login_required
 def portfolio_print():
-    return render_template("program_billing/portfolio_document.html",print_mode=True,**portfolio_context())
+    from app.program_billing.portfolio_pdf import build_portfolio_pdf
+    try:
+        pdf=build_portfolio_pdf(portfolio_context())
+    except Exception as error:
+        current_app.logger.error("Portfolio print PDF failed error=%s",type(error).__name__)
+        abort(503,description="The printable report could not be generated. Please retry or contact support.")
+    response=Response(pdf,mimetype="application/pdf")
+    response.headers['Content-Disposition']='inline; filename="Property_Portfolio.pdf"'
+    response.headers['Cache-Control']='private, no-store'
+    return response

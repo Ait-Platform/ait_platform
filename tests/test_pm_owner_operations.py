@@ -201,7 +201,7 @@ class OwnerOperationsTests(unittest.TestCase):
         import sys,types
         from unittest.mock import Mock,patch
         self.assign(name='Sensitive Owner',identity_number='SECRET-ID')
-        sender=Mock(return_value=True);renderer=Mock(return_value=b'%PDF-test')
+        sender=Mock(return_value=True);renderer=Mock(side_effect=property_tests.render_pdf)
         modules={'app.utils.mailer':types.SimpleNamespace(send_standard_report_email=sender),
             'app.utils.pdf_render':types.SimpleNamespace(html_to_pdf_bytes=renderer)}
         with patch.dict(sys.modules,modules):
@@ -210,8 +210,8 @@ class OwnerOperationsTests(unittest.TestCase):
             sender.assert_called_once()
             kwargs=sender.call_args.kwargs
             self.assertEqual(kwargs['to_email'],'chosen@example.com')
-            self.assertEqual(kwargs['pdf_bytes'],b'%PDF-test')
-            rendered=renderer.call_args.args[0]
+            self.assertTrue(kwargs['pdf_bytes'].startswith(b'%PDF-'))
+            rendered=''.join(call.args[0] for call in renderer.call_args_list)
             for value in ('Sensitive Owner','SECRET-ID','Owner home','PO Box','Original address'):
                 self.assertIn(value,rendered)
             self.assertIn('Assignment recorded at',rendered)
@@ -231,7 +231,7 @@ class OwnerOperationsTests(unittest.TestCase):
             self.client.post('/billing/portfolio/email',data={'recipient_email':'chosen@example.com','intent':'send'});sender.assert_not_called()
             with self.client.session_transaction() as session:
                 self.assertFalse(any(category=='success' for category,message in session.pop('_flashes',[])))
-            renderer.side_effect=None
+            renderer.side_effect=property_tests.render_pdf
             sender.reset_mock();self.app.config['MAIL_SUPPRESS_SEND']=True
             self.client.post('/billing/portfolio/email',data={'recipient_email':'chosen@example.com','intent':'send'});sender.assert_not_called()
             self.app.config['MAIL_SUPPRESS_SEND']=False
@@ -242,7 +242,7 @@ class OwnerOperationsTests(unittest.TestCase):
     def test_portfolio_email_recipient_entry_and_explicit_submission(self):
         import sys,types
         from unittest.mock import Mock,patch
-        sender=Mock(return_value=True);renderer=Mock(return_value=b'%PDF-test')
+        sender=Mock(return_value=True);renderer=Mock(side_effect=property_tests.render_pdf)
         modules={'app.utils.mailer':types.SimpleNamespace(send_standard_report_email=sender),
             'app.utils.pdf_render':types.SimpleNamespace(html_to_pdf_bytes=renderer)}
         with patch.dict(sys.modules,modules):
@@ -304,14 +304,16 @@ class OwnerOperationsTests(unittest.TestCase):
         self.assign(name='Printable identity',identity_number='PRINT-ID')
         page=self.client.get('/billing/portfolio/print')
         self.assertEqual(page.status_code,200)
-        html=page.get_data(as_text=True)
-        self.assertIn('window.print()',html)
+        from io import BytesIO
+        from pypdf import PdfReader
+        html=''.join(p.extract_text() for p in PdfReader(BytesIO(page.data)).pages)
+        self.assertEqual(page.mimetype,'application/pdf')
         self.assertIn('PRINT-ID',html)
         self.assertNotIn('<form',html)
         self.assertNotIn('Private address',html)
         self.assertNotIn('METSOA',html)
         self.sign_in(8)
-        self.assertNotIn('PRINT-ID',self.client.get('/billing/portfolio/print').get_data(as_text=True))
+        self.assertNotIn('PRINT-ID',''.join(p.extract_text() for p in PdfReader(BytesIO(self.client.get('/billing/portfolio/print').data)).pages))
         with self.client.session_transaction() as session:session.clear()
         self.assertEqual(self.client.post('/billing/portfolio/email',data={'recipient_email':'chosen@example.com','intent':'send'}).status_code,401)
         self.assertEqual(self.client.get('/billing/portfolio/print').status_code,401)
@@ -367,6 +369,59 @@ class OwnerOperationsTests(unittest.TestCase):
         self.assertIn('name="active"',edit)
         # The underlying historical-management route remains authorized and available.
         self.assertEqual(self.client.get('/billing/property-owner/26/owners/edit').status_code,200)
+
+    def test_numbered_pdf_print_email_match_and_registered_email_default(self):
+        from io import BytesIO
+        import re,sys,types
+        from unittest.mock import Mock,patch
+        from pypdf import PdfReader
+        self.assign(name='PDF Owner',identity_number='PDF-SAME')
+        html=self.client.get('/billing/portfolio').get_data(as_text=True)
+        self.assertIn('value="manager7@example.com"',html)
+        self.assertNotIn('readonly',html)
+        sender=Mock(return_value=True)
+        with patch.dict(sys.modules,{'app.utils.mailer':types.SimpleNamespace(send_standard_report_email=sender)}):
+            printed=self.client.get('/billing/portfolio/print')
+            self.assertEqual(printed.status_code,200)
+            response=self.client.post('/billing/portfolio/email',data={'recipient_email':'replacement@example.com','intent':'send'})
+            self.assertEqual(response.status_code,302)
+        def text(data):
+            return re.sub(r'AIT Portfolio [A-F0-9]{12}','AIT Portfolio REPORT',''.join(p.extract_text() for p in PdfReader(BytesIO(data)).pages))
+        self.assertEqual(text(printed.data),text(sender.call_args.kwargs['pdf_bytes']))
+        self.assertEqual(sender.call_args.kwargs['to_email'],'replacement@example.com')
+
+    def test_real_multipage_pdf_headers_numbering_and_owner_integrity(self):
+        from io import BytesIO
+        import re
+        from pypdf import PdfReader
+        pdf_module=__import__('app.program_billing.portfolio_pdf',fromlist=['build_portfolio_pdf'])
+        context=dict(properties=[dict(id=26,name='Almond',address='Almond physical',is_archived=False),
+            dict(id=28,name='Second Property',address='Second physical',is_archived=False)],
+            owners_enabled=True,owners_by_property={})
+        for prop in context['properties']:
+            owners=[]
+            for i in range(4):
+                owners.append(dict(owner_id=i+1,assignment_id=i+1,name=f"Owner {prop['id']}-{i}",type='individual',
+                    identity_number=f"ID-{prop['id']}-{i}",email='owner@example.com',phone='12345678',
+                    residential_address='Residential address',postal_address=f"POSTAL-{prop['id']}-{i}",
+                    ownership_percentage='25',effective_from='2026-01-01',effective_to=None,
+                    created_at='2026-01-01',supersedes_id=None,owner_identity_snapshot=None,current_assignment=True,active=True))
+            context['owners_by_property'][prop['id']]=owners
+        with self.app.test_request_context('/billing/portfolio/print'):
+            data=pdf_module.build_portfolio_pdf(context)
+        reader=PdfReader(BytesIO(data));self.assertGreater(len(reader.pages),2)
+        reports=set();texts=[p.extract_text() for p in reader.pages]
+        for i,text in enumerate(texts,1):
+            self.assertIn('AIT Platform | Property Portfolio',text)
+            self.assertIn(f'Page {i} of {len(texts)}',text)
+            self.assertRegex(text,r'Property ID (26|28)')
+            reports.update(re.findall(r'AIT Portfolio ([A-F0-9]{12})',text))
+        self.assertEqual(len(reports),1)
+        for prop in context['properties']:
+            for owner in context['owners_by_property'][prop['id']]:
+                self.assertTrue(any(owner['identity_number'] in text and owner['postal_address'] in text for text in texts))
+        self.assertIn('Almond physical',''.join(texts))
+        self.assertIn('Second physical',''.join(texts))
 
     def test_disabled_flag_denies_all_owner_operations(self):
         self.app.config['PM_OWNER_WRITES_APPROVED']=False

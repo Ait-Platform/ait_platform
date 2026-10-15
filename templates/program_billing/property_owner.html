@@ -1,5 +1,5 @@
 {% extends "layout.html" %}
-{% block title %}Property & Owner{% endblock %}
+{% block title %}Property Management{% endblock %}
 {% block flashes %}{% endblock %}
 {% block content %}
 <div class="mx-auto max-w-6xl px-4 py-10">
@@ -8,11 +8,11 @@
     <div class="p-6">
       {% include "partials/flash_messages.html" %}
       <div class="flex items-center justify-between gap-4">
-        <h1 class="text-2xl font-semibold text-slate-900">Property &amp; Owner</h1>
-        <a href="{{ url_for('billing_bp.learner_dashboard') }}" class="rounded-lg bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700">Back</a>
+        <h1 class="text-2xl font-semibold text-slate-900">Property Management</h1>
+        <a href="{{ url_for('bridge_bp.bridge') }}" class="rounded-lg bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700">Back</a>
       </div>
       {% set pm_menu_active = 'property_owner' %}{% include 'program_billing/menu.html' %}
-      <div class="mt-4 flex justify-end"><a href="{{ url_for('billing_bp.property_portfolio') }}" class="rounded-lg bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700">Property Portfolio</a></div>
+      <h2 class="mt-4 text-xl font-semibold">Property &amp; Owner</h2>
       <style>
         #property-name { border: 1px solid #b8cbd7; }
         #property-name:focus { border-color: #5289b0; outline: none; box-shadow: 0 0 0 3px #e4eff7; }

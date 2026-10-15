@@ -6,6 +6,7 @@
 <div class="h-2 bg-orange-500"></div><div class="p-6">
 <div class="no-print">{% include "partials/flash_messages.html" %}
 <div class="flex items-center justify-between gap-4"><h1 class="text-2xl font-semibold">Property Portfolio</h1><a href="{{ url_for('billing_bp.learner_dashboard') }}" class="rounded-lg bg-slate-100 px-4 py-2">Back</a></div>
+{% set pm_menu_active = 'portfolio' %}{% include 'program_billing/menu.html' %}
 <div class="mt-4 flex justify-end gap-3">
 <button type="button" id="portfolio-email-open" class="rounded-lg bg-orange-600 px-4 py-2 font-semibold text-white">Email</button>
 <button type="button" onclick="window.open('{{ url_for('billing_bp.portfolio_print') }}', '_blank', 'noopener')"  class="rounded-lg border border-slate-300 px-4 py-2">Print</button>
@@ -17,7 +18,7 @@
 <form method="post" action="{{ url_for('billing_bp.portfolio_email') }}" class="mt-4">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 <label for="portfolio-recipient" class="mb-2 block text-sm font-semibold">Recipient Email Address</label>
-<input id="portfolio-recipient" name="recipient_email" type="email" required maxlength="254" autofocus value="{{ recipient_email or '' }}" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-sky-500 focus:ring-2 focus:ring-sky-100">
+<input id="portfolio-recipient" name="recipient_email" type="email" required maxlength="254" autofocus value="{{ recipient_email if recipient_email is defined else ((current_user.email or '') if current_user is defined else '') }}" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-sky-500 focus:ring-2 focus:ring-sky-100">
 <p class="mt-3 text-sm text-slate-600">The complete report includes owner identity and contact details. Confirm that the recipient should receive it.</p>
 {% if email_error %}<p role="alert" class="mt-3 text-sm text-red-700">{{ email_error }}</p>{% endif %}
 <div class="mt-5 flex justify-end gap-3">

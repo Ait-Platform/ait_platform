@@ -80,3 +80,30 @@ The browser regression consumes rendered dialog data and owner attributes rather
 inventing their values, and covers own/foreign creator, approval block and missing ID.
 No production owner record was inspected or modified; the live manager/creator values
 and the deployed interaction still require verification on Render.
+
+## Navigation and PDF report polish
+
+Main Property Management Back uses the canonical authenticated bridge_bp.bridge.
+Editing-form Back routes are unchanged. The five-item shared menu ends with
+Property Portfolio, which now participates in active-menu highlighting. The default
+dashboard heading is Property Management with a Property & Owner working heading;
+METSOA and Occupier SOA workspaces use their menu labels without business changes.
+
+The recipient modal defaults to the registered account email but remains editable;
+an entered value, including an invalid/empty submitted value, is retained on failure.
+Explicit Send Email, recipient validation and standardized sender behavior remain.
+
+Print and Email use the same portfolio_pdf.build_portfolio_pdf context/pipeline.
+It reuses the platform HTML renderer, renders each property separately, then merges
+using existing pypdf and ReportLab dependencies. Every page receives the AIT heading,
+its property name/ID, a shared export identifier and global Page X of Y numbering.
+Print opens an authenticated inline PDF using the browser PDF viewer's print control.
+Owner blocks have keep-together rules, compact label/value rows and readable fonts;
+blocks taller than one page can still require splitting. No captured fields were
+removed. Each export is read afresh under the existing manager/active-property scope.
+
+A real four-page, two-property fixture was generated through installed wkhtmltopdf;
+every page was rendered and visually reviewed. Automated checks cover numbering,
+shared identifier, per-page property identification, whole owner blocks and matching
+Print/Email property text. Render's WeasyPrint/native rendering and live mailbox
+delivery still require deployed verification. No production data/flag was changed.

@@ -79,7 +79,7 @@ def property_address(property_id):
 @billing_bp.route("/billing/property-owner/<int:property_id>/edit", methods=["GET", "POST"], endpoint="property_edit")
 @login_required
 def property_edit(property_id):
-    statement = select(BilProperty.id, BilProperty.name, BilProperty.address).where(
+    statement = select(BilProperty.id, BilProperty.name, BilProperty.address, BilProperty.is_archived).where(
         BilProperty.id == property_id, BilProperty.manager_id == current_user.id)
     try:
         property_record = db.session.execute(statement.execution_options(autoflush=False)).mappings().first()
@@ -93,7 +93,7 @@ def property_edit(property_id):
     if request.method == "POST":
         name = request.form.get("property_name", "").strip()
         address = request.form.get("address", "").strip()
-        values.update(name=name, address=address)
+        values.update(name=name, address=address, is_archived=request.form.get("active") != "on")
         if not name or len(name) > 100 or len(address) > 200:
             error = "Enter a name of 1 to 100 characters and an address of no more than 200 characters."
             status = 400
@@ -108,8 +108,8 @@ def property_edit(property_id):
                     error = "Another property in your register already has this name."
                     status = 409
                 else:
-                    updated = db.session.execute(text("UPDATE bil_property SET name=:name,address=:address WHERE id=:property AND manager_id=:manager RETURNING id"),
-                        {"name": name, "address": address, "property": property_id, "manager": current_user.id}).scalar_one_or_none()
+                    updated = db.session.execute(text("UPDATE bil_property SET name=:name,address=:address,is_archived=:archived WHERE id=:property AND manager_id=:manager RETURNING id"),
+                        {"name": name, "address": address, "archived": values["is_archived"], "property": property_id, "manager": current_user.id}).scalar_one_or_none()
                     if updated is None:
                         db.session.rollback()
                         abort(404)
@@ -124,4 +124,17 @@ def property_edit(property_id):
     from app.program_billing.owner_management import owners_enabled, owner_rows
     enabled=owners_enabled()
     return render_pm_template("program_billing/property_edit.html", property=values, error=error,
-        owners_enabled=enabled, assigned_owners=owner_rows(property_id) if enabled else []), status
+        owners_enabled=enabled, assigned_owners=owner_rows(property_id, include_inactive=True) if enabled else []), status
+
+
+def portfolio_page():
+    # Preserve Portfolio visibility: managed, non-archived properties.
+    properties=db.session.execute(select(BilProperty.id, BilProperty.name,
+        BilProperty.address, BilProperty.is_archived).where(
+        BilProperty.manager_id==current_user.id, BilProperty.is_archived==False
+        ).order_by(BilProperty.name,BilProperty.id)).mappings().all()
+    from app.program_billing.owner_management import owners_enabled, owner_rows
+    enabled=owners_enabled()
+    owners={p['id']:owner_rows(p['id'], include_inactive=True) for p in properties} if enabled else {}
+    return render_pm_template("program_billing/property_portfolio.html",
+        properties=properties, owners_by_property=owners, owners_enabled=enabled)

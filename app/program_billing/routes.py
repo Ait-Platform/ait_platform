@@ -162,38 +162,11 @@ def billing_price():
 
     return render_template("program_billing/price.html", settings=settings, price=price_ctx, subject=subject, countries=countries)
 
-@billing_bp.route("/billing/portfolio", methods=["GET", "POST"])
+@billing_bp.get("/billing/portfolio")
 @login_required
 def property_portfolio():
-
-    if request.method == "POST":
-        from app.models.billing import BilProperty
-        # Create property + unit in one go
-        prop = BilProperty(
-            name=request.form["property_name"],
-            address=request.form.get("address", ""),
-            description=request.form.get("description"),
-            manager_id=current_user.id,
-            enrollment_id=_get_billing_enrollment_id(current_user.id)
-        )
-        db.session.add(prop)
-        db.session.flush()
-
-        unit = BilProperty(
-            property_id=prop.id,
-            unit_number=request.form.get("unit_number", "1")
-        )
-        db.session.add(unit)
-        db.session.commit()
-
-        flash("Property and unit added successfully!", "success")
-        return redirect(url_for("billing_bp.property_portfolio"))
-
-    # Normal GET show dashboard data
-    data = get_dashboard_data()
-
-    from app.program_billing.lease_management import render_pm_template
-    return render_pm_template("program_billing/property_portfolio.html", data=data)
+    from app.program_billing.property_management import portfolio_page
+    return portfolio_page()
 
 @billing_bp.route("/billing/property-owner", methods=["GET", "POST"])
 @login_required

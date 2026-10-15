@@ -1,11 +1,11 @@
 {% for owner in assigned_owners %}
 <article class="mt-4 rounded-lg border border-slate-200 p-4">
-  <h3 class="font-semibold">{{ owner.name }} ({{ owner.type }})</h3>
+  <h3 class="font-semibold">{{ owner.name }} ({{ owner.type }}){% if not owner.active %} ? Inactive{% endif %}</h3>
   <dl class="mt-3 grid gap-2 text-sm md:grid-cols-2">{% for key,label in [('identity_number','ID / registration number'),('email','Email'),('phone','Telephone'),('residential_address','Residential / registered address'),('postal_address','Postal address'),('ownership_percentage','Ownership percentage')] %}<div><dt class="font-semibold">{{ label }}</dt><dd class="whitespace-pre-wrap">{{ owner[key] if owner[key] is not none else 'Not recorded' }}</dd></div>{% endfor %}</dl>
   <div class="mt-4 flex flex-wrap gap-3">
-    {% if owner.created_by == current_user.id %}<button type="button" data-owner-edit="{{ owner|tojson|forceescape }}" data-owner-edit-url="{{ url_for('billing_bp.owner_edit', owner_id=owner.owner_id) }}" class="rounded-lg border border-slate-300 px-3 py-2">Edit Shared Owner Details</button>{% endif %}
+    {% if owner.created_by == current_user.id %}<button type="button" data-owner-edit="{{ owner|tojson|forceescape }}" data-owner-property-id="{{ property.id }}" data-owner-property-name="{{ property.name }}" data-owner-edit-url="{{ url_for('billing_bp.owner_edit', owner_id=owner.owner_id) }}" class="rounded-lg border border-slate-300 px-3 py-2">Edit Shared Owner Details</button>{% endif %}
     <button type="button" data-assignment-action="percentage" data-assignment-url="{{ url_for('billing_bp.owner_assignment_edit', property_id=property.id, assignment_id=owner.assignment_id) }}" class="rounded-lg border border-slate-300 px-3 py-2">Edit This Property's Percentage</button>
-    <button type="button" data-assignment-action="remove" data-assignment-url="{{ url_for('billing_bp.owner_assignment_edit', property_id=property.id, assignment_id=owner.assignment_id) }}" class="rounded-lg border border-red-200 px-3 py-2 text-red-700">Remove This Property's Assignment</button>
+    <label class="flex items-center gap-2"><input type="checkbox" data-assignment-status data-assignment-url="{{ url_for('billing_bp.owner_assignment_edit', property_id=property.id, assignment_id=owner.assignment_id) }}" {% if owner.active %}checked{% endif %}>Active</label>
   </div>
 </article>{% else %}<p class="mt-3 text-sm text-slate-600">No current owner assignments recorded.</p>{% endfor %}
 <p class="mt-3 text-sm text-slate-600">Shared owner detail edits affect that identity across properties. Percentage edits and assignment removal affect only this property.</p>

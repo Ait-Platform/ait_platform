@@ -114,17 +114,19 @@ class PropertyNavigationTests(unittest.TestCase):
         }), FileSystemLoader(ROOT / 'templates')]))
         env.globals['url_for'] = lambda endpoint, **kw: '/fixture/' + endpoint
         env.globals['csrf_token'] = lambda: 'test-token'
+        env.globals['current_user'] = dict(id=7)
         data = [dict(property_id=12, property_name='Existing property', address='', is_archived=False)]
         html = env.get_template('program_billing/property_owner.html').render(properties=[dict(id=12, name='Existing property', address='', is_archived=False)], property_name='', error=None)
         for label in ('Property &amp; Owner', 'Lease Management', 'METSOA', 'Occupier SOA', 'Property Portfolio'):
             self.assertIn(label, html)
         self.assertIn('/fixture/billing_bp.property_portfolio', html)
         self.assertIn('Existing property', html)
-        portfolio = env.get_template('program_billing/property_portfolio.html').render(data=data)
-        for endpoint in ('architecture_summary', 'delete_property'):
-            self.assertIn('/fixture/billing_bp.' + endpoint, portfolio)
-        self.assertIn('Existing property', portfolio)
-        self.assertIn('Edit &mdash; Coming Soon', portfolio)
+        portfolio = env.get_template('program_billing/property_portfolio.html').render(properties=[dict(id=12,name='Existing property',address='Saved address',is_archived=False)], owners_enabled=False)
+        self.assertNotIn('<form',portfolio)
+        self.assertNotIn('<button',portfolio)
+        self.assertNotIn('delete_property',portfolio)
+        self.assertIn('Existing property',portfolio)
+        self.assertIn('Saved address',portfolio)
         self.assertNotIn('billing_bp.setup_wizard', portfolio)
 
     def test_other_managers_excluded_even_when_showing_archived_properties(self):
@@ -149,6 +151,7 @@ class PropertyNavigationTests(unittest.TestCase):
         env=Environment(loader=ChoiceLoader([DictLoader({'layout.html':'{% block content %}{% endblock %}','partials/flash_messages.html':''}),FileSystemLoader(ROOT/'templates')]))
         env.globals['url_for']=lambda endpoint,**kwargs:'/fixture/'+endpoint
         env.globals['csrf_token']=lambda:'synthetic'
+        env.globals['current_user']=dict(id=7)
         context=dict(properties=[],selected_property=None,parties={},duration={},duration_days=None,error=None,leases=[],available=False,associated=False,property_name='',debtors=[],total_owed=0,start_date='',end_date='',current_month='2026-10')
         for page,endpoint in [('property_owner','learner_dashboard'),('lease_management','pm_lease_management'),('lease_property','pm_lease_management'),('lease_parties','pm_lease_management'),('lease_duration','pm_lease_management'),('utilities_hub','utilities_hub'),('tenant_accounts','tenant_accounts')]:
             with self.subTest(page=page):

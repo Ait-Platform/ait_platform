@@ -1,6 +1,6 @@
 <dialog data-manager-id="{{ current_user.id }}" data-owners-enabled="{{ 'true' if owners_enabled else 'false' }}" data-csrf="{{ csrf_token() }}" data-owner-search-url="{{ url_for('billing_bp.owner_search') }}" id="owner-assignment-preview" class="w-full max-w-3xl rounded-xl border border-slate-200 p-6 shadow-xl">
   <div class="flex items-center justify-between gap-4"><h2 class="text-xl font-semibold">Assign Owner: <span id="owner-property-name"></span></h2><button type="button" id="owner-preview-close" class="rounded-lg bg-slate-100 px-3 py-2">Close</button></div>
-  <p role="status" class="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">{% if owners_enabled %}Save Owner saves or reuses an owner and assigns them to the selected property together. Shared identity edits affect all properties using that identity.{% else %}Owner registration is not yet available.{% endif %}</p>
+  <p role="status" class="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">{% if owners_enabled %}Saving creates or reuses an owner and assigns them to the selected property together. Shared identity edits affect all properties using that identity.{% else %}Owner registration is not yet available.{% endif %}</p>
   <div class="mt-4 flex flex-wrap gap-3">
     <button type="button" data-owner-tab="new" aria-pressed="true" class="rounded-lg border border-slate-300 bg-orange-50 px-4 py-2 font-semibold">Register New Owner</button>
     <button type="button" data-owner-tab="existing" aria-pressed="false" class="rounded-lg border border-slate-300 px-4 py-2 font-semibold">Select Existing Owner</button>
@@ -17,8 +17,8 @@
       <div><label for="owner-{{ key }}" class="mb-2 block text-sm font-semibold">{{ label }}</label><textarea id="owner-{{ key }}" data-owner-field="{{ key }}" rows="3" maxlength="500" class="w-full rounded-lg border border-slate-300 px-3 py-2"></textarea></div>
       {% endfor %}
     </div>
+    <label class="mt-4 flex items-center gap-2 text-sm font-medium"><input id="owner-active" type="checkbox" checked>Active</label>
     <label class="mt-4 flex items-center gap-2 text-sm font-medium"><input id="owner-postal-same" type="checkbox" class="rounded border-slate-300">Postal address same as residential / registered address</label>
-    <div class="mt-4 flex justify-end"><button type="button" id="owner-add-preview" {% if not owners_enabled %}disabled{% endif %} class="rounded-lg border border-orange-300 bg-orange-50 px-4 py-2 font-semibold text-orange-900">Save and Add Another Owner</button></div>
   </section>
   <section data-owner-panel="existing" hidden class="mt-5">
     <label for="owner-search" class="mb-2 block text-sm font-semibold">Search accessible existing owners</label>
@@ -28,8 +28,9 @@
     <p class="mt-3 text-sm text-slate-600">Existing identities will be reused. {% if not owners_enabled %}No owner records are queried in this preview.{% endif %}</p>
     {% if not owners_enabled %}<button type="button" disabled class="mt-4 rounded-lg border border-slate-200 bg-slate-100 px-4 py-2 text-slate-500">Select Owner &mdash; Schema Required</button>{% endif %}
   </section>
+    <div class="mt-4 flex justify-end"><button type="button" id="owner-add-preview" {% if not owners_enabled %}disabled{% endif %} class="rounded-lg border border-orange-300 bg-orange-50 px-4 py-2 font-semibold text-orange-900">Save and Add Another Owner</button></div>
   <p id="owner-preview-message" role="status" class="mt-3 text-sm text-slate-600"></p>
-  <div class="mt-5 flex justify-end"><button type="button" {% if not owners_enabled %}disabled{% endif %} id="owner-save-disabled" aria-describedby="owner-save-explanation" class="rounded-lg border border-slate-200 bg-slate-100 px-4 py-2 font-semibold text-slate-500">Save Owner</button></div>
+  <div class="mt-5 flex justify-end"><button type="button" {% if not owners_enabled %}disabled{% endif %} id="owner-save-disabled" aria-describedby="owner-save-explanation" class="rounded-lg border border-slate-200 bg-slate-100 px-4 py-2 font-semibold text-slate-500" hidden>Save Changes</button></div>
   <p id="owner-save-explanation" class="mt-2 text-sm text-slate-600">{% if not owners_enabled %}Owner registration is not yet available.{% endif %}</p>
 </dialog>
 <script>
@@ -38,6 +39,7 @@
 
   const enabled = dialog.dataset.ownersEnabled === 'true';
   const fields = Array.from(dialog.querySelectorAll('[data-owner-field]'));
+  const active = document.getElementById('owner-active');
   const samePostal = document.getElementById('owner-postal-same');
   const residential = document.getElementById('owner-residential_address');
   const postal = document.getElementById('owner-postal_address');
@@ -54,7 +56,7 @@
   residential.addEventListener('input', syncPostal);
   function resetFields() {
     for (const field of fields) field.value = '';
-    samePostal.checked = false; syncPostal();
+    samePostal.checked = false; active.checked = true; syncPostal();
     document.getElementById('owner-percentage').disabled = false;
     document.getElementById('owner-identity_number').required = enabled;
     existing.value = '';
@@ -67,7 +69,8 @@
       button.setAttribute('aria-pressed', String(button.dataset.ownerTab === key));
       button.disabled = Boolean(editUrl);
     }
-    another.hidden = Boolean(editUrl) || key !== 'new';
+    another.hidden = Boolean(editUrl);
+    save.hidden = !editUrl;
   }
   async function api(url, method, payload) {
     const response = await fetch(url, {method, credentials:'same-origin', headers:{'Content-Type':'application/json','X-CSRFToken':dialog.dataset.csrf}, ...(payload ? {body:JSON.stringify(payload)} : {})});
@@ -80,6 +83,8 @@
     const owner = JSON.parse(button.dataset.ownerEdit);
     resetFields(); editUrl = button.dataset.ownerEditUrl; mode = 'new';
     selectedProperty = button.dataset.ownerPropertyId || null;
+    active.checked = owner.active !== false;
+    dialog.dataset.assignmentId = owner.assignment_id;
     document.getElementById('owner-property-name').textContent = button.dataset.ownerPropertyName || owner.name;
     for (const field of fields) field.value = owner[field.dataset.ownerField] ?? '';
     document.getElementById('owner-percentage').value = owner.ownership_percentage ?? '';
@@ -103,6 +108,7 @@
       button.textContent = owner.name;
       button.dataset.ownerEdit = JSON.stringify(owner);
       button.dataset.ownerPropertyId = String(result.property_id);
+      button.dataset.ownerPropertyName = document.getElementById('owner-property-name').textContent;
       button.dataset.ownerEditUrl = '/billing/property-owner/owners/' + owner.owner_id;
       button.addEventListener('click', () => openEdit(button));
       line.appendChild(button); cell.appendChild(line);
@@ -139,7 +145,8 @@
     } else {
       if (!fields.every(field => field.reportValidity())) return;
       payload = Object.fromEntries(fields.map(field => [field.dataset.ownerField,field.value.trim()]));
-      payload.postal_same = samePostal.checked;
+      payload.postal_same = samePostal.checked; payload.active = active.checked;
+      if (editUrl) {payload.property_id=Number(selectedProperty); payload.assignment_id=Number(dialog.dataset.assignmentId);}
     }
     saving = true; save.disabled = true; another.disabled = true;
     try {
@@ -160,6 +167,13 @@
   }
   save.addEventListener('click', () => persist(false));
   another.addEventListener('click', () => persist(true));
+  for (const checkbox of document.querySelectorAll('[data-assignment-status]')) checkbox.addEventListener('change', async () => {
+    if (!enabled) {checkbox.checked=!checkbox.checked;return;}
+    checkbox.disabled=true;
+    try {await api(checkbox.dataset.assignmentUrl,'PATCH',{active:checkbox.checked});window.location.reload();}
+    catch(error) {checkbox.checked=!checkbox.checked;alert(error.message);}
+    finally {checkbox.disabled=false;}
+  });
   for (const button of document.querySelectorAll('[data-assignment-action]')) button.addEventListener('click', async () => {
     if (!enabled) return;
     let payload, method;

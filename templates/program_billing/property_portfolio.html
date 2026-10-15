@@ -1,102 +1,23 @@
 {% extends "layout.html" %}
-{% block title %}Property Management Dashboard{% endblock %}
-
+{% block title %}Property Portfolio{% endblock %}
+{% block flashes %}{% endblock %}
 {% block content %}
-<div class="min-h-screen bg-slate-50 py-12 px-4 sm:px-6 lg:px-8 font-sans">
-  <div class="max-w-7xl mx-auto space-y-8">
-    
-    {% include "partials/flash_messages.html" %}
-
-    <!-- The Tile -->
-    <div class="bg-white rounded-xl shadow overflow-hidden border border-slate-200">
-      <div class="h-2 bg-orange-500"></div>
-      
-      <div class="p-6">
-        <!-- Row 1: Title on left, Back button on right -->
-        <div class="flex items-center justify-between mb-2">
-          <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight">Property Portfolio</h1>
-          <a href="{{ url_for('billing_bp.learner_dashboard') }}" class="inline-flex items-center px-4 py-2 bg-slate-100 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-200 transition">
-            <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
-            Back
-          </a>
-        </div>
-        
-        <!-- Row 2: Dashboard Navigation -->
-        <div class="flex space-x-1 border-b border-slate-200 mb-6">
-          <a href="{{ url_for('billing_bp.learner_dashboard') }}" class="px-5 py-3 text-sm font-medium text-slate-500 hover:text-slate-700 hover:border-slate-300 border-b-2 border-transparent transition-colors">
-            Billing Dashboard
-          </a>
-        </div>
-        
-        <!-- Row 3: Subheading on left, Add Property on right -->
-        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-8">
-          <p class="text-sm text-slate-500 mt-1">Manage your properties, meters, and billing configurations.</p>
-          <div class="mt-4 sm:mt-0">
-            <a href="{{ url_for('billing_bp.property_owner') }}" class="inline-flex items-center bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded-xl transition shadow-md">Property &amp; Owner</a>
-          </div>
-        </div>
-
-        <!-- Property Data Table -->
-        <div class="overflow-x-auto rounded-lg border border-slate-200">
-        <table class="w-full text-left border-collapse min-w-max">
-          <thead>
-            <tr class="bg-slate-50 text-slate-500 text-xs font-semibold uppercase tracking-wider border-b border-slate-200">
-              <th class="px-6 py-4">Property</th>
-              <th class="px-6 py-4">Map</th>
-              <th class="px-6 py-4">Edit</th>
-              <th class="px-6 py-4 text-right">Delete</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-slate-100">
-            {% for row in data %}
-            <tr class="hover:bg-slate-50 transition duration-150">
-              <td class="px-6 py-4">
-                <div class="font-bold text-slate-800">{{ row.property_name }}</div>
-                <div class="text-xs text-slate-400 mt-0.5">ID: {{ row.property_id }}</div>
-              </td>
-              <td class="px-6 py-4">
-                <a href="{{ url_for('billing_bp.architecture_summary', property_id=row.property_id) }}" class="inline-flex items-center px-3 py-1.5 bg-blue-50 text-blue-700 text-xs font-bold rounded-lg hover:bg-blue-100 transition border border-blue-100">
-                  <svg class="w-3.5 h-3.5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"></path></svg>
-                  View Map
-                </a>
-              </td>
-              <td class="px-6 py-4">
-                <button type="button" disabled class="inline-flex items-center px-3 py-1.5 bg-slate-100 text-slate-500 text-xs font-bold rounded-lg border border-slate-200">Edit &mdash; Coming Soon</button>
-              </td>
-              <td class="px-6 py-4 text-right">
-                <form action="{{ url_for('billing_bp.delete_property', property_id=row.property_id) }}" method="POST" class="inline" data-name="{{ row.property_name }}" onsubmit="return confirmDelete(event, this.getAttribute('data-name'))">
-                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <button type="submit" class="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition" title="Delete Property">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                  </button>
-                </form>
-              </td>
-            </tr>
-            {% else %}
-            <tr>
-              <td colspan="4" class="px-6 py-12 text-center">
-                <div class="flex flex-col items-center justify-center">
-                  <svg class="w-12 h-12 text-slate-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
-                  <p class="text-slate-500 font-medium">No properties found in your portfolio.</p>
-                  <p class="text-sm text-slate-400 mt-1">Visit Property &amp; Owner for registration updates.</p>
-                </div>
-              </td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </div>
+<div class="mx-auto max-w-6xl px-4 py-10">
+ <div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow">
+  <div class="h-2 bg-orange-500"></div>
+  <div class="p-6">
+   {% include "partials/flash_messages.html" %}
+   <div class="flex items-center justify-between gap-4"><h1 class="text-2xl font-semibold">Property Portfolio</h1><a href="{{ url_for('billing_bp.learner_dashboard') }}" class="rounded-lg bg-slate-100 px-4 py-2">Back</a></div>
+   <p class="mt-4 text-sm text-slate-600">Saved property information. This Portfolio is read-only. Inactive properties remain accessible in My Properties.</p>
+   <div class="mt-4 overflow-x-auto"><table class="w-full text-left text-sm">
+    <thead class="bg-slate-50"><tr><th class="p-3">Property</th><th class="p-3">Address</th><th class="p-3">Owners</th></tr></thead>
+    <tbody>{% for property in properties %}<tr class="border-t border-slate-200">
+     <td class="p-3">{{ property.name }}<span class="block text-xs text-slate-500">Active · ID {{ property.id }}</span></td>
+     <td class="p-3 whitespace-pre-wrap">{{ property.address or 'Not recorded' }}</td>
+     <td class="p-3">{% if owners_enabled %}{% for owner in owners_by_property.get(property.id, []) %}<div>{{ owner.name }}{% if not owner.active %} <span class="text-slate-500">(Inactive)</span>{% endif %}</div>{% else %}No registered owners{% endfor %}{% else %}Owner information is not yet available.{% endif %}</td>
+    </tr>{% else %}<tr><td colspan="3" class="p-3">No active properties.</td></tr>{% endfor %}</tbody>
+   </table></div>
   </div>
+ </div>
 </div>
-
-<script>
-function confirmDelete(event, propertyName) {
-    if (!confirm(`Are you absolutely sure you want to delete '${propertyName}'? This action cannot be undone.`)) {
-        event.preventDefault();
-        return false;
-    }
-    return true;
-}
-</script>
 {% endblock %}

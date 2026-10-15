@@ -5,6 +5,7 @@ from flask import abort, current_app, jsonify, request
 from flask_login import current_user, login_required
 from sqlalchemy import inspect, text
 from sqlalchemy.exc import SQLAlchemyError
+from werkzeug.exceptions import HTTPException
 from app.extensions import db
 from app.program_billing.routes import billing_bp
 
@@ -34,6 +35,9 @@ def guarded(function):
     def wrapped(*args,**kwargs):
         if not owners_enabled():return jsonify(error='Owner registration is not yet available.'),503
         try:return function(*args,**kwargs)
+        except HTTPException:
+            db.session.rollback()
+            raise
         except SQLAlchemyError as error:
             db.session.rollback()
             current_app.logger.error('PM owner operation failed error=%s',type(error).__name__)
@@ -51,13 +55,14 @@ def accessible_owner(owner_id):
         (o.created_by=:u OR EXISTS (SELECT 1 FROM bil_property_ownership a JOIN bil_property p ON p.id=a.property_id WHERE a.owner_id=o.id AND p.manager_id=:u)) FOR SHARE"""),{'o':owner_id,'u':current_user.id}).mappings().first()
 
 
-def owner_rows(property_id):
+def owner_rows(property_id, include_inactive=False):
     return [dict(r) for r in db.session.execute(text("""SELECT a.id AS assignment_id,a.ownership_percentage,o.id AS owner_id,
+        ((a.effective_to IS NULL OR a.effective_to>CURRENT_DATE) AND (a.effective_from IS NULL OR a.effective_from<=CURRENT_DATE)) AS active,
         o.identity_type AS type,o.display_name AS name,o.identity_number,o.email,o.phone,o.residential_address,o.postal_address,o.created_by
         FROM bil_property_ownership a JOIN bil_owner_identity o ON o.id=a.owner_id JOIN bil_property p ON p.id=a.property_id
         WHERE a.property_id=:p AND p.manager_id=:u AND NOT EXISTS(SELECT 1 FROM bil_property_ownership newer WHERE newer.supersedes_id=a.id)
-        AND (a.effective_to IS NULL OR a.effective_to>CURRENT_DATE) AND (a.effective_from IS NULL OR a.effective_from<=CURRENT_DATE)
-        ORDER BY a.id"""),{'p':property_id,'u':current_user.id}).mappings().all()]
+        AND (:inactive OR ((a.effective_to IS NULL OR a.effective_to>CURRENT_DATE) AND (a.effective_from IS NULL OR a.effective_from<=CURRENT_DATE)))
+        ORDER BY a.id"""),{'p':property_id,'u':current_user.id,'inactive':include_inactive}).mappings().all()]
 
 
 def fields(payload):
@@ -96,6 +101,7 @@ def owner_search():
 def owner_assign(property_id):
     payload=request.get_json(silent=True)
     if not isinstance(payload,dict):abort(400)
+    if 'active' in payload and type(payload['active']) is not bool:abort(400)
     lock_property(property_id)
     share=percentage(payload)
     owner_id=payload.get('owner_id')
@@ -112,9 +118,14 @@ def owner_assign(property_id):
         if owner_id is None:
             owner_id=db.session.execute(text("""INSERT INTO bil_owner_identity(identity_type,display_name,identity_number,email,phone,residential_address,postal_address,created_by)
                 VALUES (:type,:name,NULLIF(:identity_number,''),:email,:phone,:residential_address,:postal_address,:u) RETURNING id"""),values).scalar_one()
-    existing=next((r for r in owner_rows(property_id) if r['owner_id']==owner_id),None)
+    existing=next((r for r in owner_rows(property_id, include_inactive=True) if r['owner_id']==owner_id),None)
+    if existing is not None and not existing['active']:
+        change_assignment(property_id,existing['assignment_id'],{'active':True,'percentage':payload.get('percentage')})
     if existing is None:
         db.session.execute(text('INSERT INTO bil_property_ownership(property_id,owner_id,created_by,ownership_percentage) VALUES (:p,:o,:u,:s)'),{'p':property_id,'o':owner_id,'u':current_user.id,'s':share})
+    if payload.get('active') is False:
+        assignment=next((r for r in owner_rows(property_id) if r['owner_id']==owner_id),None)
+        if assignment:change_assignment(property_id,assignment['assignment_id'],{'active':False})
     result=owner_rows(property_id)
     db.session.commit()
     return jsonify(owners=result,property_id=property_id)
@@ -125,10 +136,17 @@ def owner_assign(property_id):
 def owner_edit(owner_id):
     payload=request.get_json(silent=True)
     if not isinstance(payload,dict):abort(400)
+    if 'active' in payload:
+        property_id=payload.get('property_id');assignment_id=payload.get('assignment_id')
+        if type(property_id) is not int or type(assignment_id) is not int:abort(400)
+        lock_property(property_id)
+        match=db.session.execute(text('SELECT owner_id FROM bil_property_ownership WHERE id=:a AND property_id=:p'),{'a':assignment_id,'p':property_id}).scalar_one_or_none()
+        if match!=owner_id:abort(404)
     values=fields(payload);values.update(o=owner_id,u=current_user.id)
     updated=db.session.execute(text("""UPDATE bil_owner_identity SET identity_type=:type,display_name=:name,identity_number=NULLIF(:identity_number,''),email=:email,phone=:phone,residential_address=:residential_address,postal_address=:postal_address
         WHERE id=:o AND created_by=:u RETURNING id"""),values).scalar_one_or_none()
     if updated is None:abort(404)
+    if 'active' in payload:change_assignment(property_id,assignment_id,{'active':payload['active']})
     db.session.commit()
     return jsonify(owner_id=updated)
 
@@ -139,13 +157,28 @@ def owner_assignment_edit(property_id,assignment_id):
     lock_property(property_id)
     old=db.session.execute(text('SELECT * FROM bil_property_ownership WHERE id=:a AND property_id=:p AND NOT EXISTS(SELECT 1 FROM bil_property_ownership n WHERE n.supersedes_id=:a)'),{'a':assignment_id,'p':property_id}).mappings().first()
     if old is None:abort(404)
-    if request.method=='PATCH':
-        payload=request.get_json(silent=True)
-        if not isinstance(payload,dict):abort(400)
-        share=percentage(payload);end=old['effective_to']
-    else:
-        share=old['ownership_percentage'];end=db.session.execute(text('SELECT CURRENT_DATE')).scalar_one()
-    db.session.execute(text('INSERT INTO bil_property_ownership(property_id,owner_id,created_by,ownership_percentage,supersedes_id,effective_from,effective_to) VALUES (:p,:o,:u,:s,:a,:start,:end)'),
-        {'p':property_id,'o':old['owner_id'],'u':current_user.id,'s':share,'a':assignment_id,'start':old['effective_from'],'end':end})
+    payload=request.get_json(silent=True) if request.method=='PATCH' else {'active':False}
+    if not isinstance(payload,dict):abort(400)
+    change_assignment(property_id,assignment_id,payload,old)
     result=owner_rows(property_id);db.session.commit()
     return jsonify(owners=result,property_id=property_id)
+
+
+def change_assignment(property_id,assignment_id,payload,old=None):
+    if old is None:
+        old=db.session.execute(text('SELECT * FROM bil_property_ownership WHERE id=:a AND property_id=:p AND NOT EXISTS(SELECT 1 FROM bil_property_ownership n WHERE n.supersedes_id=:a)'),{'a':assignment_id,'p':property_id}).mappings().first()
+    if old is None:abort(404)
+    share=percentage(payload) if 'percentage' in payload else old['ownership_percentage']
+    start=old['effective_from'];end=old['effective_to']
+    if 'active' in payload:
+        if type(payload['active']) is not bool:abort(400)
+        today=db.session.execute(text('SELECT CURRENT_DATE')).scalar_one()
+        was_active=(end is None or end>today) and (start is None or start<=today)
+        if payload['active']==was_active and share==old['ownership_percentage']:return
+        if payload['active']:
+            start=today;end=None
+        else:
+            end=today
+            if start is not None and start>today:start=today
+    db.session.execute(text('INSERT INTO bil_property_ownership(property_id,owner_id,created_by,ownership_percentage,supersedes_id,effective_from,effective_to) VALUES (:p,:o,:u,:s,:a,:start,:end)'),
+        {'p':property_id,'o':old['owner_id'],'u':current_user.id,'s':share,'a':assignment_id,'start':start,'end':end})

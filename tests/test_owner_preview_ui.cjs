@@ -22,7 +22,7 @@ const keys = ['type', 'name', 'identity_number', 'email', 'phone', 'percentage',
 const fields = keys.map(key => new Element({ownerField: key}));
 const ids = {};
 for (const [i, key] of keys.entries()) ids['owner-' + (key === 'type' ? 'kind' : key)] = fields[i];
-for (const id of ['owner-assignment-preview','owner-postal-same','owner-property-name','owner-preview-list','owner-preview-message','owner-preview-close','owner-add-preview','owner-save-disabled','owner-existing-selection','owner-existing-percentage','owner-search']) ids[id] = new Element();
+for (const id of ['owner-assignment-preview','owner-active','owner-postal-same','owner-property-name','owner-preview-list','owner-preview-message','owner-preview-close','owner-add-preview','owner-save-disabled','owner-existing-selection','owner-existing-percentage','owner-search']) ids[id] = new Element();
 const opener = new Element({propertyId: '26', propertyName: 'Almond'});
 const tabs = [new Element({ownerTab: 'new'}), new Element({ownerTab: 'existing'})];
 const panels = [new Element({ownerPanel: 'new'}), new Element({ownerPanel: 'existing'})];
@@ -41,7 +41,7 @@ ids['owner-add-preview'].fire('click');
 assert.equal(fields[1].value,'Not saved'); // gate never clears unsaved details
 tabs[1].fire('click'); assert.equal(panels[0].hidden, true); assert.equal(panels[1].hidden, false);
 ids['owner-preview-close'].fire('click'); opener.fire('click'); assert.equal(same.checked, false); assert.equal(postal.readOnly, false);
-assert.ok(source.includes('{% if not owners_enabled %}disabled{% endif %} id="owner-save-disabled"')); assert.match(source, />Save Owner<\/button>/);
+assert.ok(source.includes('{% if not owners_enabled %}disabled{% endif %} id="owner-save-disabled"')); assert.match(source, />Save Changes<\/button>/);
 ids['owner-save-disabled'].fire('click'); assert.equal(ids['owner-assignment-preview'].open, true); // gate blocks saving in preview
 console.log('Owner modal checks passed: postal copy/sync, separate address, resets, disabled save-and-add, tabs and disabled saving.');
 

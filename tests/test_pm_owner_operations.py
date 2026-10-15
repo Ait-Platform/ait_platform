@@ -123,6 +123,80 @@ class OwnerOperationsTests(unittest.TestCase):
         self.assertEqual(self.sql('SELECT count(*) FROM bil_property WHERE id=26').scalar(),1)
         self.assertEqual(self.sql('SELECT count(*) FROM bil_property_ownership WHERE property_id=26').scalar(),3)
 
+    def test_portfolio_readonly_and_three_columns(self):
+        for i in range(3):self.assign(name=f'Portfolio owner {i}',identity_number=f'PORT-{i}')
+        self.assertEqual(self.client.post('/billing/portfolio',data={'property_name':'Forbidden'}).status_code,405)
+        html=self.client.get('/billing/portfolio').get_data(as_text=True)
+        for value in ('Almond','Original address','Portfolio owner 0','Portfolio owner 1','Portfolio owner 2'):
+            self.assertIn(value,html)
+        self.assertNotIn('<form',html);self.assertNotIn('<button',html)
+        self.assertNotIn('data-owner-edit',html)
+        table=self.client.get('/billing/property-owner').get_data(as_text=True)
+        self.assertEqual(table.count('<th class="p-3">'),3)
+        self.assertIn('href="/billing/property-owner/26/edit"',table)
+        self.assertIn('data-address-dialog="address-26"',table)
+        self.assertNotIn('>Save Owner</button>',table)
+        self.assertIn('Save and Add Another Owner',table)
+        self.client.post('/billing/property-owner/26/edit',data={'property_name':'Changed','address':'Saved address','active':'on'})
+        refreshed=self.client.get('/billing/portfolio').get_data(as_text=True)
+        self.assertIn('Changed',refreshed);self.assertIn('Saved address',refreshed)
+        self.sign_in(8)
+        self.assertNotIn('Portfolio owner',self.client.get('/billing/portfolio').get_data(as_text=True))
+
+    def test_deactivate_reactivate_one_owner_preserves_other_two_and_history(self):
+        ids=[]
+        for i in range(3):
+            result=self.assign(name=f'Status owner {i}',identity_number=f'ST-{i}').get_json()
+            ids.append(result['owners'][-1]['owner_id'])
+        owner=result['owners'][0]
+        url=f"/billing/property-owner/26/assignments/{owner['assignment_id']}"
+        response=self.client.patch(url,json={'active':False})
+        self.assertEqual(response.status_code,200)
+        self.assertEqual(len(response.get_json()['owners']),2)
+        current=self.client.get('/billing/property-owner').get_data(as_text=True)
+        self.assertNotIn('Status owner 0',current)
+        edit=self.client.get('/billing/property-owner/26/edit').get_data(as_text=True)
+        self.assertIn('Status owner 0',edit);self.assertIn('Inactive',edit)
+        portfolio=self.client.get('/billing/portfolio').get_data(as_text=True)
+        self.assertIn('Status owner 0',portfolio);self.assertIn('(Inactive)',portfolio)
+        terminal=self.sql('SELECT id FROM bil_property_ownership WHERE owner_id='+str(owner['owner_id'])+' ORDER BY id DESC LIMIT 1').scalar()
+        response=self.client.patch(f'/billing/property-owner/26/assignments/{terminal}',json={'active':True})
+        self.assertEqual(response.status_code,200)
+        self.assertEqual(len(response.get_json()['owners']),3)
+        self.assertEqual(self.sql('SELECT count(*) FROM bil_owner_identity').scalar(),3)
+        self.assertEqual(self.sql('SELECT count(*) FROM bil_property_ownership').scalar(),5)
+        self.assertEqual(self.sql('SELECT count(*) FROM bil_property_ownership WHERE owner_id<>'+str(owner['owner_id'])).scalar(),2)
+        self.assertIn('Status owner 0',self.client.get('/billing/property-owner').get_data(as_text=True))
+
+    def test_property_active_reactivation_and_owner_modal_status(self):
+        self.client.post('/billing/property-owner/26/edit',data={'property_name':'Almond','address':'Original address'})
+        self.assertTrue(self.sql('SELECT is_archived FROM bil_property WHERE id=26').scalar())
+        self.assertIn('Almond',self.client.get('/billing/property-owner').get_data(as_text=True))
+        self.assertNotIn('Almond',self.client.get('/billing/portfolio').get_data(as_text=True))
+        self.client.post('/billing/property-owner/26/edit',data={'property_name':'Almond','address':'Original address','active':'on'})
+        self.assertFalse(self.sql('SELECT is_archived FROM bil_property WHERE id=26').scalar())
+        owner=self.assign().get_json()['owners'][0]
+        payload=self.payload(active=False,property_id=26,assignment_id=owner['assignment_id'])
+        response=self.client.patch(f"/billing/property-owner/owners/{owner['owner_id']}",json=payload)
+        self.assertEqual(response.status_code,200)
+        self.assertNotIn('Owner One',self.client.get('/billing/property-owner').get_data(as_text=True))
+
+    def test_atomic_status_identity_edit_rollback_and_scoped_reactivation(self):
+        owner=self.assign().get_json()['owners'][0]
+        self.client.post('/billing/property-owner/28/owners',json={'owner_id':owner['owner_id']})
+        bad=self.payload(name='Must roll back',active='invalid',property_id=26,assignment_id=owner['assignment_id'])
+        response=self.client.patch(f"/billing/property-owner/owners/{owner['owner_id']}",json=bad)
+        self.assertEqual(response.status_code,400)
+        self.assertEqual(self.sql('SELECT display_name FROM bil_owner_identity').scalar(),'Owner One')
+        response=self.client.patch(f"/billing/property-owner/26/assignments/{owner['assignment_id']}",json={'active':False})
+        self.assertEqual(response.status_code,200)
+        self.assertEqual(self.sql('SELECT count(*) FROM bil_property_ownership WHERE property_id=28').scalar(),1)
+        # Selecting the existing identity reactivates by supersession, not a duplicate identity.
+        response=self.client.post('/billing/property-owner/26/owners',json={'owner_id':owner['owner_id']})
+        self.assertEqual(len(response.get_json()['owners']),1)
+        self.assertEqual(self.sql('SELECT count(*) FROM bil_owner_identity').scalar(),1)
+        self.assertEqual(self.sql('SELECT count(*) FROM bil_property_ownership WHERE property_id=28').scalar(),1)
+
     def test_disabled_flag_denies_all_owner_operations(self):
         self.app.config['PM_OWNER_WRITES_APPROVED']=False
         with patch.object(self.session,'execute',side_effect=AssertionError('Disabled owner routes must not query database')):

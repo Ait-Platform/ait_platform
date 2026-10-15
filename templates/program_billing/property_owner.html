@@ -27,21 +27,21 @@
       <p class="mt-2 text-sm text-slate-600">Existing properties are listed automatically. Edit property names and addresses below. {% if owners_enabled %}Assign new or existing owners using the modal.{% else %}Owner assignment remains unavailable until the ownership schema is ready.{% endif %}</p>
       <div class="mt-4 overflow-x-auto rounded-lg border border-slate-200">
         <table class="w-full text-left text-sm">
-          <thead class="bg-slate-50"><tr><th class="p-3">Property</th><th class="p-3">Address</th><th class="p-3">Owners</th><th class="p-3">Actions</th></tr></thead>
+          <thead class="bg-slate-50"><tr><th class="p-3">Property</th><th class="p-3">Address</th><th class="p-3">Owners</th></tr></thead>
           <tbody>
             {% for property in properties %}
             <tr class="border-t border-slate-200">
-              <td class="p-3 font-semibold">{{ property.name }}{% if property.is_archived %}<span class="ml-2 text-xs text-slate-500">Archived</span>{% endif %}</td>
+              <td class="p-3 font-semibold"><a href="{{ url_for('billing_bp.property_edit', property_id=property.id) }}" class="text-blue-700 underline">{{ property.name }}</a>{% if property.is_archived %}<span class="ml-2 text-xs text-slate-500">Archived</span>{% endif %}</td>
               <td class="p-3"><button type="button" data-address-dialog="address-{{ property.id }}" class="text-blue-700 underline">{{ property.address or 'Assign Address' }}</button></td>
               <td class="p-3" data-property-owners="{{ property.id }}">
                 <div data-owner-names class="space-y-1">{% if owners_enabled %}{% for owner in owners_by_property.get(property.id, []) %}
                   <div><button type="button" data-owner-edit="{{ owner|tojson|forceescape }}" data-owner-property-id="{{ property.id }}" data-owner-property-name="{{ property.name }}" data-owner-edit-url="{{ url_for('billing_bp.owner_edit', owner_id=owner.owner_id) }}" class="text-blue-700 underline">{{ owner.name }}</button></div>
                 {% endfor %}{% endif %}</div>
-                <button type="button" data-open-owner data-property-id="{{ property.id }}" data-property-name="{{ property.name }}" class="mt-2 text-blue-700 underline">Add Owner</button>
+                <button type="button" data-open-owner data-property-id="{{ property.id }}" data-property-name="{{ property.name }}" class="mt-2 text-blue-700 underline">+ Add Owner</button>
               </td>
-              <td class="p-3"><a href="{{ url_for('billing_bp.property_edit', property_id=property.id) }}" class="rounded-lg border border-slate-200 bg-slate-100 px-3 py-2 font-semibold text-slate-700 hover:bg-slate-200">Edit</a></td>
+
             </tr>
-            {% else %}<tr><td colspan="4" class="p-6 text-slate-600">No properties registered yet. Enter a property name above to begin.</td></tr>{% endfor %}
+            {% else %}<tr><td colspan="3" class="p-6 text-slate-600">No properties registered yet. Enter a property name above to begin.</td></tr>{% endfor %}
           </tbody>
         </table>
       </div>

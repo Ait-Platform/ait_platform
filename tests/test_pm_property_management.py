@@ -66,10 +66,10 @@ class PropertyManagementTests(unittest.TestCase):
         self.owner_module=owner_mod
         # Include the real main route, without starting the AIT application factory.
         tree = ast.parse((ROOT/'app/program_billing/routes.py').read_text(encoding='utf-8'))
-        for function in ('property_owner', 'learner_dashboard'):
+        for function in ('property_owner', 'learner_dashboard', 'property_portfolio'):
             node = next(n for n in tree.body if isinstance(n,ast.FunctionDef) and n.name==function)
             exec(compile(ast.Module(body=[node],type_ignores=[]),'property-owner-route','exec'),dict(billing_bp=blueprint,login_required=login_required))
-        for endpoint in ('property_portfolio','pm_lease_management','utilities_hub','tenant_accounts'):
+        for endpoint in ('pm_lease_management','utilities_hub','tenant_accounts'):
             blueprint.add_url_rule('/fixture/'+endpoint,endpoint=endpoint,view_func=lambda:'fixture')
         self.app.register_blueprint(blueprint)
         self.client = self.app.test_client()
@@ -189,7 +189,8 @@ class PropertyManagementTests(unittest.TestCase):
             for label in ('Register New Owner','Select Existing Owner','ID / registration number','Residential / registered address','Postal address','Ownership percentage','Company','Trust'):
                 self.assertIn(label,html)
             self.assertRegex(html,r'disabled\s+id="owner-save-disabled"')
-            self.assertIn('>Save Owner</button>',html)
+            self.assertIn('>Save Changes</button>',html)
+            self.assertNotIn('>Save Owner</button>',html)
             self.assertIn('Owner registration is not yet available.',html)
             self.assertIn('Postal address same as residential / registered address',html)
             self.assertNotIn('Save Owner &amp; Assignment',html)

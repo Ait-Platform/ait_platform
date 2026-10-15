@@ -135,6 +135,9 @@ class Config:
     MAINTENANCE_MODE = int(os.getenv("MAINTENANCE_MODE", "0"))
     MAX_CONTENT_LENGTH = 50 * 1024 * 1024  # 50 MB limit for all uploads
 
+    PM_LEASE_DRAFT_WRITES_APPROVED = _to_bool(os.getenv("PM_LEASE_DRAFT_WRITES_APPROVED"), default=False)
+    PM_LEASE_PRIVATE_STORAGE_APPROVED = _to_bool(os.getenv("PM_LEASE_PRIVATE_STORAGE_APPROVED"), default=False)
+
     # Optional immutable R01 association; never infer or default to a property.
     PM_LEASE_REVIEW_PROPERTY_ID = os.getenv("PM_LEASE_REVIEW_PROPERTY_ID", "")
     PM_LEASE_DOCUMENT_ROOT = os.getenv("PM_LEASE_DOCUMENT_ROOT") or None

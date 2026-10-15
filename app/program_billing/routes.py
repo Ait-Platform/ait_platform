@@ -4109,3 +4109,6 @@ from . import property_management as _property_management
 
 # Owner endpoints are inert unless explicitly approved and the schema is verified.
 from . import owner_management as _owner_management
+
+# R01 snapshots and uploads remain default-disabled pending reviewed draft/private storage readiness.
+from . import lease_snapshot as _lease_snapshot

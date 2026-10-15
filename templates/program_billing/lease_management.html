@@ -20,30 +20,32 @@
 <dl class="mt-4 text-sm"><dt class="font-semibold">Property</dt><dd>{{ selected_property.name }}</dd><dt class="mt-2 font-semibold">Saved address</dt><dd class="whitespace-pre-wrap">{{ selected_property.address or 'Not recorded' }}</dd><dt class="mt-2 font-semibold">Registered owners</dt><dd>{% if owner_information_available %}{% for owner in selected_owners %}<div>{{ owner.name }}</div>{% else %}No active ownership assignments recorded.{% endfor %}{% else %}Owner information is not yet available.{% endif %}</dd></dl>
 {% elif not properties %}<p class="mt-3 text-sm">No active properties are available to your account.</p>{% endif %}
 </section>
+{% if selected_property %}
 <section class="mt-4 rounded-lg border border-slate-200 p-4">
-<h2 class="text-lg font-semibold">2. Lease Document</h2>
-<p class="mt-2 text-sm">PDF/DOCX uploads need approved property-linked document metadata and private storage. Uploading is not yet available.</p>
-<label for="lease-document" class="mt-3 block text-sm font-semibold">Lease document</label><input id="lease-document" type="file" accept=".pdf,.docx" disabled class="mt-2 block w-full rounded-lg border border-slate-300 p-2">
-{% if associated %}<p class="mt-3 text-sm font-semibold">Current R01 review: {{ document_name }}</p>{% endif %}
+<h2 class="text-lg font-semibold">R01 Lease snapshot</h2>
+<p class="mt-2 text-sm text-amber-900">Data completeness only. Legal review, approval, activation and signature remain unavailable.</p>
+{% if draft_unavailable %}<p role="status" class="mt-3 text-sm">{{ draft_unavailable }}</p>
+{% elif not lease_draft %}<form method="post" action="{{ url_for('billing_bp.lease_draft_create',property_id=selected_property.id) }}" class="mt-3"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="registration_token" value="{{ draft_token }}"><button type="submit" class="rounded-lg bg-orange-600 px-4 py-2 text-white">Start persistent draft</button></form>
+{% endif %}
+{% if lease_draft %}<p class="mt-3 text-sm">Draft {{ lease_draft.id }} ? Revision {{ lease_draft.version }} ? R01 ? Not legally approved</p>{% endif %}
+{% if lease_drafts|length > 1 %}<div class="mt-3"><p class="text-sm font-semibold">Existing drafts for this property</p>{% for draft in lease_drafts %}<a class="block text-sm text-blue-700 underline" href="{{ url_for('billing_bp.pm_lease_management',property_id=selected_property.id,draft_id=draft.id) }}">{{ draft.id }}</a>{% endfor %}</div>{% endif %}
+<div class="mt-4 rounded-lg border border-slate-200 p-4"><a class="font-semibold text-blue-700 underline" href="{{ url_for('billing_bp.lease_draft_documents',property_id=selected_property.id,draft_id=lease_draft.id if lease_draft else None) }}">Lease Document</a><p class="mt-1 text-sm">Private PDF/DOCX attachments. Persistent storage and verified private R2 prefix approval are required.</p>
+{% for file in lease_files if file.item_key=='lease-document' %}<p class="mt-1 text-sm">{{ file.filename }} ? {{ file.state }}</p>{% endfor %}</div>
+{% for group in snapshot_items|groupby('part') %}
+<h3 class="mt-5 font-semibold">{{ group.grouper }}</h3>
+{% for item in group.list %}<article class="mt-3 rounded-lg border border-slate-200 p-4">
+<a class="font-semibold text-blue-700 underline" href="{{ url_for('billing_bp.lease_snapshot_item',property_id=selected_property.id,item_key=item.key,draft_id=lease_draft.id if lease_draft else None) }}">{{ item.label }}</a>
+<span class="ml-2 rounded bg-slate-100 px-2 py-1 text-xs">{{ item.requirement }}</span>
+<p class="mt-2 text-sm">{{ item.completion }}</p>
+{% if item.summary %}<p class="mt-1 whitespace-pre-wrap text-sm text-slate-600">{{ item.summary|truncate(140) }}</p>{% endif %}
+</article>{% endfor %}{% endfor %}
+<p class="mt-5 text-sm text-slate-600">Review and merged document generation will follow separately. R01 remains a review draft, never an active or signed lease.</p>
+</section>
+<section class="mt-4 rounded-lg border border-slate-200 p-4"><h2 class="text-lg font-semibold">Existing R01 review document</h2>
 {% if available %}<div class="mt-3 flex gap-3"><a href="{{ url_for('billing_bp.pm_lease_preview',property_id=selected_property.id) }}" target="_blank" rel="noopener" class="text-blue-700 underline">View Lease</a><a href="{{ url_for('billing_bp.pm_lease_word',property_id=selected_property.id) }}" class="text-blue-700 underline">Download Word</a></div>
-{% elif associated %}<p role="alert" class="mt-3 text-sm text-amber-900">The associated review files are unavailable. Existing property selection remains usable.</p>
-{% else %}<p class="mt-3 text-sm text-slate-600">No R01 document association is configured for this property. Do not infer an association from its name.</p>{% endif %}
-</section>
-<section class="mt-4 rounded-lg border border-slate-200 p-4">
-<h2 class="text-lg font-semibold">3. Lease Details</h2>
-<p class="mt-2 text-sm">Persistent lease details require approved draft storage. The existing Pages 1-3 remain available for temporary session-based entry.</p>
-<fieldset disabled class="mt-4 grid gap-3 md:grid-cols-2">{% for key,label,type in [('reference','Lease reference','text'),('tenant','Tenant','text'),('commencement','Commencement date','date'),('expiry','Expiry date','date'),('rental','Rental','number'),('deposit','Deposit','number'),('due','Payment due date','date')] %}<label class="text-sm font-semibold">{{ label }}<input type="{{ type }}" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"></label>{% endfor %}<label class="text-sm font-semibold">Status<select class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"><option>Draft</option></select></label></fieldset>
-{% if selected_property %}<form method="post" action="{{ url_for('billing_bp.lease_property') }}" class="mt-4"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="property_id" value="{{ selected_property.id }}"><button type="submit" class="text-blue-700 underline">Continue existing session workflow (Pages 1-3)</button></form>{% endif %}
-</section>
-<section class="mt-4 rounded-lg border border-slate-200 p-4">
-<h2 class="text-lg font-semibold">4. Lease Requirements</h2>
-<p class="mt-2 text-sm">Supporting documents and lease-specific requirements will be stored with the draft once that schema is approved.</p>
-<label class="mt-3 block text-sm font-semibold">Supporting documents<input type="file" multiple disabled class="mt-1 block w-full rounded-lg border border-slate-300 p-2"></label>
-</section>
-<section class="mt-4 rounded-lg border border-slate-200 p-4">
-<h2 class="text-lg font-semibold">5. Review and Save</h2><p class="mt-2 text-sm">Persistent Save Draft and controlled activation are unavailable until approved storage and activation rules exist. No lease is activated automatically.</p>
-<div class="mt-3 flex gap-3"><button type="button" disabled class="rounded-lg bg-slate-100 px-4 py-2 text-slate-500">Save Draft - Unavailable</button><button type="button" disabled class="rounded-lg bg-slate-100 px-4 py-2 text-slate-500">Activate - Unavailable</button></div>
-</section>
+{% elif associated %}<p role="alert" class="mt-2 text-sm">The associated R01 files are unavailable; property selection remains usable.</p>
+{% else %}<p class="mt-2 text-sm">No verified R01 association for this property. Production property verification is required before associating Almond 26.</p>{% endif %}</section>
+{% endif %}
 {% if selected_property %}<section id="existing-leases" class="mt-6 rounded-lg border border-slate-200 p-4"><h2 class="text-lg font-semibold">Existing Leases</h2>
 {% if listing_warning %}<p role="alert" class="mt-2 text-sm text-amber-900">{{ listing_warning }}</p>{% endif %}
 {% if leases %}<div class="mt-3 overflow-x-auto"><table class="w-full text-left text-sm"><thead><tr><th class="p-2">Lease</th><th class="p-2">Start</th><th class="p-2">End</th><th class="p-2">Rent</th></tr></thead><tbody>{% for lease in leases %}<tr><td class="p-2">{{ lease.id }}</td><td class="p-2">{{ lease.start_date or 'Unavailable / not recorded' }}</td><td class="p-2">{{ lease.end_date or 'Unavailable / not recorded' }}</td><td class="p-2">{{ lease.rent_amount if lease.rent_amount is not none else 'Unavailable / not recorded' }}</td></tr>{% endfor %}</tbody></table></div>

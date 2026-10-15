@@ -1,0 +1,723 @@
+{
+  "version": "R01",
+  "source_docx_sha256": "d3485ad0d72564a6aa01835afa110756867b574c35e16e4449a15173f9974b57",
+  "classification_note": "Workflow data classification only, not a statement of legal necessity, approval or readiness for signature.",
+  "items": [
+    {
+      "key": "core",
+      "part": "Part 1 Core Lease",
+      "label": "Part 1 Core Lease",
+      "requirement": "Essential",
+      "placeholders": [],
+      "editable": false,
+      "basis": "Preserved core text requires separate legal review; data entry cannot approve it."
+    },
+    {
+      "key": "s1-01",
+      "part": "Part 2 Schedule 1 Lease Particulars",
+      "label": "Agreement reference",
+      "requirement": "Essential",
+      "placeholders": [
+        "[AGREEMENT REFERENCE]"
+      ],
+      "editable": true,
+      "input_type": "text",
+      "basis": "R01 Schedule 1 placeholder. Conditional treatment requires an explained applicability decision; it does not waive core clauses."
+    },
+    {
+      "key": "s1-02",
+      "part": "Part 2 Schedule 1 Lease Particulars",
+      "label": "Core version",
+      "requirement": "Essential",
+      "placeholders": [
+        "[CORE VERSION]"
+      ],
+      "editable": true,
+      "input_type": "text",
+      "basis": "R01 Schedule 1 placeholder. Conditional treatment requires an explained applicability decision; it does not waive core clauses."
+    },
+    {
+      "key": "s1-03",
+      "part": "Part 2 Schedule 1 Lease Particulars",
+      "label": "Landlord legal name(s)",
+      "requirement": "Essential",
+      "placeholders": [
+        "[LEGAL LANDLORD(S) TO VERIFY]"
+      ],
+      "editable": true,
+      "input_type": "text",
+      "basis": "R01 Schedule 1 placeholder. Conditional treatment requires an explained applicability decision; it does not waive core clauses."
+    },
+    {
+      "key": "s1-04",
+      "part": "Part 2 Schedule 1 Lease Particulars",
+      "label": "Landlord representative and authority",
+      "requirement": "Conditional",
+      "placeholders": [
+        "[REPRESENTATIVE / CAPACITY / AUTHORITY EVIDENCE]"
+      ],
+      "editable": true,
+      "input_type": "text",
+      "basis": "R01 Schedule 1 placeholder. Conditional treatment requires an explained applicability decision; it does not waive core clauses."
+    },
+    {
+      "key": "s1-05",
+      "part": "Part 2 Schedule 1 Lease Particulars",
+      "label": "Landlord service particulars",
+      "requirement": "Essential",
+      "placeholders": [
+        "[SERVICE ADDRESS / PHONE / EMAIL / FAX IF USED]"
+      ],
+      "editable": true,
+      "input_type": "text",
+      "basis": "R01 Schedule 1 placeholder. Conditional treatment requires an explained applicability decision; it does not waive core clauses."
+    },
+    {
+      "key": "s1-06",
+      "part": "Part 2 Schedule 1 Lease Particulars",
+      "label": "Tenant legal identity",
+      "requirement": "Essential",
+      "placeholders": [
+        "[UNRESOLVED - DO NOT ASSUME INDIVIDUAL OR ENTITY]"
+      ],
+      "editable": true,
+      "input_type": "text",
+      "basis": "R01 Schedule 1 placeholder. Conditional treatment requires an explained applicability decision; it does not waive core clauses."
+    },
+    {
+      "key": "s1-07",
+      "part": "Part 2 Schedule 1 Lease Particulars",
+      "label": "Tenant type and identification",
+      "requirement": "Essential",
+      "placeholders": [
+        "[PERSON OR ENTITY / NECESSARY IDENTIFICATION OR REGISTRATION]"
+      ],
+      "editable": true,
+      "input_type": "text",
+      "basis": "R01 Schedule 1 placeholder. Conditional treatment requires an explained applicability decision; it does not waive core clauses."
+    },
+    {
+      "key": "s1-08",
+      "part": "Part 2 Schedule 1 Lease Particulars",
+      "label": "Tenant representative and authority",
+      "requirement": "Conditional",
+      "placeholders": [
+        "[SIGNATORY / CAPACITY / AUTHORITY EVIDENCE]"
+      ],
+      "editable": true,
+      "input_type": "text",
+      "basis": "R01 Schedule 1 placeholder. Conditional treatment requires an explained applicability decision; it does not waive core clauses."
+    },
+    {
+      "key": "s1-09",
+      "part": "Part 2 Schedule 1 Lease Particulars",
+      "label": "Tenant service particulars",
+      "requirement": "Essential",
+      "placeholders": [
+        "[SERVICE ADDRESS / PHONE / EMAIL / FAX IF USED]"
+      ],
+      "editable": true,
+      "input_type": "text",
+      "basis": "R01 Schedule 1 placeholder. Conditional treatment requires an explained applicability decision; it does not waive core clauses."
+    },
+    {
+      "key": "s1-10",
+      "part": "Part 2 Schedule 1 Lease Particulars",
+      "label": "Property name",
+      "requirement": "Essential",
+      "placeholders": [
+        "[PROPERTY NAME]"
+      ],
+      "editable": true,
+      "input_type": "text",
+      "basis": "R01 Schedule 1 placeholder. Conditional treatment requires an explained applicability decision; it does not waive core clauses."
+    },
+    {
+      "key": "s1-11",
+      "part": "Part 2 Schedule 1 Lease Particulars",
+      "label": "Premises address and legal description",
+      "requirement": "Essential",
+      "placeholders": [
+        "[ADDRESS / TITLE DESCRIPTION TO VERIFY]"
+      ],
+      "editable": true,
+      "input_type": "text",
+      "basis": "R01 Schedule 1 placeholder. Conditional treatment requires an explained applicability decision; it does not waive core clauses."
+    },
+    {
+      "key": "s1-12",
+      "part": "Part 2 Schedule 1 Lease Particulars",
+      "label": "Exact leased portion and unit count",
+      "requirement": "Essential",
+      "placeholders": [
+        "[LEASED PORTION / UNIT COUNT]"
+      ],
+      "editable": true,
+      "input_type": "text",
+      "basis": "R01 Schedule 1 placeholder. Conditional treatment requires an explained applicability decision; it does not waive core clauses."
+    },
+    {
+      "key": "s1-13",
+      "part": "Part 2 Schedule 1 Lease Particulars",
+      "label": "Extent and excluded areas",
+      "requirement": "Essential",
+      "placeholders": [
+        "[EXTENT / INCLUDED AND EXCLUDED AREAS]"
+      ],
+      "editable": true,
+      "input_type": "text",
+      "basis": "R01 Schedule 1 placeholder. Conditional treatment requires an explained applicability decision; it does not waive core clauses."
+    },
+    {
+      "key": "s1-14",
+      "part": "Part 2 Schedule 1 Lease Particulars",
+      "label": "Plan references",
+      "requirement": "Essential",
+      "placeholders": [
+        "[CONFIRM PLAN A AND PLAN B AGAINST ANNEXURES]"
+      ],
+      "editable": true,
+      "input_type": "text",
+      "basis": "R01 Schedule 1 placeholder. Conditional treatment requires an explained applicability decision; it does not waive core clauses."
+    },
+    {
+      "key": "s1-15",
+      "part": "Part 2 Schedule 1 Lease Particulars",
+      "label": "Parking and common areas",
+      "requirement": "Conditional",
+      "placeholders": [
+        "[BAYS / RIGHTS / APPLICABILITY]"
+      ],
+      "editable": true,
+      "input_type": "text",
+      "basis": "R01 Schedule 1 placeholder. Conditional treatment requires an explained applicability decision; it does not waive core clauses."
+    },
+    {
+      "key": "s1-16",
+      "part": "Part 2 Schedule 1 Lease Particulars",
+      "label": "Permitted use",
+      "requirement": "Essential",
+      "placeholders": [
+        "[APPROVED USE - SEE SC-01 AND CORE 8.1.1]"
+      ],
+      "editable": true,
+      "input_type": "text",
+      "basis": "R01 Schedule 1 placeholder. Conditional treatment requires an explained applicability decision; it does not waive core clauses."
+    },
+    {
+      "key": "s1-17",
+      "part": "Part 2 Schedule 1 Lease Particulars",
+      "label": "Lease period",
+      "requirement": "Essential",
+      "placeholders": [
+        "[TERM TO CONFIRM]"
+      ],
+      "editable": true,
+      "input_type": "text",
+      "basis": "R01 Schedule 1 placeholder. Conditional treatment requires an explained applicability decision; it does not waive core clauses."
+    },
+    {
+      "key": "s1-18",
+      "part": "Part 2 Schedule 1 Lease Particulars",
+      "label": "Commencement date",
+      "requirement": "Essential",
+      "placeholders": [
+        "[COMMENCEMENT DATE]"
+      ],
+      "editable": true,
+      "input_type": "date",
+      "basis": "R01 Schedule 1 placeholder. Conditional treatment requires an explained applicability decision; it does not waive core clauses."
+    },
+    {
+      "key": "s1-19",
+      "part": "Part 2 Schedule 1 Lease Particulars",
+      "label": "Occupation date",
+      "requirement": "Essential",
+      "placeholders": [
+        "[OCCUPATION DATE]"
+      ],
+      "editable": true,
+      "input_type": "date",
+      "basis": "R01 Schedule 1 placeholder. Conditional treatment requires an explained applicability decision; it does not waive core clauses."
+    },
+    {
+      "key": "s1-20",
+      "part": "Part 2 Schedule 1 Lease Particulars",
+      "label": "Expiry date",
+      "requirement": "Essential",
+      "placeholders": [
+        "[VALID EXPIRY DATE - ORIGINAL DATE MUST NOT BE REUSED]"
+      ],
+      "editable": true,
+      "input_type": "date",
+      "basis": "R01 Schedule 1 placeholder. Conditional treatment requires an explained applicability decision; it does not waive core clauses."
+    },
+    {
+      "key": "s1-21",
+      "part": "Part 2 Schedule 1 Lease Particulars",
+      "label": "Monthly rent and words",
+      "requirement": "Essential",
+      "placeholders": [
+        "[MONTHLY RENT]",
+        "[MONTHLY RENT IN WORDS]"
+      ],
+      "editable": true,
+      "input_type": "text",
+      "basis": "R01 Schedule 1 placeholder. Conditional treatment requires an explained applicability decision; it does not waive core clauses."
+    },
+    {
+      "key": "s1-22",
+      "part": "Part 2 Schedule 1 Lease Particulars",
+      "label": "Parking rent per bay",
+      "requirement": "Conditional",
+      "placeholders": [
+        "[PARKING RENT PER BAY / NOT APPLICABLE IF APPROVED]"
+      ],
+      "editable": true,
+      "input_type": "text",
+      "basis": "R01 Schedule 1 placeholder. Conditional treatment requires an explained applicability decision; it does not waive core clauses."
+    },
+    {
+      "key": "s1-23",
+      "part": "Part 2 Schedule 1 Lease Particulars",
+      "label": "Escalation percentage and words",
+      "requirement": "Essential",
+      "placeholders": [
+        "[PERCENTAGE]",
+        "[PERCENTAGE IN WORDS]"
+      ],
+      "editable": true,
+      "input_type": "text",
+      "basis": "R01 Schedule 1 placeholder. Conditional treatment requires an explained applicability decision; it does not waive core clauses."
+    },
+    {
+      "key": "s1-24",
+      "part": "Part 2 Schedule 1 Lease Particulars",
+      "label": "Escalation frequency and first date",
+      "requirement": "Essential",
+      "placeholders": [
+        "[TO RESOLVE - CORE 4.2 RETAINS SEMI-ANNUAL RULE]"
+      ],
+      "editable": true,
+      "input_type": "text",
+      "basis": "R01 Schedule 1 placeholder. Conditional treatment requires an explained applicability decision; it does not waive core clauses."
+    },
+    {
+      "key": "s1-25",
+      "part": "Part 2 Schedule 1 Lease Particulars",
+      "label": "Payment day and holiday adjustment",
+      "requirement": "Essential",
+      "placeholders": [
+        "[TO RESOLVE - CORE 4.3 RETAINS ITS INCONSISTENT RULE]"
+      ],
+      "editable": true,
+      "input_type": "text",
+      "basis": "R01 Schedule 1 placeholder. Conditional treatment requires an explained applicability decision; it does not waive core clauses."
+    },
+    {
+      "key": "s1-26",
+      "part": "Part 2 Schedule 1 Lease Particulars",
+      "label": "Renewal period and notice",
+      "requirement": "Conditional",
+      "placeholders": [
+        "[TO CONFIRM AGAINST CORE 2.2]"
+      ],
+      "editable": true,
+      "input_type": "text",
+      "basis": "R01 Schedule 1 placeholder. Conditional treatment requires an explained applicability decision; it does not waive core clauses."
+    },
+    {
+      "key": "s1-27",
+      "part": "Part 2 Schedule 1 Lease Particulars",
+      "label": "Renewal rental and escalation",
+      "requirement": "Conditional",
+      "placeholders": [
+        "[TO RESOLVE AGAINST CORE 2.3]"
+      ],
+      "editable": true,
+      "input_type": "text",
+      "basis": "R01 Schedule 1 placeholder. Conditional treatment requires an explained applicability decision; it does not waive core clauses."
+    },
+    {
+      "key": "s1-28",
+      "part": "Part 2 Schedule 1 Lease Particulars",
+      "label": "Deposit amount and security type",
+      "requirement": "Essential",
+      "placeholders": [
+        "[AMOUNT / CASH OR APPROVED GUARANTEE - CHECK CORE 13]"
+      ],
+      "editable": true,
+      "input_type": "text",
+      "basis": "R01 Schedule 1 placeholder. Conditional treatment requires an explained applicability decision; it does not waive core clauses."
+    },
+    {
+      "key": "s1-29",
+      "part": "Part 2 Schedule 1 Lease Particulars",
+      "label": "Deposit deadline and escalation",
+      "requirement": "Essential",
+      "placeholders": [
+        "[TO RESOLVE AGAINST CORE 13.1 / 13.2 / 13.6]"
+      ],
+      "editable": true,
+      "input_type": "text",
+      "basis": "R01 Schedule 1 placeholder. Conditional treatment requires an explained applicability decision; it does not waive core clauses."
+    },
+    {
+      "key": "s1-30",
+      "part": "Part 2 Schedule 1 Lease Particulars",
+      "label": "Key deposit",
+      "requirement": "Conditional",
+      "placeholders": [
+        "[AMOUNT / EXPRESSLY NOT APPLICABLE]"
+      ],
+      "editable": true,
+      "input_type": "text",
+      "basis": "R01 Schedule 1 placeholder. Conditional treatment requires an explained applicability decision; it does not waive core clauses."
+    },
+    {
+      "key": "s1-31",
+      "part": "Part 2 Schedule 1 Lease Particulars",
+      "label": "Agreement preparation fee",
+      "requirement": "Essential",
+      "placeholders": [
+        "[AMOUNT / BASIS / APPROVAL - CORE 26.1 RETAINED]"
+      ],
+      "editable": true,
+      "input_type": "text",
+      "basis": "R01 Schedule 1 placeholder. Conditional treatment requires an explained applicability decision; it does not waive core clauses."
+    },
+    {
+      "key": "s1-32",
+      "part": "Part 2 Schedule 1 Lease Particulars",
+      "label": "Stamp-duty item",
+      "requirement": "Essential",
+      "placeholders": [
+        "[REVIEW REQUIRED - CORE 26.2 RETAINED, NO AMOUNT ASSUMED]"
+      ],
+      "editable": true,
+      "input_type": "text",
+      "basis": "R01 Schedule 1 placeholder. Conditional treatment requires an explained applicability decision; it does not waive core clauses."
+    },
+    {
+      "key": "s1-33",
+      "part": "Part 2 Schedule 1 Lease Particulars",
+      "label": "Tenant and landlord VAT registrations",
+      "requirement": "Conditional",
+      "placeholders": [
+        "[VERIFIED DETAILS / EXPRESSLY NOT APPLICABLE]"
+      ],
+      "editable": true,
+      "input_type": "text",
+      "basis": "R01 Schedule 1 placeholder. Conditional treatment requires an explained applicability decision; it does not waive core clauses."
+    },
+    {
+      "key": "s1-34",
+      "part": "Part 2 Schedule 1 Lease Particulars",
+      "label": "VAT treatment",
+      "requirement": "Essential",
+      "placeholders": [
+        "[TAX TREATMENT TO VERIFY - NO FIRST-YEAR EXCEPTION ASSUMED]"
+      ],
+      "editable": true,
+      "input_type": "text",
+      "basis": "R01 Schedule 1 placeholder. Conditional treatment requires an explained applicability decision; it does not waive core clauses."
+    },
+    {
+      "key": "s1-35",
+      "part": "Part 2 Schedule 1 Lease Particulars",
+      "label": "Rates and insurance baselines",
+      "requirement": "Essential",
+      "placeholders": [
+        "[BASE YEAR / EVIDENCE / APPROVED CONCESSIONS IF ANY]"
+      ],
+      "editable": true,
+      "input_type": "text",
+      "basis": "R01 Schedule 1 placeholder. Conditional treatment requires an explained applicability decision; it does not waive core clauses."
+    },
+    {
+      "key": "s1-36",
+      "part": "Part 2 Schedule 1 Lease Particulars",
+      "label": "Utility allocation",
+      "requirement": "Essential",
+      "placeholders": [
+        "[ACCOUNTS / METERS / PROPORTIONATE SHARE / CHARGES TO VERIFY]"
+      ],
+      "editable": true,
+      "input_type": "text",
+      "basis": "R01 Schedule 1 placeholder. Conditional treatment requires an explained applicability decision; it does not waive core clauses."
+    },
+    {
+      "key": "s1-37",
+      "part": "Part 2 Schedule 1 Lease Particulars",
+      "label": "Payment method and reference",
+      "requirement": "Essential",
+      "placeholders": [
+        "[PAYMENT METHOD / REFERENCE]"
+      ],
+      "editable": true,
+      "input_type": "text",
+      "basis": "R01 Schedule 1 placeholder. Conditional treatment requires an explained applicability decision; it does not waive core clauses."
+    },
+    {
+      "key": "s1-38",
+      "part": "Part 2 Schedule 1 Lease Particulars",
+      "label": "Verified bank particulars",
+      "requirement": "Essential",
+      "placeholders": [
+        "[BANK / BRANCH / HOLDER / TYPE / NUMBER / SWIFT IF APPLICABLE]"
+      ],
+      "editable": true,
+      "input_type": "text",
+      "basis": "R01 Schedule 1 placeholder. Conditional treatment requires an explained applicability decision; it does not waive core clauses."
+    },
+    {
+      "key": "s1-39",
+      "part": "Part 2 Schedule 1 Lease Particulars",
+      "label": "Authority / suretyship documents",
+      "requirement": "Conditional",
+      "placeholders": [
+        "[APPLICABILITY TO RESOLVE - CORE 19 NOT WAIVED]"
+      ],
+      "editable": true,
+      "input_type": "text",
+      "basis": "R01 Schedule 1 placeholder. Conditional treatment requires an explained applicability decision; it does not waive core clauses."
+    },
+    {
+      "key": "s1-40",
+      "part": "Part 2 Schedule 1 Lease Particulars",
+      "label": "Rules, condition report and annexures",
+      "requirement": "Essential",
+      "placeholders": [
+        "[IDENTIFIERS / VERSIONS / APPLICABILITY]"
+      ],
+      "editable": true,
+      "input_type": "text",
+      "basis": "R01 Schedule 1 placeholder. Conditional treatment requires an explained applicability decision; it does not waive core clauses."
+    },
+    {
+      "key": "s1-41",
+      "part": "Part 2 Schedule 1 Lease Particulars",
+      "label": "Execution particulars",
+      "requirement": "Essential",
+      "placeholders": [
+        "[ACTUAL SIGNATORIES / CAPACITIES / PLACES / DATES]"
+      ],
+      "editable": true,
+      "input_type": "text",
+      "basis": "R01 Schedule 1 placeholder. Conditional treatment requires an explained applicability decision; it does not waive core clauses."
+    },
+    {
+      "key": "sc-01",
+      "part": "Part 3 Schedule 2 Special Conditions",
+      "label": "SC-01 Permitted use and resident occupation",
+      "requirement": "Essential",
+      "placeholders": [
+        "[CONFIRM ALMOND USE, OPERATING PARTY, RESIDENT OCCUPATION AND WHETHER ANY PART OF THE OCCUPATION PROHIBITION IS TO BE EXPRESSLY VARIED]",
+        "[SUPPLEMENTS / REPLACES / DISAPPLIES SPECIFIED WORDING]",
+        "[TO DRAFT AFTER DECISION]",
+        "[TO CONFIRM]"
+      ],
+      "editable": true,
+      "basis": "R01 special condition; applicability/any departure remains subject to legal review."
+    },
+    {
+      "key": "sc-02",
+      "part": "Part 3 Schedule 2 Special Conditions",
+      "label": "SC-02 Occupation availability and construction",
+      "requirement": "Conditional",
+      "placeholders": [
+        "[CONFIRM WHETHER DEVELOPMENT CLAUSES APPLY; IDENTIFY WORKS, COSTS, TIMING AND ANY APPROVED VARIATION]",
+        "[SUPPLEMENTS / REPLACES / DISAPPLIES SPECIFIED WORDING]",
+        "[TO DRAFT AFTER DECISION]",
+        "[TO CONFIRM]"
+      ],
+      "editable": true,
+      "basis": "R01 special condition; applicability/any departure remains subject to legal review."
+    },
+    {
+      "key": "sc-03",
+      "part": "Part 3 Schedule 2 Special Conditions",
+      "label": "SC-03 Rates and VAT arrangements",
+      "requirement": "Conditional",
+      "placeholders": [
+        "[VERIFY TAX TREATMENT AND ANY LAWFUL APPROVED RATES CONCESSION; DO NOT COPY HISTORICAL FIRST-YEAR WORDING AUTOMATICALLY]",
+        "[SUPPLEMENTS / REPLACES / DISAPPLIES SPECIFIED WORDING]",
+        "[TO DRAFT AFTER DECISION]",
+        "[TO CONFIRM]"
+      ],
+      "editable": true,
+      "basis": "R01 special condition; applicability/any departure remains subject to legal review."
+    },
+    {
+      "key": "sc-04",
+      "part": "Part 3 Schedule 2 Special Conditions",
+      "label": "SC-04 Utility allocation and prepaid transition",
+      "requirement": "Essential",
+      "placeholders": [
+        "[VERIFY ALMOND ACCOUNTS/METERS, HISTORIC ARREARS, ALLOCATION, ESTIMATES, CHARGE PERIODS AND PREPAID TRANSITION]",
+        "[SUPPLEMENTS / REPLACES / DISAPPLIES SPECIFIED WORDING]",
+        "[TO DRAFT AFTER DECISION]",
+        "[TO CONFIRM]"
+      ],
+      "editable": true,
+      "basis": "R01 special condition; applicability/any departure remains subject to legal review."
+    },
+    {
+      "key": "sc-05",
+      "part": "Part 3 Schedule 2 Special Conditions",
+      "label": "SC-05 Maintenance responsibilities",
+      "requirement": "Essential",
+      "placeholders": [
+        "[APPROVE RESPONSIBLE PARTY FOR EXTERIOR AND EXISTING EQUIPMENT; NO LESSOR/LESSEE CORRECTION ASSUMED]",
+        "[SUPPLEMENTS / REPLACES / DISAPPLIES SPECIFIED WORDING]",
+        "[TO DRAFT AFTER DECISION]",
+        "[TO CONFIRM]"
+      ],
+      "editable": true,
+      "basis": "R01 special condition; applicability/any departure remains subject to legal review."
+    },
+    {
+      "key": "sc-06",
+      "part": "Part 3 Schedule 2 Special Conditions",
+      "label": "SC-06 Approved alterations and installations",
+      "requirement": "Conditional",
+      "placeholders": [
+        "[IDENTIFY PERMISSIONS, DRAWINGS, COSTS, REINSTATEMENT AND REMOVAL REQUIREMENTS]",
+        "[SUPPLEMENTS / REPLACES / DISAPPLIES SPECIFIED WORDING]",
+        "[TO DRAFT AFTER DECISION]",
+        "[TO CONFIRM]"
+      ],
+      "editable": true,
+      "basis": "R01 special condition; applicability/any departure remains subject to legal review."
+    },
+    {
+      "key": "sc-07",
+      "part": "Part 3 Schedule 2 Special Conditions",
+      "label": "SC-07 Parking and common facilities",
+      "requirement": "Conditional",
+      "placeholders": [
+        "[CONFIRM INCLUDED AREAS, PARKING RENT AND ESCALATION RULE]",
+        "[SUPPLEMENTS / REPLACES / DISAPPLIES SPECIFIED WORDING]",
+        "[TO DRAFT AFTER DECISION]",
+        "[TO CONFIRM]"
+      ],
+      "editable": true,
+      "basis": "R01 special condition; applicability/any departure remains subject to legal review."
+    },
+    {
+      "key": "sc-08",
+      "part": "Part 3 Schedule 2 Special Conditions",
+      "label": "SC-08 Insurance, fire safety and vacancy",
+      "requirement": "Essential",
+      "placeholders": [
+        "[VERIFY REQUIRED COVER, FIRE EQUIPMENT, UPGRADE ASSUMPTION AND VACANCY CONDITIONS]",
+        "[SUPPLEMENTS / REPLACES / DISAPPLIES SPECIFIED WORDING]",
+        "[TO DRAFT AFTER DECISION]",
+        "[TO CONFIRM]"
+      ],
+      "editable": true,
+      "basis": "R01 special condition; applicability/any departure remains subject to legal review."
+    },
+    {
+      "key": "sc-09",
+      "part": "Part 3 Schedule 2 Special Conditions",
+      "label": "SC-09 Entity authority and security",
+      "requirement": "Conditional",
+      "placeholders": [
+        "[RESOLVE LEGAL TENANT AND REPRESENTATIVE AUTHORITY; ANY SURETYSHIP MUST BE EXPLICITLY REVIEWED]",
+        "[SUPPLEMENTS / REPLACES / DISAPPLIES SPECIFIED WORDING]",
+        "[TO DRAFT AFTER DECISION]",
+        "[TO CONFIRM]"
+      ],
+      "editable": true,
+      "basis": "R01 special condition; applicability/any departure remains subject to legal review."
+    },
+    {
+      "key": "sc-10",
+      "part": "Part 3 Schedule 2 Special Conditions",
+      "label": "SC-10 Other expressly agreed departures",
+      "requirement": "Optional",
+      "placeholders": [
+        "[CORE REFERENCES]",
+        "[INSERT ONLY APPROVED SPECIAL CONDITIONS]",
+        "[SUPPLEMENTS / REPLACES / DISAPPLIES SPECIFIED WORDING]",
+        "[TO DRAFT AFTER DECISION]",
+        "[TO CONFIRM]"
+      ],
+      "editable": true,
+      "basis": "R01 special condition; applicability/any departure remains subject to legal review."
+    },
+    {
+      "key": "annexure-a",
+      "part": "Part 4 Supporting Annexures",
+      "label": "Annexure A",
+      "requirement": "Essential",
+      "placeholders": [],
+      "editable": true,
+      "basis": "Source premises plan preserved; source calls for A/B plans, mapping unresolved."
+    },
+    {
+      "key": "annexure-b",
+      "part": "Part 4 Supporting Annexures",
+      "label": "Annexure B",
+      "requirement": "Essential",
+      "placeholders": [],
+      "editable": true,
+      "basis": "Leased-premises plan/extent: placeholder pending verification."
+    },
+    {
+      "key": "annexure-c",
+      "part": "Part 4 Supporting Annexures",
+      "label": "Annexure C",
+      "requirement": "Essential",
+      "placeholders": [],
+      "editable": true,
+      "basis": "Condition and inventory record: placeholder, not supplied."
+    },
+    {
+      "key": "annexure-d",
+      "part": "Part 4 Supporting Annexures",
+      "label": "Annexure D",
+      "requirement": "Optional",
+      "placeholders": [],
+      "editable": true,
+      "basis": "Original municipal meter/account table: historical reference, not current allocation."
+    },
+    {
+      "key": "annexure-e",
+      "part": "Part 4 Supporting Annexures",
+      "label": "Annexure E",
+      "requirement": "Optional",
+      "placeholders": [],
+      "editable": true,
+      "basis": "Original initial statement: historical source image, not current particulars or proof of payment."
+    },
+    {
+      "key": "annexure-f",
+      "part": "Part 4 Supporting Annexures",
+      "label": "Annexure F",
+      "requirement": "Conditional",
+      "placeholders": [],
+      "editable": true,
+      "basis": "Applicable property rules: placeholder, not supplied."
+    },
+    {
+      "key": "annexure-g",
+      "part": "Part 4 Supporting Annexures",
+      "label": "Annexure G",
+      "requirement": "Conditional",
+      "placeholders": [],
+      "editable": true,
+      "basis": "Approved works and equipment: placeholder, applicability unconfirmed."
+    },
+    {
+      "key": "annexure-h",
+      "part": "Part 4 Supporting Annexures",
+      "label": "Annexure H",
+      "requirement": "Conditional",
+      "placeholders": [],
+      "editable": true,
+      "basis": "Authority/security documents: placeholder, legal parties unresolved."
+    }
+  ]
+}

@@ -25,14 +25,11 @@ class LeaseFoundationTests(unittest.TestCase):
         response=self.client.get('/billing/leases?property_id=26')
         self.assertEqual(response.status_code,200)
         html=response.get_data(as_text=True)
-        for text in ('>Lease</h1>','1. Select Property','2. Lease Document','3. Lease Details','4. Lease Requirements','5. Review and Save','Almond','Original address','Persisted Owner','501'):
+        for text in ('>Lease</h1>','1. Select Property','R01 Lease snapshot','Part 2 Schedule 1 Lease Particulars','Part 3 Schedule 2 Special Conditions','Part 4 Supporting Annexures','Almond','Original address','Persisted Owner','501'):
             self.assertIn(text,html)
         self.assertNotIn('Private address',html);self.assertNotIn('601',html)
         self.assertNotIn('>Property &amp; Owner</a>',html.split('</nav>')[-1])
-        self.assertIn('Save Draft - Unavailable',html)
-        self.assertIn('method="post" action="/fixture/lease_property"',html)
-        self.assertIn('name="property_id" value="26"',html)
-        self.assertIn('name="csrf_token"',html)
+        self.assertIn('Persistent lease draft storage is not approved',html)
         self.assertEqual(self.client.post('/billing/leases',data={'reference':'Must not create'}).status_code,405)
         self.assertEqual(self.client.get('/billing/leases?property_id=27').status_code,404)
         for value in ('bad','0','-1'):

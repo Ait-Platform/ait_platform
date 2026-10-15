@@ -122,11 +122,15 @@ def lease_management():
         except ReviewDocumentUnavailable:
             available = False
             current_app.logger.warning("PM lease review unavailable; property selection remains available.")
+    snapshot={}
+    if selected is not None:
+        from app.program_billing.lease_snapshot import snapshot_context
+        snapshot=snapshot_context(selected['id'])
     return render_pm_template("program_billing/lease_management.html",
         properties=properties, selected_property=selected, leases=leases,
         document_name=WORD_NAME if associated else None, status=STATUS,
         available=available, associated=associated,listing_warning=listing_warning,
-        selected_owners=selected_owners,owner_information_available=owner_information_available)
+        selected_owners=selected_owners,owner_information_available=owner_information_available,**snapshot)
 
 
 

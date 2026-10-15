@@ -1,0 +1,70 @@
+"""Private lease storage adapter: authenticated R2 APIs only; no public URLs."""
+import hashlib,os
+from io import BytesIO
+from pathlib import PurePosixPath
+from uuid import UUID
+from zipfile import ZipFile
+from xml.etree import ElementTree as ET
+from pypdf import PdfReader
+from flask import current_app
+from werkzeug.utils import secure_filename
+from app.utils import cloudflare_r2 as r2
+
+MAX_BYTES=10*1024*1024
+MIMES={'.pdf':'application/pdf','.docx':'application/vnd.openxmlformats-officedocument.wordprocessingml.document'}
+
+def destination():
+    bucket=os.getenv('R2_BUCKET_NAME')
+    home=current_app.config.get('SACE_HOME_R2_BUCKET') or os.getenv('SACE_HOME_R2_BUCKET')
+    if not bucket:raise ValueError("General AIT R2_BUCKET_NAME is not configured.")
+    if home and bucket==home:raise ValueError("Lease storage must not use the HOME bucket.")
+    if current_app.config.get('PM_LEASE_PRIVATE_STORAGE_APPROVED') is not True:
+        raise ValueError("Private lease prefix protection has not been verified and approved for the general AIT bucket.")
+    return bucket
+
+def key_for(property_id,draft_id,document_id,extension):
+    if type(property_id) is not int or property_id<=0 or extension not in MIMES:raise ValueError("Invalid lease storage scope")
+    return f"private/leases/property-{property_id}/draft-{UUID(str(draft_id))}/document-{UUID(str(document_id))}{extension}"
+
+def validate_upload(file):
+    filename=secure_filename(file.filename or '')
+    extension=PurePosixPath(filename).suffix.lower()
+    if not filename or len(filename)>200 or extension not in MIMES:raise ValueError("Select a PDF or DOCX file with a valid filename.")
+    data=file.stream.read(MAX_BYTES+1)
+    if not data or len(data)>MAX_BYTES:raise ValueError("Lease documents must be nonempty and no larger than 10 MB.")
+    try:
+        if extension=='.pdf':
+            if not data.startswith(b'%PDF-'):raise ValueError()
+            reader=PdfReader(BytesIO(data))
+            if reader.is_encrypted or not len(reader.pages):raise ValueError()
+        else:
+            with ZipFile(BytesIO(data)) as archive:
+                entries=archive.infolist()
+                if len(entries)>2000 or sum(e.file_size for e in entries)>40*1024*1024:raise ValueError()
+                names=set(archive.namelist())
+                if not {'[Content_Types].xml','word/document.xml'}<=names:raise ValueError()
+                if any(n.startswith(('/','\\')) or '..' in PurePosixPath(n).parts or '\\' in n or 'vbaproject' in n.lower() for n in names):raise ValueError()
+                if archive.getinfo('[Content_Types].xml').file_size>1024*1024 or archive.getinfo('word/document.xml').file_size>8*1024*1024:raise ValueError()
+                types=ET.fromstring(archive.read('[Content_Types].xml'))
+                document=ET.fromstring(archive.read('word/document.xml'))
+                if document.tag!='{http://schemas.openxmlformats.org/wordprocessingml/2006/main}document':raise ValueError()
+                if not any(n.attrib.get('ContentType')=='application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml' for n in types):raise ValueError()
+                # CRC verification, without extracting or executing document content.
+                if archive.testzip() is not None:raise ValueError()
+    except Exception as error:
+        raise ValueError("The file content is not a supported, unencrypted PDF or DOCX.") from error
+    return filename,extension,MIMES[extension],data,hashlib.sha256(data).hexdigest()
+
+def upload(key,data,mime):
+    bucket=destination()
+    return r2.upload_bytes_to_r2(key,data,bucket=bucket,content_type=mime)
+
+def retrieve(record):
+    bucket=destination()
+    extension=PurePosixPath(record['filename']).suffix.lower()
+    expected=key_for(record['property_id'],record['draft_id'],record['id'],extension)
+    if record['storage_key']!=expected:raise ValueError("Lease document storage scope is invalid.")
+    data=r2.read_file_from_r2(expected,bucket=bucket)
+    if len(data)!=record['size_bytes'] or hashlib.sha256(data).hexdigest()!=record['sha256']:
+        raise ValueError("Lease document integrity verification failed.")
+    return data

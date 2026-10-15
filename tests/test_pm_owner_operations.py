@@ -316,6 +316,58 @@ class OwnerOperationsTests(unittest.TestCase):
         self.assertEqual(self.client.post('/billing/portfolio/email',data={'recipient_email':'chosen@example.com','intent':'send'}).status_code,401)
         self.assertEqual(self.client.get('/billing/portfolio/print').status_code,401)
 
+    def test_rendered_modal_permissions_and_authorized_assignment_save(self):
+        import json
+        from html.parser import HTMLParser
+        class Modal(HTMLParser):
+            def __init__(self):
+                super().__init__();self.dialog=None;self.save=None;self.owners=[]
+            def handle_starttag(self,tag,attrs):
+                attrs=dict(attrs)
+                if attrs.get('id')=='owner-assignment-preview':self.dialog=attrs
+                if attrs.get('id')=='owner-save-disabled':self.save=attrs
+                if attrs.get('data-owner-property-id')=='26' and 'data-owner-edit' in attrs:self.owners.append(attrs)
+        def capture():
+            parsed=Modal();parsed.feed(self.client.get('/billing/property-owner').get_data(as_text=True))
+            return dict(dialog=parsed.dialog,save=parsed.save,buttons=parsed.owners)
+        own=self.assign().get_json()['owners'][0]
+        own_case=capture();self.assertNotIn('disabled',own_case['save'])
+        self.assertIn('bg-orange-600',own_case['save']['class'])
+        self.sign_in(8)
+        foreign=self.assign(property_id=27,name='Reused identity',identity_number='OTHER').get_json()['owners'][0]
+        # Model a legitimate property-manager reassignment without changing owner identity.
+        self.sql('UPDATE bil_property SET manager_id=7 WHERE id=27');self.session.commit()
+        self.sign_in(7)
+        result=self.client.post('/billing/property-owner/26/owners',json={'owner_id':foreign['owner_id']}).get_json()
+        assignment=next(o for o in result['owners'] if o['owner_id']==foreign['owner_id'])
+        foreign_case=capture()
+        response=self.client.patch(f"/billing/property-owner/26/assignments/{assignment['assignment_id']}",json={'percentage':'33','active':True})
+        self.assertEqual(response.status_code,200)
+        self.assertEqual(response.get_json()['message'],'Ownership assignment changes saved.')
+        self.assertEqual(self.client.patch(f"/billing/property-owner/owners/{foreign['owner_id']}",json=self.payload(name='Forbidden',identity_number='OTHER')).status_code,404)
+        self.assertEqual(self.sql('SELECT display_name FROM bil_owner_identity WHERE id='+str(foreign['owner_id'])).scalar(),'Reused identity')
+        self.app.config['PM_OWNER_WRITES_APPROVED']=False
+        blocked=capture()
+        self.assertIn('disabled',blocked['save'])
+        self.assertIn('PM_OWNER_WRITES_APPROVED',blocked['dialog']['data-unavailable-reason'])
+        fixture=property_tests.ROOT/'tmp'/'owner_modal_rendered.json'
+        fixture.parent.mkdir(exist_ok=True)
+        fixture.write_text(json.dumps(dict(own=own_case,foreign=foreign_case,blocked=blocked)),encoding='utf-8')
+
+    def test_edit_property_cleanup_does_not_remove_dashboard_navigation(self):
+        main=self.client.get('/billing/property-owner').get_data(as_text=True)
+        self.assertNotIn('Manage owner assignments',main)
+        self.assertIn('aria-label="Property Management"',main)
+        edit=self.client.get('/billing/property-owner/26/edit').get_data(as_text=True)
+        self.assertNotIn('aria-label="Property Management"',edit)
+        self.assertNotIn('METSOA',edit)
+        self.assertNotIn('name="address"',edit)
+        self.assertNotIn('data-owner-field',edit)
+        self.assertIn('name="property_name"',edit)
+        self.assertIn('name="active"',edit)
+        # The underlying historical-management route remains authorized and available.
+        self.assertEqual(self.client.get('/billing/property-owner/26/owners/edit').status_code,200)
+
     def test_disabled_flag_denies_all_owner_operations(self):
         self.app.config['PM_OWNER_WRITES_APPROVED']=False
         with patch.object(self.session,'execute',side_effect=AssertionError('Disabled owner routes must not query database')):

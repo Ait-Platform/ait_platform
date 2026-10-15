@@ -58,3 +58,25 @@ was not suppressed. No production logs were available to prove whether an
 administrator's particular live click reached that sender. Local tests confirm
 the standard sender is invoked with the entered destination after explicit submit.
 All local mail and PDF calls are mocked: no real email is sent during tests.
+
+## Disabled Save Changes correction
+
+Code-level causes reproduced locally: the Save Changes button kept grey disabled
+styling even when JavaScript enabled it, and JavaScript treated created_by mismatch
+as a prohibition on every edit. That correctly restricted shared identity editing
+but incorrectly blocked property-manager-authorized assignment changes as well.
+
+The modal now selects the existing identity endpoint for creator-authorized identity
+edits, and the existing assignment endpoint for authorized assignment-only edits.
+For assignment-only saves, identity fields are disabled and no identity fields are
+submitted. Server identity authorization is unchanged. Flag/schema checks remain
+mandatory. Missing IDs, missing migration history/schema/triggers, disabled approval
+and database-readiness failures have visible reasons. Enabled Save Changes has clear
+active styling. Success is returned/flashed only after the transaction commits.
+
+The generated actual Flask modal fixture is /tmp/owner_modal_rendered.json, ignored
+by Git. Run tests/test_pm_owner_operations.py before tests/test_owner_rendered_ui.cjs.
+The browser regression consumes rendered dialog data and owner attributes rather than
+inventing their values, and covers own/foreign creator, approval block and missing ID.
+No production owner record was inspected or modified; the live manager/creator values
+and the deployed interaction still require verification on Render.

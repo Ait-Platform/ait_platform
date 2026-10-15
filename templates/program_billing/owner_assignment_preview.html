@@ -1,6 +1,6 @@
-<dialog data-manager-id="{{ current_user.id }}" data-owners-enabled="{{ 'true' if owners_enabled else 'false' }}" data-csrf="{{ csrf_token() }}" data-owner-search-url="{{ url_for('billing_bp.owner_search') }}" id="owner-assignment-preview" class="w-full max-w-3xl rounded-xl border border-slate-200 p-6 shadow-xl">
+<dialog data-unavailable-reason="{{ g.get('pm_owner_unavailable_reason', 'Owner registration is not yet available.') if g is defined else 'Owner registration is not yet available.' }}" data-manager-id="{{ current_user.id }}" data-owners-enabled="{{ 'true' if owners_enabled else 'false' }}" data-csrf="{{ csrf_token() }}" data-owner-search-url="{{ url_for('billing_bp.owner_search') }}" id="owner-assignment-preview" class="w-full max-w-3xl rounded-xl border border-slate-200 p-6 shadow-xl">
   <div class="flex items-center justify-between gap-4"><h2 class="text-xl font-semibold">Assign Owner: <span id="owner-property-name"></span></h2><button type="button" id="owner-preview-close" class="rounded-lg bg-slate-100 px-3 py-2">Close</button></div>
-  <p role="status" class="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">{% if owners_enabled %}Saving creates or reuses an owner and assigns them to the selected property together. Shared identity edits affect all properties using that identity.{% else %}Owner registration is not yet available.{% endif %}</p>
+  <p role="status" class="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">{% if owners_enabled %}Saving creates or reuses an owner and assigns them to the selected property together. Shared identity edits affect all properties using that identity.{% else %}Owner registration is not yet available. {{ g.get('pm_owner_unavailable_reason', '') if g is defined else '' }}{% endif %}</p>
   <section data-owner-panel="new" class="mt-5">
     <div class="grid gap-4 md:grid-cols-2">
       <div><label for="owner-kind" class="mb-2 block text-sm font-semibold">Owner type</label><select id="owner-kind" data-owner-field="type" required class="w-full rounded-lg border border-slate-300 px-3 py-2"><option value="">Choose a type</option>{% for kind in ['Individual', 'Company', 'Trust'] %}<option value="{{ kind|lower }}">{{ 'Individual(s)' if kind == 'Individual' else kind }}</option>{% endfor %}</select></div>
@@ -26,8 +26,8 @@
   </section>
     <div class="mt-4 flex justify-end"><button type="button" id="owner-add-preview" {% if not owners_enabled %}disabled{% endif %} class="rounded-lg border border-orange-300 bg-orange-50 px-4 py-2 font-semibold text-orange-900">Save and Add Another Owner</button></div>
   <p id="owner-preview-message" role="status" class="mt-3 text-sm text-slate-600"></p>
-  <div class="mt-5 flex justify-end"><button type="button" {% if not owners_enabled %}disabled{% endif %} id="owner-save-disabled" aria-describedby="owner-save-explanation" class="rounded-lg border border-slate-200 bg-slate-100 px-4 py-2 font-semibold text-slate-500" hidden>Save Changes</button></div>
-  <p id="owner-save-explanation" class="mt-2 text-sm text-slate-600">{% if not owners_enabled %}Owner registration is not yet available.{% endif %}</p>
+  <div class="mt-5 flex justify-end"><button type="button" {% if not owners_enabled %}disabled{% endif %} id="owner-save-disabled" aria-describedby="owner-save-explanation" class="rounded-lg bg-orange-600 px-4 py-2 font-semibold text-white disabled:bg-slate-100 disabled:text-slate-500" hidden>Save Changes</button></div>
+  <p id="owner-save-explanation" class="mt-2 text-sm text-slate-600">{% if not owners_enabled %}Owner registration is not yet available. {{ g.get('pm_owner_unavailable_reason', '') if g is defined else '' }}{% endif %}</p>
 </dialog>
 <script>
 (() => {
@@ -43,7 +43,7 @@
   const another = document.getElementById('owner-add-preview');
   const existing = document.getElementById('owner-existing-selection');
   const message = document.getElementById('owner-preview-message');
-  let selectedProperty = null, editUrl = null, mode = 'new', saving = false, editable = true;
+  let selectedProperty = null, editUrl = null, mode = 'new', saving = false, editable = true, assignmentOnly = false;
   function syncPostal() {
     postal.readOnly = samePostal.checked;
     if (samePostal.checked) postal.value = residential.value;
@@ -51,13 +51,13 @@
   samePostal.addEventListener('change', syncPostal);
   residential.addEventListener('input', syncPostal);
   function resetFields() {
-    for (const field of fields) field.value = '';
+    for (const field of fields) {field.value = '';field.disabled=false;}
     samePostal.checked = false; active.checked = true; syncPostal();
     document.getElementById('owner-percentage').disabled = false;
     document.getElementById('owner-identity_number').required = enabled;
     existing.value = '';
     document.getElementById('owner-existing-percentage').value = '';
-    editable = true;
+    editable = true; assignmentOnly=false; samePostal.disabled=false;
   }
   function selectPanel(key) {
     for (const panel of dialog.querySelectorAll('[data-owner-panel]'))
@@ -71,7 +71,7 @@
     return result;
   }
   function openEdit(button) {
-    if (!enabled || saving) return;
+    if (saving) return;
     const owner = JSON.parse(button.dataset.ownerEdit);
     resetFields(); editUrl = button.dataset.ownerEditUrl; mode = 'new';
     selectedProperty = button.dataset.ownerPropertyId || null;
@@ -82,11 +82,22 @@
     document.getElementById('owner-percentage').value = owner.ownership_percentage ?? '';
     document.getElementById('owner-percentage').disabled = false;
     document.getElementById('owner-identity_number').required = false;
-    editable = Number(owner.created_by) === Number(dialog.dataset.managerId);
-    save.disabled = !editable;
-    message.textContent = editable
-      ? "Editing this shared owner identity affects its linked properties, not other owners. The percentage and Active checkbox apply only to this property's assignment."
-      : 'Only the manager who registered this shared owner can edit its identity details.';
+    const identityEditable=Number(owner.created_by) === Number(dialog.dataset.managerId);
+    const validContext=Number.isInteger(Number(selectedProperty)) && Number(selectedProperty)>0
+      && Number.isInteger(Number(owner.assignment_id)) && Number(owner.assignment_id)>0
+      && Number.isInteger(Number(owner.owner_id)) && Number(owner.owner_id)>0;
+    assignmentOnly=!identityEditable;
+    if (assignmentOnly) {
+      for (const field of fields) field.disabled=field.dataset.ownerField!=='percentage';
+      samePostal.disabled=true;
+      editUrl='/billing/property-owner/'+selectedProperty+'/assignments/'+owner.assignment_id;
+    }
+    editable=enabled && validContext;
+    save.disabled=!editable;
+    message.textContent=!enabled ? dialog.dataset.unavailableReason
+      : !validContext ? 'Owner, property or assignment ID is missing. Reload the page and reopen this owner.'
+      : assignmentOnly ? 'Shared identity details are read-only because another manager registered this owner. You can save the percentage and Active status for this property only.'
+      : "Shared identity details apply to this owner across properties. Percentage and Active apply only to this property's assignment.";
     selectPanel('new'); dialog.showModal();
   }
   function updateOwners(result) {
@@ -138,6 +149,7 @@
       payload.postal_same = samePostal.checked; payload.active = active.checked;
       if (editUrl) {payload.property_id=Number(selectedProperty); payload.assignment_id=Number(dialog.dataset.assignmentId);}
     }
+    if (assignmentOnly) payload={percentage:document.getElementById('owner-percentage').value,active:active.checked};
     saving = true; save.disabled = true; another.disabled = true;
     try {
       const editing = Boolean(editUrl);

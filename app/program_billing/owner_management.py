@@ -1,7 +1,7 @@
 """Owner persistence, disabled until explicit approval and schema verification."""
 from functools import wraps
 from decimal import Decimal, InvalidOperation
-from flask import abort, current_app, jsonify, request, flash
+from flask import abort, current_app, jsonify, request, flash, g
 from flask_login import current_user, login_required
 from sqlalchemy import inspect, text
 from sqlalchemy.exc import SQLAlchemyError
@@ -13,27 +13,36 @@ FIELDS = {'type':16,'name':200,'identity_number':80,'email':255,'phone':50,'resi
 
 
 def owners_enabled():
-    if current_app.config.get('PM_OWNER_WRITES_APPROVED') is not True:
+    g.pm_owner_unavailable_reason=''
+    def unavailable(reason):
+        g.pm_owner_unavailable_reason=reason
         return False
+    if current_app.config.get('PM_OWNER_WRITES_APPROVED') is not True:
+        return unavailable('Owner saving is disabled: PM_OWNER_WRITES_APPROVED is not enabled.')
     try:
         inspector=inspect(db.session.connection())
         required={'bil_owner_identity':{'id','identity_type','display_name','created_by','identity_number','email','phone','residential_address','postal_address'},
             'bil_property_ownership':{'id','property_id','owner_id','created_by','ownership_percentage','supersedes_id','effective_from','effective_to','owner_identity_snapshot'},
             'bil_ownership_verification':{'id'},'bil_property_registration':{'id'},'alembic_version':{'version_num'}}
-        if any(not inspector.has_table(t) or not cols <= {c['name'] for c in inspector.get_columns(t)} for t,cols in required.items()):return False
+        for table,columns in required.items():
+            if not inspector.has_table(table):return unavailable('Ownership schema is missing table '+table+'.')
+            missing=columns-{c['name'] for c in inspector.get_columns(table)}
+            if missing:return unavailable('Ownership schema is missing columns in '+table+': '+', '.join(sorted(missing))+'.')
         revisions=db.session.execute(text('SELECT version_num FROM alembic_version')).scalars().all()
-        if 'pm_owner_002' not in revisions:return False
+        if 'pm_owner_002' not in revisions:return unavailable('Ownership migration pm_owner_002 is not recorded in Alembic history.')
         triggers=set(db.session.execute(text("SELECT tgname FROM pg_trigger WHERE tgrelid='bil_property_ownership'::regclass AND NOT tgisinternal AND tgenabled IN ('O','A')")).scalars().all())
-        return {'bil_property_ownership_immutable','bil_property_ownership_no_truncate','pm_ownership_validate'} <= triggers
+        if not {'bil_property_ownership_immutable','bil_property_ownership_no_truncate','pm_ownership_validate'} <= triggers:
+            return unavailable('Required ownership authorization or history triggers are missing or disabled.')
+        return True
     except SQLAlchemyError:
-        return False
+        return unavailable('Ownership database readiness could not be verified. Please contact support.')
 
 
 def guarded(function):
     @wraps(function)
     @login_required
     def wrapped(*args,**kwargs):
-        if not owners_enabled():return jsonify(error='Owner registration is not yet available.'),503
+        if not owners_enabled():return jsonify(error=g.pm_owner_unavailable_reason),503
         try:return function(*args,**kwargs)
         except HTTPException as error:
             db.session.rollback()
@@ -163,7 +172,8 @@ def owner_assignment_edit(property_id,assignment_id):
     if not isinstance(payload,dict):abort(400)
     change_assignment(property_id,assignment_id,payload,old)
     result=owner_rows(property_id);db.session.commit()
-    return jsonify(owners=result,property_id=property_id)
+    flash("Ownership assignment changes saved.","success")
+    return jsonify(owners=result,property_id=property_id,message="Ownership assignment changes saved.")
 
 
 def change_assignment(property_id,assignment_id,payload,old=None):

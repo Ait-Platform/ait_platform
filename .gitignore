@@ -43,3 +43,6 @@ render_backup.sql
 !/app/static/pdf/Reading_Facilitator_Manual.pdf
 !/app/static/pdf/Reading_Workshop_Manual.pdf
 !/app/static/pdf/Reading Timetable.pdf
+
+# Disposable Flask-rendered owner modal regression fixture
+/tmp/owner_modal_rendered.json

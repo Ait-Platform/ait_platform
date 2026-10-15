@@ -4112,3 +4112,6 @@ from . import owner_management as _owner_management
 
 # R01 snapshots and uploads remain default-disabled pending reviewed draft/private storage readiness.
 from . import lease_snapshot as _lease_snapshot
+
+# Grouped R01 inputs and completion checks; master generation remains separately gated.
+from . import lease_workflow as _lease_workflow

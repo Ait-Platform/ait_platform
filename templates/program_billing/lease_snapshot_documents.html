@@ -1,14 +1,14 @@
 ﻿{% extends "layout.html" %}
-{% block title %}Lease Document{% endblock %}
+{% block title %}Supporting Documents and Annexures{% endblock %}
 {% block flashes %}{% endblock %}
 {% block content %}
 <div class="mx-auto max-w-3xl px-4 py-10"><div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow"><div class="h-2 bg-orange-500"></div><div class="p-6">
 {% include "partials/flash_messages.html" %}
-<div class="flex items-center justify-between gap-4"><h1 class="text-xl font-semibold">Lease Document</h1><a class="rounded-lg bg-slate-100 px-4 py-2" href="{{ url_for('billing_bp.pm_lease_management',property_id=property.id,draft_id=lease_draft.id if lease_draft else None) }}">Back</a></div>
+<div class="flex items-center justify-between gap-4"><h1 class="text-xl font-semibold">Supporting Documents and Annexures</h1><a class="rounded-lg bg-slate-100 px-4 py-2" href="{{ url_for('billing_bp.lease_supporting',property_id=property.id,draft_id=lease_draft.id if lease_draft else None) }}">Back</a></div>
 <p class="mt-3 text-sm">{{ property.name }} · Private PDF/DOCX attachments · Maximum 10 MB</p>
 {% if unavailable or not lease_draft %}<p role="status" class="mt-3 text-sm text-amber-900">{{ unavailable or 'Start a persistent draft first.' }}</p>{% endif %}
 <form method="post" enctype="multipart/form-data" class="mt-4"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="draft_id" value="{{ lease_draft.id if lease_draft else '' }}"><fieldset {% if unavailable or not lease_draft %}disabled{% endif %}>
-<label class="block text-sm font-semibold" for="attachment-item">Lease document or supporting annexure</label><select id="attachment-item" name="item_key" class="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2"><option value="lease-document">Lease Document</option>{% for item in annexures %}<option value="{{ item.key }}" {% if request.args.get('item_key')==item.key %}selected{% endif %}>{{ item.label }}</option>{% endfor %}</select>
+<label class="block text-sm font-semibold" for="attachment-item">Supporting document or annexure</label><select id="attachment-item" name="item_key" class="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2"><option value="lease-document">Additional supporting document (not a master)</option>{% for item in annexures %}<option value="{{ item.key }}" {% if request.args.get('item_key')==item.key %}selected{% endif %}>{{ item.label }}</option>{% endfor %}</select>
 <label for="lease-upload" class="mt-4 block text-sm font-semibold">PDF or DOCX file</label><input id="lease-upload" name="document" type="file" accept=".pdf,.docx" required class="mt-2 w-full rounded-lg border border-slate-300 p-2">
 <div class="mt-4 flex justify-end"><button type="submit" class="rounded-lg bg-orange-600 px-4 py-2 font-semibold text-white">Upload private document</button></div></fieldset></form>
 <h2 class="mt-6 font-semibold">Stored draft attachments</h2>

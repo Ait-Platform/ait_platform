@@ -1,0 +1,4 @@
+{% extends 'program_billing/lease_workflow_base.html' %}{% set title='2. Lease Particulars' %}
+{% block workspace %}<p class="mt-4 text-sm">Particulars follow the existing R01 document. Recorded information remains subject to review.</p>
+{% for group in groups %}<article class="mt-4 rounded-lg border border-slate-200 p-4"><h2 class="font-semibold"><a class="text-blue-700 underline" href="{{ group.url }}">{{ group.title }}</a></h2><p class="mt-2 text-sm">{{ group.summary }}</p></article>{% endfor %}
+{% endblock %}

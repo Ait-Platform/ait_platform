@@ -3,7 +3,7 @@ from io import BytesIO
 from pathlib import Path
 import re
 
-from flask import abort, current_app, render_template, request, send_file
+from flask import abort, current_app, render_template, request, send_file, session
 from flask_login import current_user
 from jinja2 import ChoiceLoader, FileSystemLoader
 from sqlalchemy import select, inspect, literal
@@ -95,6 +95,11 @@ def lease_management():
         abort(503, description="Properties could not be loaded.")
     review_property_id = authorised_review_property()
     requested = request.args.get("property_id")
+    if requested is None:
+        saved = session.get('lease_workspace_property', {})
+        if isinstance(saved, dict) and saved.get('user_id') == current_user.id:
+            saved_id = saved.get('property_id')
+            if any(prop['id'] == saved_id for prop in properties):requested = str(saved_id)
     selected = None
     if requested is not None:
         if not requested.isdecimal() or int(requested) <= 0:
@@ -104,6 +109,7 @@ def lease_management():
             abort(404)
     elif review_property_id is not None:
         selected = next((prop for prop in properties if prop["id"] == review_property_id), None)
+    if selected is not None:session['lease_workspace_property'] = {'user_id':current_user.id,'property_id':selected['id']}
     leases = []
     listing_warning=None
     if selected is not None:

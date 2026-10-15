@@ -83,12 +83,13 @@ class PropertyManagementTests(unittest.TestCase):
                 sa.Column('start_date',sa.Text),sa.Column('end_date',sa.Text),sa.Column('rent_amount',sa.Numeric)))
             auth=types.ModuleType('app.models.auth');auth.User=User
             sys.modules['app.models.auth']=auth;modules['app.models.billing'].BilLease=Lease
-            for name in ('lease_documents','lease_management','lease_snapshot'):
+            for name in ('lease_documents','lease_management','lease_snapshot','lease_workflow'):
                 spec=importlib.util.spec_from_file_location('app.program_billing.'+name,ROOT/'app/program_billing'/(name+'.py'))
                 module=importlib.util.module_from_spec(spec);sys.modules[spec.name]=module;spec.loader.exec_module(module)
                 self.addCleanup(sys.modules.pop,spec.name,None)
                 if name=='lease_management':self.lease_module=module
                 if name=='lease_snapshot':self.snapshot_module=module
+                if name=='lease_workflow':self.workflow_module=module
             blueprint.add_url_rule('/fixture/lease_property',endpoint='lease_property',view_func=lambda:'Page 1')
         # Include the real main route, without starting the AIT application factory.
         tree = ast.parse((ROOT/'app/program_billing/routes.py').read_text(encoding='utf-8'))

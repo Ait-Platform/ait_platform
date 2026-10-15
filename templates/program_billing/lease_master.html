@@ -1,0 +1,5 @@
+{% extends 'program_billing/lease_workflow_base.html' %}{% set title='3. Master Lease Document' %}
+{% block workspace %}<p role="status" class="mt-4 text-amber-900">{{ blocker }}</p>{% if storage_reason %}<p class="mt-3 text-sm">{{ storage_reason }}</p>{% endif %}
+<p class="mt-4 text-sm">The original R01 review files and hashes are preserved. R01 has not been promoted to an approved master. Previous master versions must be immutable and reusable; merging must create a separate draft document.</p>
+{% if is_admin %}<fieldset disabled class="mt-4"><label for="master-upload" class="block font-semibold">Master DOCX (administrator only)</label><input id="master-upload" type="file" accept=".docx" class="mt-2 w-full rounded-lg border border-slate-300 p-2"><p class="mt-2 text-sm">Upload disabled until the master-version schema and private general AIT R2 destination are approved and verified.</p></fieldset>{% else %}<p class="mt-4 text-sm">Only authorized administrators may upload or replace a master. Master uploads are currently disabled for everyone.</p>{% endif %}
+{% endblock %}

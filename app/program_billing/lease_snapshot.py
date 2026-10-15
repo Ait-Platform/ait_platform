@@ -207,7 +207,7 @@ def document_page(property_id):
             # Pending metadata is intentionally retained for reconciliation; no unsafe object deletion.
             abort(503,description="Upload/finalization was not confirmed. Check stored attachment status before retrying; metadata is retained for reconciliation.")
         flash("Lease document stored and retrieved successfully. It remains a draft attachment.","success")
-        return redirect(url_for('billing_bp.pm_lease_management',property_id=property_id,draft_id=draft['id']))
+        return redirect(url_for('billing_bp.lease_supporting',property_id=property_id,draft_id=draft['id']))
     return render_pm_template('program_billing/lease_snapshot_documents.html',property=property_record,
         lease_draft=draft,unavailable=reason or storage_reason,lease_files=documents(draft),
         annexures=[i for i in CATALOG['items'] if i['key'].startswith('annexure-')])

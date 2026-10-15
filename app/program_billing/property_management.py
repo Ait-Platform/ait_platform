@@ -185,13 +185,7 @@ def property_owners_edit(property_id):
 @billing_bp.get("/billing/portfolio/print", endpoint="portfolio_print")
 @login_required
 def portfolio_print():
-    from app.program_billing.portfolio_pdf import build_portfolio_pdf
-    try:
-        pdf=build_portfolio_pdf(portfolio_context())
-    except Exception as error:
-        current_app.logger.error("Portfolio print PDF failed error=%s",type(error).__name__)
-        abort(503,description="The printable report could not be generated. Please retry or contact support.")
-    response=Response(pdf,mimetype="application/pdf")
-    response.headers['Content-Disposition']='inline; filename="Property_Portfolio.pdf"'
+    response=Response(render_template("program_billing/portfolio_document.html",
+        print_mode=True,**portfolio_context()),mimetype="text/html")
     response.headers['Cache-Control']='private, no-store'
     return response

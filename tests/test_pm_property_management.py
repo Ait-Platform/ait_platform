@@ -73,12 +73,29 @@ class PropertyManagementTests(unittest.TestCase):
         pdf_spec=importlib.util.spec_from_file_location('app.program_billing.portfolio_pdf',ROOT/'app/program_billing/portfolio_pdf.py')
         pdf_mod=importlib.util.module_from_spec(pdf_spec);sys.modules[pdf_spec.name]=pdf_mod;pdf_spec.loader.exec_module(pdf_mod)
         self.addCleanup(sys.modules.pop,pdf_spec.name,None)
+        if getattr(self,'load_lease_workspace',False):
+            class User:pass
+            mapper.map_imperatively(User,sa.Table('user',mapper.metadata,
+                sa.Column('id',sa.Integer,primary_key=True),sa.Column('is_active',sa.Integer)))
+            class Lease:pass
+            mapper.map_imperatively(Lease,sa.Table('bil_lease',mapper.metadata,
+                sa.Column('id',sa.Integer,primary_key=True),sa.Column('property_id',sa.Integer),
+                sa.Column('start_date',sa.Text),sa.Column('end_date',sa.Text),sa.Column('rent_amount',sa.Numeric)))
+            auth=types.ModuleType('app.models.auth');auth.User=User
+            sys.modules['app.models.auth']=auth;modules['app.models.billing'].BilLease=Lease
+            for name in ('lease_documents','lease_management'):
+                spec=importlib.util.spec_from_file_location('app.program_billing.'+name,ROOT/'app/program_billing'/(name+'.py'))
+                module=importlib.util.module_from_spec(spec);sys.modules[spec.name]=module;spec.loader.exec_module(module)
+                self.addCleanup(sys.modules.pop,spec.name,None)
+                if name=='lease_management':self.lease_module=module
+            blueprint.add_url_rule('/fixture/lease_property',endpoint='lease_property',view_func=lambda:'Page 1')
         # Include the real main route, without starting the AIT application factory.
         tree = ast.parse((ROOT/'app/program_billing/routes.py').read_text(encoding='utf-8'))
         for function in ('property_owner', 'learner_dashboard', 'property_portfolio'):
             node = next(n for n in tree.body if isinstance(n,ast.FunctionDef) and n.name==function)
             exec(compile(ast.Module(body=[node],type_ignores=[]),'property-owner-route','exec'),dict(billing_bp=blueprint,login_required=login_required))
         for endpoint in ('pm_lease_management','utilities_hub','tenant_accounts'):
+            if endpoint=='pm_lease_management' and getattr(self,'load_lease_workspace',False):continue
             blueprint.add_url_rule('/fixture/'+endpoint,endpoint=endpoint,view_func=lambda:'fixture')
         bridge=Blueprint('bridge_bp',__name__)
         bridge.add_url_rule('/bridge',endpoint='bridge',view_func=login_required(lambda:'Bridge'))
@@ -105,7 +122,7 @@ class PropertyManagementTests(unittest.TestCase):
             def handle_data(self,data):
                 if self.inside and self.link:self.labels.append(unescape(data.strip()))
         menu=Menu();menu.feed(html)
-        self.assertEqual(menu.labels,['Property & Owner','Lease Management','METSOA','Occupier SOA','Property Portfolio'])
+        self.assertEqual(menu.labels,['Property & Owner','Lease','METSOA','Occupier SOA','Property Portfolio'])
         self.assertEqual(html.count('>Property Portfolio</a>'),1)
         self.assertEqual(self.client.get('/bridge').status_code,200)
         with self.client.session_transaction() as session:session.clear()

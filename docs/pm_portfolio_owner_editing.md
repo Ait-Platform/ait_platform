@@ -93,11 +93,12 @@ The recipient modal defaults to the registered account email but remains editabl
 an entered value, including an invalid/empty submitted value, is retained on failure.
 Explicit Send Email, recipient validation and standardized sender behavior remain.
 
-Print and Email use the same portfolio_pdf.build_portfolio_pdf context/pipeline.
+Email retains portfolio_pdf.build_portfolio_pdf. Native Print renders the same
+authorized report context and partial as HTML and invokes window.print() on load.
 It reuses the platform HTML renderer, renders each property separately, then merges
-using existing pypdf and ReportLab dependencies. Every page receives the AIT heading,
+using existing pypdf and ReportLab dependencies. Every emailed PDF page receives the AIT heading,
 its property name/ID, a shared export identifier and global Page X of Y numbering.
-Print opens an authenticated inline PDF using the browser PDF viewer's print control.
+Print opens an authenticated HTML report and the browser's native print dialog.
 Owner blocks have keep-together rules, compact label/value rows and readable fonts;
 blocks taller than one page can still require splitting. No captured fields were
 removed. Each export is read afresh under the existing manager/active-property scope.

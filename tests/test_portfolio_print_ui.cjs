@@ -1,0 +1,10 @@
+﻿const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const path=require('node:path');
+const vm=require('node:vm');
+const source=fs.readFileSync(path.join(__dirname,'../templates/program_billing/portfolio_document.html'),'utf8');
+const script=source.split('<script>')[1].split('</script>')[0];
+let load,prints=0;
+vm.runInNewContext(script,{window:{addEventListener:(event,handler)=>{assert.equal(event,'load');load=handler;},print:()=>prints++}});
+assert.equal(prints,0);assert.equal(typeof load,'function');load();assert.equal(prints,1);
+console.log('Native Portfolio print handler invokes browser window.print after report load.');

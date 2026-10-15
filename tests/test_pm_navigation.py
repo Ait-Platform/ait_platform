@@ -117,7 +117,7 @@ class PropertyNavigationTests(unittest.TestCase):
         env.globals['current_user'] = dict(id=7)
         data = [dict(property_id=12, property_name='Existing property', address='', is_archived=False)]
         html = env.get_template('program_billing/property_owner.html').render(properties=[dict(id=12, name='Existing property', address='', is_archived=False)], property_name='', error=None)
-        for label in ('Property &amp; Owner', 'Lease Management', 'METSOA', 'Occupier SOA', 'Property Portfolio'):
+        for label in ('Property &amp; Owner', 'Lease', 'METSOA', 'Occupier SOA', 'Property Portfolio'):
             self.assertIn(label, html)
         self.assertIn('/fixture/billing_bp.property_portfolio', html)
         self.assertIn('Existing property', html)

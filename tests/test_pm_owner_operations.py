@@ -304,16 +304,15 @@ class OwnerOperationsTests(unittest.TestCase):
         self.assign(name='Printable identity',identity_number='PRINT-ID')
         page=self.client.get('/billing/portfolio/print')
         self.assertEqual(page.status_code,200)
-        from io import BytesIO
-        from pypdf import PdfReader
-        html=''.join(p.extract_text() for p in PdfReader(BytesIO(page.data)).pages)
-        self.assertEqual(page.mimetype,'application/pdf')
+        html=page.get_data(as_text=True)
+        self.assertEqual(page.mimetype,'text/html')
+        self.assertIn('window.print()',html)
         self.assertIn('PRINT-ID',html)
         self.assertNotIn('<form',html)
         self.assertNotIn('Private address',html)
         self.assertNotIn('METSOA',html)
         self.sign_in(8)
-        self.assertNotIn('PRINT-ID',''.join(p.extract_text() for p in PdfReader(BytesIO(self.client.get('/billing/portfolio/print').data)).pages))
+        self.assertNotIn('PRINT-ID',self.client.get('/billing/portfolio/print').get_data(as_text=True))
         with self.client.session_transaction() as session:session.clear()
         self.assertEqual(self.client.post('/billing/portfolio/email',data={'recipient_email':'chosen@example.com','intent':'send'}).status_code,401)
         self.assertEqual(self.client.get('/billing/portfolio/print').status_code,401)
@@ -387,7 +386,11 @@ class OwnerOperationsTests(unittest.TestCase):
             self.assertEqual(response.status_code,302)
         def text(data):
             return re.sub(r'AIT Portfolio [A-F0-9]{12}','AIT Portfolio REPORT',''.join(p.extract_text() for p in PdfReader(BytesIO(data)).pages))
-        self.assertEqual(text(printed.data),text(sender.call_args.kwargs['pdf_bytes']))
+        printed_text=printed.get_data(as_text=True)
+        pdf_text=text(sender.call_args.kwargs['pdf_bytes'])
+        self.assertIn('window.print()',printed_text)
+        for value in ('Almond','PDF Owner','PDF-SAME','Original address','Owner home','PO Box'):
+            self.assertIn(value,printed_text);self.assertIn(value,pdf_text)
         self.assertEqual(sender.call_args.kwargs['to_email'],'replacement@example.com')
 
     def test_real_multipage_pdf_headers_numbering_and_owner_integrity(self):

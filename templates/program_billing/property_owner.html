@@ -33,7 +33,12 @@
             <tr class="border-t border-slate-200">
               <td class="p-3 font-semibold">{{ property.name }}{% if property.is_archived %}<span class="ml-2 text-xs text-slate-500">Archived</span>{% endif %}</td>
               <td class="p-3"><button type="button" data-address-dialog="address-{{ property.id }}" class="text-blue-700 underline">{{ property.address or 'Assign Address' }}</button></td>
-              <td class="p-3" data-property-owners="{{ property.id }}"><span data-owner-names>{% if owners_enabled %}{% for owner in owners_by_property.get(property.id, []) %}{{ owner.name }}{% if owner.ownership_percentage is not none %} ({{ owner.ownership_percentage }}%){% endif %}{% if not loop.last %}, {% endif %}{% endfor %}{% endif %}</span> <button type="button" data-open-owner data-property-id="{{ property.id }}" data-property-name="{{ property.name }}" class="text-blue-700 underline">Assign Owner</button></td>
+              <td class="p-3" data-property-owners="{{ property.id }}">
+                <div data-owner-names class="space-y-1">{% if owners_enabled %}{% for owner in owners_by_property.get(property.id, []) %}
+                  <div><button type="button" data-owner-edit="{{ owner|tojson|forceescape }}" data-owner-property-id="{{ property.id }}" data-owner-property-name="{{ property.name }}" data-owner-edit-url="{{ url_for('billing_bp.owner_edit', owner_id=owner.owner_id) }}" class="text-blue-700 underline">{{ owner.name }}</button></div>
+                {% endfor %}{% endif %}</div>
+                <button type="button" data-open-owner data-property-id="{{ property.id }}" data-property-name="{{ property.name }}" class="mt-2 text-blue-700 underline">Add Owner</button>
+              </td>
               <td class="p-3"><a href="{{ url_for('billing_bp.property_edit', property_id=property.id) }}" class="rounded-lg border border-slate-200 bg-slate-100 px-3 py-2 font-semibold text-slate-700 hover:bg-slate-200">Edit</a></td>
             </tr>
             {% else %}<tr><td colspan="4" class="p-6 text-slate-600">No properties registered yet. Enter a property name above to begin.</td></tr>{% endfor %}

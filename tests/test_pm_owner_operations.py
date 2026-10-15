@@ -97,6 +97,32 @@ class OwnerOperationsTests(unittest.TestCase):
         with patch.object(self.session,'commit',side_effect=sa.exc.SQLAlchemyError('synthetic commit failure')):response=self.assign()
         self.assertEqual(response.status_code,503);self.assertEqual(self.sql('SELECT count(*) FROM bil_owner_identity').scalar(),0)
 
+    def test_three_individual_owners_edit_and_page_reload(self):
+        ids=[]
+        for i in range(3):
+            response=self.assign(name=f'Individual {i}',identity_number=f'ID-{i}',percentage='25')
+            self.assertEqual(response.status_code,200)
+            ids.append(next(o['owner_id'] for o in response.get_json()['owners'] if o['identity_number']==f'ID-{i}'))
+        for i,owner_id in enumerate(ids):
+            response=self.client.patch(f'/billing/property-owner/owners/{owner_id}',json=self.payload(name=f'Edited {i}',identity_number=f'ID-{i}'))
+            self.assertEqual(response.status_code,200)
+            page=self.client.get('/billing/property-owner')
+            self.assertEqual(page.status_code,200)
+            html=page.get_data(as_text=True)
+            for j in range(3):
+                self.assertIn(f'Edited {j}' if j<=i else f'Individual {j}',html)
+            self.assertIn('data-owner-edit=',html)
+            self.assertIn('Add Owner',html)
+            # The property owner cell contains clickable identities, not percentages.
+            import re
+            cell=re.search(r'data-property-owners="26">(.*?)</td>',html,re.S).group(1)
+            self.assertNotIn('%',cell)
+            self.assertEqual(cell.count('data-owner-edit='),3)
+        rows=self.sql('SELECT display_name FROM bil_owner_identity ORDER BY id').scalars().all()
+        self.assertEqual(rows,['Edited 0','Edited 1','Edited 2'])
+        self.assertEqual(self.sql('SELECT count(*) FROM bil_property WHERE id=26').scalar(),1)
+        self.assertEqual(self.sql('SELECT count(*) FROM bil_property_ownership WHERE property_id=26').scalar(),3)
+
     def test_disabled_flag_denies_all_owner_operations(self):
         self.app.config['PM_OWNER_WRITES_APPROVED']=False
         with patch.object(self.session,'execute',side_effect=AssertionError('Disabled owner routes must not query database')):

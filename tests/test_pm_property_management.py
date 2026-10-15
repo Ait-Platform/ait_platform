@@ -86,7 +86,7 @@ class PropertyManagementTests(unittest.TestCase):
         response=self.client.get('/billing/dashboard')
         self.assertEqual(response.status_code,200)
         html=response.get_data(as_text=True)
-        for content in ('Save Property','My Properties','Almond','Original address','<dialog','Assign Owner'):
+        for content in ('Save Property','My Properties','Almond','Original address','<dialog','Add Owner'):
             self.assertIn(content,html)
         self.assertNotIn('Other manager',html)
         self.assertNotIn('Property Management modules',html)
@@ -193,7 +193,9 @@ class PropertyManagementTests(unittest.TestCase):
             self.assertIn('Owner registration is not yet available.',html)
             self.assertIn('Postal address same as residential / registered address',html)
             self.assertNotIn('Save Owner &amp; Assignment',html)
-            self.assertIn('Nothing has been saved or assigned.',html)
+            self.assertIn('Save and Add Another Owner',html)
+            self.assertIn('Individual(s)',html)
+            self.assertNotIn('Add to Preview / Add Another Owner',html)
             self.assertNotIn('action="/billing/owner',html)
         self.assertEqual(self.count(),2)
         self.assertEqual(set(sa.inspect(self.conn).get_temp_table_names()),{'bil_property'})

@@ -1,13 +1,13 @@
-<dialog data-owners-enabled="{{ 'true' if owners_enabled else 'false' }}" data-csrf="{{ csrf_token() }}" data-owner-search-url="{{ url_for('billing_bp.owner_search') }}" id="owner-assignment-preview" class="w-full max-w-3xl rounded-xl border border-slate-200 p-6 shadow-xl">
+<dialog data-manager-id="{{ current_user.id }}" data-owners-enabled="{{ 'true' if owners_enabled else 'false' }}" data-csrf="{{ csrf_token() }}" data-owner-search-url="{{ url_for('billing_bp.owner_search') }}" id="owner-assignment-preview" class="w-full max-w-3xl rounded-xl border border-slate-200 p-6 shadow-xl">
   <div class="flex items-center justify-between gap-4"><h2 class="text-xl font-semibold">Assign Owner: <span id="owner-property-name"></span></h2><button type="button" id="owner-preview-close" class="rounded-lg bg-slate-100 px-3 py-2">Close</button></div>
-  <p role="status" class="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">{% if owners_enabled %}Save Owner saves or reuses an owner and assigns them to the selected property together. Shared identity edits affect all properties using that identity.{% else %}Interface preview only. Owner records and assignments cannot be saved until the ownership schema is approved and available. Preview entries disappear when this page is reloaded.{% endif %}</p>
+  <p role="status" class="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">{% if owners_enabled %}Save Owner saves or reuses an owner and assigns them to the selected property together. Shared identity edits affect all properties using that identity.{% else %}Owner registration is not yet available.{% endif %}</p>
   <div class="mt-4 flex flex-wrap gap-3">
     <button type="button" data-owner-tab="new" aria-pressed="true" class="rounded-lg border border-slate-300 bg-orange-50 px-4 py-2 font-semibold">Register New Owner</button>
     <button type="button" data-owner-tab="existing" aria-pressed="false" class="rounded-lg border border-slate-300 px-4 py-2 font-semibold">Select Existing Owner</button>
   </div>
   <section data-owner-panel="new" class="mt-5">
     <div class="grid gap-4 md:grid-cols-2">
-      <div><label for="owner-kind" class="mb-2 block text-sm font-semibold">Owner type</label><select id="owner-kind" data-owner-field="type" required class="w-full rounded-lg border border-slate-300 px-3 py-2"><option value="">Choose a type</option>{% for kind in ['Individual', 'Company', 'Trust'] %}<option value="{{ kind|lower }}">{{ kind }}</option>{% endfor %}</select></div>
+      <div><label for="owner-kind" class="mb-2 block text-sm font-semibold">Owner type</label><select id="owner-kind" data-owner-field="type" required class="w-full rounded-lg border border-slate-300 px-3 py-2"><option value="">Choose a type</option>{% for kind in ['Individual', 'Company', 'Trust'] %}<option value="{{ kind|lower }}">{{ 'Individual(s)' if kind == 'Individual' else kind }}</option>{% endfor %}</select></div>
       <div><label for="owner-name" class="mb-2 block text-sm font-semibold">Full name or registered name</label><input id="owner-name" data-owner-field="name" required maxlength="200" class="w-full rounded-lg border border-slate-300 px-3 py-2"></div>
       {% for key, label, limit, kind in [('identity_number', 'ID / registration number', 80, 'text'), ('email', 'Email', 255, 'email'), ('phone', 'Telephone', 50, 'tel')] %}
       <div><label for="owner-{{ key }}" class="mb-2 block text-sm font-semibold">{{ label }}</label><input id="owner-{{ key }}" data-owner-field="{{ key }}" {% if key == 'identity_number' and owners_enabled %}required{% endif %} type="{{ kind }}" maxlength="{{ limit }}" class="w-full rounded-lg border border-slate-300 px-3 py-2"></div>
@@ -18,7 +18,7 @@
       {% endfor %}
     </div>
     <label class="mt-4 flex items-center gap-2 text-sm font-medium"><input id="owner-postal-same" type="checkbox" class="rounded border-slate-300">Postal address same as residential / registered address</label>
-    <div class="mt-4 flex justify-end"><button type="button" id="owner-add-preview" class="rounded-lg border border-orange-300 bg-orange-50 px-4 py-2 font-semibold text-orange-900">Add to Preview / Add Another Owner</button></div>
+    <div class="mt-4 flex justify-end"><button type="button" id="owner-add-preview" {% if not owners_enabled %}disabled{% endif %} class="rounded-lg border border-orange-300 bg-orange-50 px-4 py-2 font-semibold text-orange-900">Save and Add Another Owner</button></div>
   </section>
   <section data-owner-panel="existing" hidden class="mt-5">
     <label for="owner-search" class="mb-2 block text-sm font-semibold">Search accessible existing owners</label>
@@ -28,19 +28,24 @@
     <p class="mt-3 text-sm text-slate-600">Existing identities will be reused. {% if not owners_enabled %}No owner records are queried in this preview.{% endif %}</p>
     {% if not owners_enabled %}<button type="button" disabled class="mt-4 rounded-lg border border-slate-200 bg-slate-100 px-4 py-2 text-slate-500">Select Owner &mdash; Schema Required</button>{% endif %}
   </section>
-  <section class="mt-5 rounded-lg border border-slate-200 p-4"><h3 class="font-semibold">Preview only &mdash; not assigned owners</h3><ul id="owner-preview-list" class="mt-2 space-y-2 text-sm"></ul><p id="owner-preview-message" role="status" class="mt-3 text-sm text-slate-600"></p></section>
+  <p id="owner-preview-message" role="status" class="mt-3 text-sm text-slate-600"></p>
   <div class="mt-5 flex justify-end"><button type="button" {% if not owners_enabled %}disabled{% endif %} id="owner-save-disabled" aria-describedby="owner-save-explanation" class="rounded-lg border border-slate-200 bg-slate-100 px-4 py-2 font-semibold text-slate-500">Save Owner</button></div>
   <p id="owner-save-explanation" class="mt-2 text-sm text-slate-600">{% if not owners_enabled %}Owner registration is not yet available.{% endif %}</p>
 </dialog>
 <script>
 (() => {
   const dialog = document.getElementById('owner-assignment-preview');
-  const entriesByProperty = new Map();
-  let propertyId = null;
+
+  const enabled = dialog.dataset.ownersEnabled === 'true';
   const fields = Array.from(dialog.querySelectorAll('[data-owner-field]'));
   const samePostal = document.getElementById('owner-postal-same');
   const residential = document.getElementById('owner-residential_address');
   const postal = document.getElementById('owner-postal_address');
+  const save = document.getElementById('owner-save-disabled');
+  const another = document.getElementById('owner-add-preview');
+  const existing = document.getElementById('owner-existing-selection');
+  const message = document.getElementById('owner-preview-message');
+  let selectedProperty = null, editUrl = null, mode = 'new', saving = false, editable = true;
   function syncPostal() {
     postal.readOnly = samePostal.checked;
     if (samePostal.checked) postal.value = residential.value;
@@ -49,103 +54,112 @@
   residential.addEventListener('input', syncPostal);
   function resetFields() {
     for (const field of fields) field.value = '';
-    samePostal.checked = false;
-    syncPostal();
-  }
-  function renderPreview() {
-    const list = document.getElementById('owner-preview-list');
-    list.replaceChildren();
-    for (const entry of entriesByProperty.get(propertyId) || []) {
-      const item = document.createElement('li');
-      item.textContent = entry.name + ' (' + entry.type + ')' + (entry.percentage ? ' ? ' + entry.percentage + '%' : '');
-      list.appendChild(item);
-    }
+    samePostal.checked = false; syncPostal();
+    document.getElementById('owner-percentage').disabled = false;
+    document.getElementById('owner-identity_number').required = enabled;
+    existing.value = '';
+    document.getElementById('owner-existing-percentage').value = '';
+    editable = true;
   }
   function selectPanel(key) {
     for (const panel of dialog.querySelectorAll('[data-owner-panel]')) panel.hidden = panel.dataset.ownerPanel !== key;
-    for (const button of dialog.querySelectorAll('[data-owner-tab]')) button.setAttribute('aria-pressed', String(button.dataset.ownerTab === key));
-  }
-  for (const button of document.querySelectorAll('[data-open-owner]')) {
-    button.addEventListener('click', () => {
-      propertyId = button.dataset.propertyId;
-      document.getElementById('owner-property-name').textContent = button.dataset.propertyName;
-      resetFields();
-      document.getElementById('owner-preview-message').textContent = '';
-      selectPanel('new'); renderPreview(); dialog.showModal(); document.getElementById('owner-kind').focus();
-    });
-  }
-  for (const button of dialog.querySelectorAll('[data-owner-tab]')) button.addEventListener('click', () => selectPanel(button.dataset.ownerTab));
-  document.getElementById('owner-preview-close').addEventListener('click', () => dialog.close());
-  document.getElementById('owner-add-preview').addEventListener('click', () => {
-    if (!fields.every(field => field.reportValidity())) return;
-    const entry = Object.fromEntries(fields.map(field => [field.dataset.ownerField, field.value.trim()]));
-    if (!entry.name) { document.getElementById('owner-preview-message').textContent = 'Enter an owner name.'; return; }
-    const entries = entriesByProperty.get(propertyId) || [];
-    if (entry.identity_number && entries.some(other => other.type === entry.type && other.identity_number.toLowerCase() === entry.identity_number.toLowerCase())) {
-      document.getElementById('owner-preview-message').textContent = 'This identifier is already in this property preview.'; return;
+    for (const button of dialog.querySelectorAll('[data-owner-tab]')) {
+      button.setAttribute('aria-pressed', String(button.dataset.ownerTab === key));
+      button.disabled = Boolean(editUrl);
     }
-    entries.push(entry); entriesByProperty.set(propertyId, entries); renderPreview();
-    resetFields();
-    document.getElementById('owner-preview-message').textContent = 'Preview updated only. Nothing has been saved or assigned.';
-  });
-  const enabled = dialog.dataset.ownersEnabled === 'true';
-  let editUrl = null;
-  let selectedProperty = null;
-  let mode = 'new';
-  const save = document.getElementById('owner-save-disabled');
-  const existing = document.getElementById('owner-existing-selection');
-  const message = document.getElementById('owner-preview-message');
-  if (enabled) {
-    document.getElementById('owner-add-preview').hidden = true;
-    document.getElementById('owner-preview-list').closest('section').hidden = true;
+    another.hidden = Boolean(editUrl) || key !== 'new';
   }
   async function api(url, method, payload) {
-    const response = await fetch(url, {method, credentials: 'same-origin', headers: {'Content-Type':'application/json', 'X-CSRFToken':dialog.dataset.csrf}, ...(payload ? {body:JSON.stringify(payload)} : {})});
+    const response = await fetch(url, {method, credentials:'same-origin', headers:{'Content-Type':'application/json','X-CSRFToken':dialog.dataset.csrf}, ...(payload ? {body:JSON.stringify(payload)} : {})});
     const result = await response.json().catch(() => ({error:'Owner operation failed.'}));
     if (!response.ok) throw new Error(result.error || 'Owner operation failed.');
     return result;
   }
+  function openEdit(button) {
+    if (!enabled || saving) return;
+    const owner = JSON.parse(button.dataset.ownerEdit);
+    resetFields(); editUrl = button.dataset.ownerEditUrl; mode = 'new';
+    selectedProperty = button.dataset.ownerPropertyId || null;
+    document.getElementById('owner-property-name').textContent = button.dataset.ownerPropertyName || owner.name;
+    for (const field of fields) field.value = owner[field.dataset.ownerField] ?? '';
+    document.getElementById('owner-percentage').value = owner.ownership_percentage ?? '';
+    document.getElementById('owner-percentage').disabled = true;
+    document.getElementById('owner-identity_number').required = false;
+    editable = owner.created_by === Number(dialog.dataset.managerId);
+    save.disabled = !editable;
+    message.textContent = editable
+      ? 'Editing this shared owner identity affects its linked properties, not other owners. Change property percentages from Edit Property.'
+      : 'Only the manager who registered this shared owner can edit its identity details.';
+    selectPanel('new'); dialog.showModal();
+  }
   function updateOwners(result) {
     const cell = document.querySelector('[data-property-owners="' + result.property_id + '"] [data-owner-names]');
-    if (cell) cell.textContent = result.owners.map(owner => owner.name + (owner.ownership_percentage !== null ? ' (' + owner.ownership_percentage + '%)' : '')).join(', ');
+    if (!cell) return;
+    cell.replaceChildren();
+    for (const owner of result.owners) {
+      const line = document.createElement('div');
+      const button = document.createElement('button');
+      button.type = 'button'; button.className = 'text-blue-700 underline';
+      button.textContent = owner.name;
+      button.dataset.ownerEdit = JSON.stringify(owner);
+      button.dataset.ownerPropertyId = String(result.property_id);
+      button.dataset.ownerEditUrl = '/billing/property-owner/owners/' + owner.owner_id;
+      button.addEventListener('click', () => openEdit(button));
+      line.appendChild(button); cell.appendChild(line);
+    }
   }
   async function searchOwners() {
     if (!enabled) return;
     try {
-      const result = await api(dialog.dataset.ownerSearchUrl + '?q=' + encodeURIComponent(document.getElementById('owner-search').value), 'GET');
-      existing.replaceChildren(new Option('Select an owner', ''));
-      for (const owner of result.owners) existing.appendChild(new Option(owner.name + ' (' + owner.type + ')', owner.owner_id));
-    } catch (error) { message.textContent = error.message; }
+      const result = await api(dialog.dataset.ownerSearchUrl + '?q=' + encodeURIComponent(document.getElementById('owner-search').value),'GET');
+      existing.replaceChildren(new Option('Select an owner',''));
+      for (const owner of result.owners) existing.appendChild(new Option(owner.name + ' (' + owner.type + ')',owner.owner_id));
+    } catch (error) {message.textContent = error.message;}
   }
-  for (const button of document.querySelectorAll('[data-open-owner]')) button.addEventListener('click', () => { selectedProperty=button.dataset.propertyId; editUrl=null; mode='new'; document.getElementById('owner-identity_number').required=enabled; });
-  for (const button of dialog.querySelectorAll('[data-owner-tab]')) button.addEventListener('click', () => {mode=button.dataset.ownerTab;editUrl=null;if(mode==='existing') searchOwners();});
-  document.getElementById('owner-search').addEventListener('input', searchOwners);
-  for (const button of document.querySelectorAll('[data-owner-edit]')) button.addEventListener('click', () => {
-    if (!enabled) return;
-    const owner=JSON.parse(button.dataset.ownerEdit);resetFields();selectPanel('new');mode='new';editUrl=button.dataset.ownerEditUrl; document.getElementById('owner-identity_number').required=false;
-    for (const field of fields) field.value=owner[field.dataset.ownerField] ?? '';
-    message.textContent='Editing shared identity details: this affects all properties using this owner.';
-    dialog.showModal();
+  for (const button of document.querySelectorAll('[data-open-owner]')) button.addEventListener('click', () => {
+    if (saving) return;
+    selectedProperty = button.dataset.propertyId; editUrl = null; mode = 'new';
+    resetFields(); save.disabled = !enabled; another.disabled = !enabled;
+    document.getElementById('owner-property-name').textContent = button.dataset.propertyName;
+    message.textContent = ''; selectPanel('new'); dialog.showModal(); document.getElementById('owner-kind').focus();
   });
-  save.addEventListener('click', async () => {
-    if (!enabled || save.disabled) return;
+  for (const button of document.querySelectorAll('[data-owner-edit]')) button.addEventListener('click', () => openEdit(button));
+  for (const button of dialog.querySelectorAll('[data-owner-tab]')) button.addEventListener('click', () => {
+    if (saving || editUrl) return;
+    mode = button.dataset.ownerTab; selectPanel(mode); if (mode === 'existing') searchOwners();
+  });
+  document.getElementById('owner-preview-close').addEventListener('click', () => {if (!saving) dialog.close();});
+  document.getElementById('owner-search').addEventListener('input',searchOwners);
+  async function persist(keepOpen) {
+    if (!enabled || saving || !editable) return;
     let payload;
-    if (mode==='existing') {
-      if (!existing.value) {message.textContent='Select an existing owner.';return;}
-      payload={owner_id:Number(existing.value),percentage:document.getElementById('owner-existing-percentage').value};
+    if (mode === 'existing') {
+      if (!existing.value) {message.textContent = 'Select an existing owner.'; return;}
+      payload = {owner_id:Number(existing.value),percentage:document.getElementById('owner-existing-percentage').value};
     } else {
       if (!fields.every(field => field.reportValidity())) return;
-      payload=Object.fromEntries(fields.map(field => [field.dataset.ownerField,field.value.trim()]));payload.postal_same=samePostal.checked;
+      payload = Object.fromEntries(fields.map(field => [field.dataset.ownerField,field.value.trim()]));
+      payload.postal_same = samePostal.checked;
     }
-    save.disabled=true;
+    saving = true; save.disabled = true; another.disabled = true;
     try {
-      const url=editUrl || '/billing/property-owner/' + selectedProperty + '/owners';
-      const result=await api(url,editUrl ? 'PATCH':'POST',payload);
-      updateOwners(result);dialog.close();
-      if (editUrl || !document.querySelector('[data-property-owners]')) window.location.reload();
-    } catch (error) {message.textContent=error.message;}
-    finally {save.disabled=false;}
-  });
+      const editing = Boolean(editUrl);
+      const result = await api(editUrl || '/billing/property-owner/' + selectedProperty + '/owners',editing ? 'PATCH':'POST',payload);
+      if (editing) {dialog.close(); window.location.reload(); return;}
+      updateOwners(result);
+      if (keepOpen) {
+        resetFields(); mode = 'new'; selectPanel('new');
+        message.textContent = 'Owner saved and assigned. Enter the next owner.';
+        document.getElementById('owner-kind').focus();
+      } else {
+        dialog.close();
+        if (!document.querySelector('[data-property-owners]')) window.location.reload();
+      }
+    } catch (error) {message.textContent = error.message;}
+    finally {saving = false; save.disabled = !enabled || !editable; another.disabled = !enabled;}
+  }
+  save.addEventListener('click', () => persist(false));
+  another.addEventListener('click', () => persist(true));
   for (const button of document.querySelectorAll('[data-assignment-action]')) button.addEventListener('click', async () => {
     if (!enabled) return;
     let payload, method;

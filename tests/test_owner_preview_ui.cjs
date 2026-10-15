@@ -36,14 +36,13 @@ assert.equal(postal.value, 'Residential address'); assert.equal(postal.readOnly,
 residential.value = 'Updated residential'; residential.fire('input'); assert.equal(postal.value, 'Updated residential');
 same.checked = false; same.fire('change'); assert.equal(postal.readOnly, false);
 postal.value = 'PO Box 1'; residential.value = 'Different residential'; residential.fire('input'); assert.equal(postal.value, 'PO Box 1');
-same.checked = true; same.fire('change'); fields[0].value = 'individual'; fields[1].value = 'Owner One'; ids['owner-add-preview'].fire('click');
-assert.equal(ids['owner-preview-list'].children.length, 1); assert.equal(same.checked, false); assert.equal(postal.readOnly, false);
-fields[0].value = 'trust'; fields[1].value = 'Owner Two'; ids['owner-add-preview'].fire('click'); assert.equal(ids['owner-preview-list'].children.length, 2);
-assert.match(ids['owner-preview-message'].textContent, /Nothing has been saved/);
+fields[0].value='individual'; fields[1].value='Not saved';
+ids['owner-add-preview'].fire('click');
+assert.equal(fields[1].value,'Not saved'); // gate never clears unsaved details
 tabs[1].fire('click'); assert.equal(panels[0].hidden, true); assert.equal(panels[1].hidden, false);
 ids['owner-preview-close'].fire('click'); opener.fire('click'); assert.equal(same.checked, false); assert.equal(postal.readOnly, false);
 assert.ok(source.includes('{% if not owners_enabled %}disabled{% endif %} id="owner-save-disabled"')); assert.match(source, />Save Owner<\/button>/);
 ids['owner-save-disabled'].fire('click'); assert.equal(ids['owner-assignment-preview'].open, true); // gate blocks saving in preview
-console.log('Owner modal checks passed: postal copy/sync, separate address, resets, multiple preview owners, tabs and disabled saving.');
+console.log('Owner modal checks passed: postal copy/sync, separate address, resets, disabled save-and-add, tabs and disabled saving.');
 
 module.exports = {Element, script};

@@ -1,7 +1,7 @@
 """Owner persistence, disabled until explicit approval and schema verification."""
 from functools import wraps
 from decimal import Decimal, InvalidOperation
-from flask import abort, current_app, jsonify, request
+from flask import abort, current_app, jsonify, request, flash
 from flask_login import current_user, login_required
 from sqlalchemy import inspect, text
 from sqlalchemy.exc import SQLAlchemyError
@@ -35,9 +35,9 @@ def guarded(function):
     def wrapped(*args,**kwargs):
         if not owners_enabled():return jsonify(error='Owner registration is not yet available.'),503
         try:return function(*args,**kwargs)
-        except HTTPException:
+        except HTTPException as error:
             db.session.rollback()
-            raise
+            return jsonify(error=error.description),error.code
         except SQLAlchemyError as error:
             db.session.rollback()
             current_app.logger.error('PM owner operation failed error=%s',type(error).__name__)
@@ -55,23 +55,24 @@ def accessible_owner(owner_id):
         (o.created_by=:u OR EXISTS (SELECT 1 FROM bil_property_ownership a JOIN bil_property p ON p.id=a.property_id WHERE a.owner_id=o.id AND p.manager_id=:u)) FOR SHARE"""),{'o':owner_id,'u':current_user.id}).mappings().first()
 
 
-def owner_rows(property_id, include_inactive=False):
+def owner_rows(property_id, include_inactive=False, include_history=False):
     return [dict(r) for r in db.session.execute(text("""SELECT a.id AS assignment_id,a.ownership_percentage,o.id AS owner_id,
         ((a.effective_to IS NULL OR a.effective_to>CURRENT_DATE) AND (a.effective_from IS NULL OR a.effective_from<=CURRENT_DATE)) AS active,
-        o.identity_type AS type,o.display_name AS name,o.identity_number,o.email,o.phone,o.residential_address,o.postal_address,o.created_by
+        o.identity_type AS type,o.display_name AS name,o.identity_number,o.email,o.phone,o.residential_address,o.postal_address,o.created_by,a.effective_from,a.effective_to,a.created_at,a.supersedes_id,a.owner_identity_snapshot,
+        NOT EXISTS(SELECT 1 FROM bil_property_ownership successor WHERE successor.supersedes_id=a.id) AS current_assignment
         FROM bil_property_ownership a JOIN bil_owner_identity o ON o.id=a.owner_id JOIN bil_property p ON p.id=a.property_id
-        WHERE a.property_id=:p AND p.manager_id=:u AND NOT EXISTS(SELECT 1 FROM bil_property_ownership newer WHERE newer.supersedes_id=a.id)
+        WHERE a.property_id=:p AND p.manager_id=:u AND (:history OR NOT EXISTS(SELECT 1 FROM bil_property_ownership newer WHERE newer.supersedes_id=a.id))
         AND (:inactive OR ((a.effective_to IS NULL OR a.effective_to>CURRENT_DATE) AND (a.effective_from IS NULL OR a.effective_from<=CURRENT_DATE)))
-        ORDER BY a.id"""),{'p':property_id,'u':current_user.id,'inactive':include_inactive}).mappings().all()]
+        ORDER BY a.id"""),{'p':property_id,'u':current_user.id,'inactive':include_inactive,'history':include_history}).mappings().all()]
 
 
 def fields(payload):
     result={}
     for key,limit in FIELDS.items():
         value=payload.get(key,'')
-        if not isinstance(value,str) or len(value)>limit:abort(400)
+        if not isinstance(value,str) or len(value)>limit:abort(400,description=f'{key.replace(chr(95),chr(32))} must be text of no more than {limit} characters.')
         result[key]=value.strip()
-    if result['type'] not in ('individual','company','trust') or not result['name']:abort(400)
+    if result['type'] not in ('individual','company','trust') or not result['name']:abort(400,description='Choose an owner type and enter a name.')
     if payload.get('postal_same') is True:result['postal_address']=result['residential_address']
     return result
 
@@ -83,7 +84,7 @@ def percentage(payload):
         number=Decimal(str(value))
         if not number.is_finite() or number<0 or number>100 or number.as_tuple().exponent < -4:raise ValueError()
         return number
-    except (InvalidOperation,ValueError):abort(400)
+    except (InvalidOperation,ValueError):abort(400,description='Ownership percentage must be between 0 and 100 with at most four decimal places.')
 
 
 @billing_bp.get('/billing/property-owner/owners',endpoint='owner_search')
@@ -146,9 +147,10 @@ def owner_edit(owner_id):
     updated=db.session.execute(text("""UPDATE bil_owner_identity SET identity_type=:type,display_name=:name,identity_number=NULLIF(:identity_number,''),email=:email,phone=:phone,residential_address=:residential_address,postal_address=:postal_address
         WHERE id=:o AND created_by=:u RETURNING id"""),values).scalar_one_or_none()
     if updated is None:abort(404)
-    if 'active' in payload:change_assignment(property_id,assignment_id,{'active':payload['active']})
+    if 'active' in payload:change_assignment(property_id,assignment_id,{k:payload[k] for k in ('active','percentage') if k in payload})
     db.session.commit()
-    return jsonify(owner_id=updated)
+    flash("Owner changes saved.","success")
+    return jsonify(owner_id=updated, message="Owner changes saved.")
 
 
 @billing_bp.route('/billing/property-owner/<int:property_id>/assignments/<int:assignment_id>',methods=['PATCH','DELETE'],endpoint='owner_assignment_edit')
@@ -167,7 +169,7 @@ def owner_assignment_edit(property_id,assignment_id):
 def change_assignment(property_id,assignment_id,payload,old=None):
     if old is None:
         old=db.session.execute(text('SELECT * FROM bil_property_ownership WHERE id=:a AND property_id=:p AND NOT EXISTS(SELECT 1 FROM bil_property_ownership n WHERE n.supersedes_id=:a)'),{'a':assignment_id,'p':property_id}).mappings().first()
-    if old is None:abort(404)
+    if old is None:abort(409,description='This assignment changed. Reload the page and reopen this owner before saving.')
     share=percentage(payload) if 'percentage' in payload else old['ownership_percentage']
     start=old['effective_from'];end=old['effective_to']
     if 'active' in payload:

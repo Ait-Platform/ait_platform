@@ -39,7 +39,7 @@ postal.value = 'PO Box 1'; residential.value = 'Different residential'; resident
 fields[0].value='individual'; fields[1].value='Not saved';
 ids['owner-add-preview'].fire('click');
 assert.equal(fields[1].value,'Not saved'); // gate never clears unsaved details
-tabs[1].fire('click'); assert.equal(panels[0].hidden, true); assert.equal(panels[1].hidden, false);
+assert.equal(panels[0].hidden,false); assert.equal(panels[1].hidden,false);
 ids['owner-preview-close'].fire('click'); opener.fire('click'); assert.equal(same.checked, false); assert.equal(postal.readOnly, false);
 assert.ok(source.includes('{% if not owners_enabled %}disabled{% endif %} id="owner-save-disabled"')); assert.match(source, />Save Changes<\/button>/);
 ids['owner-save-disabled'].fire('click'); assert.equal(ids['owner-assignment-preview'].open, true); // gate blocks saving in preview

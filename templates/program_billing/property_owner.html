@@ -38,6 +38,7 @@
                   <div><button type="button" data-owner-edit="{{ owner|tojson|forceescape }}" data-owner-property-id="{{ property.id }}" data-owner-property-name="{{ property.name }}" data-owner-edit-url="{{ url_for('billing_bp.owner_edit', owner_id=owner.owner_id) }}" class="text-blue-700 underline">{{ owner.name }}</button></div>
                 {% endfor %}{% endif %}</div>
                 <button type="button" data-open-owner data-property-id="{{ property.id }}" data-property-name="{{ property.name }}" class="mt-2 text-blue-700 underline">+ Add Owner</button>
+                <a href="{{ url_for('billing_bp.property_owners_edit',property_id=property.id) }}" class="mt-2 block text-sm text-blue-700 underline">Manage owner assignments</a>
               </td>
 
             </tr>

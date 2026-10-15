@@ -1,0 +1,13 @@
+﻿{% extends "layout.html" %}
+{% block title %}Owner Assignments{% endblock %}
+{% block flashes %}{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-5xl px-4 py-10"><div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow">
+<div class="h-2 bg-orange-500"></div><div class="p-6">
+{% include "partials/flash_messages.html" %}
+<div class="flex items-center justify-between gap-4"><h1 class="text-2xl font-semibold">Owner assignments: {{ property.name }}</h1><a href="{{ url_for('billing_bp.property_owner') }}" class="rounded-lg bg-slate-100 px-4 py-2">Back</a></div>
+{% if owners_enabled %}{% include "program_billing/assigned_owners.html" %}{% else %}<p>Owner information is not yet available.</p>{% endif %}
+<button type="button" data-open-owner data-property-id="{{ property.id }}" data-property-name="{{ property.name }}" class="mt-4 rounded-lg border border-slate-300 px-4 py-2">+ Add Owner</button>
+{% include "program_billing/owner_assignment_preview.html" %}
+</div></div></div>
+{% endblock %}

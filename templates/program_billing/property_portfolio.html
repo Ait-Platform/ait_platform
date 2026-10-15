@@ -2,22 +2,15 @@
 {% block title %}Property Portfolio{% endblock %}
 {% block flashes %}{% endblock %}
 {% block content %}
-<div class="mx-auto max-w-6xl px-4 py-10">
- <div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow">
-  <div class="h-2 bg-orange-500"></div>
-  <div class="p-6">
-   {% include "partials/flash_messages.html" %}
-   <div class="flex items-center justify-between gap-4"><h1 class="text-2xl font-semibold">Property Portfolio</h1><a href="{{ url_for('billing_bp.learner_dashboard') }}" class="rounded-lg bg-slate-100 px-4 py-2">Back</a></div>
-   <p class="mt-4 text-sm text-slate-600">Saved property information. This Portfolio is read-only. Inactive properties remain accessible in My Properties.</p>
-   <div class="mt-4 overflow-x-auto"><table class="w-full text-left text-sm">
-    <thead class="bg-slate-50"><tr><th class="p-3">Property</th><th class="p-3">Address</th><th class="p-3">Owners</th></tr></thead>
-    <tbody>{% for property in properties %}<tr class="border-t border-slate-200">
-     <td class="p-3">{{ property.name }}<span class="block text-xs text-slate-500">Active · ID {{ property.id }}</span></td>
-     <td class="p-3 whitespace-pre-wrap">{{ property.address or 'Not recorded' }}</td>
-     <td class="p-3">{% if owners_enabled %}{% for owner in owners_by_property.get(property.id, []) %}<div>{{ owner.name }}{% if not owner.active %} <span class="text-slate-500">(Inactive)</span>{% endif %}</div>{% else %}No registered owners{% endfor %}{% else %}Owner information is not yet available.{% endif %}</td>
-    </tr>{% else %}<tr><td colspan="3" class="p-3">No active properties.</td></tr>{% endfor %}</tbody>
-   </table></div>
-  </div>
- </div>
+<div class="mx-auto max-w-6xl px-4 py-10"><div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow">
+<div class="h-2 bg-orange-500"></div><div class="p-6">
+<div class="no-print">{% include "partials/flash_messages.html" %}
+<div class="flex items-center justify-between gap-4"><h1 class="text-2xl font-semibold">Property Portfolio</h1><a href="{{ url_for('billing_bp.learner_dashboard') }}" class="rounded-lg bg-slate-100 px-4 py-2">Back</a></div>
+<div class="mt-4 flex justify-end gap-3">
+<form method="post" action="{{ url_for('billing_bp.portfolio_email') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit" class="rounded-lg bg-orange-600 px-4 py-2 font-semibold text-white">Email</button></form>
+<button type="button" onclick="window.open('{{ url_for('billing_bp.portfolio_print') }}', '_blank', 'noopener')"  class="rounded-lg border border-slate-300 px-4 py-2">Print</button>
+</div><p class="mt-3 text-sm text-slate-600">Read-only saved records. Email sends this report to your account email address. Inactive properties remain accessible in My Properties.</p>
 </div>
+{% include 'program_billing/portfolio_report.html' %}
+</div></div></div>
 {% endblock %}

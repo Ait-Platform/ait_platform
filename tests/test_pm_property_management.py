@@ -16,7 +16,7 @@ from dotenv import dotenv_values
 ROOT = Path(__file__).resolve().parents[1]
 
 class Identity(UserMixin):
-    def __init__(self, identifier): self.id = identifier
+    def __init__(self, identifier): self.id = identifier; self.email=f'manager{identifier}@example.com'; self.name='Manager'
 
 class PropertyManagementTests(unittest.TestCase):
     def setUp(self):
@@ -156,10 +156,10 @@ class PropertyManagementTests(unittest.TestCase):
         response=self.client.get('/billing/property-owner/26/edit')
         self.assertEqual(response.status_code,200)
         html=response.get_data(as_text=True)
-        self.assertIn('value="Almond"',html);self.assertIn('Original address',html)
+        self.assertIn('value="Almond"',html);self.assertNotIn('name="address"',html)
         response=self.client.post('/billing/property-owner/26/edit',data={'property_name':'Almond House','address':'New complete address'})
         self.assertEqual(response.status_code,302)
-        self.assertEqual(self.session.execute(sa.text('SELECT name,address FROM bil_property WHERE id=26')).one(),('Almond House','New complete address'))
+        self.assertEqual(self.session.execute(sa.text('SELECT name,address FROM bil_property WHERE id=26')).one(),('Almond House','Original address'))
         self.assertEqual(self.count(),2)
 
     def test_edit_cross_manager_and_anonymous_are_denied(self):
@@ -169,7 +169,7 @@ class PropertyManagementTests(unittest.TestCase):
         self.assertEqual(self.client.get('/billing/property-owner/26/edit').status_code,401)
 
     def test_edit_validation_and_duplicate_name_do_not_modify_records(self):
-        for payload in ({'property_name':'','address':''},{'property_name':'X'*101},{'property_name':'Almond','address':'X'*201}):
+        for payload in ({'property_name':'','address':''},{'property_name':'X'*101}):
             self.assertEqual(self.client.post('/billing/property-owner/26/edit',data=payload).status_code,400)
         self.client.post('/billing/property-owner',data={'property_name':'Second'})
         self.assertEqual(self.client.post('/billing/property-owner/26/edit',data={'property_name':'Second','address':'Different'}).status_code,409)
@@ -184,9 +184,9 @@ class PropertyManagementTests(unittest.TestCase):
         with self.client.session_transaction() as session:self.assertFalse(any(category=='success' for category,message in session.get('_flashes',[])))
 
     def test_owner_preview_fields_and_save_gate_without_owner_tables(self):
-        for path in ('/billing/property-owner','/billing/property-owner/26/edit'):
+        for path in ('/billing/property-owner','/billing/property-owner/26/owners/edit'):
             html=self.client.get(path).get_data(as_text=True)
-            for label in ('Register New Owner','Select Existing Owner','ID / registration number','Residential / registered address','Postal address','Ownership percentage','Company','Trust'):
+            for label in ('ID / registration number','Residential / registered address','Postal address','Ownership percentage','Company','Trust'):
                 self.assertIn(label,html)
             self.assertRegex(html,r'disabled\s+id="owner-save-disabled"')
             self.assertIn('>Save Changes</button>',html)

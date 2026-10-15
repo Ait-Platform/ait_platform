@@ -24,11 +24,11 @@ module.exports = (async () => {
  const Option=function(name,value){const e=new Element();e.textContent=name;e.value=String(value);return e;};
  vm.runInNewContext(script,{document,Map,Array,Object,String,Number,fetch,Option,window:{location:{reload:()=>reloads++}},confirm:()=>true,prompt:()=>''});
  await opener.fire('click');fields[0].value='individual';fields[1].value='Owner One';fields[2].value='ID1';ids['owner-residential_address'].value='Home';ids['owner-postal-same'].checked=true;await ids['owner-postal-same'].fire('change');
- await ids['owner-add-preview'].fire('click');assert.equal(calls[0].url,'/billing/property-owner/26/owners');assert.equal(calls[0].options.method,'POST');assert.equal(calls[0].options.headers['X-CSRFToken'],'csrf-token');
- const payload=JSON.parse(calls[0].options.body);assert.equal(payload.postal_same,true);assert.equal(payload.postal_address,'Home');assert.equal(dialog.open,true);assert.equal(names.children[0].children[0].textContent,'Owner One');assert.equal(reloads,0);
+ await ids['owner-add-preview'].fire('click');assert.equal(calls.find(call=>call.options.method==='POST').url,'/billing/property-owner/26/owners');assert.equal(calls.find(call=>call.options.method==='POST').options.method,'POST');assert.equal(calls.find(call=>call.options.method==='POST').options.headers['X-CSRFToken'],'csrf-token');
+ const payload=JSON.parse(calls.find(call=>call.options.method==='POST').options.body);assert.equal(payload.postal_same,true);assert.equal(payload.postal_address,'Home');assert.equal(dialog.open,true);assert.equal(names.children[0].children[0].textContent,'Owner One');assert.equal(reloads,0);
  await opener.fire('click');fields[0].value='individual';fields[1].value='Owner One';fields[2].value='ID1';fail=true;
  await ids['owner-add-preview'].fire('click');assert.equal(dialog.open,true);assert.equal(ids['owner-preview-message'].textContent,'No changes saved.');assert.equal(ids['owner-save-disabled'].disabled,false);
- fail=false;await tabs[1].fire('click');ids['owner-existing-selection'].value='1';await ids['owner-add-preview'].fire('click');assert.equal(JSON.parse(calls.at(-1).options.body).owner_id,1);
+ fail=false;ids['owner-existing-selection'].value='1';await ids['owner-existing-selection'].fire('change');await ids['owner-add-preview'].fire('click');assert.equal(JSON.parse(calls.at(-1).options.body).owner_id,1);
 
  owners=[];await opener.fire('click');
  for(let i=1;i<=3;i++){
@@ -46,12 +46,17 @@ module.exports = (async () => {
   assert.equal(button.textContent.includes('%'),false);
   await button.fire('click');
   assert.equal(fields[1].value,'Individual '+(i+1));
-  assert.equal(ids['owner-percentage'].disabled,true);
+  assert.equal(ids['owner-percentage'].disabled,false);
   fields[1].value='Edited '+(i+1);
   await ids['owner-save-disabled'].fire('click');
   assert.equal(edits[i].url,'/billing/property-owner/owners/'+(i+1));
  }
  assert.equal(reloads,3);
+ await names.children[0].children[0].fire('click');fields[1].value='Retain failed edit';fail=true;
+ await ids['owner-save-disabled'].fire('click');
+ assert.equal(fields[1].value,'Retain failed edit');assert.equal(dialog.open,true);
+ assert.equal(ids['owner-preview-message'].textContent,'No changes saved.');
+ fail=false;
  await opener.fire('click');fields[0].value='individual';fields[1].value='Keep on failure';fields[2].value='FAIL';
  fail=true;await ids['owner-add-preview'].fire('click');
  assert.equal(fields[1].value,'Keep on failure');assert.equal(dialog.open,true);

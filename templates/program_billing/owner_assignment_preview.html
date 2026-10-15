@@ -1,10 +1,6 @@
 <dialog data-manager-id="{{ current_user.id }}" data-owners-enabled="{{ 'true' if owners_enabled else 'false' }}" data-csrf="{{ csrf_token() }}" data-owner-search-url="{{ url_for('billing_bp.owner_search') }}" id="owner-assignment-preview" class="w-full max-w-3xl rounded-xl border border-slate-200 p-6 shadow-xl">
   <div class="flex items-center justify-between gap-4"><h2 class="text-xl font-semibold">Assign Owner: <span id="owner-property-name"></span></h2><button type="button" id="owner-preview-close" class="rounded-lg bg-slate-100 px-3 py-2">Close</button></div>
   <p role="status" class="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">{% if owners_enabled %}Saving creates or reuses an owner and assigns them to the selected property together. Shared identity edits affect all properties using that identity.{% else %}Owner registration is not yet available.{% endif %}</p>
-  <div class="mt-4 flex flex-wrap gap-3">
-    <button type="button" data-owner-tab="new" aria-pressed="true" class="rounded-lg border border-slate-300 bg-orange-50 px-4 py-2 font-semibold">Register New Owner</button>
-    <button type="button" data-owner-tab="existing" aria-pressed="false" class="rounded-lg border border-slate-300 px-4 py-2 font-semibold">Select Existing Owner</button>
-  </div>
   <section data-owner-panel="new" class="mt-5">
     <div class="grid gap-4 md:grid-cols-2">
       <div><label for="owner-kind" class="mb-2 block text-sm font-semibold">Owner type</label><select id="owner-kind" data-owner-field="type" required class="w-full rounded-lg border border-slate-300 px-3 py-2"><option value="">Choose a type</option>{% for kind in ['Individual', 'Company', 'Trust'] %}<option value="{{ kind|lower }}">{{ 'Individual(s)' if kind == 'Individual' else kind }}</option>{% endfor %}</select></div>
@@ -14,16 +10,16 @@
       {% endfor %}
       <div><label for="owner-percentage" class="mb-2 block text-sm font-semibold">Ownership percentage (optional)</label><input id="owner-percentage" data-owner-field="percentage" type="number" min="0" max="100" step="0.0001" class="w-full rounded-lg border border-slate-300 px-3 py-2"></div>
       {% for key, label in [('residential_address', 'Residential / registered address'), ('postal_address', 'Postal address')] %}
-      <div><label for="owner-{{ key }}" class="mb-2 block text-sm font-semibold">{{ label }}</label><textarea id="owner-{{ key }}" data-owner-field="{{ key }}" rows="3" maxlength="500" class="w-full rounded-lg border border-slate-300 px-3 py-2"></textarea></div>
+      <div><label for="owner-{{ key }}" class="mb-2 block text-sm font-semibold">{{ label }}</label><textarea id="owner-{{ key }}" data-owner-field="{{ key }}" rows="3" maxlength="2000" class="w-full rounded-lg border border-slate-300 px-3 py-2"></textarea></div>
       {% endfor %}
     </div>
     <label class="mt-4 flex items-center gap-2 text-sm font-medium"><input id="owner-active" type="checkbox" checked>Active</label>
     <label class="mt-4 flex items-center gap-2 text-sm font-medium"><input id="owner-postal-same" type="checkbox" class="rounded border-slate-300">Postal address same as residential / registered address</label>
   </section>
-  <section data-owner-panel="existing" hidden class="mt-5">
-    <label for="owner-search" class="mb-2 block text-sm font-semibold">Search accessible existing owners</label>
+  <section data-owner-panel="existing" class="mt-5">
+    <label for="owner-search" class="mb-2 block text-sm font-semibold">Find an existing owner (optional)</label>
     <input id="owner-search" type="search" {% if not owners_enabled %}disabled{% endif %} placeholder="{{ 'Search name or identifier' if owners_enabled else 'Owner search unavailable until the schema is ready' }}" class="w-full rounded-lg border border-slate-300 bg-slate-100 px-3 py-2">
-    <select id="owner-existing-selection" {% if not owners_enabled %}disabled{% endif %} class="mt-3 w-full rounded-lg border border-slate-300 px-3 py-2"><option value="">Select an owner</option></select>
+    <select id="owner-existing-selection" {% if not owners_enabled %}disabled{% endif %} class="mt-3 w-full rounded-lg border border-slate-300 px-3 py-2"><option value="">Register a new owner</option></select>
     <label for="owner-existing-percentage" class="mt-3 block text-sm font-semibold">Ownership percentage (optional)</label><input id="owner-existing-percentage" type="number" min="0" max="100" step="0.0001" class="w-full rounded-lg border border-slate-300 px-3 py-2">
     <p class="mt-3 text-sm text-slate-600">Existing identities will be reused. {% if not owners_enabled %}No owner records are queried in this preview.{% endif %}</p>
     {% if not owners_enabled %}<button type="button" disabled class="mt-4 rounded-lg border border-slate-200 bg-slate-100 px-4 py-2 text-slate-500">Select Owner &mdash; Schema Required</button>{% endif %}
@@ -64,13 +60,9 @@
     editable = true;
   }
   function selectPanel(key) {
-    for (const panel of dialog.querySelectorAll('[data-owner-panel]')) panel.hidden = panel.dataset.ownerPanel !== key;
-    for (const button of dialog.querySelectorAll('[data-owner-tab]')) {
-      button.setAttribute('aria-pressed', String(button.dataset.ownerTab === key));
-      button.disabled = Boolean(editUrl);
-    }
-    another.hidden = Boolean(editUrl);
-    save.hidden = !editUrl;
+    for (const panel of dialog.querySelectorAll('[data-owner-panel]'))
+      panel.hidden = panel.dataset.ownerPanel === 'existing' && Boolean(editUrl);
+    another.hidden = Boolean(editUrl); save.hidden = !editUrl;
   }
   async function api(url, method, payload) {
     const response = await fetch(url, {method, credentials:'same-origin', headers:{'Content-Type':'application/json','X-CSRFToken':dialog.dataset.csrf}, ...(payload ? {body:JSON.stringify(payload)} : {})});
@@ -88,12 +80,12 @@
     document.getElementById('owner-property-name').textContent = button.dataset.ownerPropertyName || owner.name;
     for (const field of fields) field.value = owner[field.dataset.ownerField] ?? '';
     document.getElementById('owner-percentage').value = owner.ownership_percentage ?? '';
-    document.getElementById('owner-percentage').disabled = true;
+    document.getElementById('owner-percentage').disabled = false;
     document.getElementById('owner-identity_number').required = false;
-    editable = owner.created_by === Number(dialog.dataset.managerId);
+    editable = Number(owner.created_by) === Number(dialog.dataset.managerId);
     save.disabled = !editable;
     message.textContent = editable
-      ? 'Editing this shared owner identity affects its linked properties, not other owners. Change property percentages from Edit Property.'
+      ? "Editing this shared owner identity affects its linked properties, not other owners. The percentage and Active checkbox apply only to this property's assignment."
       : 'Only the manager who registered this shared owner can edit its identity details.';
     selectPanel('new'); dialog.showModal();
   }
@@ -118,7 +110,7 @@
     if (!enabled) return;
     try {
       const result = await api(dialog.dataset.ownerSearchUrl + '?q=' + encodeURIComponent(document.getElementById('owner-search').value),'GET');
-      existing.replaceChildren(new Option('Select an owner',''));
+      existing.replaceChildren(new Option('Register a new owner',''));
       for (const owner of result.owners) existing.appendChild(new Option(owner.name + ' (' + owner.type + ')',owner.owner_id));
     } catch (error) {message.textContent = error.message;}
   }
@@ -127,23 +119,21 @@
     selectedProperty = button.dataset.propertyId; editUrl = null; mode = 'new';
     resetFields(); save.disabled = !enabled; another.disabled = !enabled;
     document.getElementById('owner-property-name').textContent = button.dataset.propertyName;
-    message.textContent = ''; selectPanel('new'); dialog.showModal(); document.getElementById('owner-kind').focus();
+    message.textContent = ''; selectPanel('new'); dialog.showModal(); document.getElementById('owner-kind').focus(); searchOwners();
   });
   for (const button of document.querySelectorAll('[data-owner-edit]')) button.addEventListener('click', () => openEdit(button));
-  for (const button of dialog.querySelectorAll('[data-owner-tab]')) button.addEventListener('click', () => {
-    if (saving || editUrl) return;
-    mode = button.dataset.ownerTab; selectPanel(mode); if (mode === 'existing') searchOwners();
-  });
+  existing.addEventListener('change', () => {mode=existing.value ? 'existing':'new';});
   document.getElementById('owner-preview-close').addEventListener('click', () => {if (!saving) dialog.close();});
   document.getElementById('owner-search').addEventListener('input',searchOwners);
   async function persist(keepOpen) {
     if (!enabled || saving || !editable) return;
     let payload;
-    if (mode === 'existing') {
+    if (!editUrl && existing.value) {
       if (!existing.value) {message.textContent = 'Select an existing owner.'; return;}
       payload = {owner_id:Number(existing.value),percentage:document.getElementById('owner-existing-percentage').value};
     } else {
-      if (!fields.every(field => field.reportValidity())) return;
+      const invalid=fields.find(field => !field.reportValidity());
+      if (invalid) {message.textContent=invalid.validationMessage || 'Review the highlighted owner fields before saving.';return;}
       payload = Object.fromEntries(fields.map(field => [field.dataset.ownerField,field.value.trim()]));
       payload.postal_same = samePostal.checked; payload.active = active.checked;
       if (editUrl) {payload.property_id=Number(selectedProperty); payload.assignment_id=Number(dialog.dataset.assignmentId);}
@@ -152,7 +142,7 @@
     try {
       const editing = Boolean(editUrl);
       const result = await api(editUrl || '/billing/property-owner/' + selectedProperty + '/owners',editing ? 'PATCH':'POST',payload);
-      if (editing) {dialog.close(); window.location.reload(); return;}
+      if (editing) {message.textContent=result.message; dialog.close(); window.location.reload(); return;}
       updateOwners(result);
       if (keepOpen) {
         resetFields(); mode = 'new'; selectPanel('new');

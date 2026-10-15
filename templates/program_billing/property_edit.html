@@ -17,18 +17,7 @@
         <label class="mb-4 flex items-center gap-2"><input type="checkbox" name="active" {% if not property.is_archived %}checked{% endif %}>Active</label>
         <label for="edit-name" class="mb-2 block text-sm font-semibold">Property name</label>
         <input id="edit-name" name="property_name" value="{{ property.name }}" required maxlength="100" autofocus class="mb-4 w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-sky-500 focus:ring-2 focus:ring-sky-100">
-        <label for="edit-address" class="mb-2 block text-sm font-semibold">Complete property address</label>
-        <textarea id="edit-address" name="address" rows="4" maxlength="200" class="w-full rounded-lg border border-slate-300 px-3 py-2">{{ property.address or '' }}</textarea>
-        <p class="mt-2 text-xs text-slate-500">Address limit: 200 characters. Property type is unavailable until its schema is approved.</p>
       </form>
-      <section class="mt-8 rounded-lg border border-slate-200 p-4">
-        <h2 class="text-lg font-semibold">Owners</h2>
-        {% if not owners_enabled %}<p class="mt-2 text-sm text-slate-600">Assigned owners cannot be loaded or saved until the ownership schema is approved and available. This is not an indication that the property has no owners.</p>{% else %}
-        {% include "program_billing/assigned_owners.html" %}
-        {% endif %}
-        <button type="button" data-open-owner data-property-id="{{ property.id }}" data-property-name="{{ property.name }}" class="mt-4 rounded-lg border border-orange-300 bg-orange-50 px-4 py-2 font-semibold text-orange-900">+ Add Owner</button>
-      </section>
-      {% include "program_billing/owner_assignment_preview.html" %}
     </div>
   </div>
 </div>

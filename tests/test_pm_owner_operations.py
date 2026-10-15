@@ -49,7 +49,7 @@ class OwnerOperationsTests(unittest.TestCase):
     def test_multiple_owner_types_assigned_to_almond(self):
         for kind,number in [('individual','ID1'),('company','REG2'),('trust','TR3')]:self.assertEqual(self.assign(type=kind,identity_number=number).status_code,200)
         self.assertEqual(self.sql('SELECT count(*) FROM bil_owner_identity').scalar(),3)
-        html=self.client.get('/billing/property-owner/26/edit').get_data(as_text=True)
+        html=self.client.get('/billing/property-owner/26/owners/edit').get_data(as_text=True)
         for value in ('ID1','REG2','TR3','Owner home','PO Box'):self.assertIn(value,html)
 
     def test_shared_owner_edit_preserves_assignment_snapshots(self):
@@ -129,7 +129,7 @@ class OwnerOperationsTests(unittest.TestCase):
         html=self.client.get('/billing/portfolio').get_data(as_text=True)
         for value in ('Almond','Original address','Portfolio owner 0','Portfolio owner 1','Portfolio owner 2'):
             self.assertIn(value,html)
-        self.assertNotIn('<form',html);self.assertNotIn('<button',html)
+        self.assertIn('/billing/portfolio/print',html);self.assertIn('>Email</button>',html);self.assertNotIn('delete_property',html)
         self.assertNotIn('data-owner-edit',html)
         table=self.client.get('/billing/property-owner').get_data(as_text=True)
         self.assertEqual(table.count('<th class="p-3">'),3)
@@ -139,7 +139,7 @@ class OwnerOperationsTests(unittest.TestCase):
         self.assertIn('Save and Add Another Owner',table)
         self.client.post('/billing/property-owner/26/edit',data={'property_name':'Changed','address':'Saved address','active':'on'})
         refreshed=self.client.get('/billing/portfolio').get_data(as_text=True)
-        self.assertIn('Changed',refreshed);self.assertIn('Saved address',refreshed)
+        self.assertIn('Changed',refreshed);self.assertIn('Original address',refreshed)
         self.sign_in(8)
         self.assertNotIn('Portfolio owner',self.client.get('/billing/portfolio').get_data(as_text=True))
 
@@ -155,7 +155,7 @@ class OwnerOperationsTests(unittest.TestCase):
         self.assertEqual(len(response.get_json()['owners']),2)
         current=self.client.get('/billing/property-owner').get_data(as_text=True)
         self.assertNotIn('Status owner 0',current)
-        edit=self.client.get('/billing/property-owner/26/edit').get_data(as_text=True)
+        edit=self.client.get('/billing/property-owner/26/owners/edit').get_data(as_text=True)
         self.assertIn('Status owner 0',edit);self.assertIn('Inactive',edit)
         portfolio=self.client.get('/billing/portfolio').get_data(as_text=True)
         self.assertIn('Status owner 0',portfolio);self.assertIn('(Inactive)',portfolio)
@@ -196,6 +196,89 @@ class OwnerOperationsTests(unittest.TestCase):
         self.assertEqual(len(response.get_json()['owners']),1)
         self.assertEqual(self.sql('SELECT count(*) FROM bil_owner_identity').scalar(),1)
         self.assertEqual(self.sql('SELECT count(*) FROM bil_property_ownership WHERE property_id=28').scalar(),1)
+
+    def test_standard_report_email_and_failures(self):
+        import sys,types
+        from unittest.mock import Mock,patch
+        self.assign(name='Sensitive Owner',identity_number='SECRET-ID')
+        sender=Mock(return_value=True);renderer=Mock(return_value=b'%PDF-test')
+        modules={'app.utils.mailer':types.SimpleNamespace(send_standard_report_email=sender),
+            'app.utils.pdf_render':types.SimpleNamespace(html_to_pdf_bytes=renderer)}
+        with patch.dict(sys.modules,modules):
+            response=self.client.post('/billing/portfolio/email',data={'email':'attacker@example.com'})
+            self.assertEqual(response.status_code,302)
+            sender.assert_called_once()
+            kwargs=sender.call_args.kwargs
+            self.assertEqual(kwargs['to_email'],'manager7@example.com')
+            self.assertEqual(kwargs['pdf_bytes'],b'%PDF-test')
+            rendered=renderer.call_args.args[0]
+            for value in ('Sensitive Owner','SECRET-ID','Owner home','PO Box','Original address'):
+                self.assertIn(value,rendered)
+            self.assertIn('Assignment recorded at',rendered)
+            self.assertIn('Effective to (exclusive)',rendered)
+            self.assertNotIn('Private address',rendered)
+            with self.client.session_transaction() as session:
+                self.assertTrue(any(category=='success' for category,message in session.pop('_flashes',[])))
+            sender.return_value=False
+            self.client.post('/billing/portfolio/email')
+            with self.client.session_transaction() as session:
+                self.assertFalse(any(category=='success' for category,message in session.pop('_flashes',[])))
+            sender.side_effect=RuntimeError('Delivery failed')
+            self.client.post('/billing/portfolio/email')
+            with self.client.session_transaction() as session:
+                self.assertFalse(any(category=='success' for category,message in session.pop('_flashes',[])))
+            sender.reset_mock();sender.side_effect=None;renderer.side_effect=RuntimeError('PDF unavailable')
+            self.client.post('/billing/portfolio/email');sender.assert_not_called()
+            with self.client.session_transaction() as session:
+                self.assertFalse(any(category=='success' for category,message in session.pop('_flashes',[])))
+            renderer.side_effect=None
+            sender.reset_mock();self.app.config['MAIL_SUPPRESS_SEND']=True
+            self.client.post('/billing/portfolio/email');sender.assert_not_called()
+            self.app.config['MAIL_SUPPRESS_SEND']=False
+            self.sign_in(8)
+            self.client.post('/billing/portfolio/email')
+            self.assertNotIn('SECRET-ID',renderer.call_args.args[0])
+
+    def test_identity_and_assignment_edit_for_all_types(self):
+        owners=[]
+        for i,kind in enumerate(('individual','company','trust')):
+            result=self.assign(type=kind,name=f'Original {kind}',identity_number=f'TYPE-{i}').get_json()
+            owners.append(next(o for o in result['owners'] if o['type']==kind))
+        for i,owner in enumerate(owners):
+            self.client.post('/billing/property-owner/28/owners',json={'owner_id':owner['owner_id'],'percentage':'90'})
+            payload=self.payload(type=owner['type'],name=f'Edited {owner["type"]}',identity_number=f'TYPE-{i}',
+                percentage='12.5',active=True,property_id=26,assignment_id=owner['assignment_id'])
+            response=self.client.patch(f"/billing/property-owner/owners/{owner['owner_id']}",json=payload)
+            self.assertEqual(response.status_code,200)
+            self.assertEqual(response.get_json()['message'],'Owner changes saved.')
+            self.assertEqual(str(self.sql('SELECT ownership_percentage FROM bil_property_ownership WHERE property_id=28 AND owner_id='+str(owner['owner_id'])).scalar()),'90.0000')
+            self.assertIn(f'Edited {owner["type"]}',self.client.get('/billing/property-owner').get_data(as_text=True))
+        self.assertEqual(self.sql('SELECT count(*) FROM bil_owner_identity').scalar(),3)
+        # Invalid assignment input must roll back identity changes and report a useful reason.
+        owner=owners[-1]
+        payload=self.payload(type='trust',name='Should not persist',identity_number='TYPE-2',
+            active=True,percentage='101',property_id=26,
+            assignment_id=self.sql('SELECT max(id) FROM bil_property_ownership WHERE property_id=26').scalar())
+        response=self.client.patch(f"/billing/property-owner/owners/{owner['owner_id']}",json=payload)
+        self.assertEqual(response.status_code,400)
+        self.assertIn('between 0 and 100',response.get_json()['error'])
+        self.assertNotEqual(self.sql('SELECT display_name FROM bil_owner_identity WHERE id='+str(owner['owner_id'])).scalar(),'Should not persist')
+
+    def test_clean_print_report_matches_authorized_email_body(self):
+        self.assign(name='Printable identity',identity_number='PRINT-ID')
+        page=self.client.get('/billing/portfolio/print')
+        self.assertEqual(page.status_code,200)
+        html=page.get_data(as_text=True)
+        self.assertIn('window.print()',html)
+        self.assertIn('PRINT-ID',html)
+        self.assertNotIn('<form',html)
+        self.assertNotIn('Private address',html)
+        self.assertNotIn('METSOA',html)
+        self.sign_in(8)
+        self.assertNotIn('PRINT-ID',self.client.get('/billing/portfolio/print').get_data(as_text=True))
+        with self.client.session_transaction() as session:session.clear()
+        self.assertEqual(self.client.post('/billing/portfolio/email').status_code,401)
+        self.assertEqual(self.client.get('/billing/portfolio/print').status_code,401)
 
     def test_disabled_flag_denies_all_owner_operations(self):
         self.app.config['PM_OWNER_WRITES_APPROVED']=False

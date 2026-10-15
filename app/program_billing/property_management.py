@@ -1,5 +1,5 @@
 """Property-only operations; no ownership schema or legacy wizard dependency."""
-from flask import abort, flash, redirect, request, url_for, current_app
+from flask import abort, flash, redirect, request, url_for, current_app, render_template
 from flask_login import current_user, login_required
 from sqlalchemy import select, text
 from sqlalchemy.exc import SQLAlchemyError
@@ -92,10 +92,9 @@ def property_edit(property_id):
     status = 200
     if request.method == "POST":
         name = request.form.get("property_name", "").strip()
-        address = request.form.get("address", "").strip()
-        values.update(name=name, address=address, is_archived=request.form.get("active") != "on")
-        if not name or len(name) > 100 or len(address) > 200:
-            error = "Enter a name of 1 to 100 characters and an address of no more than 200 characters."
+        values.update(name=name, is_archived=request.form.get("active") != "on")
+        if not name or len(name) > 100:
+            error = "Enter a property name of 1 to 100 characters."
             status = 400
         else:
             try:
@@ -108,8 +107,8 @@ def property_edit(property_id):
                     error = "Another property in your register already has this name."
                     status = 409
                 else:
-                    updated = db.session.execute(text("UPDATE bil_property SET name=:name,address=:address,is_archived=:archived WHERE id=:property AND manager_id=:manager RETURNING id"),
-                        {"name": name, "address": address, "archived": values["is_archived"], "property": property_id, "manager": current_user.id}).scalar_one_or_none()
+                    updated = db.session.execute(text("UPDATE bil_property SET name=:name,is_archived=:archived WHERE id=:property AND manager_id=:manager RETURNING id"),
+                        {"name": name, "archived": values["is_archived"], "property": property_id, "manager": current_user.id}).scalar_one_or_none()
                     if updated is None:
                         db.session.rollback()
                         abort(404)
@@ -121,20 +120,67 @@ def property_edit(property_id):
                 current_app.logger.error("PM property edit failed error=%s", type(exc).__name__)
                 error = "Property changes could not be saved. Please try again or contact support."
                 status = 503
+    return render_pm_template("program_billing/property_edit.html", property=values, error=error), status
+
+
+def portfolio_context():
+    # Scalar property columns only: never load municipal, tenant or meter relations.
+    properties=db.session.execute(text('SELECT * FROM bil_property WHERE manager_id=:u AND is_archived=false ORDER BY name,id'),
+        {'u':current_user.id}).mappings().all()
     from app.program_billing.owner_management import owners_enabled, owner_rows
     enabled=owners_enabled()
-    return render_pm_template("program_billing/property_edit.html", property=values, error=error,
-        owners_enabled=enabled, assigned_owners=owner_rows(property_id, include_inactive=True) if enabled else []), status
+    owners={p['id']:owner_rows(p['id'], include_inactive=True, include_history=True) for p in properties} if enabled else {}
+    return dict(properties=properties,owners_by_property=owners,owners_enabled=enabled)
 
 
 def portfolio_page():
-    # Preserve Portfolio visibility: managed, non-archived properties.
-    properties=db.session.execute(select(BilProperty.id, BilProperty.name,
-        BilProperty.address, BilProperty.is_archived).where(
-        BilProperty.manager_id==current_user.id, BilProperty.is_archived==False
-        ).order_by(BilProperty.name,BilProperty.id)).mappings().all()
-    from app.program_billing.owner_management import owners_enabled, owner_rows
+    return render_pm_template("program_billing/property_portfolio.html", **portfolio_context())
+
+
+@billing_bp.post("/billing/portfolio/email", endpoint="portfolio_email")
+@login_required
+def portfolio_email():
+    from email_validator import validate_email, EmailNotValidError
+    try:
+        # Sensitive identities are sent only to the authenticated manager's own address.
+        recipient=validate_email(getattr(current_user,'email','') or '',check_deliverability=False).normalized
+    except EmailNotValidError:
+        abort(400,description="Your account needs a valid email address before this report can be emailed.")
+    context=portfolio_context()
+    if current_app.config.get('MAIL_SUPPRESS_SEND'):
+        flash("Email sending is unavailable. No report was sent.","error")
+        return redirect(url_for('billing_bp.property_portfolio'))
+    from app.utils.mailer import send_standard_report_email
+    from app.utils.pdf_render import html_to_pdf_bytes
+    try:
+        html=render_template("program_billing/portfolio_document.html", **context)
+        pdf=html_to_pdf_bytes(html,base_url=request.host_url,orientation="Portrait")
+        if not pdf or not pdf.startswith(b'%PDF-'):raise ValueError("Invalid report PDF")
+        accepted=send_standard_report_email(to_email=recipient,subject="Property Portfolio",
+            pdf_url=url_for('billing_bp.property_portfolio',_external=True),
+            pdf_bytes=pdf,filename="Property_Portfolio.pdf",user_name=getattr(current_user,'name',None))
+        if accepted is not True:raise RuntimeError("Sender did not confirm submission")
+    except Exception as error:
+        current_app.logger.error("Portfolio email failed error=%s",type(error).__name__)
+        flash("The report could not be submitted for email. Please retry or contact support.","error")
+    else:
+        flash("Property Portfolio submitted successfully for email.","success")
+    return redirect(url_for('billing_bp.property_portfolio'))
+
+
+@billing_bp.get("/billing/property-owner/<int:property_id>/owners/edit", endpoint="property_owners_edit")
+@login_required
+def property_owners_edit(property_id):
+    property_record=db.session.execute(select(BilProperty.id,BilProperty.name).where(
+        BilProperty.id==property_id,BilProperty.manager_id==current_user.id)).mappings().first()
+    if property_record is None:abort(404)
+    from app.program_billing.owner_management import owners_enabled,owner_rows
     enabled=owners_enabled()
-    owners={p['id']:owner_rows(p['id'], include_inactive=True) for p in properties} if enabled else {}
-    return render_pm_template("program_billing/property_portfolio.html",
-        properties=properties, owners_by_property=owners, owners_enabled=enabled)
+    return render_pm_template("program_billing/property_owners_edit.html", property=property_record,
+        owners_enabled=enabled,assigned_owners=owner_rows(property_id,include_inactive=True) if enabled else [])
+
+
+@billing_bp.get("/billing/portfolio/print", endpoint="portfolio_print")
+@login_required
+def portfolio_print():
+    return render_template("program_billing/portfolio_document.html",print_mode=True,**portfolio_context())

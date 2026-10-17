@@ -247,7 +247,7 @@ def particular_group(property_id, group):
         for field in fields:
             key = field['key']
             if group == 'amounts':continue  # Structured capture preserves other legacy particulars.
-            if group == 'parties' and (request.form.get('parties_form_version') == '2' or key in STRUCTURED_PARTY_KEYS):continue
+            if group == 'parties' and (request.form.get('parties_form_version') in ('2','3') or key in STRUCTURED_PARTY_KEYS):continue
             if group == 'premises' and key in STRUCTURED_PREMISES_KEYS:continue
             value = request.form.get(key, '').strip()
             na = request.form.get(key + '_na') == 'on'
@@ -262,21 +262,29 @@ def particular_group(property_id, group):
             if any(token in value for token in field.get('placeholders', [])):
                 errors.append(field['label'] + ': replace the R01 placeholder with captured details.')
         if group == 'parties':
-            party_data, party_errors = parties_from_form(request.form, items)
+            registry_mode = request.form.get('parties_form_version') == '3'
+            party_data, party_errors = parties_from_form(request.form, items, owners if registry_mode else None)
             errors.extend(party_errors)
-            selected_ids = request.form.getlist('lessor_id')
-            if not selected_ids or (request.form.get('parties_form_version') != '2' and request.form.get('confirm_lessors') != 'on'):
-                errors.append('Add at least one property owner as a lessor.' if request.form.get('parties_form_version') == '2' else 'Select and confirm the actual contracting lessor(s); property ownership does not establish contracting capacity.')
+            selected_ids = [str(o['owner_id']) for o in owners] if registry_mode else request.form.getlist('lessor_id')
+            if registry_mode:candidates = {str(o['owner_id']):dict(o) for o in owners}
+            if not selected_ids or (request.form.get('parties_form_version') not in ('2','3') and request.form.get('confirm_lessors') != 'on'):
+                errors.append('Add at least one property owner as a lessor.' if request.form.get('parties_form_version') in ('2','3') else 'Select and confirm the actual contracting lessor(s); property ownership does not establish contracting capacity.')
             elif len(set(selected_ids)) != len(selected_ids) or any(identifier not in candidates for identifier in selected_ids):
                 abort(400, description='Choose authorized registered or already snapshotted lessors.')
             elif not errors:
                 identities = [{key:owner.get(key) for key in ('owner_id', 'type', 'name', 'identity_number', 'email', 'phone', 'residential_address', 'postal_address')}
                               for owner in (candidates[identifier] for identifier in selected_ids)]
-                if request.form.get('parties_form_version') == '2' and any(not (owner.get('identity_number') or '').strip() for owner in identities):
+                if request.form.get('parties_form_version') in ('2','3') and any(not (owner.get('identity_number') or '').strip() for owner in identities):
                     errors.append('Every selected owner requires an ID or registration number in the property owner register.')
                 if not errors:
-                    if items.get('_parties', {}).get('schema_version') == 1:
+                    if registry_mode and record_representative_change(items, party_data):
+                        save_items(draft, items)
+                        flash('Representative change recorded for addendum and Lessee-notice review. The original representative was preserved; no notice or addendum was issued.', 'warning')
+                        return redirect(group_url(property_id, 'parties', draft))
+                    if items.get('_parties', {}).get('schema_version') in (1,2):
                         items.setdefault('_legacy_parties', deepcopy(items['_parties']))
+                        if registry_mode and items.get('_contracting_lessors'):
+                            items.setdefault('_legacy_contracting_lessors', deepcopy(items['_contracting_lessors']))
                     items['_contracting_lessors'] = {'confirmed':True, 'identities':identities}
                     items['_parties'] = party_data
                     values = party_placeholder_values(items)
@@ -352,6 +360,8 @@ def particular_group(property_id, group):
         unavailable=reason, group=group, title=GROUPS[group][0], fields=fields, items=items, errors=errors,
         lessors=list(candidates.values()), selected_lessor_ids=selected_ids, additional_text=additional_text, next_clause=MANIFEST['last_core_clause']+1,
         party_data=parties_state({'_parties':party_data}) if group=='parties' else party_data, party_types=PARTY_TYPES, premises_data=premises_data, premises_fields=PREMISES_FIELDS, amounts_data=amounts_data, ancillary_data=ancillary_data, ancillary_fields=ANCILLARY_FIELDS,
+        owner_registry=owners, owner_preview=owner_parties_preview(owners, items, request.form if request.method=='POST' else None),
+        owner_capacity_proposal=OWNER_CAPACITY_PROPOSAL,
         owner_read_reason=getattr(g,'pm_owner_read_unavailable_reason','')), (400 if errors else 200)
 
 
@@ -416,7 +426,8 @@ def review(property_id):
     return render_pm_template('program_billing/lease_review.html', property=prop, lease_draft=draft,
         unavailable=reason, alerts=alerts, warnings=warnings, master_problem=master_problem,
         generation_ready=bool(draft and not reason and not alerts and not master_problem),
-        parties_notice_warning=PARTIES_NOTICE_WARNING if parties_missing_notice_address(items) else None)
+        parties_notice_warning=PARTIES_NOTICE_WARNING if parties_missing_notice_address(items) else None,
+        parties_capacity_warning=OWNER_CAPACITY_WARNING if OWNER_CAPACITY_WARNING in parties_generation_warnings(items) else None)
 
 
 @billing_bp.post('/billing/leases/property/<int:property_id>/generate', endpoint='lease_generate_review')
@@ -431,7 +442,7 @@ def generate_review(property_id):
     if issues:abort(400, description='Resolve the linked Stage 5 particulars checks before generation.')
     from app.program_billing.lease_generation import generate_review as build_review, MASTER_VERSION
     values = stage5_placeholder_values(draft['items'])
-    try:generated = build_review(values, incomplete_particulars=parties_missing_notice_address(draft['items']))
+    try:generated = build_review(values, incomplete_particulars=bool(parties_generation_warnings(draft['items'])), particulars_warnings=parties_generation_warnings(draft['items']))
     except (OSError,ValueError):abort(503, description='Draft generation or master integrity verification failed; no generation was saved.')
     items = dict(draft['items'])
     history = list(items.get('_generations', []))
@@ -491,7 +502,7 @@ def parties_state(items):
     return state
 
 
-def simplified_parties_from_form(form, existing):
+def simplified_parties_from_form(form, existing, require_lessor_capacity=True):
     state = deepcopy(existing.get('_parties', {}))
     state.update(schema_version=2, master_sha256=PARTIES_MASTER_SHA256)
     current = parties_state(existing)
@@ -514,7 +525,7 @@ def simplified_parties_from_form(form, existing):
         for key in ('signatory_name','signatory_identity_number','signatory_capacity'):
             state['lessee'][key] = form.get('lessee_'+key, '').strip()
     state['lessee']['physical_address'] = state['lessee']['address']
-    required = {'lessor':('signatory_name','signatory_identity_number','signatory_capacity'),
+    required = {'lessor':('signatory_name','signatory_identity_number') + (('signatory_capacity',) if require_lessor_capacity else ()),
                 'lessee':('legal_name','identity_number','address')}
     if kind == 'juristic_person':required['lessee'] += ('signatory_name','signatory_identity_number','signatory_capacity')
     labels = {'signatory_name':'representative full name','signatory_identity_number':'representative ID number',
@@ -532,7 +543,8 @@ def simplified_parties_from_form(form, existing):
     return state, errors
 
 
-def parties_from_form(form, existing=None):
+def parties_from_form(form, existing=None, owner_registry=None):
+    if form.get('parties_form_version') == '3':return registered_owner_parties_from_form(form, existing or {}, owner_registry)
     if form.get('parties_form_version') == '2':return simplified_parties_from_form(form, existing or {})
     state = {'schema_version':1, 'master_sha256':PARTIES_MASTER_SHA256}
     errors = []
@@ -567,14 +579,16 @@ def parties_from_form(form, existing=None):
 def party_placeholder_values(items):
     """Exact Stage 5 party tokens only; blanks remain blanks, never guessed dates."""
     state = parties_state(items)
-    simplified = items.get('_parties', {}).get('schema_version') == 2
+    simplified = items.get('_parties', {}).get('schema_version') in (2,3)
     def signatory(role):
         if simplified and role == 'lessee' and state['lessee']['party_type'] == 'natural_person':
             return state['lessee']['legal_name'] + ' - In personal capacity'
         name = state[role]['signatory_name']
         identity = state[role]['signatory_identity_number']
         if identity:name += ' (ID number: ' + identity + ')'
-        return ' - '.join(value for value in (name,state[role]['signatory_capacity']) if value)
+        capacity = state[role]['signatory_capacity']
+        if role=='lessor' and items.get('_parties',{}).get('schema_version')==3 and not capacity:capacity='Capacity: ________________ (not confirmed)'
+        return ' - '.join(value for value in (name,capacity) if value)
     def service(role):
         address = state[role]['service_address']
         if simplified:
@@ -599,7 +613,89 @@ PARTIES_NOTICE_WARNING = 'Lessor service address not supplied \u2014 complete be
 
 
 def parties_missing_notice_address(items):
-    return items.get('_parties', {}).get('schema_version') == 2 and not parties_state(items)['lessor']['service_address'].strip()
+    return items.get('_parties', {}).get('schema_version') in (2,3) and not parties_state(items)['lessor']['service_address'].strip()
+
+
+OWNER_CAPACITY_PROPOSAL = 'Owner representing all Lessors'
+OWNER_CAPACITY_WARNING = 'Lessor representative capacity not confirmed \u2014 review before signing.'
+
+
+def registry_owner_snapshot(owner):
+    return {key:owner.get(key) for key in ('owner_id','type','name','identity_number','email','phone','residential_address','postal_address')}
+
+
+def matching_owner_capacity(owner, items):
+    saved = items.get('_parties',{}).get('lessor',{})
+    # Never infer identity from a shared name or reuse another person's capacity.
+    identity = (owner.get('identity_number') or '').strip()
+    if identity and identity == (saved.get('signatory_identity_number') or '').strip():
+        return saved.get('signatory_capacity') or ''
+    return ''
+
+
+def owner_parties_preview(owners, items, form=None):
+    saved = items.get('_parties',{}).get('lessor',{})
+    selected = str(saved.get('owner_id') or '')
+    if not selected:
+        matches=[o for o in owners if o.get('type')=='individual' and o.get('identity_number') and o.get('identity_number')==saved.get('signatory_identity_number')]
+        if len(matches)==1:selected=str(matches[0]['owner_id'])
+    if form is not None and form.get('parties_form_version')=='3':selected=form.get('representative_owner_id','')
+    owner=next((o for o in owners if str(o['owner_id'])==selected),{})
+    confirmed=bool(owner and owner.get('type')=='individual' and saved.get('capacity_confirmed') and str(saved.get('owner_id'))==selected)
+    if form is not None and form.get('parties_form_version')=='3':confirmed=form.get('confirm_representative_capacity')=='on'
+    return {'selected':selected,'owner':owner,'capacity':matching_owner_capacity(owner,items), 'confirmed':confirmed,
+            'capacities':{str(o['owner_id']):matching_owner_capacity(o,items) for o in owners}}
+
+
+def registered_owner_parties_from_form(form, existing, owner_registry=None):
+    from werkzeug.datastructures import MultiDict
+    owners = owner_registry if owner_registry is not None else existing.get('_contracting_lessors',{}).get('identities',[])
+    selected = form.getlist('representative_owner_id') if hasattr(form,'getlist') else [form.get('representative_owner_id','')]
+    errors=[]
+    if len(selected)!=1 or not selected[0]:errors.append('Select exactly one individual owner as representative of all Lessors.')
+    owner=next((o for o in owners if str(o['owner_id'])==(selected[0] if len(selected)==1 else '')),None)
+    if owner is None or owner.get('type')!='individual':
+        errors.append('The representative must be an associated individual owner. Entity-owner delegate details are not available in the owner register.')
+        owner={}
+    if not owners:errors.append('No current property owners are available. Register or associate owners in Property Management first.')
+    for record in owners:
+        if not record.get('name') or not record.get('identity_number'):errors.append('An associated owner is missing a legal name or ID / registration number. Update the existing owner record; no information was invented.')
+    capacity=matching_owner_capacity(owner,existing)
+    confirmed=form.get('confirm_representative_capacity')=='on'
+    if confirmed:capacity=OWNER_CAPACITY_PROPOSAL
+    forwarded=MultiDict(form)
+    forwarded['parties_form_version']='2'
+    forwarded['lessor_signatory_name']=owner.get('name') or ''
+    forwarded['lessor_signatory_identity_number']=owner.get('identity_number') or ''
+    forwarded['lessor_signatory_capacity']=capacity
+    forwarded['lessor_service_address']=owner.get('residential_address') or ''
+    state,messages=simplified_parties_from_form(forwarded,existing,require_lessor_capacity=False)
+    state['schema_version']=3
+    state['lessor'].update(owner_id=owner.get('owner_id'),email=owner.get('email') or '',phone=owner.get('phone') or '',
+        capacity_proposal=OWNER_CAPACITY_PROPOSAL,capacity_confirmed=confirmed,
+        address_source='owner.residential_address',identity_source='property_owner_register')
+    return state,errors+messages
+
+
+def record_representative_change(items, proposed):
+    old=items.get('_parties',{}).get('lessor',{})
+    if not old or (old.get('signatory_identity_number'),old.get('signatory_name'))==(proposed['lessor'].get('signatory_identity_number'),proposed['lessor'].get('signatory_name')):return False
+    # Existing metadata records approval, not proof of external delivery. Preserve
+    # the original whenever it is marked signature/issuance-approved.
+    if not any(g.get('signature_or_issuance_approved') is True for g in items.get('_generations',[])):return False
+    requests=list(items.get('_representative_change_requests',[]))
+    requests.append({'id':str(uuid.uuid4()),'created_by':int(current_user.id),'created_at':datetime.now(timezone.utc).isoformat(),
+        'original_representative':deepcopy(old),'proposed_representative':deepcopy(proposed['lessor']),
+        'basis':'recorded_signature_or_issuance_approval','status':'pending_review',
+        'addendum_required':True,'lessee_notice_required':True,'addendum_issued':False,'notice_sent':False})
+    items['_representative_change_requests']=requests
+    return True
+
+
+def parties_generation_warnings(items):
+    warnings=[PARTIES_NOTICE_WARNING] if parties_missing_notice_address(items) else []
+    if items.get('_parties',{}).get('schema_version')==3 and not parties_state(items)['lessor']['signatory_capacity'].strip():warnings.append(OWNER_CAPACITY_WARNING)
+    return warnings
 
 
 # Stage 5 Premises mapping supplements, rather than renumbers, existing R01 keys.
@@ -922,12 +1018,15 @@ def stage5_completion(items):
             issues.append((group,anchor,'Stored particulars refer to an unverified master version; review and save this section.'))
     parties = parties_state(items)
     form = {'parties_form_version':str(items.get('_parties',{}).get('schema_version',1)), **{role+'_'+key:value for role,fields in PARTY_FIELDS.items() for key,value in parties[role].items()}}
+    if items.get('_parties',{}).get('schema_version')==3:
+        form['representative_owner_id']=str(items.get('_parties',{}).get('lessor',{}).get('owner_id') or '')
+        form['confirm_representative_capacity']='on' if items.get('_parties',{}).get('lessor',{}).get('capacity_confirmed') else ''
     _, messages = parties_from_form(form, items)
     issues.extend(('parties','s1-06',message) for message in messages)
     lessors = items.get('_contracting_lessors', {})
     if not lessors.get('confirmed') or not lessors.get('identities') or any(not owner.get('name') or not owner.get('owner_id') for owner in lessors.get('identities', [])):
         issues.append(('parties','s1-03','Confirm the actual contracting lessors from authorized owner records.'))
-    if items.get('_parties',{}).get('schema_version') == 2 and any(not owner.get('identity_number') for owner in lessors.get('identities',[])):
+    if items.get('_parties',{}).get('schema_version') in (2,3) and any(not owner.get('identity_number') for owner in lessors.get('identities',[])):
         issues.append(('parties','s1-03','Each lessor requires an ID or registration number.'))
     form = {'premises_form_version':'1', **{'premises_'+key:value for key,value in premises_state(items).items()}}
     _, messages = premises_from_form(form)

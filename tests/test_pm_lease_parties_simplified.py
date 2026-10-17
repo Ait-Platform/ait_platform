@@ -56,7 +56,7 @@ class SimplifiedPartiesTests(unittest.TestCase):
         html=self.client.get(self.route('particulars/parties')).get_data(as_text=True);tags=Tags(html)
         rep=next(attrs for tag,attrs in tags.tags if attrs.get('id')=='lessee-representative-fields')
         self.assertIn('hidden',rep);self.assertIn('disabled',rep)
-        for text in ('Add Owner','Remove Owner','Lessor representative','Natural person','Juristic person','Synthetic Natural Lessee'):self.assertIn(text,html)
+        for text in ('Full legal name','ID / registration number','Representative','Natural person','Juristic person','Synthetic Natural Lessee'):self.assertIn(text,html)
         names=[attrs.get('name') for tag,attrs in tags.tags]
         self.assertNotIn('confirm_lessors',names)
         self.assertFalse(any(name and name.startswith('signatures_') for name in names))
@@ -121,7 +121,7 @@ class SimplifiedPartiesTests(unittest.TestCase):
             {'lessee_party_type':'juristic_person'},{'lessee_party_type':'unknown'},{'lessee_email':'invalid'},
             {'lessee_party_type':'juristic_person','lessee_signatory_name':'Person','lessee_signatory_capacity':'Director','lessee_signatory_identity_number':''}):
             response=self.post('parties',dict(data,**changes));self.assertEqual(response.status_code,400,response.get_data(as_text=True))
-            self.assertEqual(self.stored(),{});self.assertIn('Synthetic lessor notices address',response.get_data(as_text=True))
+            self.assertEqual(self.stored(),{});self.assertIn('Synthetic lessee address',response.get_data(as_text=True))
         self.assertEqual(self.post('parties',dict(data,lessor_id=['99999'])).status_code,400)
         self.assertEqual(self.post('parties',dict(data,lessor_id=[data['lessor_id'][0]]*2)).status_code,400)
         self.sql("UPDATE bil_owner_identity SET identity_number=NULL");self.session.commit()

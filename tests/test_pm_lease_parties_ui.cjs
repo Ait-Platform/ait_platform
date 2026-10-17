@@ -1,42 +1,20 @@
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
-const vm = require('node:vm');
-const elements = {};
-function element(id, values={}) {
-  return elements[id] = Object.assign({value:'',hidden:false,disabled:false,textContent:'',events:{},
-    addEventListener(type,callback){this.events[type]=callback;}},values);
-}
-const rows = ['1','2','3'].map(id => {
-  const input={disabled:true};
-  return {dataset:{lessorRow:id},hidden:true,querySelector:()=>input,input};
-});
-const remove = rows.map(row => element('remove-'+row.dataset.lessorRow,{dataset:{removeLessor:row.dataset.lessorRow}}));
-const choice=element('lease-owner-choice',{options:[{value:''},{value:'1'},{value:'2'},{value:'3'}]});
-element('lease-add-owner');element('lease-lessor-empty');element('lease-owner-message');
-const rep=element('lessor-representative-owner',{selectedIndex:0,options:[{value:''},{value:'1',dataset:{name:'Owner One',identity:'SYNTHETIC-OWNER-ID'}}]});
-element('lessor-signatory_name');element('lessor-signatory_identity_number');element('lessor-signatory_capacity',{value:'Explicit entered capacity'});
-const type=element('lessee-party_type',{value:'natural_person'});const repFields=element('lessee-representative-fields');
-const address=element('lessor-service_address');const warning=element('lessor-notice-warning');
-const nameLabel={textContent:''},idLabel={textContent:''};
-const document={getElementById:id=>{assert.ok(elements[id],id);return elements[id];},
-  querySelectorAll:selector=>selector==='[data-lessor-row]'?rows:remove,
-  querySelector:selector=>selector.includes('legal_name')?nameLabel:idLabel};
+const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
+const elements={};
+function element(id,values={}) {return elements[id]=Object.assign({value:'',textContent:'',checked:false,hidden:false,disabled:false,events:{},addEventListener(type,handler){this.events[type]=handler;}},values);}
+const boxes=[1,2,3].map(i=>element('owner'+i,{dataset:{ownerName:'Owner '+i,ownerIdentity:'SYNTHETIC-'+i,ownerAddress:i==3?'':i+' Residential Road',ownerCapacity:i==1?'Previously recorded capacity':''}}));
+const confirm=element('owner-capacity-confirmation');element('owner-capacity-proposal',{textContent:'Owner representing all Lessors'});
+for(const id of ['owner-representative-name','owner-representative-identity','owner-representative-address','owner-representative-capacity','lessor-capacity-warning','lessor-notice-warning'])element(id);
+const kind=element('lessee-party_type',{value:'natural_person'}),fields=element('lessee-representative-fields');const nameLabel={},idLabel={};
+const document={getElementById:id=>{assert.ok(elements[id],id);return elements[id];},querySelectorAll:selector=>{assert.equal(selector,'input[name="representative_owner_id"]');return boxes;},querySelector:selector=>selector.includes('legal_name')?nameLabel:idLabel};
 vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../app/static/js/pm_lease_parties.js'),'utf8'),{document});
-assert.equal(repFields.hidden,true);assert.equal(repFields.disabled,true);assert.equal(nameLabel.textContent,'Full name');
-elements['lease-add-owner'].events.click();assert.ok(elements['lease-owner-message'].textContent.includes('Choose'));
-for(const id of ['1','2','3']){choice.value=id;elements['lease-add-owner'].events.click();}
-assert.equal(rows.filter(row=>!row.hidden).length,3);assert.ok(rows.every(row=>!row.input.disabled));assert.equal(elements['lease-lessor-empty'].hidden,true);
-assert.ok(choice.options.slice(1).every(option=>option.disabled));
-rep.value='1';rep.selectedIndex=1;rep.events.change();
-assert.equal(elements['lessor-signatory_name'].value,'Owner One');assert.equal(elements['lessor-signatory_identity_number'].value,'SYNTHETIC-OWNER-ID');
-assert.equal(elements['lessor-signatory_capacity'].value,'Explicit entered capacity');
-remove[0].events.click();assert.equal(rows[0].hidden,true);assert.equal(rows[0].input.disabled,true);assert.equal(choice.options[1].disabled,false);assert.equal(rep.value,'');
-choice.value='1';elements['lease-add-owner'].events.click();assert.equal(rows[0].hidden,false);
-type.value='juristic_person';type.events.change();assert.equal(repFields.hidden,false);assert.equal(repFields.disabled,false);assert.equal(nameLabel.textContent,'Registered entity name');assert.equal(idLabel.textContent,'Registration number');
-type.value='natural_person';type.events.change();assert.equal(repFields.hidden,true);assert.equal(repFields.disabled,true);
-address.value='Confirmed address';address.events.input();assert.equal(warning.hidden,true);address.value=' ';address.events.input();assert.equal(warning.hidden,false);
+assert.equal(fields.hidden,true);assert.equal(fields.disabled,true);assert.equal(confirm.checked,false);
+boxes[0].checked=true;boxes[0].events.change();assert.equal(elements['owner-representative-name'].textContent,'Owner 1');assert.equal(elements['owner-representative-identity'].textContent,'SYNTHETIC-1');assert.equal(elements['owner-representative-address'].textContent,'1 Residential Road');assert.equal(elements['owner-representative-capacity'].textContent,'Previously recorded capacity');
+boxes[1].checked=true;boxes[1].events.change();assert.equal(boxes.filter(x=>x.checked).length,1);assert.equal(boxes[0].checked,false);assert.equal(elements['owner-representative-capacity'].textContent,'Not confirmed');assert.equal(elements['lessor-capacity-warning'].hidden,false);
+confirm.checked=true;confirm.events.change();assert.equal(elements['owner-representative-capacity'].textContent,'Owner representing all Lessors');assert.equal(elements['lessor-capacity-warning'].hidden,true);
+boxes[2].checked=true;boxes[2].events.change();assert.equal(confirm.checked,false);assert.equal(elements['lessor-notice-warning'].hidden,false);assert.equal(boxes.filter(x=>x.checked).length,1);
+boxes[2].checked=false;boxes[2].events.change();assert.equal(boxes[2].checked,true);
+kind.value='juristic_person';kind.events.change();assert.equal(fields.hidden,false);assert.equal(fields.disabled,false);assert.equal(nameLabel.textContent,'Registered entity name');kind.value='natural_person';kind.events.change();assert.equal(fields.hidden,true);assert.equal(fields.disabled,true);
 const template=fs.readFileSync(path.join(__dirname,'../templates/program_billing/lease_parties_structured.html'),'utf8');
-assert.ok(!template.includes('name="confirm_lessors"'));assert.ok(!template.includes('name="signatures_'));
-assert.ok(template.includes('pm_lease_parties.js'));assert.ok(template.includes('Lessor service address not supplied'));
-console.log('Part A frontend: add/remove three owners, owner representative, natural/juristic fields and address warnings passed.');
+for(const obsolete of ['Add Owner','Remove Owner','lease-owner-choice','lessor-representative-owner'])assert.ok(!template.includes(obsolete));
+assert.ok(template.includes('representative_owner_id'));assert.ok(template.includes('confirm_representative_capacity'));assert.ok(template.includes('value="3"'));
+console.log('Part A frontend: one representative checkbox, canonical owner details, explicit capacity confirmation, no duplicate controls and lessee switching passed.');

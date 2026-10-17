@@ -1,5 +1,6 @@
 {% extends 'program_billing/lease_workflow_base.html' %}{% set title='5. Generate / Review Lease' %}
 {% block workspace %}
+{% if parties_capacity_warning %}<p role="alert" class="mt-4 rounded-lg border border-amber-300 bg-amber-50 p-3 text-amber-950">{{ parties_capacity_warning }} Review generation remains available and will be marked DRAFT &mdash; INCOMPLETE PARTICULARS.</p>{% endif %}
 {% if parties_notice_warning %}<p role="alert" class="mt-4 rounded-lg border border-amber-300 bg-amber-50 p-3 text-amber-950">{{ parties_notice_warning }} Generated Word output will be marked DRAFT &mdash; INCOMPLETE PARTICULARS.</p>{% endif %}<h2 class="mt-5 font-semibold">Stage 5 completion check</h2><p class="mt-2 text-sm">Essential data checks cover all 37 mapped particulars against the pinned master. Review and correct each section before generating. This is data validation, not legal approval.</p>
 {% if alerts %}<ul class="mt-4 list-disc pl-5 space-y-2">{% for alert in alerts %}<li><a class="text-blue-700 underline" href="{{ alert.url }}">{{ alert.message }}</a></li>{% endfor %}</ul>{% else %}<p class="mt-4">All mapped particulars passed validation.</p>{% endif %}
 {% if master_problem %}<p role="alert" class="mt-4 text-red-800">{{ master_problem }}</p>{% endif %}

@@ -1,54 +1,36 @@
-/* Part A only: registered-owner selection and natural/juristic lessee display. */
+/* Part A: one representative from existing owner records; no owner mutations. */
 (function () {
   'use strict';
   const byId = id => document.getElementById(id);
-  const choice = byId('lease-owner-choice');
-  if (!choice) return;
-  const rows = Array.from(document.querySelectorAll('[data-lessor-row]'));
-  const representative = byId('lessor-representative-owner');
-  function synchronizeOwners() {
-    const selected = new Set(rows.filter(row => !row.hidden).map(row => row.dataset.lessorRow));
-    Array.from(choice.options).forEach(option => { if (option.value) option.disabled = selected.has(option.value); });
-    Array.from(representative.options).forEach(option => {
-      if (option.value) { option.hidden = !selected.has(option.value); option.disabled = option.hidden; }
-    });
-    if (representative.value && !selected.has(representative.value)) representative.value = '';
-    byId('lease-lessor-empty').hidden = selected.size > 0;
+  const boxes = Array.from(document.querySelectorAll('input[name="representative_owner_id"]'));
+  const confirmation = byId('owner-capacity-confirmation');
+  if (!confirmation) return;
+  function showRepresentative(resetConfirmation) {
+    if (resetConfirmation) confirmation.checked = false;
+    const selected = boxes.find(box => box.checked && !box.disabled);
+    if (!selected) confirmation.checked = false;
+    const data = selected ? selected.dataset : {};
+    byId('owner-representative-name').textContent = data.ownerName || 'Select an individual owner above.';
+    byId('owner-representative-identity').textContent = data.ownerIdentity || 'Not available';
+    byId('owner-representative-address').textContent = data.ownerAddress || 'Not available in the selected owner record.';
+    const capacity = confirmation.checked ? byId('owner-capacity-proposal').textContent : data.ownerCapacity;
+    byId('owner-representative-capacity').textContent = capacity || 'Not confirmed';
+    byId('lessor-capacity-warning').hidden = Boolean(capacity);
+    byId('lessor-notice-warning').hidden = Boolean((data.ownerAddress || '').trim());
   }
-  byId('lease-add-owner').addEventListener('click', () => {
-    const row = rows.find(item => item.dataset.lessorRow === choice.value);
-    if (!row) { byId('lease-owner-message').textContent = 'Choose a registered property owner first.'; return; }
-    row.hidden = false;
-    row.querySelector('input[name="lessor_id"]').disabled = false;
-    choice.value = '';
-    byId('lease-owner-message').textContent = '';
-    synchronizeOwners();
-  });
-  document.querySelectorAll('[data-remove-lessor]').forEach(button => button.addEventListener('click', () => {
-    const row = rows.find(item => item.dataset.lessorRow === button.dataset.removeLessor);
-    row.hidden = true;
-    row.querySelector('input[name="lessor_id"]').disabled = true;
-    synchronizeOwners();
+  boxes.forEach(box => box.addEventListener('change', () => {
+    if (box.checked) boxes.forEach(other => { if (other !== box) other.checked = false; });
+    else if (!boxes.some(other => other.checked)) box.checked = true;
+    showRepresentative(true);
   }));
-  representative.addEventListener('change', () => {
-    const option = representative.options[representative.selectedIndex];
-    if (!option || !option.value || option.disabled) return;
-    byId('lessor-signatory_name').value = option.dataset.name;
-    byId('lessor-signatory_identity_number').value = option.dataset.identity;
-    // Capacity is deliberately entered, not inferred from ownership.
-  });
+  confirmation.addEventListener('change', () => showRepresentative(false));
   function synchronizeLessee() {
     const juristic = byId('lessee-party_type').value === 'juristic_person';
     const fields = byId('lessee-representative-fields');
-    fields.hidden = !juristic;
-    fields.disabled = !juristic;
+    fields.hidden = !juristic; fields.disabled = !juristic;
     document.querySelector('label[for="lessee-legal_name"]').textContent = juristic ? 'Registered entity name' : 'Full name';
     document.querySelector('label[for="lessee-identity_number"]').textContent = juristic ? 'Registration number' : 'ID number';
   }
   byId('lessee-party_type').addEventListener('change', synchronizeLessee);
-  byId('lessor-service_address').addEventListener('input', () => {
-    byId('lessor-notice-warning').hidden = Boolean(byId('lessor-service_address').value.trim());
-  });
-  synchronizeOwners();
-  synchronizeLessee();
+  showRepresentative(false); synchronizeLessee();
 }());

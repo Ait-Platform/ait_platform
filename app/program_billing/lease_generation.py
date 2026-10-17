@@ -49,11 +49,12 @@ def mark_draft(payload, status=STATUS):
     return output.getvalue()
 
 
-def generate_review(values, *, incomplete_particulars=False):
+def generate_review(values, *, incomplete_particulars=False, particulars_warnings=None):
     if len(values)!=37:raise ValueError('All 37 Stage 5 particulars must be supplied.')
     merged=merge_draft_docx(load_master(),values,approved_sha256=MASTER_SHA256)
     warning = 'Lessor service address not supplied \u2014 complete before signing.'
-    status = 'DRAFT \u2014 INCOMPLETE PARTICULARS\nNOT FOR SIGNATURE OR ISSUANCE\n' + warning if incomplete_particulars else STATUS
+    warnings = list(particulars_warnings) if particulars_warnings is not None else [warning] if incomplete_particulars else []
+    status = 'DRAFT \u2014 INCOMPLETE PARTICULARS\nNOT FOR SIGNATURE OR ISSUANCE\n' + '\n'.join(warnings) if incomplete_particulars else STATUS
     payload=mark_draft(merged['docx'], status)
     with ZipFile(BytesIO(payload)) as archive:
         for name in archive.namelist():
@@ -64,5 +65,5 @@ def generate_review(values, *, incomplete_particulars=False):
                         raise ValueError('Generated document contains unresolved merge placeholders.')
     return dict(docx=payload,master_sha256=MASTER_SHA256,master_version=MASTER_VERSION,
                 output_sha256=hashlib.sha256(payload).hexdigest(),merged_values=dict(values),incomplete_particulars=bool(incomplete_particulars),
-                warnings=[warning] if incomplete_particulars else [],
+                warnings=warnings,
                 status='draft-incomplete-particulars-not-for-issuance' if incomplete_particulars else 'draft-for-review-not-for-issuance')

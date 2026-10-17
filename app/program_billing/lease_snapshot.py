@@ -26,7 +26,7 @@ def readiness():
 
 def particulars_readiness():
     if current_app.config.get('PM_LEASE_PARTICULARS_WRITES_APPROVED') is not True:
-        return "Structured lease particulars are not approved. Create, save and generation are disabled."
+        return "PM_LEASE_PARTICULARS_WRITES_APPROVED is disabled. Administrator approval is required to enable lease create, save and generation."
     return schema_readiness()
 
 

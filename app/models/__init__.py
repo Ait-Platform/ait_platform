@@ -67,3 +67,5 @@ __all__.extend(["ReadingEngagement", "ReadingControllerAppointment", "ReadingAss
 
 from .sace_reading_audit import ReadingAuditEvent
 __all__.append("ReadingAuditEvent")
+
+from .tenant_identity import BilTenantIdentity

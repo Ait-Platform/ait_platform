@@ -1,8 +1,8 @@
-﻿const assert=require('node:assert/strict');
+const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
 const vm=require('node:vm');
-const group=fs.readFileSync(path.join(__dirname,'../templates/program_billing/lease_particular_group.html'),'utf8');
+const group=fs.readFileSync(path.join(__dirname,'../templates/program_billing/lease_particular_group.html'),'utf8')+fs.readFileSync(path.join(__dirname,'../templates/program_billing/lease_parties_structured.html'),'utf8');
 const workspace=fs.readFileSync(path.join(__dirname,'../templates/program_billing/lease_management.html'),'utf8');
 let opened=0,closed=0,submitted=0;
 const context={document:{getElementById:id=>{assert.equal(id,'lessee-dialog');return {showModal:()=>opened++,close:()=>closed++};}}};

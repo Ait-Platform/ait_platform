@@ -21,6 +21,21 @@ ITEMS={item['key']:item for item in CATALOG['items']}
 def readiness():
     if current_app.config.get('PM_LEASE_DRAFT_WRITES_APPROVED') is not True:
         return "Persistent lease draft storage is not approved. Saving and uploads are disabled."
+    return schema_readiness()
+
+
+def particulars_readiness():
+    if current_app.config.get('PM_LEASE_PARTICULARS_WRITES_APPROVED') is not True:
+        return "Structured lease particulars are not approved. Create, save and generation are disabled."
+    return schema_readiness()
+
+
+def require_particulars_schema():
+    reason = particulars_readiness()
+    if reason:abort(503,description=reason)
+
+
+def schema_readiness():
     try:
         inspector=inspect(db.session.connection())
         required={'bil_lease_draft':{'id','property_id','manager_id','items','version','source_version','registration_token','status','created_at','updated_at'},
@@ -82,7 +97,8 @@ def item_status(item,data):
     return "Not supplied (optional)" if item['requirement']=='Optional' else "Information outstanding"
 
 def snapshot_context(property_id):
-    reason=readiness();draft=None;drafts=[]
+    reason=particulars_readiness() if current_app.config.get('PM_LEASE_PARTICULARS_WRITES_APPROVED') is True else readiness()
+    draft=None;drafts=[]
     if not reason:
         drafts=db.session.execute(text('''SELECT d.id,d.updated_at FROM bil_lease_draft d JOIN bil_property p ON p.id=d.property_id
             WHERE d.property_id=:p AND d.manager_id=:u AND p.manager_id=:u AND p.is_archived=false ORDER BY d.updated_at DESC,d.id'''),
@@ -106,7 +122,9 @@ def snapshot_context(property_id):
 @billing_bp.post('/billing/leases/property/<int:property_id>/drafts',endpoint='lease_draft_create')
 @endpoint
 def create_draft(property_id):
-    authorised_property(property_id,True);require_schema()
+    authorised_property(property_id,True)
+    if current_app.config.get('PM_LEASE_PARTICULARS_WRITES_APPROVED') is True:require_particulars_schema()
+    else:require_schema()
     try:token=uuid.UUID(request.form.get('registration_token',''))
     except ValueError:abort(400,description="Reload the workspace before starting a draft.")
     identifier=uuid.uuid4()

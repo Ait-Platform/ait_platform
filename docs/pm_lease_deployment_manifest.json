@@ -1,0 +1,69 @@
+{
+  "runtime": [
+    "config.py",
+    "app/program_billing/owner_management.py",
+    "app/program_billing/lease_snapshot.py",
+    "app/program_billing/lease_workflow.py",
+    "app/program_billing/lease_merge.py",
+    "app/program_billing/lease_generation.py",
+    "app/program_billing/private_templates/Lease_Master_Stage5_Review.docx",
+    "templates/program_billing/lease_field.html",
+    "templates/program_billing/lease_management.html",
+    "templates/program_billing/lease_particular_group.html",
+    "templates/program_billing/lease_parties_structured.html",
+    "templates/program_billing/lease_premises_structured.html",
+    "templates/program_billing/lease_amounts_structured.html",
+    "templates/program_billing/lease_banking_utilities.html",
+    "templates/program_billing/lease_review.html"
+  ],
+  "tests": [
+    "tests/test_pm_lease_amounts_offline.py",
+    "tests/test_pm_lease_database_workflow.py",
+    "tests/test_pm_lease_foundation.py",
+    "tests/test_pm_lease_merge.py",
+    "tests/test_pm_lease_migration_lineage.py",
+    "tests/test_pm_lease_part5_offline.py",
+    "tests/test_pm_lease_parties_structured.py",
+    "tests/test_pm_lease_period_offline.py",
+    "tests/test_pm_lease_premises_offline.py",
+    "tests/test_pm_lease_snapshot.py",
+    "tests/test_pm_lease_workflow.py",
+    "tests/test_pm_property_management.py",
+    "tests/test_lease_workflow_ui.cjs"
+  ],
+  "documentation": [
+    "docs/pm_lease_deployment_manifest.json",
+    "docs/pm_lease_testing_release.md"
+  ],
+  "excluded": [
+    "AGENT.md",
+    "load_render_db.ps1",
+    "scripts/pm_render_connection_diagnostic.py",
+    "scripts/pm_part1_production_preflight.py",
+    "docs/pm_part1_production_preflight.md",
+    ".env",
+    "tmp/",
+    "output/",
+    "unrelated worktree changes",
+    "scripts/pm_backup_restore_verification.py",
+    "tests/test_pm_backup_restore_offline.py",
+    "docs/pm_final_database_verification_commands.md",
+    "docs/pm_lease_final_production_readiness.md",
+    "docs/pm_lease_database_activation_readiness.md",
+    "docs/pm_part1_lease_migration_plan.md"
+  ],
+  "notes": [
+    "Only the scoped lease Boolean addition changes config.py.",
+    "Original ownership revision files are restored verbatim for existing migration history and test dependencies; no migration is executed.",
+    "Stage 5 master must be explicitly staged despite the DOCX ignore rule.",
+    "Production PM_LEASE_PARTICULARS_WRITES_APPROVED is not enabled by this release. Render verification is separate from Git delivery."
+  ],
+  "migration_history": [
+    "migrations/versions/pm_owner_001.py",
+    "migrations/versions/pm_owner_002.py",
+    "migrations/versions/pm_lease_001.py"
+  ],
+  "test_fixture_support": [
+    "docs/proposed_migrations/pm_lease_001.py"
+  ]
+}

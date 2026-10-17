@@ -64,6 +64,15 @@ def merge_draft_docx(master, values, *, approved_sha256):
                     nodes[first].text = before + values[match[0]] + (after if first == last else '')
                     nodes[first].set('{http://www.w3.org/XML/1998/namespace}space', 'preserve')
                     for index in affected[1:]: nodes[index].text = after if index == last else ''
+        for root, _ in parsed.values():
+            for node in list(root.iter('{'+W+'}t')):
+                if '\n' not in (node.text or ''):continue
+                lines=node.text.split('\n');node.text=lines[0];cursor=node
+                for line in lines[1:]:
+                    br=ET.Element('{'+W+'}br');cursor.addnext(br)
+                    t=ET.Element('{'+W+'}t');t.text=line
+                    t.set('{http://www.w3.org/XML/1998/namespace}space','preserve')
+                    br.addnext(t);cursor=t
         target = BytesIO()
         with ZipFile(target, 'w', ZIP_DEFLATED) as output:
             for entry in entries:

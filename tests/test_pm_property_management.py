@@ -1,5 +1,6 @@
 """Focused property operations on session-temporary local PostgreSQL fixtures."""
 import ast
+import os
 import importlib.util
 from pathlib import Path
 import sys
@@ -25,7 +26,7 @@ class Identity(UserMixin):
 class PropertyManagementTests(unittest.TestCase):
     def setUp(self):
         source_root = ROOT if (ROOT / '.env').exists() else ROOT.parent.parent
-        url = dotenv_values(source_root / '.env').get('DATABASE_URL')
+        url = os.environ.get('PM_LEASE_TEST_DATABASE_URL') or dotenv_values(source_root / '.env').get('DATABASE_URL')
         parsed = sa.engine.make_url(url.replace('postgres://', 'postgresql://', 1))
         self.assertEqual(parsed.database, 'ait_local_db')
         self.assertIn(parsed.host, ('localhost','127.0.0.1','::1'))
@@ -83,7 +84,7 @@ class PropertyManagementTests(unittest.TestCase):
                 sa.Column('start_date',sa.Text),sa.Column('end_date',sa.Text),sa.Column('rent_amount',sa.Numeric)))
             auth=types.ModuleType('app.models.auth');auth.User=User
             sys.modules['app.models.auth']=auth;modules['app.models.billing'].BilLease=Lease
-            for name in ('lease_documents','lease_management','lease_snapshot','lease_workflow'):
+            for name in ('lease_documents','lease_management','lease_snapshot','lease_merge','lease_generation','lease_workflow'):
                 spec=importlib.util.spec_from_file_location('app.program_billing.'+name,ROOT/'app/program_billing'/(name+'.py'))
                 module=importlib.util.module_from_spec(spec);sys.modules[spec.name]=module;spec.loader.exec_module(module)
                 self.addCleanup(sys.modules.pop,spec.name,None)

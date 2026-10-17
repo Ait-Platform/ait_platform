@@ -61,8 +61,8 @@ class LeaseWorkflowTests(unittest.TestCase):
         html=self.client.get(self.route('particulars/parties')).get_data(as_text=True)
         self.assertEqual(html.count('<dialog'),1);self.assertIn('id="lessee-dialog"',html)
         self.assertIn('Contracting Owner',html);self.assertIn('owner@example.com',html)
-        self.assertIn('[UNRESOLVED - DO NOT ASSUME INDIVIDUAL OR ENTITY]',html)
-        response=self.post_group('parties',lessor_id=str(owner_id),confirm_lessors='on',**{'s1-05':'Expressly nominated service address','s1-06':'Lessee Company','s1-07':'Company / REG-7','s1-08':'Director / written authority','s1-09':'Lessee service address'})
+        self.assertIn('Registration / ID',html)
+        response=self.post_group('parties',lessor_id=str(owner_id),confirm_lessors='on',parties_form_version='1',lessor_signatory_name='Authorised Agent',lessor_signatory_capacity='Agent',lessor_service_address='Expressly nominated service address',lessee_legal_name='Lessee Company',lessee_entity_type='company',lessee_identity_number='REG-7',lessee_physical_address='Physical address',lessee_service_address='Lessee service address',lessee_signatory_name='Company Director',lessee_signatory_capacity='Director')
         self.assertEqual(response.status_code,302);self.assertIn('/particulars?',response.location)
         record=self.stored();self.assertEqual(record['s1-06']['value'],'Lessee Company')
         self.assertEqual(record['s1-05']['value'],'Expressly nominated service address')
@@ -90,9 +90,15 @@ class LeaseWorkflowTests(unittest.TestCase):
                        {'s1-17':'12 months','s1-18':'invalid'}):
             self.assertEqual(self.post_group('period',**values).status_code,400)
             self.assertEqual(self.stored(),before)
-        self.assertEqual(self.post_group('amounts',**{'s1-21':'15000 / fifteen thousand'}).status_code,302)
+        import test_pm_lease_amounts_offline as financial
+        data=financial.AmountsOfflineTests.form(self)
+        data.pop('draft_id');data.pop('version')
+        data.update(amounts_rent_effective_date='2026-01-01',amounts_adjustment_1_date='2026-07-01')
+        for i in (2,3):
+            data.update({f'amounts_adjustment_{i}_applicability':'after_expiry',f'amounts_adjustment_{i}_date':'',f'amounts_adjustment_{i}_amount':''})
+        self.assertEqual(self.post_group('amounts',**data).status_code,302)
         self.assertEqual(self.stored()['s1-18']['value'],'2026-01-01')
-        self.assertEqual(self.client.post('/billing/leases/property/26/particulars/amounts',data={'draft_id':str(self.draft),'version':1}).status_code,409)
+        self.assertEqual(self.client.post('/billing/leases/property/26/particulars/amounts',data=dict(data,draft_id=str(self.draft),version=1)).status_code,409)
 
     def test_special_conditions_numbering_reference_alerts_and_no_silent_renumbering(self):
         response=self.post_group('conditions',additional_clauses='29 | Inspect safety records under Core 8.1.1 and Annexure A.\n30 | Review Schedule 99 and clause 999.')
@@ -127,7 +133,7 @@ class LeaseWorkflowTests(unittest.TestCase):
         self.assertEqual(self.client.post('/billing/leases/property/26/master',data={}).status_code,405)
         self.assertEqual(self.client.post('/billing/leases/property/26/review',data={}).status_code,405)
         self.assertEqual(self.calls,[])
-        self.app.config['PM_LEASE_DRAFT_WRITES_APPROVED']=False
+        self.app.config['PM_LEASE_PARTICULARS_WRITES_APPROVED']=False
         self.assertEqual(self.post_group('amounts',**{'s1-21':'500'}).status_code,503)
         self.assertEqual(self.stored(),{})
 

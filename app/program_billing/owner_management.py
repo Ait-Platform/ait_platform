@@ -12,6 +12,31 @@ from app.program_billing.routes import billing_bp
 FIELDS = {'type':16,'name':200,'identity_number':80,'email':255,'phone':50,'residential_address':2000,'postal_address':2000}
 
 
+def owner_reads_available():
+    """Read-only schema check; owner write approval never grants property access."""
+    g.pm_owner_read_unavailable_reason = ''
+    required = {
+        'bil_owner_identity': {'id','identity_type','display_name','identity_number','email','phone','residential_address','postal_address','created_by'},
+        'bil_property_ownership': {'id','property_id','owner_id','ownership_percentage','effective_from','effective_to','created_at','supersedes_id','owner_identity_snapshot'},
+        'alembic_version': {'version_num'},
+    }
+    try:
+        with db.session.begin_nested():
+            inspector = inspect(db.session.connection())
+            for table, columns in required.items():
+                if not inspector.has_table(table) or not columns <= {c['name'] for c in inspector.get_columns(table)}:
+                    g.pm_owner_read_unavailable_reason = 'Registered owner information is unavailable: required ownership schema is missing.'
+                    return False
+            revisions = db.session.execute(text('SELECT version_num FROM alembic_version')).scalars().all()
+            if 'pm_owner_002' not in revisions:
+                g.pm_owner_read_unavailable_reason = 'Registered owner information is unavailable: ownership migration history is not verified.'
+                return False
+        return True
+    except SQLAlchemyError:
+        g.pm_owner_read_unavailable_reason = 'Registered owner information could not be read. No owner writes were enabled.'
+        return False
+
+
 def owners_enabled():
     g.pm_owner_unavailable_reason=''
     def unavailable(reason):

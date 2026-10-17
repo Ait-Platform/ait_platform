@@ -1,4 +1,4 @@
-﻿"""Disposable PostgreSQL draft fixtures and authenticated R2 API doubles."""
+"""Disposable PostgreSQL draft fixtures and authenticated R2 API doubles."""
 import importlib.util,sys,types,uuid,json,io,os,unittest
 from unittest.mock import patch
 from alembic.operations import Operations
@@ -21,7 +21,7 @@ class LeaseSnapshotTests(unittest.TestCase):
         with self.conn.begin():
             migration.op=Operations(MigrationContext.configure(self.conn));migration.upgrade()
             self.conn.exec_driver_sql("INSERT INTO alembic_version VALUES('pm_lease_001')")
-        self.app.config.update(PM_LEASE_DRAFT_WRITES_APPROVED=True,PM_LEASE_PRIVATE_STORAGE_APPROVED=True)
+        self.app.config.update(PM_LEASE_DRAFT_WRITES_APPROVED=True,PM_LEASE_PARTICULARS_WRITES_APPROVED=True,PM_LEASE_PRIVATE_STORAGE_APPROVED=True)
         utils=types.ModuleType('app.utils');utils.__path__=[]
         sys.modules['app.utils']=utils
         for name,path in [('app.utils.cloudflare_r2','app/utils/cloudflare_r2.py'),('app.program_billing.lease_storage','app/program_billing/lease_storage.py')]:
@@ -176,7 +176,7 @@ class LeaseSnapshotTests(unittest.TestCase):
         self.assertEqual(self.save(self.snapshot_module.ITEMS['sc-10'],'').status_code,302)
         self.assertEqual(self.sql('SELECT count(*) FROM bil_lease').scalar(),2)
         self.assertEqual(self.sql('SELECT name FROM bil_property WHERE id=26').scalar(),'Almond')
-        self.assertFalse((properties.ROOT/'migrations/versions/pm_lease_001.py').exists())
+        self.assertTrue((properties.ROOT/'migrations/versions/pm_lease_001.py').exists())  # Prepared only; never applied automatically.
         self.sign_in(8)
         self.assertEqual(self.client.get(f'/billing/leases/property/26/snapshot/s1-01?draft_id={self.draft}').status_code,404)
 

@@ -1,4 +1,4 @@
-﻿"""PROPOSED ONLY: outside Alembic discovery until schema/backup/rehearsal approval."""
+"""Prepared additive lease storage; execution requires backup/rehearsal approval."""
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import UUID, JSONB

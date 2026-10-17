@@ -42,7 +42,7 @@ class StructuredPartiesTests(unittest.TestCase):
         stored=self.stored();self.assertEqual(stored['_parties']['lessee']['entity_type'],'individual')
         self.assertEqual(stored['_parties']['lessor']['signatory_name'],'Independent Agent')
         values=self.workflow_module.party_placeholder_values(stored)
-        self.assertEqual(values['[S1 LEGAL LANDLORD(S)]'],'Individual Owner')
+        self.assertEqual(values['[S1 LEGAL LANDLORD(S)]'],'Individual Owner - ID / registration number: OWNER-1')
         self.assertEqual(values['[LANDLORD SIGNATORY NAME AND CAPACITY]'],'Independent Agent - Authorised agent')
         self.assertEqual(values['[TENANT REGISTRATION OR ID]'],'LESSEE-ID-1')
         self.assertIn('Different lessee service address',values['[S1 TENANT SERVICE ADDRESS AND CONTACT PARTICULARS]'])
@@ -50,7 +50,7 @@ class StructuredPartiesTests(unittest.TestCase):
         for token in self.workflow_module.SIGNATURE_TOKENS:self.assertEqual(values[token],'')
         self.assertEqual(stored['s1-41']['value'],'')
         html=self.client.get(self.route('particulars/parties')).get_data(as_text=True)
-        for value in ('Independent Agent','LESSEE-ID-1','Lessee physical address','Different lessee service address'):
+        for value in ('Independent Agent','LESSEE-ID-1','Different lessee service address'):
             self.assertIn(value,html)
         self.assertEqual(html.count('<dialog'),1)
         self.assertEqual(self.sql('SELECT count(*) FROM bil_owner_identity').scalar(),before)
@@ -66,7 +66,7 @@ class StructuredPartiesTests(unittest.TestCase):
         self.assertEqual(self.post(data).status_code,302)
         original=self.stored()['_contracting_lessors']
         self.assertEqual(len(original['identities']),2)
-        self.assertEqual(self.workflow_module.party_placeholder_values(self.stored())['[S1 LEGAL LANDLORD(S)]'],'Individual Owner\nTrust Owner')
+        self.assertEqual(self.workflow_module.party_placeholder_values(self.stored())['[S1 LEGAL LANDLORD(S)]'],'Individual Owner - ID / registration number: OWNER-1\nTrust Owner - ID / registration number: TRUST-2')
         self.sql("UPDATE bil_owner_identity SET email='new@example.com' WHERE identity_number='OWNER-1'");self.session.commit()
         data['version']=2;data['lessee_phone']='0999'
         self.assertEqual(self.post(data).status_code,302)
@@ -165,3 +165,27 @@ class StructuredPartiesTests(unittest.TestCase):
         placeholders=set(re.findall(r'\[[^\[\]]+\]',''.join(x.text or '' for x in xml.findall('.//w:t',n))))
         self.assertTrue(set(mapping)<=placeholders);self.assertEqual(len(mapping),11)
         self.assertEqual(hashlib.sha256(master.read_bytes()).hexdigest(),before)
+
+    def test_v1_available_ids_merge_without_mutating_saved_draft(self):
+        import copy
+        data=self.details(lessor_signatory_identity_number='LEGACY-LESSOR-REP-ID',lessee_signatory_identity_number='LEGACY-LESSEE-REP-ID')
+        self.assertEqual(self.post(data).status_code,302)
+        saved=self.stored();before=copy.deepcopy(saved)
+        values=self.workflow_module.party_placeholder_values(saved)
+        self.assertIn('OWNER-1',values['[S1 LEGAL LANDLORD(S)]'])
+        self.assertIn('LEGACY-LESSOR-REP-ID',values['[LANDLORD SIGNATORY NAME AND CAPACITY]'])
+        self.assertIn('LEGACY-LESSEE-REP-ID',values['[TENANT SIGNATORY NAME AND CAPACITY]'])
+        self.assertEqual(saved,before);self.assertEqual(self.stored(),before)
+        self.assertEqual(saved['_parties']['schema_version'],1)
+
+    def test_v1_missing_ids_are_not_invented_or_replaced_from_live_register(self):
+        import copy
+        data=self.details()
+        self.assertEqual(self.post(data).status_code,302)
+        saved=self.stored();saved['_contracting_lessors']['identities'][0]['identity_number']=None
+        before=copy.deepcopy(saved)
+        values=self.workflow_module.party_placeholder_values(saved)
+        self.assertEqual(values['[S1 LEGAL LANDLORD(S)]'],'Individual Owner')
+        self.assertEqual(values['[LANDLORD SIGNATORY NAME AND CAPACITY]'],'Independent Agent - Authorised agent')
+        self.assertNotIn('OWNER-1',values['[S1 LEGAL LANDLORD(S)]'])
+        self.assertEqual(saved,before)

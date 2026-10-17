@@ -19,7 +19,7 @@ def load_master():
     return data
 
 
-def notice(size):
+def notice(size, status=STATUS):
     p = ET.Element('{'+W+'}p')
     props = ET.SubElement(p,'{'+W+'}pPr')
     ET.SubElement(props,'{'+W+'}keepNext')
@@ -29,13 +29,13 @@ def notice(size):
     ET.SubElement(rp,'{'+W+'}b')
     ET.SubElement(rp,'{'+W+'}color',{'{'+W+'}val':'9C0006'})
     ET.SubElement(rp,'{'+W+'}sz',{'{'+W+'}val':str(size)})
-    for i,line in enumerate(STATUS.splitlines()):
+    for i,line in enumerate(status.splitlines()):
         if i:ET.SubElement(run,'{'+W+'}br')
         ET.SubElement(run,'{'+W+'}t').text=line
     return p
 
 
-def mark_draft(payload):
+def mark_draft(payload, status=STATUS):
     output = BytesIO()
     with ZipFile(BytesIO(payload)) as source, ZipFile(output,'w') as target:
         for entry in source.infolist():
@@ -43,16 +43,18 @@ def mark_draft(payload):
             if entry.filename=='word/document.xml' or (entry.filename.startswith('word/header') and entry.filename.endswith('.xml')):
                 root = ET.fromstring(content,parser=ET.XMLParser(resolve_entities=False,no_network=True))
                 parent = root.find('{'+W+'}body') if entry.filename=='word/document.xml' else root
-                parent.insert(0,notice(24 if entry.filename=='word/document.xml' else 16))
+                parent.insert(0,notice(24 if entry.filename=='word/document.xml' else 16, status))
                 content=ET.tostring(root,encoding='utf-8',xml_declaration=True)
             target.writestr(entry,content)
     return output.getvalue()
 
 
-def generate_review(values):
+def generate_review(values, *, incomplete_particulars=False):
     if len(values)!=37:raise ValueError('All 37 Stage 5 particulars must be supplied.')
     merged=merge_draft_docx(load_master(),values,approved_sha256=MASTER_SHA256)
-    payload=mark_draft(merged['docx'])
+    warning = 'Lessor service address not supplied \u2014 complete before signing.'
+    status = 'DRAFT \u2014 INCOMPLETE PARTICULARS\nNOT FOR SIGNATURE OR ISSUANCE\n' + warning if incomplete_particulars else STATUS
+    payload=mark_draft(merged['docx'], status)
     with ZipFile(BytesIO(payload)) as archive:
         for name in archive.namelist():
             if name.startswith('word/') and name.endswith('.xml'):
@@ -61,4 +63,6 @@ def generate_review(values):
                     if TOKEN.search(''.join(n.text or '' for n in p.iter('{'+W+'}t'))):
                         raise ValueError('Generated document contains unresolved merge placeholders.')
     return dict(docx=payload,master_sha256=MASTER_SHA256,master_version=MASTER_VERSION,
-                output_sha256=hashlib.sha256(payload).hexdigest(),merged_values=dict(values),status='draft-for-review-not-for-issuance')
+                output_sha256=hashlib.sha256(payload).hexdigest(),merged_values=dict(values),incomplete_particulars=bool(incomplete_particulars),
+                warnings=[warning] if incomplete_particulars else [],
+                status='draft-incomplete-particulars-not-for-issuance' if incomplete_particulars else 'draft-for-review-not-for-issuance')

@@ -1,35 +1,46 @@
 {% macro entry(role,key,label,multiline=false,kind='text') %}
 <label for="{{ role }}-{{ key }}" class="mt-3 block text-sm font-semibold">{{ label }}</label>
-{% if multiline %}<textarea id="{{ role }}-{{ key }}" name="{{ role }}_{{ key }}" rows="3" maxlength="2000" class="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2">{{ party_data[role].get(key,'') }}</textarea>
-{% else %}<input id="{{ role }}-{{ key }}" name="{{ role }}_{{ key }}" type="{{ kind }}" {% if role=='lessor' and key=='signatory_name' %}autofocus{% endif %} {% if kind!='date' %}maxlength="{{ 80 if key=='identity_number' else 255 if key=='email' else 50 if key=='phone' else 200 }}"{% endif %} value="{{ party_data[role].get(key,'') }}" class="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2">{% endif %}
+{% if multiline %}<textarea id="{{ role }}-{{ key }}" name="{{ role }}_{{ key }}" rows="3" maxlength="2000" {% if role=='lessor' and key=='service_address' %}autofocus{% endif %} class="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2">{{ party_data[role].get(key,'') }}</textarea>
+{% else %}<input id="{{ role }}-{{ key }}" name="{{ role }}_{{ key }}" type="{{ kind }}" maxlength="{{ 80 if key.endswith('identity_number') else 255 if key=='email' else 50 if key=='phone' else 200 }}" value="{{ party_data[role].get(key,'') }}" class="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2">{% endif %}
 {% endmacro %}
-<input type="hidden" name="parties_form_version" value="1">
-<section id="s1-03" class="rounded-lg border border-slate-200 p-4"><h2 class="font-semibold">Legal contracting lessor(s)</h2>
-<p class="mt-2 text-sm">Select the registered owners who will contract as lessors. Their saved identities are copied into this lease snapshot. This does not edit owner records.</p>
+<input type="hidden" name="parties_form_version" value="2">
+<section id="s1-03" class="rounded-lg border border-slate-200 p-4">
+<h2 class="font-semibold">Lessors</h2>
+<p class="mt-2 text-sm">Add one or more registered property owners to this lease. Removing an owner here changes this lease only; property ownership records remain unchanged.</p>
 {% if owner_read_reason %}<p role="status" class="mt-3 text-amber-900">{{ owner_read_reason }}</p>{% endif %}
-{% for owner in lessors %}<label class="mt-3 block"><input type="checkbox" name="lessor_id" value="{{ owner.owner_id }}" {% if owner.owner_id|string in selected_lessor_ids %}checked{% endif %}> {{ owner.name }} &middot; {{ owner.type }}<span class="block ml-5 text-sm whitespace-pre-wrap">{{ owner.identity_number or '' }} &middot; {{ owner.residential_address or '' }} &middot; {{ owner.email or '' }} &middot; {{ owner.phone or '' }}</span></label>{% else %}<p class="mt-3">No registered or previously snapshotted lessors are available for this property.</p>{% endfor %}
-<label class="mt-4 block"><input type="checkbox" name="confirm_lessors" {% if items.get('_contracting_lessors',{}).get('confirmed') %}checked{% endif %}> I confirm these are the contracting lessors and that the nominated signatory has authority to represent them.</label>
+<div id="lease-lessor-rows">
+{% for owner in lessors %}<div data-lessor-row="{{ owner.owner_id }}" class="mt-3 rounded-lg border border-slate-200 p-3" {% if owner.owner_id|string not in selected_lessor_ids %}hidden{% endif %}>
+<input type="hidden" name="lessor_id" value="{{ owner.owner_id }}" {% if owner.owner_id|string not in selected_lessor_ids %}disabled{% endif %}>
+<dl><dt class="text-sm font-semibold">Legal name</dt><dd class="mt-1 whitespace-pre-wrap">{{ owner.name }}</dd><dt class="mt-2 text-sm font-semibold">ID / registration number</dt><dd class="mt-1">{{ owner.identity_number or 'Missing: update the existing owner record before saving this lease.' }}</dd></dl>
+<button type="button" data-remove-lessor="{{ owner.owner_id }}" class="mt-3 rounded-lg border border-slate-300 px-3 py-2 text-sm">Remove Owner</button></div>{% endfor %}
+</div>
+<p id="lease-lessor-empty" class="mt-3 text-sm" {% if selected_lessor_ids %}hidden{% endif %}>Add at least one property owner.</p>
+<div class="mt-4 flex flex-wrap items-end gap-3"><div class="min-w-0 flex-1"><label for="lease-owner-choice" class="block text-sm font-semibold">Property owner</label><select id="lease-owner-choice" class="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2"><option value="">Choose an owner</option>{% for owner in lessors %}<option value="{{ owner.owner_id }}" {% if owner.owner_id|string in selected_lessor_ids %}disabled{% endif %}>{{ owner.name }} &mdash; {{ owner.identity_number or 'ID missing' }}</option>{% endfor %}</select></div><button id="lease-add-owner" type="button" class="rounded-lg border border-orange-300 bg-orange-50 px-3 py-2">Add Owner</button></div>
+<p id="lease-owner-message" role="status" class="mt-2 text-sm text-amber-900"></p>
+<div id="s1-05">{{ entry('lessor','service_address',"Lessor's address for notices",true) }}</div>
+<p id="lessor-notice-warning" role="status" class="mt-2 text-sm text-amber-900" {% if party_data.lessor.service_address %}hidden{% endif %}>Lessor service address not supplied &mdash; complete before signing.</p>
+<p class="mt-2 text-sm text-slate-600">A blank notices address is permitted for review. The generated document will be marked DRAFT &mdash; INCOMPLETE PARTICULARS.</p>
 </section>
-<section id="s1-04" class="mt-4 rounded-lg border border-slate-200 p-4"><h2 class="font-semibold">Lessor signatory and nominated service details</h2><p class="mt-2 text-sm">The signatory may be different from the legal owner. Confirm the service address explicitly; a residential address is not automatically selected.</p>
-{{ entry('lessor','signatory_name','Authorised signatory name') }}
-{{ entry('lessor','signatory_capacity','Signatory capacity') }}
-<div id="s1-05">{{ entry('lessor','service_address','Nominated service address',true) }}</div>
-{{ entry('lessor','email','Nominated service email (optional)',false,'email') }}
-{{ entry('lessor','phone','Service telephone (optional)',false,'tel') }}
+<section id="s1-04" class="mt-4 rounded-lg border border-slate-200 p-4"><h2 class="font-semibold">Lessor representative</h2><p class="mt-2 text-sm">One natural person represents all selected owners. The representative may also be an owner; record their capacity explicitly.</p>
+<label for="lessor-representative-owner" class="mt-3 block text-sm font-semibold">Use a selected individual owner (optional)</label><select id="lessor-representative-owner" class="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2"><option value="">Enter representative details below</option>{% for owner in lessors if owner.type=='individual' %}<option value="{{ owner.owner_id }}" data-name="{{ owner.name }}" data-identity="{{ owner.identity_number or '' }}" {% if owner.owner_id|string not in selected_lessor_ids %}hidden disabled{% endif %}>{{ owner.name }}</option>{% endfor %}</select>
+{{ entry('lessor','signatory_name','Full name') }}
+{{ entry('lessor','signatory_identity_number','ID number') }}
+{{ entry('lessor','signatory_capacity','Capacity') }}
 </section>
 <section id="s1-06" class="mt-4 rounded-lg border border-slate-200 p-4"><button type="button" class="font-semibold text-blue-700 underline" onclick="document.getElementById('lessee-dialog').showModal()">Lessee details</button><p class="mt-2 text-sm whitespace-pre-wrap">{{ party_data.lessee.legal_name or 'Not yet recorded' }}</p></section>
-<dialog id="lessee-dialog" class="w-full max-w-2xl rounded-xl border border-slate-300 p-6 shadow-xl"><h2 class="text-lg font-semibold">Lessee details</h2><p class="mt-2 text-sm">Capture the legal contracting party separately from its signatory. This does not create a tenant or sectional unit.</p>
-{{ entry('lessee','legal_name','Legal name') }}
-<label for="lessee-entity_type" class="mt-3 block text-sm font-semibold">Entity type</label><select id="lessee-entity_type" name="lessee_entity_type" class="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2"><option value="">Choose a type</option>{% for kind in party_types %}<option value="{{ kind }}" {% if party_data.lessee.entity_type==kind %}selected{% endif %}>{{ 'NPC' if kind=='npc' else 'Other entity' if kind=='other' else kind|capitalize }}</option>{% endfor %}</select>
-<div id="s1-07">{{ entry('lessee','identity_number','Registration / ID') }}</div>
-{{ entry('lessee','email','Email (optional)',false,'email') }}
-{{ entry('lessee','phone','Telephone (optional)',false,'tel') }}
-{{ entry('lessee','physical_address','Physical address',true) }}
-<div id="s1-09">{{ entry('lessee','service_address','Nominated service address',true) }}</div>
-<div id="s1-08">{{ entry('lessee','signatory_name','Authorised signatory name') }}{{ entry('lessee','signatory_capacity','Signatory capacity') }}</div>
+<dialog id="lessee-dialog" class="w-full max-w-2xl rounded-xl border border-slate-300 p-6 shadow-xl"><h2 class="text-lg font-semibold">Lessee details</h2><p class="mt-2 text-sm">These details belong to this lease. No tenant or sectional-unit record is created.</p>
+<label for="lessee-party_type" class="mt-3 block text-sm font-semibold">Lessee type</label><select id="lessee-party_type" name="lessee_party_type" class="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2"><option value="">Choose a type</option><option value="natural_person" {% if party_data.lessee.party_type=='natural_person' %}selected{% endif %}>Natural person</option><option value="juristic_person" {% if party_data.lessee.party_type=='juristic_person' %}selected{% endif %}>Juristic person</option></select>
+<div id="lessee-name-field">{{ entry('lessee','legal_name','Registered entity name' if party_data.lessee.party_type=='juristic_person' else 'Full name') }}</div>
+<div id="s1-07">{{ entry('lessee','identity_number','Registration number' if party_data.lessee.party_type=='juristic_person' else 'ID number') }}</div>
+<div id="s1-09">{{ entry('lessee','address','Address',true) }}</div><p class="mt-2 text-sm text-slate-600">Used for the lessee address in the lease.</p>
+{{ entry('lessee','email','Email',false,'email') }}
+{{ entry('lessee','phone','Telephone',false,'tel') }}
+<fieldset id="lessee-representative-fields" {% if party_data.lessee.party_type!='juristic_person' %}hidden disabled{% endif %}><legend id="s1-08" class="mt-4 font-semibold">Juristic person representative</legend>
+{{ entry('lessee','signatory_name','Representative full name') }}
+{{ entry('lessee','signatory_identity_number','Representative ID number') }}
+{{ entry('lessee','signatory_capacity','Representative capacity') }}
+</fieldset>
 <div class="mt-4 flex justify-end"><button type="button" onclick="document.getElementById('lessee-dialog').close()" class="rounded-lg bg-slate-100 px-4 py-2">Use these details</button></div><p class="mt-2 text-sm">Details persist only after Save particulars succeeds.</p></dialog>
-<section id="s1-41" class="mt-4 rounded-lg border border-slate-200 p-4"><h2 class="font-semibold">Signature details (optional during preparation)</h2><p class="mt-2 text-sm">Leave these blank until the actual signature details are known. Preparing this draft does not sign or issue it.</p>
-{{ entry('signatures','landlord_place','Landlord signature place') }}{{ entry('signatures','landlord_date','Landlord signature date',false,'date') }}
-{{ entry('signatures','tenant_place','Tenant signature place') }}{{ entry('signatures','tenant_date','Tenant signature date',false,'date') }}
-</section>
-{% if not items.get('_parties') and (items.get('s1-07',{}).get('value') or items.get('s1-04',{}).get('value') or items.get('s1-08',{}).get('value') or items.get('s1-41',{}).get('value')) %}<details class="mt-4"><summary>Previously recorded unstructured particulars</summary><p class="mt-2 text-sm">Review these details and enter the structured fields above. No identity or signatory details have been guessed.</p>{% for key in ['s1-04','s1-07','s1-08','s1-41'] %}<p class="mt-2 whitespace-pre-wrap text-sm">{{ items.get(key,{}).get('value','') }}</p>{% endfor %}</details>{% endif %}
+{% if items.get('_parties',{}).get('schema_version')==1 %}<p class="mt-4 text-sm text-slate-600">Existing saved notices/contact and signature details are preserved. Enter the new representative ID number before saving this revised form.</p>{% endif %}
+{% if not items.get('_parties') and (items.get('s1-07',{}).get('value') or items.get('s1-04',{}).get('value') or items.get('s1-08',{}).get('value')) %}<details class="mt-4"><summary>Previously recorded particulars</summary><p class="mt-2 text-sm">Review earlier free-text details before saving; no identity or representative has been guessed.</p>{% for key in ['s1-04','s1-07','s1-08'] %}<p class="mt-2 whitespace-pre-wrap text-sm">{{ items.get(key,{}).get('value','') }}</p>{% endfor %}</details>{% endif %}
+<script src="{{ url_for('static',filename='js/pm_lease_parties.js') }}" defer></script>

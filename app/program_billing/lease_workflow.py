@@ -1,5 +1,6 @@
 """Five Lease workspaces over the original R01 field keys, not a new lease model."""
 import calendar
+from copy import deepcopy
 import hashlib
 import json
 import re
@@ -246,7 +247,7 @@ def particular_group(property_id, group):
         for field in fields:
             key = field['key']
             if group == 'amounts':continue  # Structured capture preserves other legacy particulars.
-            if group == 'parties' and key in STRUCTURED_PARTY_KEYS:continue
+            if group == 'parties' and (request.form.get('parties_form_version') == '2' or key in STRUCTURED_PARTY_KEYS):continue
             if group == 'premises' and key in STRUCTURED_PREMISES_KEYS:continue
             value = request.form.get(key, '').strip()
             na = request.form.get(key + '_na') == 'on'
@@ -261,31 +262,36 @@ def particular_group(property_id, group):
             if any(token in value for token in field.get('placeholders', [])):
                 errors.append(field['label'] + ': replace the R01 placeholder with captured details.')
         if group == 'parties':
-            party_data, party_errors = parties_from_form(request.form)
+            party_data, party_errors = parties_from_form(request.form, items)
             errors.extend(party_errors)
             selected_ids = request.form.getlist('lessor_id')
-            if not selected_ids or request.form.get('confirm_lessors') != 'on':
-                errors.append('Select and confirm the actual contracting lessor(s); property ownership does not establish contracting capacity.')
+            if not selected_ids or (request.form.get('parties_form_version') != '2' and request.form.get('confirm_lessors') != 'on'):
+                errors.append('Add at least one property owner as a lessor.' if request.form.get('parties_form_version') == '2' else 'Select and confirm the actual contracting lessor(s); property ownership does not establish contracting capacity.')
             elif len(set(selected_ids)) != len(selected_ids) or any(identifier not in candidates for identifier in selected_ids):
                 abort(400, description='Choose authorized registered or already snapshotted lessors.')
             elif not errors:
                 identities = [{key:owner.get(key) for key in ('owner_id', 'type', 'name', 'identity_number', 'email', 'phone', 'residential_address', 'postal_address')}
                               for owner in (candidates[identifier] for identifier in selected_ids)]
-                items['_contracting_lessors'] = {'confirmed':True, 'identities':identities}
-                items['_parties'] = party_data
-                values = party_placeholder_values(items)
-                # Retain established R01 keys for existing summaries and completion checks.
-                for key, value in {
-                    's1-03':values['[S1 LEGAL LANDLORD(S)]'],
-                    's1-04':values['[LANDLORD SIGNATORY NAME AND CAPACITY]'],
-                    's1-05':values['[S1 LANDLORD SERVICE ADDRESS AND CONTACT PARTICULARS]'],
-                    's1-06':values['[S1 LEGAL TENANT]'],
-                    's1-07':party_data['lessee']['entity_type'] + ' / ' + party_data['lessee']['identity_number'],
-                    's1-08':values['[TENANT SIGNATORY NAME AND CAPACITY]'],
-                    's1-09':values['[S1 TENANT SERVICE ADDRESS AND CONTACT PARTICULARS]'],
-                    's1-41':'\n'.join(token + ': ' + values[token] for token in SIGNATURE_TOKENS if values[token]),
-                }.items():
-                    items[key] = {'value':value}
+                if request.form.get('parties_form_version') == '2' and any(not (owner.get('identity_number') or '').strip() for owner in identities):
+                    errors.append('Every selected owner requires an ID or registration number in the property owner register.')
+                if not errors:
+                    if items.get('_parties', {}).get('schema_version') == 1:
+                        items.setdefault('_legacy_parties', deepcopy(items['_parties']))
+                    items['_contracting_lessors'] = {'confirmed':True, 'identities':identities}
+                    items['_parties'] = party_data
+                    values = party_placeholder_values(items)
+                    # Retain established R01 keys for existing summaries and completion checks.
+                    for key, value in {
+                        's1-03':values['[S1 LEGAL LANDLORD(S)]'],
+                        's1-04':values['[LANDLORD SIGNATORY NAME AND CAPACITY]'],
+                        's1-05':values['[S1 LANDLORD SERVICE ADDRESS AND CONTACT PARTICULARS]'],
+                        's1-06':values['[S1 LEGAL TENANT]'],
+                        's1-07':party_data['lessee']['entity_type'] + ' / ' + party_data['lessee']['identity_number'],
+                        's1-08':values['[TENANT SIGNATORY NAME AND CAPACITY]'],
+                        's1-09':values['[S1 TENANT SERVICE ADDRESS AND CONTACT PARTICULARS]'],
+                        's1-41':'\n'.join(token + ': ' + values[token] for token in SIGNATURE_TOKENS if values[token]),
+                    }.items():
+                        items[key] = {'value':value}
         if group == 'premises':
             premises_data, premises_errors = premises_from_form(request.form)
             errors.extend(premises_errors)
@@ -345,7 +351,7 @@ def particular_group(property_id, group):
     return render_pm_template('program_billing/lease_particular_group.html', property=prop, lease_draft=draft,
         unavailable=reason, group=group, title=GROUPS[group][0], fields=fields, items=items, errors=errors,
         lessors=list(candidates.values()), selected_lessor_ids=selected_ids, additional_text=additional_text, next_clause=MANIFEST['last_core_clause']+1,
-        party_data=party_data, party_types=PARTY_TYPES, premises_data=premises_data, premises_fields=PREMISES_FIELDS, amounts_data=amounts_data, ancillary_data=ancillary_data, ancillary_fields=ANCILLARY_FIELDS,
+        party_data=parties_state({'_parties':party_data}) if group=='parties' else party_data, party_types=PARTY_TYPES, premises_data=premises_data, premises_fields=PREMISES_FIELDS, amounts_data=amounts_data, ancillary_data=ancillary_data, ancillary_fields=ANCILLARY_FIELDS,
         owner_read_reason=getattr(g,'pm_owner_read_unavailable_reason','')), (400 if errors else 200)
 
 
@@ -409,7 +415,8 @@ def review(property_id):
     except (OSError,ValueError):master_problem = 'The pinned Stage 5 master is unavailable or failed integrity verification.'
     return render_pm_template('program_billing/lease_review.html', property=prop, lease_draft=draft,
         unavailable=reason, alerts=alerts, warnings=warnings, master_problem=master_problem,
-        generation_ready=bool(draft and not reason and not alerts and not master_problem))
+        generation_ready=bool(draft and not reason and not alerts and not master_problem),
+        parties_notice_warning=PARTIES_NOTICE_WARNING if parties_missing_notice_address(items) else None)
 
 
 @billing_bp.post('/billing/leases/property/<int:property_id>/generate', endpoint='lease_generate_review')
@@ -424,7 +431,7 @@ def generate_review(property_id):
     if issues:abort(400, description='Resolve the linked Stage 5 particulars checks before generation.')
     from app.program_billing.lease_generation import generate_review as build_review, MASTER_VERSION
     values = stage5_placeholder_values(draft['items'])
-    try:generated = build_review(values)
+    try:generated = build_review(values, incomplete_particulars=parties_missing_notice_address(draft['items']))
     except (OSError,ValueError):abort(503, description='Draft generation or master integrity verification failed; no generation was saved.')
     items = dict(draft['items'])
     history = list(items.get('_generations', []))
@@ -433,7 +440,8 @@ def generate_review(property_id):
         'created_at':datetime.now(timezone.utc).isoformat(),'source_draft_version':draft['version'],
         'master_version':MASTER_VERSION,'master_sha256':generated['master_sha256'],
         'output_sha256':generated['output_sha256'],'merged_values':dict(values),
-        'status':generated['status'],'signature_or_issuance_approved':False})
+        'status':generated['status'],'incomplete_particulars':generated.get('incomplete_particulars',False),
+        'warnings':generated.get('warnings',[]),'signature_or_issuance_approved':False})
     items['_generations'] = history
     items['_master'] = {'version':MASTER_VERSION,'sha256':generated['master_sha256']}
     save_items(draft, items)  # Optimistic version check and commit before sending a successful download.
@@ -455,7 +463,7 @@ def protect_workflow(response):
     return response
 
 
-PARTY_TYPES = ('individual', 'company', 'trust', 'npc', 'other')
+PARTY_TYPES = ('individual', 'company', 'trust', 'npc', 'other', 'juristic')
 STRUCTURED_PARTY_KEYS = {'s1-03','s1-04','s1-05','s1-06','s1-07','s1-08','s1-09','s1-41'}
 PARTIES_MASTER_SHA256 = '98b391c497cb2c70f931a6117a3b0074776256faaa8be91f3b6b9f4ad5d12937'
 SIGNATURE_TOKENS = {
@@ -463,9 +471,9 @@ SIGNATURE_TOKENS = {
     '[TENANT SIGNATURE PLACE]':'tenant_place', '[TENANT SIGNATURE DATE]':'tenant_date',
 }
 PARTY_FIELDS = {
-    'lessor': {'signatory_name':200, 'signatory_capacity':200, 'service_address':2000, 'email':255, 'phone':50},
+    'lessor': {'signatory_name':200, 'signatory_identity_number':80, 'signatory_capacity':200, 'service_address':2000, 'email':255, 'phone':50},
     'lessee': {'legal_name':200, 'entity_type':16, 'identity_number':80, 'email':255, 'phone':50,
-               'physical_address':2000, 'service_address':2000, 'signatory_name':200, 'signatory_capacity':200},
+               'physical_address':2000, 'service_address':2000, 'signatory_name':200, 'signatory_identity_number':80, 'signatory_capacity':200, 'party_type':16, 'address':2000},
     'signatures': {'landlord_place':200, 'landlord_date':10, 'tenant_place':200, 'tenant_date':10},
 }
 
@@ -478,10 +486,54 @@ def parties_state(items):
         state['lessee']['legal_name'] = items.get('s1-06', {}).get('value', '')
         state['lessor']['service_address'] = items.get('s1-05', {}).get('value', '')
         state['lessee']['service_address'] = items.get('s1-09', {}).get('value', '')
+    state['lessee']['party_type'] = state['lessee']['party_type'] or ('natural_person' if state['lessee']['entity_type'] == 'individual' else 'juristic_person' if state['lessee']['entity_type'] else '')
+    state['lessee']['address'] = state['lessee']['address'] or state['lessee']['service_address'] or state['lessee']['physical_address']
     return state
 
 
-def parties_from_form(form):
+def simplified_parties_from_form(form, existing):
+    state = deepcopy(existing.get('_parties', {}))
+    state.update(schema_version=2, master_sha256=PARTIES_MASTER_SHA256)
+    current = parties_state(existing)
+    for role in PARTY_FIELDS:state[role] = dict(current[role])
+    editable = {
+        'lessor':('signatory_name','signatory_identity_number','signatory_capacity','service_address'),
+        'lessee':('legal_name','party_type','identity_number','address','email','phone'),
+    }
+    errors = []
+    for role, keys in editable.items():
+        for key in keys:state[role][key] = form.get(role+'_'+key, '').strip()
+    kind = state['lessee']['party_type']
+    if kind not in ('natural_person','juristic_person'):errors.append('Choose Natural person or Juristic person.')
+    if kind == 'natural_person':
+        state['lessee']['entity_type'] = 'individual'
+        # The natural person contracts and signs personally, without a representative.
+        for key in ('signatory_name','signatory_identity_number','signatory_capacity'):state['lessee'][key] = ''
+    elif kind == 'juristic_person':
+        state['lessee']['entity_type'] = current['lessee']['entity_type'] if current['lessee']['entity_type'] in ('company','trust','npc','other','juristic') else 'juristic'
+        for key in ('signatory_name','signatory_identity_number','signatory_capacity'):
+            state['lessee'][key] = form.get('lessee_'+key, '').strip()
+    state['lessee']['physical_address'] = state['lessee']['address']
+    required = {'lessor':('signatory_name','signatory_identity_number','signatory_capacity'),
+                'lessee':('legal_name','identity_number','address')}
+    if kind == 'juristic_person':required['lessee'] += ('signatory_name','signatory_identity_number','signatory_capacity')
+    labels = {'signatory_name':'representative full name','signatory_identity_number':'representative ID number',
+              'signatory_capacity':'representative capacity','legal_name':'legal name','identity_number':'ID / registration number','address':'address'}
+    for role,keys in required.items():
+        for key in keys:
+            if not state[role][key]:errors.append(role.title()+' '+labels[key]+' is required.')
+    for role,fields in PARTY_FIELDS.items():
+        for key,limit in fields.items():
+            value = state[role][key]
+            if len(value)>limit:errors.append(role.title()+' '+key.replace('_',' ')+': maximum length is '+str(limit)+'.')
+            if re.search(r'\[[^\[\]]+\]',value):errors.append('Replace unresolved placeholders with actual party details.')
+    email = state['lessee']['email']
+    if email and not re.fullmatch(r'[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+',email):errors.append('Lessee email address is invalid.')
+    return state, errors
+
+
+def parties_from_form(form, existing=None):
+    if form.get('parties_form_version') == '2':return simplified_parties_from_form(form, existing or {})
     state = {'schema_version':1, 'master_sha256':PARTIES_MASTER_SHA256}
     errors = []
     if form.get('parties_form_version') != '1':errors.append('Reload the Parties form before saving structured details.')
@@ -515,12 +567,23 @@ def parties_from_form(form):
 def party_placeholder_values(items):
     """Exact Stage 5 party tokens only; blanks remain blanks, never guessed dates."""
     state = parties_state(items)
+    simplified = items.get('_parties', {}).get('schema_version') == 2
     def signatory(role):
-        return ' - '.join(value for value in (state[role]['signatory_name'],state[role]['signatory_capacity']) if value)
+        if simplified and role == 'lessee' and state['lessee']['party_type'] == 'natural_person':
+            return state['lessee']['legal_name'] + ' - In personal capacity'
+        name = state[role]['signatory_name']
+        identity = state[role]['signatory_identity_number']
+        if identity:name += ' (ID number: ' + identity + ')'
+        return ' - '.join(value for value in (name,state[role]['signatory_capacity']) if value)
     def service(role):
-        return '\n'.join(value for value in (state[role]['service_address'],state[role]['email'],state[role]['phone']) if value)
+        address = state[role]['service_address']
+        if simplified:
+            address = state[role]['address'] if role == 'lessee' else address or '________________'
+        return '\n'.join(value for value in (address,state[role]['email'],state[role]['phone']) if value)
+    def owner_name(owner):
+        return owner['name'] + (' - ID / registration number: ' + owner['identity_number'] if owner.get('identity_number') else '')
     values = {
-        '[S1 LEGAL LANDLORD(S)]':'\n'.join(owner['name'] for owner in items.get('_contracting_lessors',{}).get('identities',[])),
+        '[S1 LEGAL LANDLORD(S)]':'\n'.join(owner_name(owner) for owner in items.get('_contracting_lessors',{}).get('identities',[])),
         '[LANDLORD SIGNATORY NAME AND CAPACITY]':signatory('lessor'),
         '[S1 LEGAL TENANT]':state['lessee']['legal_name'],
         '[TENANT REGISTRATION OR ID]':state['lessee']['identity_number'],
@@ -530,6 +593,13 @@ def party_placeholder_values(items):
     }
     values.update({token:state['signatures'][field] for token,field in SIGNATURE_TOKENS.items()})
     return values
+
+
+PARTIES_NOTICE_WARNING = 'Lessor service address not supplied \u2014 complete before signing.'
+
+
+def parties_missing_notice_address(items):
+    return items.get('_parties', {}).get('schema_version') == 2 and not parties_state(items)['lessor']['service_address'].strip()
 
 
 # Stage 5 Premises mapping supplements, rather than renumbers, existing R01 keys.
@@ -851,12 +921,14 @@ def stage5_completion(items):
         elif items[saved].get('master_sha256') != PARTIES_MASTER_SHA256:
             issues.append((group,anchor,'Stored particulars refer to an unverified master version; review and save this section.'))
     parties = parties_state(items)
-    form = {'parties_form_version':'1', **{role+'_'+key:value for role,fields in PARTY_FIELDS.items() for key,value in parties[role].items()}}
-    _, messages = parties_from_form(form)
+    form = {'parties_form_version':str(items.get('_parties',{}).get('schema_version',1)), **{role+'_'+key:value for role,fields in PARTY_FIELDS.items() for key,value in parties[role].items()}}
+    _, messages = parties_from_form(form, items)
     issues.extend(('parties','s1-06',message) for message in messages)
     lessors = items.get('_contracting_lessors', {})
     if not lessors.get('confirmed') or not lessors.get('identities') or any(not owner.get('name') or not owner.get('owner_id') for owner in lessors.get('identities', [])):
         issues.append(('parties','s1-03','Confirm the actual contracting lessors from authorized owner records.'))
+    if items.get('_parties',{}).get('schema_version') == 2 and any(not owner.get('identity_number') for owner in lessors.get('identities',[])):
+        issues.append(('parties','s1-03','Each lessor requires an ID or registration number.'))
     form = {'premises_form_version':'1', **{'premises_'+key:value for key,value in premises_state(items).items()}}
     _, messages = premises_from_form(form)
     issues.extend(('premises','s1-10',message) for message in messages)

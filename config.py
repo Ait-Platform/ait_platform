@@ -128,16 +128,10 @@ class Config:
 
     # ------------ Core / Security ------------
     SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret")
-    # Explicit administrator approval; absent/invalid values keep owner writes off.
-    PM_OWNER_WRITES_APPROVED = _to_bool(
-        os.getenv("PM_OWNER_WRITES_APPROVED"), default=False
-    )
     MAINTENANCE_MODE = int(os.getenv("MAINTENANCE_MODE", "0"))
     MAX_CONTENT_LENGTH = 50 * 1024 * 1024  # 50 MB limit for all uploads
 
-    # Scoped approval for structured particulars, draft creation and review generation.
-    # Does not activate legacy snapshot edits, annexure uploads or R2 writes.
-    PM_LEASE_PARTICULARS_WRITES_APPROVED = _to_bool(os.getenv("PM_LEASE_PARTICULARS_WRITES_APPROVED"), default=False)
+    # Separate legacy upload/storage safeguards remain unchanged.
     PM_LEASE_DRAFT_WRITES_APPROVED = _to_bool(os.getenv("PM_LEASE_DRAFT_WRITES_APPROVED"), default=False)
     PM_LEASE_PRIVATE_STORAGE_APPROVED = _to_bool(os.getenv("PM_LEASE_PRIVATE_STORAGE_APPROVED"), default=False)
 

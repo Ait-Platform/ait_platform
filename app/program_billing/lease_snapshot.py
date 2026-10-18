@@ -25,8 +25,6 @@ def readiness():
 
 
 def particulars_readiness():
-    if current_app.config.get('PM_LEASE_PARTICULARS_WRITES_APPROVED') is not True:
-        return "PM_LEASE_PARTICULARS_WRITES_APPROVED is disabled. Administrator approval is required to enable lease create, save and generation."
     return schema_readiness()
 
 
@@ -97,7 +95,7 @@ def item_status(item,data):
     return "Not supplied (optional)" if item['requirement']=='Optional' else "Information outstanding"
 
 def snapshot_context(property_id):
-    reason=particulars_readiness() if current_app.config.get('PM_LEASE_PARTICULARS_WRITES_APPROVED') is True else readiness()
+    reason=particulars_readiness()
     draft=None;drafts=[]
     if not reason:
         drafts=db.session.execute(text('''SELECT d.id,d.updated_at FROM bil_lease_draft d JOIN bil_property p ON p.id=d.property_id
@@ -123,8 +121,7 @@ def snapshot_context(property_id):
 @endpoint
 def create_draft(property_id):
     authorised_property(property_id,True)
-    if current_app.config.get('PM_LEASE_PARTICULARS_WRITES_APPROVED') is True:require_particulars_schema()
-    else:require_schema()
+    require_particulars_schema()
     try:token=uuid.UUID(request.form.get('registration_token',''))
     except ValueError:abort(400,description="Reload the workspace before starting a draft.")
     identifier=uuid.uuid4()

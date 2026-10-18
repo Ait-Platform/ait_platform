@@ -13,7 +13,7 @@ from wtforms import StringField, SelectField, SubmitField
 from wtforms.validators import DataRequired
 from dateutil.relativedelta import relativedelta
 from sqlalchemy.orm import validates, relationship
-from sqlalchemy.orm import synonym
+from sqlalchemy.orm import synonym, deferred
 from app.extensions import db  # adjust import
 
 
@@ -245,13 +245,23 @@ class BilSectionalUnit(db.Model):
 class BilTenant(db.Model):
     __tablename__ = "bil_tenant"
 
+    __table_args__ = (
+        db.Index('uq_pm_tenant_register_identity', 'manager_id', 'party_type', db.func.lower(db.func.replace(db.column('identity_number'), ' ', '')), unique=True),
+        db.CheckConstraint("manager_id IS NULL OR (party_type IS NOT NULL AND party_type IN ('natural_person','juristic_person') AND identity_number IS NOT NULL AND length(trim(identity_number)) > 0 AND address IS NOT NULL AND length(trim(address)) > 0)", name='ck_pm_tenant_register_required'),
+    )
+
     id   = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(200), nullable=False)
+
+    # Deferred so existing billing queries do not select new fields before the SQL rollout.
+    manager_id = deferred(db.Column(db.Integer, db.ForeignKey('user.id', ondelete='RESTRICT'), nullable=True))
+    party_type = deferred(db.Column(db.String(32), nullable=True))
+    identity_number = deferred(db.Column(db.String(80), nullable=True))
 
     property_id = db.Column(
         db.Integer, db.ForeignKey('bil_property.id'), nullable=True, index=True
     )
-    sectional_unit_id = db.Column(db.Integer, db.ForeignKey('bil_sectional_unit.id'), nullable=False)
+    sectional_unit_id = db.Column(db.Integer, db.ForeignKey('bil_sectional_unit.id'), nullable=True)
     property = db.relationship("BilProperty", back_populates="tenants")
 
     metro_account_no     = db.Column(db.String(64), index=True)

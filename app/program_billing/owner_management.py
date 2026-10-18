@@ -1,4 +1,4 @@
-"""Owner persistence, disabled until explicit approval and schema verification."""
+"""Manager-authorized owner persistence with schema and history safeguards."""
 from functools import wraps
 from decimal import Decimal, InvalidOperation
 from flask import abort, current_app, jsonify, request, flash, g
@@ -42,8 +42,6 @@ def owners_enabled():
     def unavailable(reason):
         g.pm_owner_unavailable_reason=reason
         return False
-    if current_app.config.get('PM_OWNER_WRITES_APPROVED') is not True:
-        return unavailable('Owner saving is disabled: PM_OWNER_WRITES_APPROVED is not enabled.')
     try:
         inspector=inspect(db.session.connection())
         required={'bil_owner_identity':{'id','identity_type','display_name','created_by','identity_number','email','phone','residential_address','postal_address'},

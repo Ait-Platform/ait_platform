@@ -270,11 +270,12 @@ def particular_group(property_id, group):
                 tenant_snapshot = tenant_register.selected(request.form.get('tenant_id'))
                 party_form = request.form.copy()
                 party_form['parties_form_version'] = '3'
-                for key in tenant_register.FIELDS:party_form['lessee_'+key] = tenant_snapshot[key]
-            party_data, party_errors = parties_from_form(party_form, items, owners if registry_mode else None)
+                for key in tenant_register.LEASE_FIELDS:party_form['lessee_'+key] = tenant_snapshot[key] or ''
+            party_data, party_errors = parties_from_form(party_form, items, owners if registry_mode else None, tenant_snapshot)
             if tenant_snapshot:
-                party_data['lessee']['tenant_identity_id'] = tenant_snapshot['id']
-                party_data['lessee']['identity_source'] = 'bil_tenant_identity'
+                party_data['lessee']['tenant_id'] = tenant_snapshot['id']
+                party_data['lessee']['identity_source'] = 'bil_tenant'
+                for key in ('representative_id','representative_phone','representative_email'):party_data['lessee'][key] = tenant_snapshot[key]
             errors.extend(party_errors)
             selected_ids = [str(o['owner_id']) for o in owners] if registry_mode else request.form.getlist('lessor_id')
             if registry_mode:candidates = {str(o['owner_id']):dict(o) for o in owners}
@@ -375,7 +376,7 @@ def particular_group(property_id, group):
         owner_capacity_proposal=OWNER_CAPACITY_PROPOSAL,
         registered_tenants=tenant_register.rows() if group=='parties' else [],
         tenant_readiness=tenant_register.readiness() if group=='parties' else None,
-        selected_tenant_id=str(request.values.get('tenant_id') or items.get('_parties',{}).get('lessee',{}).get('tenant_identity_id') or ''),
+        selected_tenant_id=str(request.values.get('tenant_id') or items.get('_parties',{}).get('lessee',{}).get('tenant_id') or ''),
         owner_read_reason=getattr(g,'pm_owner_read_unavailable_reason','')), (400 if errors else 200)
 
 
@@ -516,7 +517,7 @@ def parties_state(items):
     return state
 
 
-def simplified_parties_from_form(form, existing, require_lessor_capacity=True):
+def simplified_parties_from_form(form, existing, require_lessor_capacity=True, require_lessee_capacity=True):
     state = deepcopy(existing.get('_parties', {}))
     state.update(schema_version=2, master_sha256=PARTIES_MASTER_SHA256)
     current = parties_state(existing)
@@ -541,7 +542,7 @@ def simplified_parties_from_form(form, existing, require_lessor_capacity=True):
     state['lessee']['physical_address'] = state['lessee']['address']
     required = {'lessor':('signatory_name','signatory_identity_number') + (('signatory_capacity',) if require_lessor_capacity else ()),
                 'lessee':('legal_name','identity_number','address')}
-    if kind == 'juristic_person':required['lessee'] += ('signatory_name','signatory_identity_number','signatory_capacity')
+    if kind == 'juristic_person':required['lessee'] += ('signatory_name','signatory_identity_number') + (('signatory_capacity',) if require_lessee_capacity else ())
     labels = {'signatory_name':'representative full name','signatory_identity_number':'representative ID number',
               'signatory_capacity':'representative capacity','legal_name':'legal name','identity_number':'ID / registration number','address':'address'}
     for role,keys in required.items():
@@ -557,8 +558,8 @@ def simplified_parties_from_form(form, existing, require_lessor_capacity=True):
     return state, errors
 
 
-def parties_from_form(form, existing=None, owner_registry=None):
-    if form.get('parties_form_version') == '3':return registered_owner_parties_from_form(form, existing or {}, owner_registry)
+def parties_from_form(form, existing=None, owner_registry=None, tenant_record=None):
+    if form.get('parties_form_version') == '3':return registered_owner_parties_from_form(form, existing or {}, owner_registry, tenant_record)
     if form.get('parties_form_version') == '2':return simplified_parties_from_form(form, existing or {})
     state = {'schema_version':1, 'master_sha256':PARTIES_MASTER_SHA256}
     errors = []
@@ -660,7 +661,7 @@ def owner_parties_preview(owners, items, form=None):
             'capacities':{str(o['owner_id']):matching_owner_capacity(o,items) for o in owners}}
 
 
-def registered_owner_parties_from_form(form, existing, owner_registry=None):
+def registered_owner_parties_from_form(form, existing, owner_registry=None, tenant_record=None):
     from werkzeug.datastructures import MultiDict
     owners = owner_registry if owner_registry is not None else existing.get('_contracting_lessors',{}).get('identities',[])
     selected = form.getlist('representative_owner_id') if hasattr(form,'getlist') else [form.get('representative_owner_id','')]
@@ -681,7 +682,8 @@ def registered_owner_parties_from_form(form, existing, owner_registry=None):
     forwarded['lessor_signatory_identity_number']=owner.get('identity_number') or ''
     forwarded['lessor_signatory_capacity']=capacity
     forwarded['lessor_service_address']=owner.get('residential_address') or ''
-    state,messages=simplified_parties_from_form(forwarded,existing,require_lessor_capacity=False)
+    state,messages=simplified_parties_from_form(forwarded,existing,require_lessor_capacity=False,
+        require_lessee_capacity=not (tenant_record or existing.get('_parties',{}).get('lessee',{}).get('identity_source')=='bil_tenant'))
     state['schema_version']=3
     state['lessor'].update(owner_id=owner.get('owner_id'),email=owner.get('email') or '',phone=owner.get('phone') or '',
         capacity_proposal=OWNER_CAPACITY_PROPOSAL,capacity_confirmed=confirmed,

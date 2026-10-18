@@ -1,0 +1,11 @@
+const fs=require('node:fs'),vm=require('node:vm'),path=require('node:path'),assert=require('node:assert/strict');
+const type={value:'natural_person',addEventListener(event,fn){this.change=fn;}};
+const representative={hidden:false,disabled:false};
+vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../app/static/js/pm_tenant_register.js'),'utf8'),{document:{getElementById:id=>id==='tenant-party_type'?type:representative}});
+assert.equal(representative.hidden,true);assert.equal(representative.disabled,true);
+type.value='juristic_person';type.change();assert.equal(representative.hidden,false);assert.equal(representative.disabled,false);
+type.value='natural_person';type.change();assert.equal(representative.hidden,true);assert.equal(representative.disabled,true);
+const html=fs.readFileSync(path.join(__dirname,'../templates/program_billing/lease_tenants.html'),'utf8');
+assert.ok(html.includes('>Representative</legend>'));
+for(const removed of ['Signatory Name','Signatory Identity Number','Signatory Capacity'])assert.ok(!html.includes(removed));
+console.log('Natural/juristic Representative section visibility and disabled state: PASS');

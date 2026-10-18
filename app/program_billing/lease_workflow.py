@@ -269,7 +269,7 @@ def particular_group(property_id, group):
         for field in fields:
             key = field['key']
             if group == 'amounts':continue  # Structured capture preserves other legacy particulars.
-            if group == 'parties' and (request.form.get('parties_form_version') in ('2','3','4','5') or key in STRUCTURED_PARTY_KEYS):continue
+            if group == 'parties' and (request.form.get('parties_form_version') in ('2','3','4','5','6') or key in STRUCTURED_PARTY_KEYS):continue
             if group == 'premises' and key in STRUCTURED_PREMISES_KEYS:continue
             value = request.form.get(key, '').strip()
             na = request.form.get(key + '_na') == 'on'
@@ -284,47 +284,32 @@ def particular_group(property_id, group):
             if any(token in value for token in field.get('placeholders', [])):
                 errors.append(field['label'] + ': replace the R01 placeholder with captured details.')
         if group == 'parties':
-            registry_mode = request.form.get('parties_form_version') in ('3','4','5')
-            party_form = request.form
-            tenant_snapshot = None
-            tenant_snapshots = []
-            multiple = request.form.get('parties_form_version') == '5'
-            if request.form.get('parties_form_version') in ('4','5'):
-                ids = request.form.getlist('tenant_ids') if multiple else [request.form.get('tenant_id','')]
-                if not ids or any(not value for value in ids):abort(400,description='Select at least one registered tenant.')
-                if len(set(ids)) != len(ids):abort(400,description='Select each tenant only once.')
-                tenant_snapshots = [tenant_register.selected(identifier) for identifier in ids]
-                if len({record['id'] for record in tenant_snapshots})!=len(tenant_snapshots):abort(400,description='Select each tenant only once.')
-                tenant_snapshot = tenant_snapshots[0]
-                party_form = request.form.copy()
-                party_form['parties_form_version'] = '3'
-                for key in tenant_register.LEASE_FIELDS:party_form['lessee_'+key] = tenant_snapshot[key] or ''
-            party_data, party_errors = parties_from_form(party_form, items, owners if registry_mode else None, tenant_snapshot)
-            if tenant_snapshot:
-                party_data['lessee'] = tenant_snapshot_details(party_data['lessee'],tenant_snapshot)
-            if multiple:
-                parties = [deepcopy(party_data['lessee'])]
-                for record in tenant_snapshots[1:]:
-                    other_form = party_form.copy()
-                    for key in tenant_register.LEASE_FIELDS:other_form['lessee_'+key] = record[key] or ''
-                    other, messages = parties_from_form(other_form,items,owners,record)
-                    party_errors.extend(messages)
-                    parties.append(tenant_snapshot_details(other['lessee'],record))
-                party_data['lessees'] = parties
-            else:
-                # Old forms still save one tenant; do not retain an invisible stale list.
-                party_data.pop('lessees',None)
+            registry_mode = request.form.get('parties_form_version') in ('3','4','5','6')
+            if request.form.get('parties_form_version')!='6':
+                abort(400,description='Reload Part A. Change tenants only on Add / Select Tenants.')
+            tenant_snapshots=selected_party_snapshots(items)
+            if not tenant_snapshots:abort(400,description='Use Add / Select Tenants to save at least one contracting tenant first.')
+            if tenant_snapshot_errors(items):abort(400,description='Review the saved tenant particulars on Add / Select Tenants.')
+            party_form=request.form.copy()
+            party_form['parties_form_version']='3'
+            first=tenant_snapshots[0]
+            for key in tenant_register.LEASE_FIELDS:party_form['lessee_'+key]=first.get(key,'') or ''
+            party_data,party_errors=parties_from_form(party_form,items,owners,first)
+            # Selection belongs exclusively to the tenant page. Preserve the exact
+            # saved identities/representatives even if registry records later change.
+            party_data['lessee']=deepcopy(first)
+            party_data['lessees']=deepcopy(tenant_snapshots)
             errors.extend(party_errors)
             selected_ids = [str(o['owner_id']) for o in owners] if registry_mode else request.form.getlist('lessor_id')
             if registry_mode:candidates = {str(o['owner_id']):dict(o) for o in owners}
-            if not selected_ids or (request.form.get('parties_form_version') not in ('2','3','4','5') and request.form.get('confirm_lessors') != 'on'):
-                errors.append('Add at least one property owner as a lessor.' if request.form.get('parties_form_version') in ('2','3','4','5') else 'Select and confirm the actual contracting lessor(s); property ownership does not establish contracting capacity.')
+            if not selected_ids or (request.form.get('parties_form_version') not in ('2','3','4','5','6') and request.form.get('confirm_lessors') != 'on'):
+                errors.append('Add at least one property owner as a lessor.' if request.form.get('parties_form_version') in ('2','3','4','5','6') else 'Select and confirm the actual contracting lessor(s); property ownership does not establish contracting capacity.')
             elif len(set(selected_ids)) != len(selected_ids) or any(identifier not in candidates for identifier in selected_ids):
                 abort(400, description='Choose authorized registered or already snapshotted lessors.')
             elif not errors:
                 identities = [{key:owner.get(key) for key in ('owner_id', 'type', 'name', 'identity_number', 'email', 'phone', 'residential_address', 'postal_address')}
                               for owner in (candidates[identifier] for identifier in selected_ids)]
-                if request.form.get('parties_form_version') in ('2','3','4','5') and any(not (owner.get('identity_number') or '').strip() for owner in identities):
+                if request.form.get('parties_form_version') in ('2','3','4','5','6') and any(not (owner.get('identity_number') or '').strip() for owner in identities):
                     errors.append('Every selected owner requires an ID or registration number in the property owner register.')
                 if not errors:
                     if registry_mode and record_representative_change(items, party_data):
@@ -410,14 +395,14 @@ def particular_group(property_id, group):
     return render_pm_template('program_billing/lease_particular_group.html', property=prop, lease_draft=draft,
         unavailable=reason, group=group, title=GROUPS[group][0], fields=fields, items=items, errors=errors,
         first_save_available=group=='parties' and not draft and not reason,
+        first_save_message='Use Add / Select Tenants to save the contracting tenants, then save Part A.',
         draft_registration_token=(str(draft['registration_token']) if draft else request.form.get('registration_token') or str(uuid.uuid4())) if group=='parties' else None,
         lessors=list(candidates.values()), selected_lessor_ids=selected_ids, additional_text=additional_text, next_clause=MANIFEST['last_core_clause']+1,
         party_data=parties_state({'_parties':party_data}) if group=='parties' else party_data, party_types=PARTY_TYPES, premises_data=premises_data, premises_fields=PREMISES_FIELDS, amounts_data=amounts_data, ancillary_data=ancillary_data, ancillary_fields=ANCILLARY_FIELDS,
         owner_registry=owners, owner_preview=owner_parties_preview(owners, items, request.form if request.method=='POST' else None),
         owner_capacity_proposal=OWNER_CAPACITY_PROPOSAL,
-        registered_tenants=tenant_register.rows() if group=='parties' else [],
+        selected_tenants=[dict(p,id=p.get('tenant_id')) for p in selected_party_snapshots(items)] if group=='parties' else [],
         tenant_readiness=tenant_register.readiness() if group=='parties' else None,
-        selected_tenant_ids=selected_tenant_ids(items),
         owner_read_reason=getattr(g,'pm_owner_read_unavailable_reason','')), (400 if errors else 200)
 
 
@@ -545,6 +530,37 @@ PARTY_FIELDS = {
 }
 
 
+def selected_party_snapshots(items):
+    parties=items.get('_parties',{})
+    if 'lessees' in parties:return parties['lessees']
+    legacy=parties.get('lessee',{})
+    return [legacy] if legacy.get('tenant_id') else []
+
+
+def set_selected_tenants(items, records):
+    """Only the existing Add / Select Tenants route calls this JSON selection writer."""
+    snapshots=[]
+    for record in records:
+        form={key:record.get(key,'') or '' for key in tenant_register.FIELDS}
+        form.update(representative_name=record.get('signatory_name') or '',
+            representative_identity_number=record.get('signatory_identity_number') or '')
+        _,errors=tenant_register.validate(form)
+        if errors:abort(400,description=record['legal_name']+': '+' '.join(errors))
+        party={key:record.get(key,'') or '' for key in PARTY_FIELDS['lessee']}
+        party.update(entity_type='individual' if record['party_type']=='natural_person' else 'juristic',
+            physical_address=record['address'],service_address=record['address'])
+        snapshots.append(tenant_snapshot_details(party,record))
+    parties=deepcopy(items.get('_parties',{}))
+    parties.update(schema_version=3,master_sha256=PARTIES_MASTER_SHA256,
+        lessee=deepcopy(snapshots[0]),lessees=snapshots)
+    items['_parties']=parties
+    values=party_placeholder_values(items)
+    for key,token in [('s1-06','[S1 LEGAL TENANT]'),('s1-07','[TENANT REGISTRATION OR ID]'),
+                     ('s1-08','[TENANT SIGNATORY NAME AND CAPACITY]'),('s1-09','[S1 TENANT SERVICE ADDRESS AND CONTACT PARTICULARS]')]:
+        items[key]={'value':values[token]}
+    return items
+
+
 def tenant_snapshot_details(party, record):
     result=deepcopy(party)
     result.update(tenant_id=record['id'],identity_source='bil_tenant')
@@ -580,7 +596,7 @@ def tenant_snapshot_errors(items):
         form={role+'_'+key:value for role in ('lessor','lessee') for key,value in state[role].items()}
         form.update({'lessee_'+key:party.get(key,'') for key in PARTY_FIELDS['lessee']})
         _,messages=simplified_parties_from_form(form,items,require_lessor_capacity=False,require_lessee_capacity=False)
-        errors.extend((party.get('legal_name') or 'Tenant')+': '+message for message in messages)
+        errors.extend((party.get('legal_name') or 'Tenant')+': '+message for message in messages if not message.startswith('Lessor '))
     return errors
 
 
@@ -749,7 +765,7 @@ def owner_parties_preview(owners, items, form=None):
     if not selected:
         matches=[o for o in owners if o.get('type')=='individual' and o.get('identity_number') and o.get('identity_number')==saved.get('signatory_identity_number')]
         if len(matches)==1:selected=str(matches[0]['owner_id'])
-    if form is not None and form.get('parties_form_version') in ('3','4','5'):selected=form.get('representative_owner_id','')
+    if form is not None and form.get('parties_form_version') in ('3','4','5','6'):selected=form.get('representative_owner_id','')
     owner=next((o for o in owners if str(o['owner_id'])==selected),{})
     confirmed=bool(owner and owner.get('type')=='individual' and saved.get('capacity_confirmed') and str(saved.get('owner_id'))==selected)
     if form is not None and form.get('parties_form_version')=='3':confirmed=form.get('confirm_representative_capacity')=='on'

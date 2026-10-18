@@ -3,7 +3,7 @@
 {% if multiline %}<textarea id="{{ role }}-{{ key }}" name="{{ role }}_{{ key }}" rows="3" maxlength="2000" {% if role=='lessor' and key=='service_address' %}autofocus{% endif %} class="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2">{{ party_data[role].get(key,'') }}</textarea>
 {% else %}<input id="{{ role }}-{{ key }}" name="{{ role }}_{{ key }}" type="{{ kind }}" maxlength="{{ 80 if key.endswith('identity_number') else 255 if key=='email' else 50 if key=='phone' else 200 }}" value="{{ party_data[role].get(key,'') }}" class="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2">{% endif %}
 {% endmacro %}
-<input type="hidden" name="parties_form_version" value="5">
+<input type="hidden" name="parties_form_version" value="6">
 <section id="s1-03" class="rounded-lg border border-slate-200 p-4"><h2 class="font-semibold">Lessors</h2>
 <p class="mt-2 text-sm">All current owners of this property are loaded from Property Management. Select exactly one individual owner to represent all Lessors. No owner records are created or edited here.</p>
 {% if owner_read_reason %}<p role="status" class="mt-3 text-amber-900">{{ owner_read_reason }}</p>{% endif %}
@@ -13,21 +13,13 @@
 </section>
 <section id="s1-06" class="mt-4 rounded-lg border border-slate-200 p-4"><h2 class="font-semibold">Tenants</h2>
 {% if tenant_readiness %}<p role="status" class="mt-2 text-sm text-amber-900">{{ tenant_readiness }}</p>{% endif %}
-<div class="mt-3 flex justify-end"><a class="rounded-lg bg-blue-700 px-4 py-2 text-white" href="{{ url_for('billing_bp.lease_tenants',property_id=property.id,draft_id=lease_draft.id if lease_draft else None) }}">Add Tenant / View Tenant List</a></div>
-<p class="mt-3 text-sm">Select one or more available tenants. Clear a selection or use Remove to exclude a tenant from this lease.</p>
-<h3 class="mt-3 font-semibold">Available Tenants</h3>
-<table id="available-tenants" class="mt-2 w-full text-left text-sm"><thead><tr><th class="p-2">Select</th><th class="p-2">Tenant</th><th class="p-2">Identity</th></tr></thead><tbody>
-{% for tenant in registered_tenants %}<tr class="border-t border-slate-200"><td class="p-2"><input type="checkbox" name="tenant_ids" value="{{ tenant.id }}" aria-label="Select {{ tenant.legal_name }}" {% if tenant.id|string in selected_tenant_ids %}checked{% endif %}></td><td class="p-2">{{ tenant.legal_name }}</td><td class="p-2">{{ 'ID Number' if tenant.party_type=='natural_person' else 'Registration Number' }}: {{ tenant.identity_number }}</td></tr>{% else %}<tr><td colspan="3" class="p-2">No registered tenants available.</td></tr>{% endfor %}
-</tbody></table>
-{% macro selected_tenant_row(tenant) %}
-<tr data-selected-tenant-id="{{ tenant.id }}" class="border-t border-slate-200"><td class="p-3"><p class="font-semibold">{{ tenant.legal_name }}</p><p class="mt-1">{{ 'ID Number' if tenant.party_type=='natural_person' else 'Registration Number' }}: {{ tenant.identity_number }}</p>
-{% if tenant.party_type=='juristic_person' %}<div class="mt-2 border-l-2 border-slate-200 pl-3"><p class="font-semibold">Representative</p><dl class="mt-1"><dt>Full name</dt><dd>{{ tenant.signatory_name or 'Not recorded' }}</dd><dt class="mt-1">ID Number</dt><dd>{{ tenant.signatory_identity_number or 'Not recorded' }}</dd><dt class="mt-1">Telephone</dt><dd>{{ tenant.representative_phone or 'Not recorded' }}</dd><dt class="mt-1">Email</dt><dd>{{ tenant.representative_email or 'Not recorded' }}</dd></dl></div>{% endif %}
-</td><td class="p-3 align-top"><button type="button" data-remove-tenant="{{ tenant.id }}" class="text-blue-700 underline" aria-label="Remove {{ tenant.legal_name }}">Remove</button></td></tr>
-{% endmacro %}
+<div class="mt-3 flex justify-end"><a class="rounded-lg bg-blue-700 px-4 py-2 text-white" href="{{ url_for('billing_bp.lease_tenants',property_id=property.id,draft_id=lease_draft.id if lease_draft else None) }}">Add / Select Tenants</a></div>
 <h3 class="mt-5 font-semibold">Selected Tenants</h3>
-<table id="selected-tenants" class="mt-2 w-full text-left text-sm"><thead><tr><th class="p-3">Contracting tenant</th><th class="p-3">Action</th></tr></thead><tbody id="selected-tenants-body">{% for tenant in registered_tenants if tenant.id|string in selected_tenant_ids %}{{ selected_tenant_row(tenant) }}{% endfor %}</tbody></table>
-<p id="selected-tenants-empty" class="mt-2 text-sm" {% if selected_tenant_ids %}hidden{% endif %}>No tenants selected.</p>
-{% for tenant in registered_tenants %}<template data-tenant-row="{{ tenant.id }}">{{ selected_tenant_row(tenant) }}</template>{% endfor %}
+<table id="selected-tenants" class="mt-2 w-full text-left text-sm"><thead><tr><th class="p-3">Contracting tenant</th></tr></thead><tbody id="selected-tenants-body">
+{% for tenant in selected_tenants %}<tr data-selected-tenant-id="{{ tenant.id }}" class="border-t border-slate-200"><td class="p-3"><p class="font-semibold">{{ tenant.legal_name }}</p><p class="mt-1">{{ 'ID Number' if tenant.party_type=='natural_person' else 'Registration Number' }}: {{ tenant.identity_number }}</p>
+{% if tenant.party_type=='juristic_person' %}<div class="mt-2 border-l-2 border-slate-200 pl-3"><p class="font-semibold">Representative</p><dl class="mt-1"><dt>Full name</dt><dd>{{ tenant.signatory_name or 'Not recorded' }}</dd><dt class="mt-1">ID Number</dt><dd>{{ tenant.signatory_identity_number or 'Not recorded' }}</dd><dt class="mt-1">Telephone</dt><dd>{{ tenant.representative_phone or 'Not recorded' }}</dd><dt class="mt-1">Email</dt><dd>{{ tenant.representative_email or 'Not recorded' }}</dd></dl></div>{% endif %}
+</td></tr>{% endfor %}</tbody></table>
+{% if not selected_tenants %}<p class="mt-2 text-sm">No tenants selected.</p>{% endif %}
 {% if not items.get('_parties',{}).get('lessees') and party_data.lessee.legal_name %}<p class="mt-3 text-sm">Previously saved tenant: {{ party_data.lessee.legal_name }} &middot; {{ party_data.lessee.identity_number }}</p>{% endif %}
 </section>
 {% if items.get('_parties',{}).get('schema_version') in [1,2] %}<p class="mt-4 text-sm text-slate-600">Existing saved details are preserved. New owner details are read from Property Management when this form is saved.</p>{% endif %}

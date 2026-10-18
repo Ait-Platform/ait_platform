@@ -34,7 +34,24 @@ def extract_blocks(payload):
                 style=child.find('./{'+W+'}pPr/{'+W+'}pStyle')
                 name=style.get('{'+W+'}val','') if style is not None else ''
                 heading=bool(re.match(r'(?i)heading[1-6]$',name) or name.lower()=='title' or re.match(r'^PART [ABC]\b',text))
-                result.append({'kind':'heading' if heading else 'paragraph','text':text})
+                before=child.find('./{'+W+'}pPr/{'+W+'}pageBreakBefore')
+                if before is not None and before.get('{'+W+'}val','1') not in ('0','false','off'):
+                    result.append({'kind':'page_break'})
+                # Only explicit page breaks, not cached lastRenderedPageBreak markers.
+                segments=['']
+                for node in child.iter():
+                    if node.tag=='{'+W+'}t':segments[-1]+=node.text or ''
+                    elif node.tag=='{'+W+'}tab':segments[-1]+='\t'
+                    elif node.tag=='{'+W+'}br' and node.get('{'+W+'}type')=='page':segments.append('')
+                    elif node.tag in ('{'+W+'}br','{'+W+'}cr'):segments[-1]+='\n'
+                for index,segment in enumerate(segments):
+                    if index:result.append({'kind':'page_break'})
+                    result.append({'kind':'heading' if heading else 'paragraph','text':segment})
+                section=child.find('./{'+W+'}pPr/{'+W+'}sectPr')
+                if section is not None:
+                    kind=section.find('{'+W+'}type')
+                    if kind is None or kind.get('{'+W+'}val') in ('nextPage','oddPage','evenPage'):
+                        result.append({'kind':'page_break'})
             elif child.tag=='{'+W+'}tbl':
                 rows=[]
                 for row in child.findall('{'+W+'}tr'):
@@ -62,6 +79,55 @@ def merged_preview(items):
     return generate_preview(values)
 
 
+def block_text(block):
+    if block['kind']=='table':return '\n'.join(block_text(b) for row in block['rows'] for cell in row for b in cell)
+    return block.get('text','')
+
+
+def placeholder_sources():
+    from app.program_billing import lease_workflow as workflow
+    sources={
+        '[S1 LEGAL LANDLORD(S)]':('parties','_contracting_lessors.identities'),
+        '[LANDLORD SIGNATORY NAME AND CAPACITY]':('parties','_parties.lessor.signatory_name / signatory_identity_number / signatory_capacity'),
+        '[S1 LEGAL TENANT]':('parties','_parties.lessees[].legal_name'),
+        '[TENANT REGISTRATION OR ID]':('parties','_parties.lessees[].identity_number'),
+        '[TENANT SIGNATORY NAME AND CAPACITY]':('parties','_parties.lessees[].party_type / signatory_name / signatory_identity_number / signatory_capacity'),
+        '[S1 LANDLORD SERVICE ADDRESS AND CONTACT PARTICULARS]':('parties','_parties.lessor.service_address / email / phone'),
+        '[S1 TENANT SERVICE ADDRESS AND CONTACT PARTICULARS]':('parties','_parties.lessees[].address / email / phone'),
+    }
+    sources.update({token:('parties','_parties.signatures.'+key) for token,key in workflow.SIGNATURE_TOKENS.items()})
+    sources.update({token:('premises','_premises.'+key) for token,key in workflow.PREMISES_TOKENS.items()})
+    sources.update({token:('period',key+'.value') for token,key in workflow.PERIOD_TOKENS.items()})
+    sources.update({token:('amounts','_amounts.'+key) for token,key in workflow.FINANCIAL_TOKENS.items()})
+    sources.update({token:('amounts','_banking_utilities.'+key) for token,key in zip(workflow.ANCILLARY_TOKENS,
+        ('utility_allocation_method','utility_references / utility_no_references_reason','bank_name / branch_name / branch_code / account_holder / account_type / account_number / swift'))})
+    return sources
+
+
+def logical_pages(blocks,source_blocks):
+    """Section-based logical pages, never asserted to be Microsoft Word pages."""
+    from app.program_billing.lease_merge import TOKEN
+    from collections import Counter
+    # mark_draft adds one body notice. All source body blocks otherwise retain order.
+    offset=len(blocks)-len(source_blocks)
+    if offset!=1:raise ValueError('Master/merged document structure does not align.')
+    annotated=[(dict(blocks[0],preview_notice=True),[])]
+    for block,source in zip(blocks[1:],source_blocks):
+        annotated.append((block,TOKEN.findall(block_text(source))))
+    pages=[];current=[];tokens=[]
+    def finish():
+        if current and any(block_text(b).strip() for b in current):
+            title=next((b['text'] for b in current if b['kind']=='heading'),'Lease particulars')
+            pages.append({'blocks':list(current),'title':title,'tokens':dict(Counter(tokens))})
+        current.clear();tokens.clear()
+    for block,found in annotated:
+        if block['kind']=='page_break':finish();continue
+        if block['kind']=='heading' and any(b['kind']!='heading' and not b.get('preview_notice') and block_text(b).strip() for b in current):finish()
+        current.append(block);tokens.extend(found)
+    finish()
+    return pages
+
+
 @billing_bp.get('/billing/leases/property/<int:property_id>/view',endpoint='lease_live_view')
 @snapshot.endpoint
 def view(property_id):
@@ -69,17 +135,32 @@ def view(property_id):
     prop,reason,draft=workflow.selected_context(property_id)
     if reason:abort(503,description=reason)
     if not draft:abort(400,description='Save lease particulars and select the saved draft before viewing.')
-    try:blocks=extract_blocks(merged_preview(draft['items']))
+    try:
+        blocks=extract_blocks(merged_preview(draft['items']))
+        from app.program_billing.lease_generation import load_master
+        pages=logical_pages(blocks,extract_blocks(load_master()))
+        sources=placeholder_sources()
+        for page in pages:
+            page['mappings']=[{'token':token,'count':count,'group':sources[token][0],'source':sources[token][1]} for token,count in page['tokens'].items()]
     except (OSError,ValueError,KeyError,TypeError,BadZipFile,ET.XMLSyntaxError):
         abort(503,description='The saved lease text could not be displayed. Check saved particulars and master availability.')
     return render_pm_template('program_billing/lease_live_view.html',title='View Lease',property=prop,
-        lease_draft=draft,lease_blocks=blocks)
+        lease_draft=draft,lease_blocks=blocks,logical_pages=pages)
 
 
 @billing_bp.after_request
 def private_preview(response):
-    if request.endpoint=='billing_bp.lease_live_view':
+    if request.endpoint in ('billing_bp.lease_live_view','billing_bp.lease_pdf_status'):
         response.headers['Cache-Control']='private, no-store'
         response.headers['X-Content-Type-Options']='nosniff'
         response.headers['Referrer-Policy']='no-referrer'
     return response
+
+
+@billing_bp.get('/billing/leases/property/<int:property_id>/generate-pdf',endpoint='lease_pdf_status')
+@snapshot.endpoint
+def pdf_status(property_id):
+    from app.program_billing import lease_workflow as workflow
+    prop,reason,draft=workflow.selected_context(property_id)
+    if reason:abort(503,description=reason)
+    return render_pm_template('program_billing/lease_pdf_status.html',title='Generate PDF',property=prop,lease_draft=draft)

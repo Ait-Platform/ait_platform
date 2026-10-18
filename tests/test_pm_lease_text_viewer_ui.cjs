@@ -1,0 +1,13 @@
+const fs=require('node:fs'),vm=require('node:vm'),path=require('node:path'),assert=require('node:assert/strict');
+const pages=Array.from({length:3},()=>({hidden:false,style:{}}));const elements={};
+for(const id of ['previous','next','page-number','page-status','zoom-out','zoom-in'])elements['lease-'+id]={hidden:false,value:1,addEventListener(type,fn){this[type]=fn;}};
+vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../app/static/js/pm_lease_text_viewer.js'),'utf8'),{document:{querySelectorAll:()=>pages,getElementById:id=>elements[id]}});
+assert.deepEqual(pages.map(p=>p.hidden),[false,true,true]);assert.equal(elements['lease-previous'].hidden,true);
+elements['lease-next'].click();assert.deepEqual(pages.map(p=>p.hidden),[true,false,true]);
+elements['lease-page-number'].value='3';elements['lease-page-number'].change();assert.equal(elements['lease-next'].hidden,true);assert.equal(elements['lease-previous'].hidden,false);
+elements['lease-page-number'].value='1';let prevented=false;elements['lease-page-number'].keydown({key:'Enter',preventDefault(){prevented=true;}});assert.ok(prevented);assert.equal(elements['lease-previous'].hidden,true);
+elements['lease-page-number'].value='999';elements['lease-page-number'].change();assert.equal(elements['lease-page-number'].value,3);
+elements['lease-page-number'].value='bad';elements['lease-page-number'].change();assert.equal(elements['lease-page-number'].value,3);
+elements['lease-zoom-in'].click();assert.equal(pages[2].style.fontSize,'1.1em');elements['lease-zoom-out'].click();assert.equal(pages[2].style.fontSize,'1em');
+for(let i=0;i<30;i++)elements['lease-zoom-out'].click();assert.equal(pages[2].style.fontSize,'0.5em');assert.equal(elements['lease-zoom-in'].hidden,false);assert.equal(elements['lease-zoom-out'].hidden,false);
+console.log('Logical page selection, boundaries, direct entry, Enter and zoom controls: PASS');

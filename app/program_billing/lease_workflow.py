@@ -390,7 +390,7 @@ def particular_group(property_id, group):
         if not errors:
             if draft:save_items(draft, items)
             else:draft=create_parties_draft(property_id,items)
-            flash('Lease particulars saved. This does not approve or activate the lease.', 'success')
+            flash('Lease particulars saved successfully. Lease remains a draft.' if group=='parties' else 'Lease particulars saved. This does not approve or activate the lease.', 'success')
             return redirect(url_for('billing_bp.lease_particulars', property_id=property_id, draft_id=draft['id']))
     return render_pm_template('program_billing/lease_particular_group.html', property=prop, lease_draft=draft,
         unavailable=reason, group=group, title=GROUPS[group][0], fields=fields, items=items, errors=errors,
@@ -403,6 +403,7 @@ def particular_group(property_id, group):
         owner_capacity_proposal=OWNER_CAPACITY_PROPOSAL,
         selected_tenants=[dict(p,id=p.get('tenant_id')) for p in selected_party_snapshots(items)] if group=='parties' else [],
         tenant_readiness=tenant_register.readiness() if group=='parties' else None,
+        has_registered_tenants=bool(tenant_register.rows()) if group=='parties' else False,
         owner_read_reason=getattr(g,'pm_owner_read_unavailable_reason','')), (400 if errors else 200)
 
 

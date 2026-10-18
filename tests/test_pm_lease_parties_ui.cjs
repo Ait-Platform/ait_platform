@@ -4,9 +4,11 @@ vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../app/static/js/pm_leas
 owners[0].checked=true;owners[0].listeners.change();owners[1].checked=true;owners[1].listeners.change();assert.deepEqual(owners.map(box=>box.checked),[false,true]);
 owners[1].checked=false;owners[1].listeners.change();assert.equal(owners[1].checked,false);
 const parties=fs.readFileSync(path.join(__dirname,'../templates/program_billing/lease_parties_structured.html'),'utf8');
-const tenants=fs.readFileSync(path.join(__dirname,'../templates/program_billing/lease_tenants.html'),'utf8');
+const registration=fs.readFileSync(path.join(__dirname,'../templates/program_billing/lease_tenants.html'),'utf8');
+const tenants=fs.readFileSync(path.join(__dirname,'../templates/program_billing/lease_tenant_selection.html'),'utf8');
+assert.ok(!registration.includes('name="tenant_ids"'));assert.ok(parties.includes('>Select Tenant</a>'));assert.ok(parties.includes('disabled'));
 for(const removed of ['Available Tenants','name="tenant_ids"','data-remove-tenant','data-tenant-row'])assert.ok(!parties.includes(removed));
-assert.ok(parties.indexOf('Add / Select Tenants')<parties.indexOf('id="selected-tenants"'));
+assert.ok(parties.indexOf('>Add Tenant</a>')<parties.indexOf('id="selected-tenants"'));
 assert.ok(tenants.includes('name="tenant_ids"'));assert.ok(tenants.includes('value="select_tenants"'));
 assert.ok(parties.includes('tenant.representative_phone'));assert.ok(parties.includes('tenant.representative_email'));
 console.log('Single tenant-selection page, read-only Part A and Lessor checkbox: PASS');

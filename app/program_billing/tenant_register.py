@@ -106,15 +106,18 @@ def save(data):
                 'i':data['representative_identity_number'],'p':data['representative_phone'],'e':data['representative_email']})
     return tenant_id
 
+@billing_bp.route('/billing/leases/property/<int:property_id>/tenants/select',methods=['GET','POST'],endpoint='lease_select_tenants')
 @billing_bp.route('/billing/leases/property/<int:property_id>/tenants',methods=['GET','POST'],endpoint='lease_tenants')
 @snapshot.endpoint
 def register(property_id):
+    selecting=request.endpoint=='billing_bp.lease_select_tenants'
     prop=snapshot.authorised_property(property_id,request.method=='POST');draft=None
     if request.values.get('draft_id'):
         snapshot.require_particulars_schema();draft=snapshot.draft_row(property_id,request.values['draft_id'],request.method=='POST')
     problem=readiness();errors=[];data={}
     from app.program_billing import lease_workflow as workflow
-    if request.method=='POST' and request.form.get('action')=='select_tenants':
+    if request.method=='POST' and selecting:
+        if request.form.get('action')!='select_tenants':abort(400,description='Use the tenant selection form.')
         snapshot.require_particulars_schema()
         if problem:abort(503,description=problem)
         ids=request.form.getlist('tenant_ids')
@@ -125,9 +128,10 @@ def register(property_id):
         workflow.set_selected_tenants(items,records)
         if draft:workflow.save_items(draft,items)
         else:draft=workflow.create_parties_draft(property_id,items)
-        flash('Selected tenants saved.','success')
+        flash('Lease particulars saved successfully. Lease remains a draft.','success')
         return redirect(url_for('billing_bp.lease_particular_group',property_id=property_id,group='parties',draft_id=draft['id']))
     if request.method=='POST':
+        if request.form.get('action')=='select_tenants':abort(400,description='Use Select Tenant to change lease selections.')
         if problem:abort(503,description=problem)
         data,errors=validate(request.form)
         if not errors:
@@ -136,12 +140,12 @@ def register(property_id):
             except SQLAlchemyError:
                 db.session.rollback();errors.append('Tenant and representative could not be saved. No partial save was confirmed; entered details are retained.')
             else:
-                flash('Tenant saved. Select it below and save the lease selection.','success')
-                return redirect(url_for('billing_bp.lease_tenants',property_id=property_id,draft_id=draft['id'] if draft else None,registration_token=request.form.get('registration_token') or None))
-    return render_pm_template('program_billing/lease_tenants.html',title='Add / Select Tenants',property=prop,lease_draft=draft,unavailable=problem,
+                flash('Tenant saved. Use Select Tenant to add it to the lease.','success')
+                return redirect(url_for('billing_bp.lease_particular_group',property_id=property_id,group='parties',draft_id=draft['id'] if draft else None))
+    return render_pm_template('program_billing/lease_tenant_selection.html' if selecting else 'program_billing/lease_tenants.html',title='Select Tenant' if selecting else 'Add Tenant',property=prop,lease_draft=draft,unavailable=problem,
         back_url=url_for('billing_bp.lease_particular_group',property_id=property_id,group='parties',draft_id=draft['id'] if draft else None),
         tenants=rows(),data=data,fields=FIELDS,errors=errors,write_enabled=not problem,
         selected_tenant_ids=[str(p['tenant_id']) for p in workflow.selected_party_snapshots(draft['items'])] if draft else [],
         draft_registration_token=str(draft['registration_token']) if draft else request.values.get('registration_token') or str(uuid.uuid4()),
-        first_save_available=not draft and not problem,
+        first_save_available=selecting and not draft and not problem,
         first_save_message='Save selected tenants to create the lease draft, then return to Part A.'),400 if errors else 200

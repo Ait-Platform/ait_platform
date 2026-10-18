@@ -25,7 +25,7 @@ class TenantPageSelectionTests(unittest.TestCase):
     complete_other_parts=fixture.MultipleTenantsTests.complete_other_parts
 
     def select_form(self,ids,draft=True):
-        url=self.route('tenants') if draft else '/billing/leases/property/26/tenants'
+        url=self.route('tenants/select') if draft else '/billing/leases/property/26/tenants/select'
         response=self.client.get(url);self.assertEqual(response.status_code,200)
         tree=html.fromstring(response.get_data(as_text=True))
         form=tree.xpath('//form[input[@name="action" and @value="select_tenants"]]')[0]
@@ -88,7 +88,7 @@ class TenantPageSelectionTests(unittest.TestCase):
         # Adding a registry entry does not select it or overwrite saved draft JSON.
         before=copy.deepcopy(self.stored())
         created=self.register(legal_name='New unselected tenant',identity_number='NEW-ID')
-        self.assertEqual(created.status_code,302);self.assertIn('/tenants?',created.location)
+        self.assertEqual(created.status_code,302);self.assertIn('/particulars/parties?',created.location)
         self.assertEqual(self.stored(),before)
         self.assertNotIn('New unselected tenant',self.selected_rows()[0].text_content())
 
@@ -114,3 +114,23 @@ class TenantPageSelectionTests(unittest.TestCase):
         self.assertEqual(len(self.selected_rows()),1)
         self.assertEqual(self.save_parties(owners[0]).status_code,302)
         self.assertEqual(self.stored()['_parties']['lessees'][0]['tenant_id'],ids[0])
+
+    def test_separate_registration_selection_and_empty_state(self):
+        self.owners();self.schema()
+        page=self.client.get(self.route('particulars/parties'))
+        tree=html.fromstring(page.get_data(as_text=True))
+        self.assertTrue(tree.xpath('//button[@disabled and text()="Select Tenant"]'))
+        self.assertTrue(tree.xpath('//a[text()="Add Tenant"]'))
+        registration=self.client.get(self.route('tenants'))
+        self.assertNotIn('name="tenant_ids"',registration.get_data(as_text=True))
+        created=self.register(legal_name='Registered Only',identity_number='ONLY-ID')
+        self.assertEqual(created.status_code,302)
+        self.assertIn('/particulars/parties?',created.location)
+        self.assertNotIn('_parties',self.stored())
+        page=self.client.get(created.location)
+        tree=html.fromstring(page.get_data(as_text=True))
+        self.assertTrue(tree.xpath('//a[text()="Select Tenant"]'))
+        selection=self.client.get(self.route('tenants/select'))
+        self.assertIn('Registered Only',selection.get_data(as_text=True))
+        self.assertNotIn('Save Tenant</button>',selection.get_data(as_text=True))
+        self.assertEqual(self.client.post(self.route('tenants'),data={'action':'select_tenants','tenant_ids':['1']}).status_code,400)

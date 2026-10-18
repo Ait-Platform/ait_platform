@@ -13,7 +13,7 @@ W = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'
 TOKEN = re.compile(r'\[[^\[\]\r\n]+\]')
 
 
-def merge_draft_docx(master, values, *, approved_sha256):
+def merge_draft_docx(master, values, *, approved_sha256, preview_only=False):
     digest = hashlib.sha256(master).hexdigest()
     if digest != approved_sha256:
         raise ValueError('The master does not match its approved immutable version.')
@@ -46,7 +46,7 @@ def merge_draft_docx(master, values, *, approved_sha256):
                     tokens.update(m[0] for m in found)
                     paragraphs.append((nodes, found))
                 parsed[entry.filename] = (root, paragraphs)
-        if tokens - values.keys():
+        if tokens - values.keys() and not preview_only:
             raise ValueError('Missing merge values: ' + ', '.join(sorted(tokens - values.keys())))
         if values.keys() - tokens:
             raise ValueError('Mapping contains placeholders absent from this master.')
@@ -57,6 +57,7 @@ def merge_draft_docx(master, values, *, approved_sha256):
                 for node in nodes:
                     text = node.text or ''; offsets.append((position, position + len(text))); position += len(text)
                 for match in reversed(matches):
+                    if match[0] not in values:continue  # Preview leaves missing master tokens visible.
                     affected = [i for i, (start, end) in enumerate(offsets) if start < match.end() and end > match.start()]
                     first, last = affected[0], affected[-1]
                     before = (nodes[first].text or '')[:match.start() - offsets[first][0]]

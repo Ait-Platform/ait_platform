@@ -1,0 +1,12 @@
+{% extends 'program_billing/lease_workflow_base.html' %}
+{% macro show_blocks(blocks) %}
+{% for block in blocks %}
+{% if block.kind=='table' %}<div class="my-4 overflow-x-auto"><table class="w-full border-collapse border border-slate-300"><tbody>{% for row in block.rows %}<tr>{% for cell in row %}<td class="border border-slate-300 p-3 align-top">{{ show_blocks(cell) }}</td>{% endfor %}</tr>{% endfor %}</tbody></table></div>
+{% elif block.kind=='heading' %}<h2 class="mt-6 mb-3 whitespace-pre-wrap font-bold">{{ block.text }}</h2>
+{% else %}<p class="my-3 whitespace-pre-wrap break-words">{% if block.text %}{{ block.text }}{% else %}&nbsp;{% endif %}</p>{% endif %}
+{% endfor %}
+{% endmacro %}
+{% block workspace %}
+<p class="mt-4 text-sm text-slate-600">Merged text from saved draft revision {{ lease_draft.version }}. Missing particulars remain in square brackets. This view verifies text placement; it does not reproduce Word pagination.</p>
+<article id="lease-merged-text" aria-label="Merged lease text" class="mt-5 rounded-lg border border-slate-300 p-5">{{ show_blocks(lease_blocks) }}</article>
+{% endblock %}

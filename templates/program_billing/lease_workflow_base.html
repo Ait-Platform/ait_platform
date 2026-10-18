@@ -7,6 +7,11 @@
 <p class="mt-3 text-sm">{{ property.name }}{% if lease_draft %} &middot; Draft {{ lease_draft.id }} &middot; Revision {{ lease_draft.version }}{% endif %}</p>
 {% if first_save_available|default(false) %}<p class="mt-3 text-sm">{{ first_save_message|default('Your first successful Part A save creates the lease draft. Later saves update that draft.') }}</p>{% elif unavailable or not lease_draft %}<p role="status" class="mt-3 text-sm text-amber-900">{{ unavailable or 'Start a persistent draft from the Lease workspace before saving.' }}</p>{% endif %}
 {% if errors %}<ul role="alert" class="mt-3 list-disc pl-5 text-red-700">{% for error in errors %}<li>{{ error }}</li>{% endfor %}</ul>{% endif %}
+<nav aria-label="Lease navigation" class="mt-4 flex flex-wrap gap-3 border-b border-slate-200 pb-3">
+{% for key,label in [('parties','A. Parties'),('premises','B. Premises'),('period','C. Period'),('amounts','D. Amounts'),('conditions','E. Special Conditions')] %}<a class="text-blue-700 underline" href="{{ url_for('billing_bp.lease_particular_group',property_id=property.id,group=key,draft_id=lease_draft.id if lease_draft else None) }}">{{ label }}</a>{% endfor %}
+{% if lease_draft %}<a class="text-blue-700 underline" href="{{ url_for('billing_bp.lease_live_view',property_id=property.id,draft_id=lease_draft.id,revision=lease_draft.version) }}">View Lease</a>{% else %}<span aria-disabled="true" class="text-slate-500">View Lease</span>{% endif %}
+<a class="text-blue-700 underline" href="{{ url_for('billing_bp.lease_review',property_id=property.id,draft_id=lease_draft.id if lease_draft else None) }}">Generate Word</a>
+</nav>
 {% block workspace %}{% endblock %}
 <p class="mt-6 text-sm text-amber-900">DRAFT &middot; Not legally approved, activated, signed or issued.</p>
 </div></div></div>{% endblock %}

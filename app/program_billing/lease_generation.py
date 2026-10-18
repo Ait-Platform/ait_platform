@@ -67,3 +67,11 @@ def generate_review(values, *, incomplete_particulars=False, particulars_warning
                 output_sha256=hashlib.sha256(payload).hexdigest(),merged_values=dict(values),incomplete_particulars=bool(incomplete_particulars),
                 warnings=warnings,
                 status='draft-incomplete-particulars-not-for-issuance' if incomplete_particulars else 'draft-for-review-not-for-issuance')
+
+
+def generate_preview(values):
+    """Read-only partial merge; strict downloadable Word generation is unchanged."""
+    supplied = {key:value for key,value in values.items()
+                if isinstance(value,str) and value.strip().strip('_') and not TOKEN.search(value)}
+    merged = merge_draft_docx(load_master(),supplied,approved_sha256=MASTER_SHA256,preview_only=True)
+    return mark_draft(merged['docx'],'DRAFT \u2014 INCOMPLETE PARTICULARS / LIVE PREVIEW\nNOT FOR SIGNATURE OR ISSUANCE\nMissing particulars remain visibly marked in square brackets.')

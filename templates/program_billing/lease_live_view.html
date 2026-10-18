@@ -1,7 +1,7 @@
 {% extends 'program_billing/lease_workflow_base.html' %}
 {% macro show_blocks(blocks) %}
 {% for block in blocks if not block.preview_notice|default(false) %}
-{% if block.kind=='table' %}<div class="my-4 overflow-x-auto"><table class="w-full border-collapse border border-slate-300"><tbody>{% for row in block.rows %}<tr>{% for cell in row %}<td class="border border-slate-300 p-3 align-top">{{ show_blocks(cell) }}</td>{% endfor %}</tr>{% endfor %}</tbody></table></div>
+{% if block.kind=='table' %}<div class="my-4 overflow-x-auto"><table class="w-full border-collapse border border-slate-300" style="table-layout:fixed;overflow-wrap:anywhere"><tbody>{% for row in block.rows %}<tr>{% for cell in row %}<td class="border border-slate-300 p-3 align-top">{{ show_blocks(cell) }}</td>{% endfor %}</tr>{% endfor %}</tbody></table></div>
 {% elif block.kind=='heading' %}<h2 class="mt-6 mb-3 whitespace-pre-wrap font-bold">{{ block.text }}</h2>
 {% else %}<p class="my-3 whitespace-pre-wrap break-words">{% if block.text %}{{ block.text }}{% else %}&nbsp;{% endif %}</p>{% endif %}
 {% endfor %}
@@ -15,11 +15,10 @@
 </div>
 <div id="lease-zoom-controls" class="ml-auto flex shrink-0 items-center justify-end gap-2">
 <button id="lease-zoom-out" type="button" class="rounded border border-blue-200 bg-blue-50 px-3 py-2 text-blue-900">Zoom &minus;</button>
-<button id="lease-zoom-fit" type="button" aria-label="Restore fit to width" class="min-w-16 rounded border border-blue-200 bg-blue-50 px-3 py-2 text-blue-900">Fit</button>
 <button id="lease-zoom-in" type="button" class="rounded border border-blue-200 bg-blue-50 px-3 py-2 text-blue-900">Zoom +</button>
 </div></div>
-<article id="lease-merged-text" data-page-width="768" aria-label="Merged lease text" class="mt-5 overflow-auto rounded-lg border border-slate-300 p-5">
-{% for page in logical_pages %}<section data-lease-page {% if not loop.first %}hidden{% endif %} aria-label="Logical page {{ loop.index }}" style="width:768px;max-width:none;margin-inline:auto">
+<article id="lease-merged-text" aria-label="Merged lease text" class="mt-5 overflow-auto rounded-lg border border-slate-300 p-5">
+{% for page in logical_pages %}<section data-lease-page {% if not loop.first %}hidden{% endif %} aria-label="Logical page {{ loop.index }}" style="width:100%;max-width:100%;box-sizing:border-box;overflow-wrap:anywhere">
 {{ show_blocks(page.blocks) }}
 </section>{% endfor %}</article>
 <script src="{{ url_for('static',filename='js/pm_lease_text_viewer.js') }}" defer></script>

@@ -37,7 +37,10 @@ class LeaseNavigationPagesTests(fixture.TenantPageSelectionTests):
         self.assertIn('flex-nowrap',toolbar.get('class'))
         zoom=toolbar.xpath('./div[@id="lease-zoom-controls"]')[0]
         self.assertIn('ml-auto',zoom.get('class'))
-        self.assertEqual(zoom.xpath('./button[@id="lease-zoom-fit"]')[0].text_content(),'Fit')
+        self.assertFalse(zoom.xpath('./button[@id="lease-zoom-fit"]'))
+        for page in pages:
+            self.assertIn('width:100%;max-width:100%',page.get('style'))
+        for table in viewer.xpath('//article//table'):self.assertIn('table-layout:fixed',table.get('style'))
         for button in toolbar.xpath('.//button'):self.assertIn('bg-blue-50',button.get('class'))
         self.assertNotIn('Play',view.get_data(as_text=True))
         pdf=self.client.get(links[6].get('href'));self.assertEqual(pdf.status_code,200)
@@ -67,3 +70,17 @@ class LeaseNavigationPagesTests(fixture.TenantPageSelectionTests):
         blocks=preview.extract_blocks(stream.getvalue())
         pages=preview.logical_pages([{'kind':'paragraph','text':'Draft'}]+blocks,blocks)
         self.assertEqual([''.join(preview.block_text(b) for b in p['blocks']) for p in pages],['DraftBefore','After','Next'])
+
+    def test_clause_1_2_1_uses_saved_300_area_without_master_changes(self):
+        from test_pm_lease_premises_offline import PremisesOfflineTests
+        owners,ids=self.prepare();self.assertEqual(self.select([ids[0]]).status_code,302)
+        self.assertEqual(self.save_parties(owners[0]).status_code,302)
+        values=PremisesOfflineTests.form(self);values['leased_area_sqm']='300'
+        self.assertEqual(self.post('premises',values).status_code,302)
+        before=dict(self.sql('SELECT * FROM bil_lease_draft').mappings().one())
+        view=self.client.get(self.route('view'));self.assertEqual(view.status_code,200)
+        tree=html.fromstring(view.get_data(as_text=True))
+        clauses=tree.xpath('//article//p[starts-with(normalize-space(),"1.2.1 ")]')
+        self.assertEqual(len(clauses),1)
+        self.assertIn('approximately 300 square metres',clauses[0].text_content())
+        self.assertEqual(dict(self.sql('SELECT * FROM bil_lease_draft').mappings().one()),before)

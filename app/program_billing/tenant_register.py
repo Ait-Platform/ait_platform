@@ -87,9 +87,9 @@ def units(property_id):
     if not {'id','name','property_id'}<=columns:return []
     return db.session.execute(text('SELECT u.id,u.name FROM bil_sectional_unit u JOIN bil_property p ON p.id=u.property_id WHERE p.id=:p AND p.manager_id=:u AND p.is_archived=false ORDER BY u.name,u.id'),{'p':property_id,'u':current_user.id}).mappings().all()
 
-def save(data, relationships):
+def save(data):
     params={k:data[k] for k in ('party_type','identity_number','address','email','phone')}
-    params.update(name=data['legal_name'],manager_id=current_user.id,**relationships)
+    params.update(name=data['legal_name'],manager_id=current_user.id,property_id=None,sectional_unit_id=None)
     # Explicit operational defaults only when those legacy columns exist. No units,
     # accounts, leases, meters or debtor records are created.
     columns={c['name'] for c in inspect(db.session.connection()).get_columns('bil_tenant')}
@@ -117,8 +117,7 @@ def register(property_id):
         data,errors=validate(request.form)
         if not errors:
             try:
-                relationships=assignment(request.form,property_id)
-                tenant_id=save(data,relationships);db.session.commit()
+                tenant_id=save(data);db.session.commit()
             except SQLAlchemyError:
                 db.session.rollback();errors.append('Tenant and representative could not be saved. No partial save was confirmed; entered details are retained.')
             else:
@@ -126,5 +125,4 @@ def register(property_id):
                 return redirect(url_for('billing_bp.lease_particular_group',property_id=property_id,group='parties',draft_id=draft['id'] if draft else None,tenant_id=tenant_id))
     return render_pm_template('program_billing/lease_tenants.html',title='Tenant register',property=prop,lease_draft=draft,unavailable=problem,
         back_url=url_for('billing_bp.lease_particular_group',property_id=property_id,group='parties',draft_id=draft['id'] if draft else None),
-        tenants=rows(),data=data,fields=FIELDS,errors=errors,write_enabled=not problem,units=units(property_id),
-        assignment_data={key:request.form.get(key,'') for key in ('property_id','sectional_unit_id')}),400 if errors else 200
+        tenants=rows(),data=data,fields=FIELDS,errors=errors,write_enabled=not problem),400 if errors else 200

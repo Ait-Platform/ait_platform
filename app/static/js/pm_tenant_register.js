@@ -6,6 +6,8 @@
   if (!type || !representative) return;
   function synchronize() {
     const juristic = type.value === 'juristic_person';
+    const label = document.getElementById('tenant-identity-label');
+    if (label) label.textContent = juristic ? 'Registration Number' : 'ID Number';
     representative.hidden = !juristic;
     representative.disabled = !juristic;
   }

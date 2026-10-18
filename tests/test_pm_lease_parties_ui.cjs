@@ -10,5 +10,5 @@ assert.deepEqual(boxes.map(box=>box.checked),[false,false,true]);
 boxes[2].checked=false;boxes[2].listeners.change();assert.equal(boxes[2].checked,true);
 const template=fs.readFileSync(path.join(__dirname,'../templates/program_billing/lease_parties_structured.html'),'utf8');
 for(const removed of ['Selected representative','owner-capacity-confirmation','lessee-dialog','name="lessor_signatory_name"'])assert.ok(!template.includes(removed));
-assert.ok(template.includes('name="tenant_id"'));
+assert.ok(template.includes('name="tenant_ids"'));
 console.log('Owner selection and simplified registry-backed Parties UI: PASS');

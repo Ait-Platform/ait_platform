@@ -87,7 +87,7 @@ class TenantRegisterTests(unittest.TestCase):
         self.assertIn(owners[1]['name'],values['[LANDLORD SIGNATORY NAME AND CAPACITY]'])
         self.assertIn(owners[1]['residential_address'],values['[S1 LANDLORD SERVICE ADDRESS AND CONTACT PARTICULARS]'])
         html=self.client.get(self.route('particulars/parties')).get_data(as_text=True)
-        self.assertIn('Synthetic Test Tenant',html);self.assertIn('value="'+str(tenant)+'" selected',html)
+        self.assertIn('Synthetic Test Tenant',html);self.assertTrue(any(attrs.get('name')=='tenant_ids' and attrs.get('value')==str(tenant) and 'checked' in attrs for _,attrs in Tags(html).tags))
         for removed in ('Selected representative','owner-capacity-confirmation','lessee-dialog'):self.assertNotIn(removed,html)
         import test_pm_lease_premises_offline as premises
         import test_pm_lease_period_offline as period
@@ -194,19 +194,14 @@ class TenantRegisterTests(unittest.TestCase):
         self.session.rollback()
         self.assertEqual(self.sql('SELECT count(*) FROM bil_tenant').scalar(),1)
 
-    def test_optional_assignments_validate_real_property_units(self):
+    def test_registration_independent_of_unit_assignment(self):
         self.schema()
         self.sql("INSERT INTO bil_sectional_unit(id,name,property_id) VALUES (1,'Almond Unit 1',26),(2,'Almond Unit 2',26),(3,'Other Property Unit',27)")
         self.session.commit()
-        self.assertEqual(self.register(identity_number='UNIT-ONE',property_id='26',sectional_unit_id='1').status_code,302)
-        self.assertEqual(self.register(identity_number='UNIT-TWO',property_id='26',sectional_unit_id='2').status_code,302)
-        self.assertEqual(self.sql('SELECT count(*) FROM bil_tenant WHERE property_id=26').scalar(),2)
-        for values in ({'property_id':'26','sectional_unit_id':'3'},{'sectional_unit_id':'1'},{'property_id':'27'},{'property_id':'not-an-id'}):
-            self.assertIn(self.register(identity_number='INVALID',**values).status_code,(400,404))
-        self.assertEqual(self.sql('SELECT count(*) FROM bil_tenant').scalar(),2)
-        # Database protection also rejects a mismatched unit outside the form path.
-        from sqlalchemy.exc import SQLAlchemyError
-        with self.assertRaises(SQLAlchemyError):
-            self.sql("INSERT INTO bil_tenant(name,property_id,sectional_unit_id,rent_includes_metro,email_statements) VALUES ('Mismatch',26,3,0,false)")
-        self.session.rollback()
+        for i,values in enumerate(({'property_id':'26','sectional_unit_id':'1'},{'property_id':'26','sectional_unit_id':'3'},{'sectional_unit_id':'1'},{'property_id':'27'})):
+            self.assertEqual(self.register(identity_number='INDEPENDENT-'+str(i),**values).status_code,302)
+        self.assertEqual(self.sql('SELECT count(*) FROM bil_tenant WHERE property_id IS NULL AND sectional_unit_id IS NULL').scalar(),4)
+        self.sql("UPDATE bil_tenant SET property_id=26,sectional_unit_id=1 WHERE identity_number='INDEPENDENT-0'");self.session.commit()
+        self.assertEqual(self.register(identity_number='INDEPENDENT-0').status_code,302)
+        self.assertEqual(tuple(self.sql("SELECT property_id,sectional_unit_id FROM bil_tenant WHERE identity_number='INDEPENDENT-0'").one()),(26,1))
         self.assertEqual(self.sql('SELECT count(*) FROM bil_sectional_unit').scalar(),3)

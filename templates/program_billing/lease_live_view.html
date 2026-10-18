@@ -1,25 +1,26 @@
 {% extends 'program_billing/lease_workflow_base.html' %}
 {% macro show_blocks(blocks) %}
-{% for block in blocks %}
+{% for block in blocks if not block.preview_notice|default(false) %}
 {% if block.kind=='table' %}<div class="my-4 overflow-x-auto"><table class="w-full border-collapse border border-slate-300"><tbody>{% for row in block.rows %}<tr>{% for cell in row %}<td class="border border-slate-300 p-3 align-top">{{ show_blocks(cell) }}</td>{% endfor %}</tr>{% endfor %}</tbody></table></div>
 {% elif block.kind=='heading' %}<h2 class="mt-6 mb-3 whitespace-pre-wrap font-bold">{{ block.text }}</h2>
 {% else %}<p class="my-3 whitespace-pre-wrap break-words">{% if block.text %}{{ block.text }}{% else %}&nbsp;{% endif %}</p>{% endif %}
 {% endfor %}
 {% endmacro %}
 {% block workspace %}
-<p class="mt-4 text-sm text-slate-600">Saved draft revision {{ lease_draft.version }}. Logical pages follow document headings and explicit page breaks; they are not Microsoft Word page boundaries. Missing particulars remain in square brackets.</p>
-<div id="lease-page-controls" class="mt-4 flex items-center gap-3 overflow-x-auto whitespace-nowrap" aria-label="Logical page controls">
-<button id="lease-previous" type="button" hidden class="rounded border border-slate-300 px-3 py-2">Previous</button>
-<label>Page <input id="lease-page-number" aria-label="Logical page number" type="number" min="1" max="{{ logical_pages|length }}" value="1" class="w-20 rounded border border-slate-300 px-2 py-2"> of <span>{{ logical_pages|length }}</span></label>
-<button id="lease-next" type="button" {% if logical_pages|length<=1 %}hidden{% endif %} class="rounded border border-slate-300 px-3 py-2">Next</button>
-<button id="lease-zoom-out" type="button" class="rounded border border-slate-300 px-3 py-2">Zoom &minus;</button><button id="lease-zoom-in" type="button" class="rounded border border-slate-300 px-3 py-2">Zoom +</button>
+<div id="lease-page-controls" class="mt-5 flex flex-nowrap items-center justify-between gap-3 overflow-x-auto whitespace-nowrap" aria-label="Document controls">
+<div class="flex shrink-0 items-center gap-2">
+<button id="lease-previous" type="button" hidden class="rounded border border-blue-200 bg-blue-50 px-3 py-2 text-blue-900">Previous</button>
+<label>Page <input id="lease-page-number" aria-label="Logical page number" type="number" min="1" max="{{ logical_pages|length }}" value="1" class="w-16 rounded border border-slate-300 px-2 py-2"> of <span>{{ logical_pages|length }}</span></label>
+<button id="lease-next" type="button" {% if logical_pages|length<=1 %}hidden{% endif %} class="rounded border border-blue-200 bg-blue-50 px-3 py-2 text-blue-900">Next</button>
 </div>
-<p id="lease-page-status" role="status" class="mt-3 text-sm">Logical page 1 of {{ logical_pages|length }}</p>
-<article id="lease-merged-text" aria-label="Merged lease text" class="mt-5 rounded-lg border border-slate-300 p-5">
-{% for page in logical_pages %}<section data-lease-page {% if not loop.first %}hidden{% endif %} aria-label="Logical page {{ loop.index }}">
+<div id="lease-zoom-controls" class="ml-auto flex shrink-0 items-center justify-end gap-2">
+<button id="lease-zoom-out" type="button" class="rounded border border-blue-200 bg-blue-50 px-3 py-2 text-blue-900">Zoom &minus;</button>
+<button id="lease-zoom-fit" type="button" aria-label="Restore fit to width" class="min-w-16 rounded border border-blue-200 bg-blue-50 px-3 py-2 text-blue-900">Fit</button>
+<button id="lease-zoom-in" type="button" class="rounded border border-blue-200 bg-blue-50 px-3 py-2 text-blue-900">Zoom +</button>
+</div></div>
+<article id="lease-merged-text" data-page-width="768" aria-label="Merged lease text" class="mt-5 overflow-auto rounded-lg border border-slate-300 p-5">
+{% for page in logical_pages %}<section data-lease-page {% if not loop.first %}hidden{% endif %} aria-label="Logical page {{ loop.index }}" style="width:768px;max-width:none;margin-inline:auto">
 {{ show_blocks(page.blocks) }}
-<details class="mt-6 border-t border-slate-200 pt-3"><summary class="text-sm font-semibold">Saved form values used on this logical page</summary>
-{% for mapping in page.mappings %}<div class="mt-3 text-sm"><a class="text-blue-700 underline" href="{{ url_for('billing_bp.lease_particular_group',property_id=property.id,group=mapping.group,draft_id=lease_draft.id) }}">{{ mapping.group|title }}</a>: <code>{{ mapping.token }}</code> &mdash; {{ mapping.count }} occurrence(s)<p class="break-words text-slate-600">{{ mapping.source }}</p></div>{% else %}<p class="mt-2 text-sm">No mapped merge placeholders on this logical page.</p>{% endfor %}
-</details></section>{% endfor %}</article>
+</section>{% endfor %}</article>
 <script src="{{ url_for('static',filename='js/pm_lease_text_viewer.js') }}" defer></script>
 {% endblock %}

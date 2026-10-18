@@ -145,7 +145,7 @@ def view(property_id):
     except (OSError,ValueError,KeyError,TypeError,BadZipFile,ET.XMLSyntaxError):
         abort(503,description='The saved lease text could not be displayed. Check saved particulars and master availability.')
     return render_pm_template('program_billing/lease_live_view.html',title='View Lease',property=prop,
-        lease_draft=draft,lease_blocks=blocks,logical_pages=pages)
+        lease_draft=draft,lease_blocks=blocks,logical_pages=pages,viewer_only=True)
 
 
 @billing_bp.after_request

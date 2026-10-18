@@ -15,14 +15,14 @@ LEASE_FIELDS = ('party_type','legal_name','identity_number','address','email','p
 
 def readiness():
     inspector=inspect(db.session.connection())
-    required={'bil_tenant':{'id','manager_id','party_type','name','identity_number','address','email','phone'},
+    required={'bil_tenant':{'id','manager_id','property_id','sectional_unit_id','party_type','name','identity_number','address','email','phone'},
               'bil_tenant_identity':{'id','tenant_id','manager_id','legal_name','identity_number','email','phone'}}
     for table,columns in required.items():
         if not inspector.has_table(table) or not columns <= {c['name'] for c in inspector.get_columns(table)}:
             return 'Tenant register requires the pm_tenant_002 compatibility migration. No database changes were run automatically.'
     return None
 
-SELECT = """SELECT t.id,t.manager_id,t.party_type,t.name AS legal_name,t.identity_number,t.address,t.email,t.phone,
+SELECT = """SELECT t.id,t.manager_id,t.property_id,t.sectional_unit_id,t.party_type,t.name AS legal_name,t.identity_number,t.address,t.email,t.phone,
     r.id AS representative_id,r.legal_name AS signatory_name,r.identity_number AS signatory_identity_number,
     '' AS signatory_capacity,r.phone AS representative_phone,r.email AS representative_email
     FROM bil_tenant t LEFT JOIN bil_tenant_identity r ON r.tenant_id=t.id AND r.manager_id=t.manager_id"""
@@ -63,9 +63,33 @@ def validate(form):
         if data[key] and not re.fullmatch(r'[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+',data[key]):errors.append('Enter a valid '+key.replace('_',' ')+'.')
     return data,errors
 
-def save(data):
+def assignment(form, context_property_id):
+    result={'property_id':None,'sectional_unit_id':None}
+    for key in result:
+        raw=form.get(key,'').strip()
+        if raw:
+            try:result[key]=int(raw)
+            except ValueError:abort(400,description='Choose a valid property and unit.')
+            if result[key]<=0:abort(400,description='Choose a valid property and unit.')
+    if result['property_id'] is not None:
+        snapshot.authorised_property(result['property_id'],True)
+        if result['property_id']!=context_property_id:abort(400,description='Choose the selected lease property or leave the tenant unassigned.')
+    if result['sectional_unit_id'] is not None:
+        unit_property=db.session.execute(text('SELECT property_id FROM bil_sectional_unit WHERE id=:id FOR SHARE'),{'id':result['sectional_unit_id']}).scalar_one_or_none()
+        if unit_property is None or unit_property!=result['property_id']:
+            abort(400,description='The unit must belong to the selected property.')
+    return result
+
+def units(property_id):
+    inspector=inspect(db.session.connection())
+    if not inspector.has_table('bil_sectional_unit'):return []
+    columns={c['name'] for c in inspector.get_columns('bil_sectional_unit')}
+    if not {'id','name','property_id'}<=columns:return []
+    return db.session.execute(text('SELECT u.id,u.name FROM bil_sectional_unit u JOIN bil_property p ON p.id=u.property_id WHERE p.id=:p AND p.manager_id=:u AND p.is_archived=false ORDER BY u.name,u.id'),{'p':property_id,'u':current_user.id}).mappings().all()
+
+def save(data, relationships):
     params={k:data[k] for k in ('party_type','identity_number','address','email','phone')}
-    params.update(name=data['legal_name'],manager_id=current_user.id)
+    params.update(name=data['legal_name'],manager_id=current_user.id,**relationships)
     # Explicit operational defaults only when those legacy columns exist. No units,
     # accounts, leases, meters or debtor records are created.
     columns={c['name'] for c in inspect(db.session.connection()).get_columns('bil_tenant')}
@@ -93,7 +117,8 @@ def register(property_id):
         data,errors=validate(request.form)
         if not errors:
             try:
-                tenant_id=save(data);db.session.commit()
+                relationships=assignment(request.form,property_id)
+                tenant_id=save(data,relationships);db.session.commit()
             except SQLAlchemyError:
                 db.session.rollback();errors.append('Tenant and representative could not be saved. No partial save was confirmed; entered details are retained.')
             else:
@@ -101,4 +126,5 @@ def register(property_id):
                 return redirect(url_for('billing_bp.lease_particular_group',property_id=property_id,group='parties',draft_id=draft['id'] if draft else None,tenant_id=tenant_id))
     return render_pm_template('program_billing/lease_tenants.html',title='Tenant register',property=prop,lease_draft=draft,unavailable=problem,
         back_url=url_for('billing_bp.lease_particular_group',property_id=property_id,group='parties',draft_id=draft['id'] if draft else None),
-        tenants=rows(),data=data,fields=FIELDS,errors=errors,write_enabled=not problem),400 if errors else 200
+        tenants=rows(),data=data,fields=FIELDS,errors=errors,write_enabled=not problem,units=units(property_id),
+        assignment_data={key:request.form.get(key,'') for key in ('property_id','sectional_unit_id')}),400 if errors else 200

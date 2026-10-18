@@ -6,7 +6,7 @@ SELECT version_num FROM public.alembic_version ORDER BY version_num;
 SELECT 'bil_tenant' AS table_name,count(*) AS records FROM public.bil_tenant
 UNION ALL SELECT 'bil_tenant_identity',count(*) FROM public.bil_tenant_identity;
 SELECT table_name,column_name,data_type,character_maximum_length,is_nullable,column_default
-FROM information_schema.columns WHERE table_schema='public' AND table_name IN ('bil_tenant','bil_tenant_identity')
+FROM information_schema.columns WHERE table_schema='public' AND table_name IN ('bil_tenant','bil_tenant_identity','bil_sectional_unit')
 ORDER BY table_name,ordinal_position;
 SELECT conrelid::regclass AS table_name,conname,convalidated,pg_get_constraintdef(oid)
 FROM pg_constraint WHERE conrelid IN ('public.bil_tenant'::regclass,'public.bil_tenant_identity'::regclass)
@@ -18,4 +18,8 @@ has_table_privilege(current_user,'public.bil_tenant_identity','SELECT,INSERT') A
 SELECT relname,pg_get_userbyid(relowner) AS table_owner,
 pg_has_role(current_user,relowner,'USAGE') AS inherits_owner_role
 FROM pg_class WHERE oid IN ('public.bil_tenant'::regclass,'public.bil_tenant_identity'::regclass);
+SELECT tgname,tgenabled,pg_get_triggerdef(oid) FROM pg_trigger WHERE tgrelid='public.bil_tenant'::regclass AND NOT tgisinternal;
+SELECT to_regprocedure('public.pm_tenant_validate_unit()') AS existing_validation_function;
+SELECT has_table_privilege(current_user,'public.bil_sectional_unit','SELECT') AS can_read_units,
+has_any_column_privilege(current_user,'public.bil_sectional_unit','UPDATE') AS can_lock_units_for_assignment;
 COMMIT;

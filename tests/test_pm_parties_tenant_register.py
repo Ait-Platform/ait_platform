@@ -26,7 +26,7 @@ class TenantRegisterTests(unittest.TestCase):
         migration.op=Operations(MigrationContext.configure(self.session.connection()));migration.upgrade();self.session.commit()
         self.sql("INSERT INTO alembic_version VALUES ('pm_tenant_001')")
         linkage = "property_id integer REFERENCES bil_property(id)" if local else "sectional_unit_id integer NOT NULL REFERENCES bil_sectional_unit(id)"
-        if not local:self.sql('CREATE TEMP TABLE bil_sectional_unit(id integer PRIMARY KEY)')
+        self.sql('CREATE TEMP TABLE bil_sectional_unit(id integer PRIMARY KEY,name varchar(120),property_id integer REFERENCES bil_property(id))')
         self.sql('CREATE TEMP TABLE bil_tenant (id serial PRIMARY KEY,name varchar(200) NOT NULL,'+linkage+",email varchar(255),phone varchar(50),address varchar(500),metro_account_no varchar(64),rent_includes_metro integer NOT NULL,email_statements boolean NOT NULL,is_active boolean,notes text)")
         self.session.commit()
         spec=importlib.util.spec_from_file_location('tenant_compatibility',Path('docs/proposed_migrations/pm_tenant_002.py'))
@@ -55,9 +55,14 @@ class TenantRegisterTests(unittest.TestCase):
     def test_register_reuse_select_reopen_and_word(self):
         self.schema();owners=self.owners()
         self.app.config.update(PM_LEASE_PARTICULARS_WRITES_APPROVED=False,PM_LEASE_DRAFT_WRITES_APPROVED=False)
+        workspace=self.client.get('/billing/leases?property_id=26')
+        self.assertEqual(workspace.status_code,200)
+        self.assertIn('Almond',workspace.get_data(as_text=True))
+        self.assertNotIn('Private address',workspace.get_data(as_text=True))
+
         from sqlalchemy import inspect
         columns={c['name']:c for c in inspect(self.session.connection()).get_columns('bil_tenant')}
-        self.assertNotIn('property_id',columns);self.assertTrue(columns['sectional_unit_id']['nullable'])
+        self.assertIn('property_id',columns);self.assertTrue(columns['property_id']['nullable']);self.assertTrue(columns['sectional_unit_id']['nullable'])
         self.assertTrue(inspect(self.session.connection()).get_foreign_keys('bil_tenant'))
         self.assertIn('metro_account_no',columns)
         from test_pm_lease_parties_simplified import Tags
@@ -72,6 +77,7 @@ class TenantRegisterTests(unittest.TestCase):
         self.assertEqual(self.register(legal_name='Must not overwrite').status_code,302)
         self.assertEqual(self.sql('SELECT count(*) FROM bil_tenant').scalar(),1)
         self.assertEqual(self.sql('SELECT count(*) FROM bil_tenant_identity').scalar(),0)
+        self.assertEqual(tuple(self.sql('SELECT property_id,sectional_unit_id FROM bil_tenant').one()),(None,None))
         tenant=self.sql('SELECT id FROM bil_tenant').scalar()
         self.assertEqual(self.save_party(owners[1],tenant).status_code,302)
         saved=self.stored();self.assertEqual(len(saved['_contracting_lessors']['identities']),3)
@@ -181,9 +187,26 @@ class TenantRegisterTests(unittest.TestCase):
         migration=self.schema(local=True)
         self.assertEqual(self.register().status_code,302)
         columns={c['name'] for c in __import__('sqlalchemy').inspect(self.session.connection()).get_columns('bil_tenant')}
-        self.assertIn('property_id',columns);self.assertNotIn('sectional_unit_id',columns)
+        self.assertIn('property_id',columns);self.assertIn('sectional_unit_id',columns)
         self.assertEqual(self.sql('SELECT count(*) FROM bil_tenant_identity').scalar(),0)
         from sqlalchemy.exc import SQLAlchemyError
         with self.assertRaises(SQLAlchemyError):migration.upgrade()
         self.session.rollback()
         self.assertEqual(self.sql('SELECT count(*) FROM bil_tenant').scalar(),1)
+
+    def test_optional_assignments_validate_real_property_units(self):
+        self.schema()
+        self.sql("INSERT INTO bil_sectional_unit(id,name,property_id) VALUES (1,'Almond Unit 1',26),(2,'Almond Unit 2',26),(3,'Other Property Unit',27)")
+        self.session.commit()
+        self.assertEqual(self.register(identity_number='UNIT-ONE',property_id='26',sectional_unit_id='1').status_code,302)
+        self.assertEqual(self.register(identity_number='UNIT-TWO',property_id='26',sectional_unit_id='2').status_code,302)
+        self.assertEqual(self.sql('SELECT count(*) FROM bil_tenant WHERE property_id=26').scalar(),2)
+        for values in ({'property_id':'26','sectional_unit_id':'3'},{'sectional_unit_id':'1'},{'property_id':'27'},{'property_id':'not-an-id'}):
+            self.assertIn(self.register(identity_number='INVALID',**values).status_code,(400,404))
+        self.assertEqual(self.sql('SELECT count(*) FROM bil_tenant').scalar(),2)
+        # Database protection also rejects a mismatched unit outside the form path.
+        from sqlalchemy.exc import SQLAlchemyError
+        with self.assertRaises(SQLAlchemyError):
+            self.sql("INSERT INTO bil_tenant(name,property_id,sectional_unit_id,rent_includes_metro,email_statements) VALUES ('Mismatch',26,3,0,false)")
+        self.session.rollback()
+        self.assertEqual(self.sql('SELECT count(*) FROM bil_sectional_unit').scalar(),3)

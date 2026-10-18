@@ -60,6 +60,27 @@ def save_items(draft, items):
     db.session.commit()
 
 
+def create_parties_draft(property_id, items):
+    """First valid Part A save: one insert/commit with existing token uniqueness."""
+    try:token=uuid.UUID(request.form.get('registration_token',''))
+    except (ValueError,TypeError):abort(400,description='Reload Part A before starting a draft.')
+    draft=db.session.execute(text("""INSERT INTO bil_lease_draft
+        (id,property_id,manager_id,registration_token,source_version,items)
+        VALUES (:id,:p,:u,:token,:source,CAST(:items AS jsonb))
+        ON CONFLICT (manager_id,registration_token) DO NOTHING RETURNING *"""),
+        {'id':uuid.uuid4(),'p':property_id,'u':current_user.id,'token':token,
+         'source':snapshot.CATALOG['version'],'items':json.dumps(items)}).mappings().first()
+    if draft is None:
+        existing_id=db.session.execute(text('SELECT id FROM bil_lease_draft WHERE manager_id=:u AND registration_token=:t AND property_id=:p'),
+            {'u':current_user.id,'t':token,'p':property_id}).scalar_one_or_none()
+        if existing_id is None:abort(409,description='This registration token belongs to another draft context. Reload Part A.')
+        draft=snapshot.draft_row(property_id,existing_id,True)
+        if draft['items']!=items:
+            abort(409,description='This draft was already saved. Reopen it before making further changes.')
+    db.session.commit()
+    return draft
+
+
 def group_url(property_id, group, draft=None):
     return url_for('billing_bp.lease_particular_group', property_id=property_id,
                    group=group, draft_id=draft['id'] if draft else None)
@@ -244,7 +265,7 @@ def particular_group(property_id, group):
     additional_text = '\n'.join(str(c['number']) + ' | ' + c['text'] for c in items.get('_additional_clauses', []))
     if request.method == 'POST':
         snapshot.require_particulars_schema()
-        if not draft: abort(400, description='Start and select a persistent draft first.')
+        if not draft and group!='parties': abort(400, description='Start and select a persistent draft first.')
         for field in fields:
             key = field['key']
             if group == 'amounts':continue  # Structured capture preserves other legacy particulars.
@@ -382,11 +403,14 @@ def particular_group(property_id, group):
             items['_additional_clauses'] = additional
         if group == 'period': errors += period_alerts(items, require_complete=True)
         if not errors:
-            save_items(draft, items)
+            if draft:save_items(draft, items)
+            else:draft=create_parties_draft(property_id,items)
             flash('Lease particulars saved. This does not approve or activate the lease.', 'success')
             return redirect(url_for('billing_bp.lease_particulars', property_id=property_id, draft_id=draft['id']))
     return render_pm_template('program_billing/lease_particular_group.html', property=prop, lease_draft=draft,
         unavailable=reason, group=group, title=GROUPS[group][0], fields=fields, items=items, errors=errors,
+        first_save_available=group=='parties' and not draft and not reason,
+        draft_registration_token=(str(draft['registration_token']) if draft else request.form.get('registration_token') or str(uuid.uuid4())) if group=='parties' else None,
         lessors=list(candidates.values()), selected_lessor_ids=selected_ids, additional_text=additional_text, next_clause=MANIFEST['last_core_clause']+1,
         party_data=parties_state({'_parties':party_data}) if group=='parties' else party_data, party_types=PARTY_TYPES, premises_data=premises_data, premises_fields=PREMISES_FIELDS, amounts_data=amounts_data, ancillary_data=ancillary_data, ancillary_fields=ANCILLARY_FIELDS,
         owner_registry=owners, owner_preview=owner_parties_preview(owners, items, request.form if request.method=='POST' else None),

@@ -401,6 +401,8 @@ def particular_group(property_id, group):
         party_data=parties_state({'_parties':party_data}) if group=='parties' else party_data, party_types=PARTY_TYPES, premises_data=premises_data, premises_fields=PREMISES_FIELDS, amounts_data=amounts_data, ancillary_data=ancillary_data, ancillary_fields=ANCILLARY_FIELDS,
         owner_registry=owners, owner_preview=owner_parties_preview(owners, items, request.form if request.method=='POST' else None),
         owner_capacity_proposal=OWNER_CAPACITY_PROPOSAL,
+        form1_values=party_placeholder_values(items) if group=='parties' else {},
+        form1_saved_parties=parties_state(items) if group=='parties' else {},
         selected_tenants=[dict(p,id=p.get('tenant_id')) for p in selected_party_snapshots(items)] if group=='parties' else [],
         tenant_readiness=tenant_register.readiness() if group=='parties' else None,
         has_registered_tenants=bool(tenant_register.rows()) if group=='parties' else False,

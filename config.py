@@ -134,6 +134,12 @@ class Config:
     # Separate legacy upload/storage safeguards remain unchanged.
     PM_LEASE_DRAFT_WRITES_APPROVED = _to_bool(os.getenv("PM_LEASE_DRAFT_WRITES_APPROVED"), default=False)
     PM_LEASE_PRIVATE_STORAGE_APPROVED = _to_bool(os.getenv("PM_LEASE_PRIVATE_STORAGE_APPROVED"), default=False)
+    # Lease-only private storage. Never inherit HOME/public-platform credentials.
+    PM_LEASE_R2_BUCKET = os.getenv("PM_LEASE_R2_BUCKET") or "ait-lease-controlled-private"
+    PM_LEASE_R2_ENDPOINT_URL = os.getenv("PM_LEASE_R2_ENDPOINT_URL") or None
+    PM_LEASE_R2_ACCESS_KEY = os.getenv("PM_LEASE_R2_ACCESS_KEY") or None
+    PM_LEASE_R2_SECRET_KEY = os.getenv("PM_LEASE_R2_SECRET_KEY") or None
+
 
     # Optional immutable R01 association; never infer or default to a property.
     PM_LEASE_REVIEW_PROPERTY_ID = os.getenv("PM_LEASE_REVIEW_PROPERTY_ID", "")

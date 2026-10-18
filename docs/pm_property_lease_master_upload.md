@@ -37,9 +37,21 @@ DOCX only, 10 MiB maximum. Validate ZIP package bounds, required content types/d
 
 `private/leases/property-<property_id>/masters/master-<uuid>.docx`
 
-The existing Lease adapter uses authenticated general AIT R2 APIs. It never uses the HOME bucket or returns storage keys/public URLs to users. Downloads verify the requested property, current manager, available state, expected key scope, byte length and digest. Responses are private/no-store with nosniff; downloads are attachments.
+The Lease adapter uses its dedicated authenticated R2 transport and the `ait-lease-controlled-private` bucket by default. It never inherits public-platform/HOME credentials or returns storage keys/public URLs to users. The platform immutable conditional-PUT helper is reused without changing its shared client. Downloads verify the requested property, current manager, available state, expected key scope, byte length and digest. Responses are private/no-store with nosniff; downloads are attachments.
 
-Required existing configuration names: `R2_ENDPOINT_URL`, `R2_ACCESS_KEY`, `R2_SECRET_KEY`, `R2_BUCKET_NAME`, and `PM_LEASE_PRIVATE_STORAGE_APPROVED=true` **only after independently verifying private-prefix protection**. `SACE_HOME_R2_BUCKET` must identify a different bucket if configured. No actual credentials/bucket values are stored here. The approval flag is a gate, not proof of access restrictions: confirm these keys cannot be fetched through any public bucket or custom-domain endpoint before production use. No production configuration or flag was changed.
+Lease-only environment settings:
+
+- `PM_LEASE_R2_BUCKET=ait-lease-controlled-private` (also the application default).
+- `PM_LEASE_R2_ENDPOINT_URL` ? HTTPS account S3 endpoint, without embedded credentials.
+- `PM_LEASE_R2_ACCESS_KEY` and `PM_LEASE_R2_SECRET_KEY` ? dedicated restricted credentials for the Lease bucket.
+- `PM_LEASE_PRIVATE_STORAGE_APPROVED=false` remains the default and must remain disabled pending independent verification.
+
+No fallback to `R2_ENDPOINT_URL`, `R2_ACCESS_KEY`, `R2_SECRET_KEY` or HOME credentials occurs. HOME/public platform configuration is unchanged. Explicit attempts to select their configured bucket names fail closed. Requests use TLS verification, short connection/read timeouts and conditional immutable writes with read-back integrity checks.
+
+Before approval: independently confirm this bucket exists, public development URLs and unauthorised custom-domain/Worker access are disabled or blocked, and authenticated retrieval succeeds for a controlled non-sensitive object. Verify those outside the application's disabled approval gate using separately authorised administrative inspection. Local R2 doubles do not establish actual privacy or network retrieval. No live verification, environment changes or storage activation occurred.
+
+Existing Lease objects, if any, are not automatically moved from the former general bucket. Existing metadata/key references are preserved. Any needed copy/verification requires a separate reviewed operation before activation; there is deliberately no insecure fallback to the old bucket.
+
 
 ## Local evidence and production boundary
 

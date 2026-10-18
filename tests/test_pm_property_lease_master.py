@@ -67,7 +67,7 @@ class PropertyLeaseMasterTests(unittest.TestCase):
         self.assertIn('Download version 1',tree.text_content());self.assertIn('Download version 2',tree.text_content())
         for row in rows:self.assertNotIn(row['storage_key'],page.get_data(as_text=True))
         self.assertNotIn('r2.dev',page.get_data(as_text=True))
-        self.assertEqual(set(call[1] for call in self.calls),{'synthetic-general'})
+        self.assertEqual(set(call[1] for call in self.calls),{'ait-lease-controlled-private'})
         self.assertEqual([dict(r) for r in self.sql('SELECT * FROM bil_property ORDER BY id').mappings()],properties_before)
         self.assertEqual([dict(r) for r in self.sql('SELECT * FROM bil_lease_draft ORDER BY id').mappings()],drafts_before)
         self.assertEqual(self.sql('SELECT count(*) FROM bil_lease_document').scalar(),0)
@@ -87,7 +87,7 @@ class PropertyLeaseMasterTests(unittest.TestCase):
         self.app.config['PM_LEASE_PRIVATE_STORAGE_APPROVED']=False
         self.assertEqual(self.upload().status_code,503);self.assertFalse(self.calls)
         self.app.config['PM_LEASE_PRIVATE_STORAGE_APPROVED']=True
-        with patch.dict(os.environ,{'SACE_HOME_R2_BUCKET':'synthetic-general'}):self.assertEqual(self.upload().status_code,503)
+        with patch.dict(os.environ,{'SACE_HOME_R2_BUCKET':'ait-lease-controlled-private'}):self.assertEqual(self.upload().status_code,503)
         self.assertEqual(len(self.rows()),0)
 
     def test_failed_verification_does_not_replace_current_or_destroy_old_file(self):
@@ -227,7 +227,58 @@ class PropertyLeaseMasterTests(unittest.TestCase):
 
     def test_property_upload_does_not_require_or_create_a_draft(self):
         self.sql('DELETE FROM bil_lease_draft');self.session.commit()
-        self.assertEqual(self.upload().status_code,302)
+        content=self.docx()
+        self.assertEqual(self.upload(content).status_code,302)
         self.assertEqual(self.sql('SELECT count(*) FROM bil_lease_draft').scalar(),0)
         self.assertEqual(len(self.rows()),1)
-        self.assertEqual(self.client.get(self.download_url(self.rows()[0])).data,self.docx())
+        self.assertEqual(self.client.get(self.download_url(self.rows()[0])).data,content)
+
+    def test_upload_screen_has_only_back_navigation_and_preserves_functions(self):
+        self.assertEqual(self.upload().status_code,302)
+        self.assertEqual(self.upload(self.docx('Version two')).status_code,302)
+        response=self.client.get(self.url()+'?draft_id='+str(self.draft));self.assertEqual(response.status_code,200)
+        tree=html.fromstring(response.get_data(as_text=True))
+        self.assertFalse(tree.xpath('//nav[@aria-label="Lease submenu"]'))
+        self.assertFalse(tree.xpath('//a[text()="Generate Word"]'))
+        self.assertFalse(tree.xpath('//a[contains(@href,"/particulars/") or contains(@href,"/generate-pdf") or contains(@href,"/review?")]'))
+        back=tree.xpath('//a[text()="Back to Lease submenu"]');self.assertEqual(len(back),1)
+        self.assertEqual(back[0].get('href'),'/billing/leases?property_id=26&draft_id='+str(self.draft))
+        self.assertEqual(self.client.get(back[0].get('href')).status_code,200)
+        self.assertIn('Almond',tree.xpath('//h2')[0].text_content())
+        self.assertIn('text-xl',tree.xpath('//h2')[0].get('class'))
+        self.assertIn('Version 2',tree.text_content());self.assertIn('Upload history',tree.text_content())
+        self.assertEqual(len(tree.xpath('//input[@name="master_document"]')),1)
+        self.assertTrue(tree.xpath('//button[text()="Upload Master Document" and not(@disabled)]'))
+        self.assertEqual(len(tree.xpath('//a[contains(@href,"/download")]')),3)
+        for row in self.rows():self.assertNotIn(row['storage_key'],response.get_data(as_text=True))
+        without_draft=self.client.get(self.url());self.assertEqual(without_draft.status_code,200)
+        self.assertNotIn('Start a persistent draft',without_draft.get_data(as_text=True))
+        self.app.config['PM_LEASE_PRIVATE_STORAGE_APPROVED']=False
+        blocked=self.client.get(self.url());self.assertEqual(blocked.status_code,200)
+        blocked_tree=html.fromstring(blocked.get_data(as_text=True))
+        self.assertTrue(blocked_tree.xpath('//button[text()="Upload Master Document" and @disabled]'))
+        self.assertIn('has not been verified and approved',blocked_tree.text_content())
+        self.assertEqual(self.upload().status_code,503)
+
+    def test_inherited_navigation_targets_have_no_local_route_failures(self):
+        from urllib.parse import urlparse,parse_qs,urlencode
+        before=[dict(row) for row in self.sql('SELECT * FROM bil_lease_draft').mappings()]
+        response=self.client.get('/billing/leases?property_id=26&draft_id='+str(self.draft))
+        tree=html.fromstring(response.get_data(as_text=True))
+        links=tree.xpath('//nav[@aria-label="Lease submenu"]/a')
+        self.assertEqual(len(links),8)
+        for link in links:
+            target=link.get('href')
+            self.assertEqual(self.client.get(target).status_code,200,target)
+        word=tree.xpath('//a[text()="Generate Word"]')[0].get('href')
+        review=self.client.get(word);self.assertEqual(review.status_code,200)
+        self.assertTrue(html.fromstring(review.get_data(as_text=True)).xpath('//form/fieldset[@disabled]'))
+        # Same routes with no explicit draft: forms render but remain gated;
+        # View Lease rejects missing context instead of creating a draft.
+        for link in links:
+            parsed=urlparse(link.get('href'));query=parse_qs(parsed.query);query.pop('draft_id',None);query.pop('revision',None)
+            target=parsed.path+('?' + urlencode(query,doseq=True) if query else '')
+            result=self.client.get(target)
+            expected=400 if '/view' in parsed.path else 200
+            self.assertEqual(result.status_code,expected,target)
+        self.assertEqual([dict(row) for row in self.sql('SELECT * FROM bil_lease_draft').mappings()],before)

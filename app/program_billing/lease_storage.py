@@ -8,19 +8,14 @@ from xml.etree import ElementTree as ET
 from pypdf import PdfReader
 from flask import current_app
 from werkzeug.utils import secure_filename
-from app.utils import cloudflare_r2 as r2
+from app.program_billing import lease_r2 as r2
 
 MAX_BYTES=10*1024*1024
 MIMES={'.pdf':'application/pdf','.docx':'application/vnd.openxmlformats-officedocument.wordprocessingml.document'}
 
 def destination():
-    bucket=os.getenv('R2_BUCKET_NAME')
-    home=current_app.config.get('SACE_HOME_R2_BUCKET') or os.getenv('SACE_HOME_R2_BUCKET')
-    if not bucket:raise ValueError("General AIT R2_BUCKET_NAME is not configured.")
-    if home and bucket==home:raise ValueError("Lease storage must not use the HOME bucket.")
-    if current_app.config.get('PM_LEASE_PRIVATE_STORAGE_APPROVED') is not True:
-        raise ValueError("Private lease prefix protection has not been verified and approved for the general AIT bucket.")
-    return bucket
+    return r2.settings()['bucket']
+
 
 def key_for(property_id,draft_id,document_id,extension):
     if type(property_id) is not int or property_id<=0 or extension not in MIMES:raise ValueError("Invalid lease storage scope")

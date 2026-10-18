@@ -24,13 +24,14 @@ class LeaseSnapshotTests(unittest.TestCase):
         self.app.config.update(PM_LEASE_DRAFT_WRITES_APPROVED=True,PM_LEASE_PARTICULARS_WRITES_APPROVED=True,PM_LEASE_PRIVATE_STORAGE_APPROVED=True)
         utils=types.ModuleType('app.utils');utils.__path__=[]
         sys.modules['app.utils']=utils
-        for name,path in [('app.utils.cloudflare_r2','app/utils/cloudflare_r2.py'),('app.program_billing.lease_storage','app/program_billing/lease_storage.py')]:
+        for name,path in [('app.utils.cloudflare_r2','app/utils/cloudflare_r2.py'),('app.program_billing.lease_r2','app/program_billing/lease_r2.py'),('app.program_billing.lease_storage','app/program_billing/lease_storage.py')]:
             spec=importlib.util.spec_from_file_location(name,properties.ROOT/path)
             module=importlib.util.module_from_spec(spec);sys.modules[name]=module;spec.loader.exec_module(module)
             self.addCleanup(sys.modules.pop,name,None)
-            if name.endswith('cloudflare_r2'):self.r2=module;utils.cloudflare_r2=module
+            if name.endswith('cloudflare_r2'):utils.cloudflare_r2=module
+            elif name.endswith('lease_r2'):self.r2=module
             else:self.storage=module
-        environment=patch.dict(os.environ,{'R2_BUCKET_NAME':'synthetic-general','SACE_HOME_R2_BUCKET':'synthetic-home'})
+        environment=patch.dict(os.environ,{'R2_BUCKET_NAME':'synthetic-general','SACE_HOME_R2_BUCKET':'synthetic-home','PM_LEASE_R2_BUCKET':'ait-lease-controlled-private','PM_LEASE_R2_ENDPOINT_URL':'https://synthetic.r2.cloudflarestorage.com','PM_LEASE_R2_ACCESS_KEY':'synthetic-lease-access','PM_LEASE_R2_SECRET_KEY':'synthetic-lease-secret'})
         environment.start();self.addCleanup(environment.stop)
         self.objects={};self.calls=[];self.deny=False
         test=self
@@ -104,7 +105,7 @@ class LeaseSnapshotTests(unittest.TestCase):
         row=self.sql('SELECT * FROM bil_lease_document').mappings().one()
         self.assertEqual(row['state'],'available')
         self.assertIn(f"property-26/draft-{self.draft}",row['storage_key'])
-        self.assertEqual(set(call[1] for call in self.calls),{'synthetic-general'})
+        self.assertEqual(set(call[1] for call in self.calls),{'ait-lease-controlled-private'})
         url=f"/billing/leases/documents/{row['id']}"
         downloaded=self.client.get(url);self.assertEqual(downloaded.data,self.pdf())
         self.assertIn('attachment',downloaded.headers['Content-Disposition'])
@@ -125,7 +126,7 @@ class LeaseSnapshotTests(unittest.TestCase):
         self.app.config['PM_LEASE_PRIVATE_STORAGE_APPROVED']=False
         self.assertEqual(self.upload().status_code,503);self.assertFalse(self.calls)
         self.app.config['PM_LEASE_PRIVATE_STORAGE_APPROVED']=True
-        with patch.dict(os.environ,{'SACE_HOME_R2_BUCKET':'synthetic-general'}):
+        with patch.dict(os.environ,{'SACE_HOME_R2_BUCKET':'ait-lease-controlled-private'}):
             self.assertEqual(self.upload().status_code,503);self.assertFalse(self.calls)
         self.deny=True
         self.assertEqual(self.upload().status_code,503)

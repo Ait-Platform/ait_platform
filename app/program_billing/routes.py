@@ -4116,3 +4116,5 @@ from . import lease_snapshot as _lease_snapshot
 # Grouped R01 inputs and completion checks; master generation remains separately gated.
 from . import lease_workflow as _lease_workflow
 from . import lease_preview as _lease_preview
+
+from . import lease_property_master as _lease_property_master

@@ -19,7 +19,7 @@ class LeaseMigrationLineageTests(unittest.TestCase):
         scripts=ScriptDirectory(str(ROOT/'migrations'))
         actual={r.revision for r in scripts.walk_revisions()}
         self.assertTrue({'pm_owner_001','pm_owner_002','pm_lease_001','45a4f34e07dc','d3f70f6a0794'} <= actual)
-        self.assertEqual(len(actual),40)
+        self.assertEqual(len(actual),43)
 
     def test_production_revision_set_resolves_and_upgrade_is_lease_only(self):
         scripts=ScriptDirectory(str(ROOT/'migrations'))
@@ -29,7 +29,7 @@ class LeaseMigrationLineageTests(unittest.TestCase):
         lease=scripts.get_revision('pm_lease_001')
         self.assertIsNone(lease.down_revision)
         self.assertIsNone(lease.dependencies)
-        self.assertEqual(set(scripts.get_heads()),set(PRODUCTION_HEADS)|{'pm_lease_001'})
+        self.assertEqual(set(scripts.get_heads()),set(PRODUCTION_HEADS)|{'pm_lease_001','pm_tenant_002','pm_lease_master_001'})
 
     def test_restored_ownership_revisions_are_exact_original_bytes(self):
         original_hashes = {

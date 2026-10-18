@@ -68,3 +68,47 @@ def retrieve(record):
     if len(data)!=record['size_bytes'] or hashlib.sha256(data).hexdigest()!=record['sha256']:
         raise ValueError("Lease document integrity verification failed.")
     return data
+
+
+# Property masters are separate from draft attachments and never select a
+# generation template. Reuse the same approved private R2 destination/API.
+def master_key(property_id,document_id):
+    if type(property_id) is not int or property_id<=0:raise ValueError('Invalid property master scope')
+    return f"private/leases/property-{property_id}/masters/master-{UUID(str(document_id))}.docx"
+
+
+def validate_master(file):
+    from werkzeug.datastructures import FileStorage
+    from lxml import etree as safe_xml
+    original=(file.filename or '').replace('\\','/').rsplit('/',1)[-1]
+    if not original or len(original)>200 or PurePosixPath(original).suffix.lower()!='.docx' or any(ord(c)<32 for c in original):
+        raise ValueError('Select a DOCX file with a filename of at most 200 characters.')
+    data=file.stream.read(MAX_BYTES+1)
+    if not data or len(data)>MAX_BYTES:raise ValueError('Master documents must be nonempty and no larger than 10 MB.')
+    try:
+        with ZipFile(BytesIO(data)) as archive:
+            entries=archive.infolist();names=[e.filename for e in entries]
+            if len(entries)>2000 or len(set(names))!=len(names) or sum(e.file_size for e in entries)>40*1024*1024:
+                raise ValueError()
+            for entry in entries:
+                if entry.flag_bits & 1:raise ValueError()
+                if entry.filename.lower().endswith(('.xml','.rels')):
+                    content=archive.read(entry)
+                    if b'<!DOCTYPE' in content or b'<!ENTITY' in content:raise ValueError()
+                    xml=safe_xml.fromstring(content,parser=safe_xml.XMLParser(resolve_entities=False,load_dtd=False,no_network=True))
+                    if xml.getroottree().docinfo.doctype:raise ValueError()
+    except Exception as error:
+        raise ValueError('Upload a valid, unencrypted DOCX package without duplicate parts or XML entity declarations.') from error
+    # Reuse the existing path/macro/content-type/XML/CRC validation without using
+    # the original filename as a storage path (including non-ASCII names).
+    _,_,mime,validated,digest=validate_upload(FileStorage(stream=BytesIO(data),filename='master.docx'))
+    return original,mime,validated,digest
+
+
+def retrieve_master(record):
+    expected=master_key(record['property_id'],record['id'])
+    if record['storage_key']!=expected:raise ValueError('Property master storage scope is invalid.')
+    data=r2.read_file_from_r2(expected,bucket=destination())
+    if len(data)!=record['size_bytes'] or hashlib.sha256(data).hexdigest()!=record['sha256']:
+        raise ValueError('Property master integrity verification failed.')
+    return data

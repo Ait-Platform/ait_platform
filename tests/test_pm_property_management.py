@@ -84,7 +84,7 @@ class PropertyManagementTests(unittest.TestCase):
                 sa.Column('start_date',sa.Text),sa.Column('end_date',sa.Text),sa.Column('rent_amount',sa.Numeric)))
             auth=types.ModuleType('app.models.auth');auth.User=User
             sys.modules['app.models.auth']=auth;modules['app.models.billing'].BilLease=Lease
-            for name in ('lease_documents','lease_management','lease_snapshot','lease_merge','lease_generation','tenant_register','lease_workflow','lease_preview'):
+            for name in ('lease_documents','lease_management','lease_snapshot','lease_merge','lease_generation','tenant_register','lease_workflow','lease_preview','lease_property_master'):
                 spec=importlib.util.spec_from_file_location('app.program_billing.'+name,ROOT/'app/program_billing'/(name+'.py'))
                 module=importlib.util.module_from_spec(spec);sys.modules[spec.name]=module;spec.loader.exec_module(module)
                 self.addCleanup(sys.modules.pop,spec.name,None)

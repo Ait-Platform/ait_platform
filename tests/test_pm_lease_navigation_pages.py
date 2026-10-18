@@ -15,7 +15,7 @@ class LeaseNavigationPagesTests(fixture.TenantPageSelectionTests):
         self.assertEqual(programme[1].get('href'),'/billing/leases?property_id=26&draft_id='+str(self.draft))
         self.assertEqual(self.client.get(programme[1].get('href')).status_code,200)
         links=tree.xpath('//nav[@aria-label="Lease submenu"]/a')
-        self.assertEqual([a.text_content().strip() for a in links],['1. Parties','2. Premises','3. Period','4. Amounts','5. Special Conditions','6. View Lease','7. Generate PDF'])
+        self.assertEqual([a.text_content().strip() for a in links],['1. Parties','2. Premises','3. Period','4. Amounts','5. Special Conditions','6. View Lease','7. Generate PDF','8. Upload Master Document'])
         for link,group in zip(links[:5],('parties','premises','period','amounts','conditions')):
             self.assertEqual(link.get('href'),self.route('particulars/'+group))
             self.assertEqual(self.client.get(link.get('href')).status_code,200)

@@ -169,7 +169,7 @@ def completion_alerts(items, files):
     alerts = []
     for group, keys in GROUP_KEYS.items():
         if group == 'amounts' and items.get('_amounts'):
-            form = {'amounts_form_version':'1', **{'amounts_' + key:value for key,value in amounts_state(items).items()}}
+            form = {'amounts_form_version':str(items.get('_amounts',{}).get('schema_version',1)), **{'amounts_' + key:value for key,value in amounts_state(items).items()}}
             _, financial_errors = amounts_from_form(form, items)
             alerts.extend(('amounts','s1-21',message) for message in financial_errors)
             # The Stage 5 master has no annual-rate/fee placeholders. Retain the
@@ -981,7 +981,7 @@ def period_placeholder_values(items):
 
 
 FINANCIAL_KEYS = ('monthly_rent','monthly_rent_words','rent_effective_date','deposit_amount',
-                  'parking_applicability','parking_bay_count','parking_bay_identifiers','parking_rent_per_bay') + tuple(
+                  'parking_applicability','parking_bay_count','parking_bay_identifiers','parking_rent_per_bay','parking_details') + tuple(
                   'adjustment_' + str(i) + '_' + field for i in (1,2,3) for field in ('applicability','date','amount'))
 FINANCIAL_TOKENS = {
     '[MONTHLY RENT INITIAL]':'monthly_rent', '[MONTHLY RENT INITIAL WORDS]':'monthly_rent_words',
@@ -995,7 +995,9 @@ FINANCIAL_TOKENS = {
 
 def amounts_state(items):
     saved = items.get('_amounts', {})
-    return {key:saved.get(key, '') for key in FINANCIAL_KEYS}
+    state={key:saved.get(key, '') for key in FINANCIAL_KEYS}
+    if 'parking_details' not in saved:state['parking_details']=saved.get('parking_bay_identifiers','')
+    return state
 
 
 def zar_amount(raw):
@@ -1003,6 +1005,29 @@ def zar_amount(raw):
     if not re.fullmatch(r'[0-9]{1,12}(?:\.[0-9]{1,2})?',raw):
         raise ValueError('Enter a non-negative ZAR amount with at most two decimal places, without symbols or separators.')
     return Decimal(raw).quantize(Decimal('0.01'))
+
+
+def zar_words(raw):
+    amount=zar_amount(raw)
+    ones=('zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen').split()
+    tens=('zero ten twenty thirty forty fifty sixty seventy eighty ninety').split()
+    def below_thousand(n):
+        parts=[]
+        if n>=100:parts.append(ones[n//100]+' hundred');n%=100
+        if n:
+            tail=ones[n] if n<20 else tens[n//10]+('-'+ones[n%10] if n%10 else '')
+            parts.append(tail)
+        return ' and '.join(parts) if parts else 'zero'
+    def integer(n):
+        if not n:return 'zero'
+        groups=[]
+        for value,label in ((10**9,'billion'),(10**6,'million'),(1000,'thousand')):
+            count,n=divmod(n,value)
+            if count:groups.append(below_thousand(count)+' '+label)
+        if n:groups.append(('and ' if groups and n<100 else '')+below_thousand(n))
+        return ' '.join(groups)
+    whole=int(amount);cents=int((amount-whole)*100)
+    return integer(whole)+' rand and '+integer(cents)+(' cent' if cents==1 else ' cents')
 
 
 def financial_date(raw):
@@ -1017,18 +1042,23 @@ def six_month_date(anchor, periods):
 
 
 def amounts_from_form(form, items):
-    state = {'schema_version':1, 'master_sha256':PARTIES_MASTER_SHA256, 'currency':'ZAR'}
+    simplified=form.get('amounts_form_version')=='2'
+    state = deepcopy(items.get('_amounts',{})) if simplified else {}
+    state.update(schema_version=2 if simplified else 1,master_sha256=PARTIES_MASTER_SHA256,currency='ZAR')
     errors = []
-    if form.get('amounts_form_version') != '1':errors.append('Reload the Amounts form before saving financial details.')
+    if form.get('amounts_form_version') not in ('1','2'):errors.append('Reload the Amounts form before saving financial details.')
     for key in FINANCIAL_KEYS:
-        state[key] = form.get('amounts_' + key, '').strip()
-        limit = 2000 if key=='parking_bay_identifiers' else 300 if key=='monthly_rent_words' else 40
+        if simplified and key in ('monthly_rent_words','parking_bay_count','parking_bay_identifiers','parking_rent_per_bay'):
+            state.setdefault(key,'');continue  # Preserve hidden historical parking values; wording is server-derived.
+        state[key] = form.get('amounts_' + key, state.get(key,'') if simplified else '').strip()
+        limit = 2000 if key in ('parking_bay_identifiers','parking_details') else 300 if key=='monthly_rent_words' else 40
         if len(state[key]) > limit:errors.append(key.replace('_',' ').title() + ': text is too long.')
         if re.search(r'\[[^\[\]]+\]',state[key]):errors.append(key.replace('_',' ').title() + ': replace unresolved placeholders.')
     numbers = {}
     for key in ('monthly_rent','deposit_amount'):
         try:numbers[key] = zar_amount(state[key])
         except ValueError as error:errors.append(key.replace('_',' ').title() + ': ' + str(error))
+    if simplified and 'monthly_rent' in numbers:state['monthly_rent_words']=zar_words(state['monthly_rent'])
     if not state['monthly_rent_words']:errors.append('Monthly rental in words is required; confirm that it matches the numeric rental.')
     if all(key in numbers for key in ('monthly_rent','deposit_amount')) and numbers['monthly_rent'] != numbers['deposit_amount']:
         errors.append('Deposit must match one month of initial rental under clauses 13.1 and 13.1.1. Review the entered amount; no deposit was calculated or changed.')
@@ -1070,7 +1100,10 @@ def amounts_from_form(form, items):
                 errors.append('The lease requires more than the three adjustment rows in this master. Review the schedule; no extra provision or amount was invented.')
         except ValueError:pass  # No additional supported date can fall within the supported lease range.
     parking = state['parking_applicability']
-    if parking=='allocated':
+    if simplified:
+        if parking not in ('none','other'):errors.append('Select Not Applicable or Other for parking.')
+        if parking=='other' and not state['parking_details']:errors.append('Parking Details are required when Other is selected.')
+    elif parking=='allocated':
         if not re.fullmatch(r'[1-9][0-9]{0,3}',state['parking_bay_count']):errors.append('Allocated parking requires a positive whole bay count (maximum 9999).')
         identifiers = [line.strip() for line in state['parking_bay_identifiers'].splitlines() if line.strip()]
         if not identifiers or len(set(identifier.casefold() for identifier in identifiers)) != len(identifiers):errors.append('List distinct allocated bay identifiers, one per line.')
@@ -1100,6 +1133,8 @@ def amounts_placeholder_values(items):
         if state['adjustment_' + str(i) + '_applicability']=='after_expiry':
             values['[RENT ADJUSTMENT ' + str(i) + ' DATE]'] = 'Not applicable (after expiry)'
             values['[RENT ADJUSTMENT ' + str(i) + ' AMOUNT]'] = 'Not applicable'
+    if state['parking_applicability']=='other':
+        values['[PARKING BAY IDENTIFIERS]']=state['parking_details']
     if state['parking_applicability']=='none':
         values.update({'[PARKING BAY COUNT]':'0','[PARKING BAY IDENTIFIERS]':'Not applicable (no allocated bays)','[S1 PARKING RENT PER BAY]':'R 0.00'})
     return values
@@ -1223,7 +1258,7 @@ def stage5_completion(items):
     _, messages = premises_from_form(form)
     issues.extend(('premises','s1-10',message) for message in messages)
     issues.extend(('period','s1-18',message) for message in period_alerts(items,require_complete=True))
-    form = {'amounts_form_version':'1', **{'amounts_'+key:value for key,value in amounts_state(items).items()}}
+    form = {'amounts_form_version':str(items.get('_amounts',{}).get('schema_version',1)), **{'amounts_'+key:value for key,value in amounts_state(items).items()}}
     _, messages = amounts_from_form(form,items)
     issues.extend(('amounts','s1-21',message) for message in messages)
     state = banking_utilities_state(items)

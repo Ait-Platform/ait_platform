@@ -149,6 +149,16 @@ def cover_names(items):
 def certificate_rows(items):
     values=certificate_values(items)
     rows=[dict(field,value=values.get(field['token']) if values.get(field['token'],'').strip().strip('_') else field['token']) for field in DICTIONARY['fields']]
+    amounts=workflow.amounts_state(items)
+    for row in rows:
+        if row['key']=='monthly_rent_words' and not row['value'].startswith('['):
+            row['value']='('+row['value'].strip('()')+')'
+        if row['key']=='parking_bay_count' and amounts.get('parking_applicability') in ('none','other','allocated'):
+            row['label']='Parking Selection'
+            row['value']='Not Applicable' if amounts['parking_applicability']=='none' else 'Other'
+        if row['key']=='parking_bay_identifiers' and amounts.get('parking_applicability') in ('none','other','allocated'):
+            row['label']='Parking Details'
+            row['value']=amounts['parking_details'] if amounts['parking_applicability'] in ('other','allocated') else 'Not Applicable'
     for field in DICTIONARY.get('certificate_additional_fields',[]):
         if field['key']=='duration_months':value=workflow.period_duration_months(items)
         elif field['key']=='renewal_notice_date':value=items.get('_period',{}).get('renewal_notice_date','')
@@ -225,9 +235,11 @@ def build_document(items,state,source,payload):
             paragraph('DRAFT \u2014 DEVELOPMENT WORKING COPY\nNOT FOR SIGNATURE OR ISSUANCE'),
             paragraph('Terms version '+state['terms_version']),paragraph('Lease Certificate','Heading1')]
         table=element('tbl')
+        display_rows={row['key']:row for row in certificate_rows(items)}
         for field in DICTIONARY['fields']:
             row=ET.SubElement(table,'{'+W+'}tr')
-            for value in (field['label'],field['token']):
+            display=display_rows[field['key']]
+            for value in (display['label'],display['value'] if field['key'] in ('monthly_rent_words','parking_bay_count','parking_bay_identifiers') else field['token']):
                 cell=ET.SubElement(row,'{'+W+'}tc');cell.append(paragraph(value))
         for field in certificate_rows(items)[len(DICTIONARY['fields']):]:
             if field['key']=='special_conditions':continue  # its own saved section below
@@ -258,6 +270,8 @@ def build_document(items,state,source,payload):
     values=certificate_values(items)
     supplied={token:value for token,value in values.items() if isinstance(value,str) and value.strip().strip('_') and not TOKEN.search(value)}
     template=stream.getvalue()
+    present=set(inventory(template)['tokens'])
+    supplied={token:value for token,value in supplied.items() if token in present}
     return merge_draft_docx(template,supplied,approved_sha256=sha256(template).hexdigest(),preview_only=True)['docx']
 
 

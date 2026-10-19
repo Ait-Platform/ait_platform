@@ -360,9 +360,29 @@ def word(property_id):
         as_attachment=True,download_name='AIT-Standard-Lease-DRAFT.docx',conditional=False,etag=False,max_age=0)
 
 
+@billing_bp.get('/billing/leases/property/<int:property_id>/standard/terms.pdf',endpoint='lease_core_terms_pdf')
+@snapshot.endpoint
+def core_terms_pdf(property_id):
+    prop,draft=context(property_id)
+    state=draft['items'].get('_ait_standard',{})
+    if not acknowledged(state,draft['items']):abort(400,description='Acknowledge the current development notice in working-copy settings first.')
+    if request.args.get('revision') and request.args['revision']!=str(draft['version']):
+        abort(409,description='Saved particulars changed. Reopen the Lease workspace for the current PDF.')
+    source,payload,info=get_source(property_id,state)
+    try:
+        exclusions_check(state,source,info)
+        from app.program_billing.lease_terms_pdf import build_pdf
+        output=build_pdf(payload,draft['items'],source)
+    except Exception as error:
+        current_app.logger.warning('Lease terms PDF unavailable error=%s',type(error).__name__)
+        abort(503,description='The pinned development reference could not be rendered safely. No other document was substituted.')
+    return send_file(BytesIO(output),mimetype='application/pdf',as_attachment=True,
+        download_name='AIT-Core-Terms-DEVELOPMENT-DRAFT.pdf',conditional=False,etag=False,max_age=0)
+
+
 @billing_bp.after_request
 def private_response(response):
-    if request.endpoint in ('billing_bp.lease_standard','billing_bp.lease_standard_view','billing_bp.lease_standard_word'):
+    if request.endpoint in ('billing_bp.lease_standard','billing_bp.lease_standard_view','billing_bp.lease_standard_word','billing_bp.lease_core_terms_pdf'):
         response.headers['Cache-Control']='private, no-store'
         response.headers['X-Content-Type-Options']='nosniff'
         response.headers['Referrer-Policy']='same-origin'

@@ -1,0 +1,7 @@
+{% set data=items.get(field.key,{}) %}
+<div id="{{ field.key }}" class="mt-4">
+<label for="input-{{ field.key }}" class="block text-sm font-semibold">{{ field.label }}{% if field.requirement=='Optional' %} (optional){% endif %}</label>
+{% if field.input_type=='date' %}<input type="date" id="input-{{ field.key }}" name="{{ field.key }}" value="{{ data.get('value','') }}" {% if loop is defined and loop.first %}autofocus{% endif %} class="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2">
+{% else %}<textarea id="input-{{ field.key }}" name="{{ field.key }}" rows="3" maxlength="4000" {% if loop is defined and loop.first %}autofocus{% endif %} class="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2">{{ data.get('value','') }}</textarea>{% endif %}
+{% if field.requirement=='Conditional' %}<label class="mt-2 block text-sm"><input type="checkbox" name="{{ field.key }}_na" {% if data.get('not_applicable') %}checked{% endif %}> Not applicable</label><label for="reason-{{ field.key }}" class="mt-2 block text-sm">Reason (if not applicable)</label><input id="reason-{{ field.key }}" name="{{ field.key }}_reason" maxlength="500" value="{{ data.get('reason','') }}" class="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2">{% endif %}
+</div>

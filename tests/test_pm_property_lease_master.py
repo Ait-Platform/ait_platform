@@ -284,7 +284,7 @@ class PropertyLeaseMasterTests(unittest.TestCase):
         self.assertEqual(len(back),1)
         self.assertEqual(back[0].get('href'),'/billing/dashboard')
         links=tree.xpath('//nav[@aria-label="Lease submenu"]/a')
-        self.assertEqual(len(links),10)
+        self.assertEqual(len(links),8)
         for link in links:
             target=link.get('href')
             self.assertEqual(self.client.get(target).status_code,200,target)
@@ -297,7 +297,7 @@ class PropertyLeaseMasterTests(unittest.TestCase):
             parsed=urlparse(link.get('href'));query=parse_qs(parsed.query);query.pop('draft_id',None);query.pop('revision',None)
             target=parsed.path+('?' + urlencode(query,doseq=True) if query else '')
             result=self.client.get(target)
-            expected=400 if '/view' in parsed.path else 200
+            expected=400 if parsed.path.endswith(('/view','/addendum','/history')) else 200
             self.assertEqual(result.status_code,expected,target)
         self.assertEqual([dict(row) for row in self.sql('SELECT * FROM bil_lease_draft').mappings()],before)
 

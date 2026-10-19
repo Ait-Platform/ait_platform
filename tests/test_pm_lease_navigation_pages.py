@@ -15,7 +15,7 @@ class LeaseNavigationPagesTests(fixture.TenantPageSelectionTests):
         self.assertFalse(tree.xpath('//nav[@aria-label="Property Management"]'))
         self.assertEqual(len(tree.xpath('//a[text()="Back to Property Management"]')),1)
         links=tree.xpath('//nav[@aria-label="Lease submenu"]/a')
-        self.assertEqual([a.text_content().strip() for a in links],['1. Parties','2. Premises','3. Period','4. Amounts','5. Special Conditions','6. View Lease','7. Generate PDF','8. Upload Master Document','Addendum','Lease History'])
+        self.assertEqual([a.text_content().strip() for a in links],['1. Parties','2. Premises','3. Period','4. Amounts','5. Special Conditions','6. View Lease','7. Addendum','8. Lease History'])
         for link,group in zip(links[:5],('parties','premises','period','amounts','conditions')):
             self.assertEqual(link.get('href'),self.route('particulars/'+group))
             self.assertEqual(self.client.get(link.get('href')).status_code,200)
@@ -43,7 +43,7 @@ class LeaseNavigationPagesTests(fixture.TenantPageSelectionTests):
         for table in viewer.xpath('//article//table'):self.assertIn('table-layout:fixed',table.get('style'))
         for button in toolbar.xpath('.//button'):self.assertIn('bg-blue-50',button.get('class'))
         self.assertNotIn('Play',view.get_data(as_text=True))
-        pdf=self.client.get(links[6].get('href'));self.assertEqual(pdf.status_code,200)
+        pdf=self.client.get(self.route('generate-pdf'));self.assertEqual(pdf.status_code,200)
         self.assertTrue(pdf.mimetype=='text/html');self.assertIn('PDF generation not yet available.',pdf.get_data(as_text=True))
         self.assertFalse(pdf.data.startswith((b'%PDF-',b'PK')))
         back=viewer.xpath('//a[text()="Back"]')[0].get('href')

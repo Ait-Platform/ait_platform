@@ -2,10 +2,7 @@
 {% for key,label in [('parties','1. Parties'),('premises','2. Premises'),('period','3. Period'),('amounts','4. Amounts'),('conditions','5. Special Conditions')] %}
 {% if property %}<a class="text-blue-700 underline" href="{{ url_for('billing_bp.lease_particular_group',property_id=property.id,group=key,draft_id=lease_draft.id if lease_draft else None) }}">{{ label }}</a>{% else %}<span aria-disabled="true" class="text-slate-500">{{ label }}</span>{% endif %}{% endfor %}
 {% if property and lease_draft %}<a class="text-blue-700 underline" href="{{ url_for('billing_bp.lease_live_view',property_id=property.id,draft_id=lease_draft.id,revision=lease_draft.version) }}">6. View Lease</a>{% else %}<span aria-disabled="true" class="text-slate-500">6. View Lease</span>{% endif %}
-{% if property %}<a class="text-blue-700 underline" href="{{ url_for('billing_bp.lease_pdf_status',property_id=property.id,draft_id=lease_draft.id if lease_draft else None) }}">7. Generate PDF</a>{% else %}<span aria-disabled="true" class="text-slate-500">7. Generate PDF</span>{% endif %}
-{% if property %}<a class="text-blue-700 underline" href="{{ url_for('billing_bp.lease_property_masters',property_id=property.id,draft_id=lease_draft.id if lease_draft else None) }}">8. Upload Master Document</a>{% else %}<span aria-disabled="true" class="text-slate-500">8. Upload Master Document</span>{% endif %}
-{% if property and lease_draft %}<a class="text-blue-700 underline" href="{{ url_for('billing_bp.lease_addendum',property_id=property.id,draft_id=lease_draft.id) }}">Addendum</a><a class="text-blue-700 underline" href="{{ url_for('billing_bp.lease_history',property_id=property.id,draft_id=lease_draft.id) }}">Lease History</a>{% endif %}
+{% for endpoint,label in [('lease_addendum','7. Addendum'),('lease_history','8. Lease History')] %}
+{% if property and lease_draft %}<a class="text-blue-700 underline" href="{{ url_for('billing_bp.' ~ endpoint,property_id=property.id,draft_id=lease_draft.id) }}">{{ label }}</a>{% else %}<span aria-disabled="true" class="text-slate-500">{{ label }}</span>{% endif %}
+{% endfor %}
 </nav>
-
-
-{% if property and lease_draft %}<a class="mt-3 ml-4 inline-block text-sm text-blue-700 underline" href="{{ url_for('billing_bp.lease_standard',property_id=property.id,draft_id=lease_draft.id) }}">Lease Certificate</a>{% endif %}

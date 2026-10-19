@@ -1,7 +1,7 @@
 <input type="hidden" name="premises_form_version" value="1">
 <section id="s1-10" class="rounded-lg border border-slate-200 p-4"><h2 class="font-semibold">Property and leased premises</h2>
-<p class="mt-2 text-sm">The saved property name and address are starting points for this lease snapshot. Confirm them. Editing this form does not change Property &amp; Owner records.</p>
-<p class="mt-2 text-sm">Describe the leased portion separately from the whole property and its owners. Do not assume the entire property is leased. Site extent and floor area can differ.</p>
+<p class="mt-2 text-sm">Confirm the property details and describe the portion being leased. The property register is unchanged.</p>
+
 <label for="premises-lease-scope" class="mt-3 block text-sm font-semibold">Scope of this lease</label>
 <select id="premises-lease-scope" name="premises_lease_scope" class="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2" required autofocus><option value="">Choose explicitly</option><option value="whole_property" {% if premises_data.lease_scope=='whole_property' %}selected{% endif %}>Whole property</option><option value="part_only" {% if premises_data.lease_scope=='part_only' %}selected{% endif %}>Part of the property only</option></select>
 {% for key,definition in premises_fields.items() %}
@@ -10,7 +10,7 @@
 {% if definition[1]==2000 %}<textarea id="premises-{{ key }}" name="premises_{{ key }}" rows="3" maxlength="{{ definition[1] }}" {% if key!='property_legal_description' %}required{% endif %} class="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2">{{ premises_data[key] }}</textarea>
 {% else %}<input id="premises-{{ key }}" name="premises_{{ key }}" type="text" maxlength="{{ definition[1] }}" value="{{ premises_data[key] }}" {% if key in ['property_extent_sqm','leased_area_sqm'] %}inputmode="decimal"{% elif key=='unit_count' %}inputmode="numeric"{% endif %} required class="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2">{% endif %}
 </div>{% endfor %}
-<p class="mt-3 text-sm text-amber-900">Plan A must identify the site and leased portion. Plan B must identify the premises / unit layout for that same portion. Identifiers do not confirm that plans are supplied, signed or verified.</p>
-<p class="mt-2 text-sm">Exact portion descriptions, exclusions, scope and any cadastral description are retained for review. They have no dedicated Stage 5 master placeholders and will not be silently inserted into clauses.</p>
+<p class="mt-3 text-sm text-amber-900">Plan A: site and leased portion. Plan B: premises / unit layout. Confirm both plan identifiers.</p>
+
 </section>
 {% if not items.get('_premises') %}<details class="mt-4"><summary>Previously recorded unstructured premises particulars</summary>{% for key in ['s1-12','s1-13','s1-14'] %}<p class="mt-2 whitespace-pre-wrap text-sm">{{ items.get(key,{}).get('value','') }}</p>{% endfor %}</details>{% endif %}

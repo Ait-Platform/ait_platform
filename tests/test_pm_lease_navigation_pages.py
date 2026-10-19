@@ -5,15 +5,15 @@ from lxml import html
 import test_pm_lease_tenant_page_selection as fixture
 
 class LeaseNavigationPagesTests(fixture.TenantPageSelectionTests):
+    from test_pm_lease_live_preview import LiveTextPreviewTests
+    setUp=LiveTextPreviewTests.setUp
     def test_submenu_preserves_context_forms_pdf_word_and_no_writes(self):
         self.schema();self.owners()
         before=dict(self.sql('SELECT * FROM bil_lease_draft').mappings().one())
         response=self.client.get('/billing/leases?property_id=26&draft_id='+str(self.draft));self.assertEqual(response.status_code,200)
         tree=html.fromstring(response.get_data(as_text=True))
-        programme=tree.xpath('//nav[@aria-label="Property Management"]/a')
-        self.assertEqual(programme[1].text_content().strip(),'Lease')
-        self.assertEqual(programme[1].get('href'),'/billing/leases?property_id=26&draft_id='+str(self.draft))
-        self.assertEqual(self.client.get(programme[1].get('href')).status_code,200)
+        self.assertFalse(tree.xpath('//nav[@aria-label="Property Management"]'))
+        self.assertEqual(len(tree.xpath('//a[text()="Back to Property Management"]')),1)
         links=tree.xpath('//nav[@aria-label="Lease submenu"]/a')
         self.assertEqual([a.text_content().strip() for a in links],['1. Parties','2. Premises','3. Period','4. Amounts','5. Special Conditions','6. View Lease','7. Generate PDF','8. Upload Master Document'])
         for link,group in zip(links[:5],('parties','premises','period','amounts','conditions')):
@@ -59,7 +59,7 @@ class LeaseNavigationPagesTests(fixture.TenantPageSelectionTests):
         from app.program_billing import lease_preview as preview
         from app.program_billing.lease_generation import load_master
         self.schema();self.owners()
-        source=preview.extract_blocks(load_master());merged=preview.extract_blocks(preview.merged_preview(self.stored()))
+        source=preview.extract_blocks(load_master());merged=preview.extract_blocks(preview.merged_preview(self.stored(),self.uploaded_master,self.uploaded_digest))
         pages=preview.logical_pages(merged,source)
         self.assertEqual(''.join(preview.block_text(b) for b in merged),''.join(preview.block_text(b) for page in pages for b in page['blocks']))
         tokens={t for page in pages for t in page['tokens']}
@@ -68,8 +68,8 @@ class LeaseNavigationPagesTests(fixture.TenantPageSelectionTests):
         stream=io.BytesIO()
         with ZipFile(stream,'w') as z:z.writestr('word/document.xml',xml)
         blocks=preview.extract_blocks(stream.getvalue())
-        pages=preview.logical_pages([{'kind':'paragraph','text':'Draft'}]+blocks,blocks)
-        self.assertEqual([''.join(preview.block_text(b) for b in p['blocks']) for p in pages],['DraftBefore','After','Next'])
+        pages=preview.logical_pages(blocks,blocks)
+        self.assertEqual([''.join(preview.block_text(b) for b in p['blocks']) for p in pages],['Before','After','Next'])
 
     def test_clause_1_2_1_uses_saved_300_area_without_master_changes(self):
         from test_pm_lease_premises_offline import PremisesOfflineTests

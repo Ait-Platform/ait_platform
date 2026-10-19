@@ -274,6 +274,7 @@ class PropertyLeaseMasterTests(unittest.TestCase):
         self.assertEqual(self.upload().status_code,503)
 
     def test_inherited_navigation_targets_have_no_local_route_failures(self):
+        self.assertEqual(self.upload().status_code,302)
         from urllib.parse import urlparse,parse_qs,urlencode
         before=[dict(row) for row in self.sql('SELECT * FROM bil_lease_draft').mappings()]
         response=self.client.get('/billing/leases?property_id=26&draft_id='+str(self.draft))
@@ -352,3 +353,103 @@ class PropertyLeaseMasterTests(unittest.TestCase):
         self.assertEqual(download.status_code,200)
         self.assertEqual(download.headers['Referrer-Policy'],'no-referrer')
         self.assertIn('no-store',download.headers['Cache-Control'])
+
+    def cover_master(self,label='Version two'):
+        from xml.sax.saxutils import escape
+        stream=io.BytesIO()
+        xml='''<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>
+<w:p><w:pPr><w:pStyle w:val="Title"/></w:pPr><w:r><w:t>Agreement of lease between</w:t></w:r></w:p>
+<w:p><w:r><w:t>[S1 LEGAL LANDLORD(S)] and [S1 LEGAL TENANT]</w:t></w:r></w:p>
+<w:p><w:r><w:t>[UNKNOWN AUTHORITY] [EXPIRY DATE]</w:t></w:r></w:p>
+<w:p><w:r><w:br w:type="page"/></w:r></w:p>
+<w:p><w:pPr><w:pStyle w:val="Heading1"/></w:pPr><w:r><w:t>Introduction</w:t></w:r></w:p>
+<w:p><w:r><w:t>1.2.1 300 square metres. LABEL</w:t></w:r></w:p>
+<w:tbl><w:tr><w:tc><w:p><w:r><w:t>Rental [MONTHLY RENT INITIAL]</w:t></w:r></w:p></w:tc></w:tr></w:tbl>
+</w:body></w:document>'''.replace('LABEL',escape(label))
+        with ZipFile(stream,'w') as archive:
+            archive.writestr('[Content_Types].xml','<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>')
+            archive.writestr('word/document.xml',xml)
+        return stream.getvalue()
+
+    def property_view(self):return self.client.get('/billing/leases/property/26/view?draft_id='+str(self.draft))
+
+    def test_property_view_selects_verified_version_two_cover_introduction_and_saved_values(self):
+        from app.program_billing import lease_preview as preview
+        from sqlalchemy import event
+        self.assertEqual(self.upload(self.cover_master('Old version')).status_code,302)
+        master=self.cover_master('Latest version two')
+        self.assertEqual(self.upload(master).status_code,302)
+        self.session.execute(sa.text("UPDATE bil_lease_draft SET items=CAST(:items AS jsonb)"),{'items':'{"saved_test":"SAVED LANDLORD"}'});self.session.commit()
+        draft_before=dict(self.sql('SELECT * FROM bil_lease_draft').mappings().one())
+        versions_before=[dict(row) for row in self.rows()]
+        statements=[]
+        def capture(conn,cursor,statement,parameters,context,executemany):statements.append(statement)
+        def values(items):
+            return {'[S1 LEGAL LANDLORD(S)]':items['saved_test'],'[S1 LEGAL TENANT]':'Saved Tenant',
+                '[EXPIRY DATE]':'','[MONTHLY RENT INITIAL]':'________________','[ABSENT MASTER TOKEN]':'Not inserted'}
+        event.listen(self.conn,'before_cursor_execute',capture)
+        try:
+            with patch('app.program_billing.lease_workflow.stage5_placeholder_values',side_effect=values),patch(
+                'app.program_billing.lease_generation.load_master',side_effect=AssertionError('No Stage 5 fallback')):
+                response=self.property_view()
+        finally:event.remove(self.conn,'before_cursor_execute',capture)
+        self.assertEqual(response.status_code,200)
+        tree=html.fromstring(response.get_data(as_text=True));article=tree.xpath('//article')[0]
+        visible=article.text_content()
+        for expected in ('Agreement of lease between','SAVED LANDLORD and Saved Tenant','Introduction',
+            '300 square metres','Latest version two','[UNKNOWN AUTHORITY]','[EXPIRY DATE]','[MONTHLY RENT INITIAL]'):
+            self.assertIn(expected,visible)
+        for absent in ('Old version','PART A','Not inserted','DRAFT'):
+            self.assertNotIn(absent,visible)
+        self.assertTrue(article.xpath('.//table'))
+        self.assertEqual(len(article.xpath('./section[@data-lease-page]')),2)
+        self.assertLess(visible.index('Agreement of lease between'),visible.index('Introduction'))
+        self.assertFalse(any(stmt.lstrip().upper().startswith(('INSERT','UPDATE','DELETE','CREATE','ALTER','DROP')) for stmt in statements))
+        self.assertEqual(dict(self.sql('SELECT * FROM bil_lease_draft').mappings().one()),draft_before)
+        self.assertEqual([dict(row) for row in self.rows()],versions_before)
+        with self.app.app_context():self.assertEqual(self.storage.retrieve_master(self.rows()[1]),master)
+        self.assertIn('no-store',response.headers['Cache-Control'])
+
+    def test_property_view_ignores_failed_pending_and_unverified_newer_versions(self):
+        self.assertEqual(self.upload(self.cover_master('Verified one')).status_code,302)
+        self.assertEqual(self.upload(self.cover_master('Not current')).status_code,302)
+        for state in ('failed','pending'):
+            self.session.execute(sa.text("UPDATE bil_property_lease_master SET state=:state,verified_at=NULL WHERE version=2"),{'state':state});self.session.commit()
+            response=self.property_view();self.assertEqual(response.status_code,200)
+            visible=html.fromstring(response.get_data(as_text=True)).xpath('//article')[0].text_content()
+            self.assertIn('Verified one',visible);self.assertNotIn('Not current',visible)
+
+    def test_property_view_retrieval_integrity_and_gate_errors_never_fallback(self):
+        self.assertEqual(self.upload(self.cover_master()).status_code,302)
+        original=self.rows()[0]
+        for column,value in [('size_bytes',original['size_bytes']+1),('sha256','0'*64),('storage_key','private/leases/property-27/masters/wrong.docx')]:
+            self.session.execute(sa.text('UPDATE bil_property_lease_master SET '+column+'=:value'),{'value':value});self.session.commit()
+            response=self.property_view();self.assertEqual(response.status_code,503)
+            self.assertIn('No Stage 5 fallback',response.get_data(as_text=True))
+            self.session.execute(sa.text('UPDATE bil_property_lease_master SET '+column+'=:value'),{'value':original[column]});self.session.commit()
+        self.deny=True;self.assertEqual(self.property_view().status_code,503);self.deny=False
+        self.app.config['PM_LEASE_PRIVATE_STORAGE_APPROVED']=False
+        self.assertEqual(self.property_view().status_code,503)
+
+    def test_property_view_requires_own_verified_master_and_authorised_draft(self):
+        response=self.property_view();self.assertEqual(response.status_code,503)
+        self.assertIn('No verified uploaded master',response.get_data(as_text=True))
+        self.assertFalse(self.calls)
+        self.assertEqual(self.upload(self.cover_master()).status_code,302)
+        calls_before=len(self.calls)
+        self.assertEqual(self.client.get('/billing/leases/property/26/view?draft_id=invalid').status_code,404)
+        self.sign_in(8);self.assertEqual(self.property_view().status_code,404)
+        self.assertEqual(len(self.calls),calls_before)
+
+    def test_property_view_preserves_master_without_bracket_tokens_and_fails_native_fields_clearly(self):
+        self.assertEqual(self.upload(self.docx('Agreement of lease between: unchanged text')).status_code,302)
+        response=self.property_view();self.assertEqual(response.status_code,200)
+        self.assertIn('Agreement of lease between: unchanged text',response.get_data(as_text=True))
+        with ZipFile(io.BytesIO(self.cover_master())) as archive:
+            entries={name:archive.read(name) for name in archive.namelist()}
+        entries['word/document.xml']=entries['word/document.xml'].replace(b'<w:body>',b'<w:body><w:p><w:fldSimple w:instr="MERGEFIELD LegalName"><w:r><w:t>LegalName</w:t></w:r></w:fldSimple></w:p>')
+        stream=io.BytesIO()
+        with ZipFile(stream,'w') as archive:
+            for name,data in entries.items():archive.writestr(name,data)
+        self.assertEqual(self.upload(stream.getvalue()).status_code,302)
+        self.assertEqual(self.property_view().status_code,503)

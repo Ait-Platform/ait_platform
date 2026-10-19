@@ -7,6 +7,23 @@ from sqlalchemy import event,text
 import test_pm_lease_tenant_page_selection as fixture
 
 class LiveTextPreviewTests(fixture.TenantPageSelectionTests):
+    def setUp(self):
+        fixture.TenantPageSelectionTests.setUp(self)
+        # Legacy placement fixture now explicitly supplies a verified uploaded
+        # copy; production has no pinned-master fallback. Real R2 integrity and
+        # latest-version selection are tested in test_pm_property_lease_master.
+        import hashlib,types,sys,uuid
+        from app.program_billing.lease_generation import load_master
+        self.uploaded_master=load_master()
+        self.uploaded_digest=hashlib.sha256(self.uploaded_master).hexdigest()
+        self.sql("CREATE TEMP TABLE bil_property_lease_master (id uuid,property_id integer,version integer,original_filename text,mime_type text,storage_key text,size_bytes integer,sha256 text,uploaded_by integer,uploaded_at timestamptz,state text,verified_at timestamptz)")
+        self.session.execute(text("INSERT INTO bil_property_lease_master (id,property_id,version,size_bytes,sha256,state,verified_at) VALUES (:id,26,2,:size,:digest,'available',now())"),{'id':uuid.uuid4(),'size':len(self.uploaded_master),'digest':self.uploaded_digest})
+        self.sql("INSERT INTO alembic_version VALUES ('pm_lease_master_001')");self.session.commit()
+        transport=types.ModuleType('app.program_billing.lease_storage')
+        transport.retrieve_master=lambda record:self.uploaded_master
+        module_patch=patch.dict(sys.modules,{'app.program_billing.lease_storage':transport})
+        module_patch.start();self.addCleanup(module_patch.stop)
+
     def viewer(self):return self.client.get(self.route('view'))
 
     def test_saved_part_a_placement_missing_tokens_and_no_writes(self):
@@ -43,8 +60,8 @@ class LiveTextPreviewTests(fixture.TenantPageSelectionTests):
             for token,value in values.items():
                 if value.strip().strip('_') and '[' not in value:paragraph=paragraph.replace(token,value)
             expected.append(paragraph)
-        actual=paragraphs(preview.merged_preview(self.stored()))
-        self.assertEqual(actual[1:],expected)
+        actual=paragraphs(preview.merged_preview(self.stored(),self.uploaded_master,self.uploaded_digest))
+        self.assertEqual(actual,expected)
         self.assertEqual(self.generate().status_code,400)  # Download completion gate preserved.
 
     def test_saved_update_refresh_and_escaped_text(self):
@@ -70,18 +87,18 @@ class LiveTextPreviewTests(fixture.TenantPageSelectionTests):
         before=copy.deepcopy(self.stored())
         with patch('app.program_billing.lease_preview.merged_preview',side_effect=ValueError('invalid master')):
             response=self.viewer()
-        self.assertEqual(response.status_code,503);self.assertIn('saved lease text could not be displayed',response.get_data(as_text=True))
+        self.assertEqual(response.status_code,503);self.assertIn('No Stage 5 fallback',response.get_data(as_text=True))
         self.assertEqual(self.stored(),before)
         self.sign_in(8);self.assertEqual(self.viewer().status_code,404)
 
-    def test_complete_text_view_uses_generate_word_builder_unchanged(self):
+    def test_complete_text_view_uses_uploaded_master_and_generate_word_unchanged(self):
         from app.program_billing import lease_preview as preview
         from app.program_billing.lease_generation import generate_review
         owners,ids=self.prepare();self.assertEqual(self.select([ids[0],ids[2]]).status_code,302)
         self.assertEqual(self.save_parties(owners[0]).status_code,302);self.complete_other_parts()
         items=copy.deepcopy(self.stored());values=self.workflow_module.stage5_placeholder_values(items)
         warnings=self.workflow_module.parties_generation_warnings(items)
-        self.assertEqual(preview.merged_preview(items),generate_review(values,incomplete_particulars=bool(warnings),particulars_warnings=warnings)['docx'])
+        self.assertNotEqual(preview.merged_preview(items,self.uploaded_master,self.uploaded_digest),generate_review(values,incomplete_particulars=bool(warnings),particulars_warnings=warnings)['docx'])
         self.assertEqual(self.viewer().status_code,200);self.assertEqual(self.stored(),items)
         self.assertEqual(self.generate().status_code,200)
 

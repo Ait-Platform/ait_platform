@@ -1,4 +1,4 @@
-"""Read-only, in-memory text view of the actual merged Stage 5 Word lease."""
+"""Read-only, in-memory text view of the selected property's verified uploaded Word master."""
 from io import BytesIO
 from zipfile import ZipFile,BadZipFile
 import re
@@ -66,17 +66,25 @@ def extract_blocks(payload):
     return blocks(body)
 
 
-def merged_preview(items):
+def merged_preview(items,master,sha256):
+    """Merge exact recognised tokens only; never insert a Stage 5 schedule/cover."""
     from app.program_billing import lease_workflow as workflow
-    from app.program_billing.lease_generation import generate_preview,generate_review
+    from app.program_billing.lease_merge import TOKEN,merge_draft_docx
+    tokens=set()
+    with ZipFile(BytesIO(master)) as archive:
+        for name in archive.namelist():
+            if name.startswith('word/') and name.endswith('.xml'):
+                root=ET.fromstring(archive.read(name),parser=ET.XMLParser(resolve_entities=False,no_network=True))
+                if any('MERGEFIELD' in (node.text or '').upper() for node in root.iter('{'+W+'}instrText')) or any(
+                    'MERGEFIELD' in node.get('{'+W+'}instr','').upper() for node in root.iter('{'+W+'}fldSimple')):
+                    raise ValueError('Native Word merge fields require a reviewed mapping.')
+                for paragraph in root.iter('{'+W+'}p'):
+                    tokens.update(TOKEN.findall(''.join(node.text or '' for node in paragraph.iter('{'+W+'}t'))))
     values=workflow.stage5_placeholder_values(items)
-    if not workflow.stage5_completion(items):
-        warnings=workflow.parties_generation_warnings(items)
-        return generate_review(values,incomplete_particulars=bool(warnings),particulars_warnings=warnings)['docx']
-    # Missing optional execution details remain visible in incomplete previews.
-    for token in workflow.SIGNATURE_TOKENS:
-        if values.get(token)=='________________':values[token]=''
-    return generate_preview(values)
+    supplied={token:value for token,value in values.items() if token in tokens and isinstance(value,str)
+        and value.strip().strip('_') and not TOKEN.search(value)}
+    if not tokens:return master
+    return merge_draft_docx(master,supplied,approved_sha256=sha256,preview_only=True)['docx']
 
 
 def block_text(block):
@@ -108,11 +116,10 @@ def logical_pages(blocks,source_blocks):
     """Section-based logical pages, never asserted to be Microsoft Word pages."""
     from app.program_billing.lease_merge import TOKEN
     from collections import Counter
-    # mark_draft adds one body notice. All source body blocks otherwise retain order.
-    offset=len(blocks)-len(source_blocks)
-    if offset!=1:raise ValueError('Master/merged document structure does not align.')
-    annotated=[(dict(blocks[0],preview_notice=True),[])]
-    for block,source in zip(blocks[1:],source_blocks):
+    # Uploaded previews add no cover, schedule or notice to the source body.
+    if len(blocks)!=len(source_blocks):raise ValueError('Master/merged document structure does not align.')
+    annotated=[]
+    for block,source in zip(blocks,source_blocks):
         annotated.append((block,TOKEN.findall(block_text(source))))
     pages=[];current=[];tokens=[]
     def finish():
@@ -135,15 +142,28 @@ def view(property_id):
     prop,reason,draft=workflow.selected_context(property_id)
     if reason:abort(503,description=reason)
     if not draft:abort(400,description='Save lease particulars and select the saved draft before viewing.')
+    from app.program_billing import lease_property_master as masters,lease_storage as storage
+    from app.extensions import db
+    from sqlalchemy import text
+    from flask import current_app
+    reason=masters.readiness()
+    if reason:abort(503,description=reason)
+    record=db.session.execute(text("""SELECT * FROM bil_property_lease_master
+        WHERE property_id=:p AND state='available' AND verified_at IS NOT NULL
+        ORDER BY version DESC LIMIT 1"""),{'p':property_id}).mappings().first()
+    if record is None:abort(503,description='No verified uploaded master is available for this property. Upload and verify a master before viewing.')
     try:
-        blocks=extract_blocks(merged_preview(draft['items']))
-        from app.program_billing.lease_generation import load_master
-        pages=logical_pages(blocks,extract_blocks(load_master()))
+        # Keep one selected immutable record and byte payload for the entire view.
+        master=storage.retrieve_master(record)
+        blocks=extract_blocks(merged_preview(draft['items'],master,record['sha256']))
+        pages=logical_pages(blocks,extract_blocks(master))
         sources=placeholder_sources()
         for page in pages:
-            page['mappings']=[{'token':token,'count':count,'group':sources[token][0],'source':sources[token][1]} for token,count in page['tokens'].items()]
-    except (OSError,ValueError,KeyError,TypeError,BadZipFile,ET.XMLSyntaxError):
-        abort(503,description='The saved lease text could not be displayed. Check saved particulars and master availability.')
+            page['mappings']=[{'token':token,'count':count,'group':sources.get(token,('unmapped',''))[0],
+                'source':sources.get(token,('unmapped',''))[1]} for token,count in page['tokens'].items()]
+    except Exception as error:
+        current_app.logger.warning('Property master preview failed error=%s',type(error).__name__)
+        abort(503,description='The verified property master could not be retrieved, integrity-checked or displayed. No Stage 5 fallback was used.')
     return render_pm_template('program_billing/lease_live_view.html',title='View Lease',property=prop,
         lease_draft=draft,lease_blocks=blocks,logical_pages=pages,viewer_only=True)
 

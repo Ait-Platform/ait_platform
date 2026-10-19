@@ -185,7 +185,10 @@ def completion_alerts(items, files):
                 alerts.append((group, key, f"{field['label']}: {field['requirement']} information or applicability is missing."))
             elif any(token in data.get('value', '') for token in field.get('placeholders', [])):
                 alerts.append((group, key, f"{field['label']}: replace the remaining merge placeholder."))
-    if items.get('_banking_utilities'):
+    if items.get('_banking_utilities',{}).get('schema_version')==2:
+        from app.program_billing.lease_property_payments import snapshot_errors
+        alerts.extend(('amounts','banking-utilities',message) for message in snapshot_errors(items))
+    elif items.get('_banking_utilities'):
         ancillary_form = {'part5_form_version':'1', **{'part5_' + key:value for key,value in banking_utilities_state(items).items() if isinstance(value,str)}}
         for key in ('utilities_confirmed','banking_confirmed'):
             ancillary_form['part5_' + key] = 'on' if items['_banking_utilities'].get(key) is True else ''
@@ -232,6 +235,9 @@ def particulars(property_id):
     items = draft['items'] if draft else {}
     groups = []
     for key, (title, _) in GROUPS.items():
+        if key=='conditions':
+            groups.append({'title':'E. Banking Details','url':url_for('billing_bp.lease_property_banking',property_id=property_id,draft_id=draft['id'] if draft else None),'summary':'Reusable property accounts and utility arrangements'})
+            continue
         fields = [snapshot.ITEMS[k] for k in GROUP_KEYS[key]]
         recorded = sum(bool(items.get(f['key'], {}).get('value') or items.get(f['key'], {}).get('not_applicable')) for f in fields)
         groups.append({'title':title, 'url':group_url(property_id, key, draft),
@@ -244,6 +250,10 @@ def particulars(property_id):
 @snapshot.endpoint
 def particular_group(property_id, group):
     if group not in GROUPS: abort(404)
+    if group=='conditions':
+        prop,reason,draft=selected_context(property_id)
+        if request.method=='POST':abort(409,description='Use Addendum for special arrangements. Existing Special Conditions were preserved.')
+        return redirect(url_for('billing_bp.lease_addendum',property_id=property_id,draft_id=draft['id'] if draft else None))
     prop, reason, draft = selected_context(property_id, request.method == 'POST')
     items = dict(draft['items']) if draft else {}
     fields = [period_field(snapshot.ITEMS[k]) if group == 'period' else snapshot.ITEMS[k] for k in GROUP_KEYS[group]]
@@ -370,6 +380,8 @@ def particular_group(property_id, group):
                 }
                 for key,value in summaries.items():items[key] = {'value':value}
         if ancillary_submission:
+            from app.program_billing.lease_property_payments import signed
+            if signed(draft):abort(409,description='Use Addendum to change payment instructions or utilities for a signed lease. Original particulars were preserved.')
             ancillary_data, ancillary_errors = banking_utilities_from_form(request.form)
             errors.extend(ancillary_errors)
             if not errors:
@@ -1182,7 +1194,7 @@ def banking_utilities_from_form(form):
         if any(ord(c)<32 and c not in '\n\r\t' for c in value):errors.append(key.replace('_',' ').title() + ': unsupported control characters.')
     for key in ('utilities_confirmed','banking_confirmed'):
         state[key] = form.get('part5_' + key)=='on'
-        if not state[key]:errors.append('Explicitly confirm ' + ('the shared-utility arrangement.' if key=='utilities_confirmed' else 'the banking details and your authority to nominate them.'))
+        # Retain supplied legacy flags as history only; saving is not legal/bank verification.
     if not state['utility_allocation_method']:errors.append('Enter the actual shared-utility arrangement, including an explicit statement where shared allocation does not apply.')
     mode = state['utility_reference_mode']
     if mode=='provided':
@@ -1206,9 +1218,14 @@ def banking_utilities_from_form(form):
 
 def banking_utilities_placeholder_values(items):
     state = banking_utilities_state(items)
-    # A stored/observed value is not automatically a confirmed arrangement.
-    if not state['utilities_confirmed'] or not state['banking_confirmed']:
-        return {token:'' for token in ANCILLARY_TOKENS}
+    saved=items.get('_banking_utilities',{})
+    if saved.get('schema_version')==2:
+        sections=[]
+        for purpose,account in saved.get('property_accounts',{}).items():
+            sections.append(purpose.title()+':\n'+'\n'.join(label+': '+str(account.get(key,'')) for key,label in (('bank_name','Bank'),('account_holder','Account holder'),('account_number','Account number'),('account_type','Account type'),('branch_code','Branch code'))))
+        reference=state['utility_references'] if state['utility_reference_mode']=='provided' else state['utility_no_references_reason']
+        return dict(zip(ANCILLARY_TOKENS,(state['utility_allocation_method'],reference,'\n\n'.join(sections))))
+    # Existing stored details remain usable without asserting external verification.
     reference = state['utility_references'] if state['utility_reference_mode']=='provided' else 'No separate references supplied: ' + state['utility_no_references_reason']
     kind = state['account_type_other'] if state['account_type']=='other' else state['account_type'].capitalize()
     banking = ['Bank: ' + state['bank_name'],
@@ -1264,7 +1281,10 @@ def stage5_completion(items):
     state = banking_utilities_state(items)
     form = {'part5_form_version':'1', **{'part5_'+key:value for key,value in state.items() if isinstance(value,str)}}
     for key in ('utilities_confirmed','banking_confirmed'):form['part5_'+key]='on' if state[key] else ''
-    _, messages = banking_utilities_from_form(form)
+    if items.get('_banking_utilities',{}).get('schema_version')==2:
+        from app.program_billing.lease_property_payments import snapshot_errors
+        messages=snapshot_errors(items)
+    else:_, messages = banking_utilities_from_form(form)
     issues.extend(('amounts','banking-utilities',message) for message in messages)
     if items.get('_master', {}).get('sha256', PARTIES_MASTER_SHA256) != PARTIES_MASTER_SHA256:
         issues.append(('parties','s1-03','This draft is pinned to a different master; do not silently replace it.'))

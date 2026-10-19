@@ -205,6 +205,12 @@ def history(property_id):
 @snapshot.endpoint
 def addendum(property_id):
     prop,draft=context(property_id,request.method=='POST');errors=[]
+    arrangement_wording=''
+    if request.method=='GET' and request.args.get('utility_arrangement_id'):
+        from app.program_billing.lease_property_payments import utility_record
+        arrangement=utility_record(property_id,request.args['utility_arrangement_id'])
+        arrangement_wording=arrangement['details']['utility_allocation_method']
+        if arrangement['details'].get('utility_references'):arrangement_wording+='\n'+arrangement['details']['utility_references']
     if request.method=='POST':
         from app.program_billing import lease_storage as storage,lease_property_master as masters
         request.max_content_length=storage.MAX_BYTES+1024*1024
@@ -239,7 +245,7 @@ def addendum(property_id):
             return redirect(url_for('billing_bp.lease_history_document',property_id=property_id,document_id=entry['id'],draft_id=draft['id']))
         except ValueError as error:errors.append(str(error))
     return render_pm_template('program_billing/lease_addendum.html',title='Addendum',property=prop,lease_draft=draft,
-        originals=originals(draft),errors=errors,unavailable=None),400 if errors else 200
+        originals=originals(draft),arrangement_wording=arrangement_wording,errors=errors,unavailable=None),400 if errors else 200
 
 
 def signer():return URLSafeTimedSerializer(current_app.config['SECRET_KEY'],salt='lease-view-version-001')

@@ -4,7 +4,7 @@
 {% if not originals %}<p role="status" class="mt-4">Upload the original signed agreement through Lease History first. A signed copy is not treated as legally verified.</p>{% endif %}
 <form method="post" enctype="multipart/form-data" class="mt-4"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="draft_id" value="{{ lease_draft.id }}"><input type="hidden" name="version" value="{{ lease_draft.version }}"><fieldset {% if not originals %}disabled{% endif %}>
 <label class="block">Original signed agreement<select name="original_id" required autofocus class="mt-2 block w-full rounded border border-slate-300 p-2">{% for original in originals %}<option value="{{ original.id }}">{{ original.lease_reference }} &middot; Version {{ original.version }}</option>{% endfor %}</select></label>
-<label class="mt-3 block">Amendment Content<textarea name="wording" maxlength="30000" rows="8" class="mt-2 block w-full rounded border border-slate-300 p-2">{{ request.form.get('wording','') }}</textarea></label>
+<label class="mt-3 block">Amendment Content<textarea name="wording" maxlength="30000" rows="8" class="mt-2 block w-full rounded border border-slate-300 p-2">{{ request.form.get('wording',arrangement_wording|default('')) }}</textarea></label>
 <label class="mt-3 block">Alternatively upload the wording as DOCX<input type="file" name="wording_file" accept=".docx" class="mt-2 block w-full rounded border border-slate-300 p-2"></label>
 <div class="mt-4 flex justify-end"><button class="rounded bg-orange-600 px-4 py-2 text-white">Generate Draft Word Addendum</button></div></fieldset></form>
 {% endblock %}

@@ -4123,3 +4123,5 @@ from . import lease_property_master as _lease_property_master
 from . import lease_standard as _lease_standard
 
 from . import lease_history as _lease_history
+
+from . import lease_property_payments as _lease_property_payments

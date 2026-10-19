@@ -249,6 +249,7 @@ class PropertyLeaseMasterTests(unittest.TestCase):
         self.assertIn('Version 2',tree.text_content());self.assertIn('Upload history',tree.text_content())
         self.assertEqual(len(tree.xpath('//input[@name="master_document"]')),1)
         self.assertTrue(tree.xpath('//button[text()="Upload Master Document" and not(@disabled)]'))
+        self.assertTrue(tree.xpath('//input[@name="master_document" and not(@disabled)]'))
         self.assertEqual(len(tree.xpath('//a[contains(@href,"/download")]')),3)
         for row in self.rows():self.assertNotIn(row['storage_key'],response.get_data(as_text=True))
         without_draft=self.client.get(self.url());self.assertEqual(without_draft.status_code,200)
@@ -257,6 +258,7 @@ class PropertyLeaseMasterTests(unittest.TestCase):
         blocked=self.client.get(self.url());self.assertEqual(blocked.status_code,200)
         blocked_tree=html.fromstring(blocked.get_data(as_text=True))
         self.assertTrue(blocked_tree.xpath('//button[text()="Upload Master Document" and @disabled]'))
+        self.assertTrue(blocked_tree.xpath('//input[@name="master_document" and @disabled]'))
         self.assertIn('has not been verified and approved',blocked_tree.text_content())
         self.assertEqual(self.upload().status_code,503)
 
@@ -265,6 +267,10 @@ class PropertyLeaseMasterTests(unittest.TestCase):
         before=[dict(row) for row in self.sql('SELECT * FROM bil_lease_draft').mappings()]
         response=self.client.get('/billing/leases?property_id=26&draft_id='+str(self.draft))
         tree=html.fromstring(response.get_data(as_text=True))
+        self.assertFalse(tree.xpath('//nav[@aria-label="Property Management"]'))
+        back=tree.xpath('//a[text()="Back to Property Management"]')
+        self.assertEqual(len(back),1)
+        self.assertEqual(back[0].get('href'),'/billing/dashboard')
         links=tree.xpath('//nav[@aria-label="Lease submenu"]/a')
         self.assertEqual(len(links),8)
         for link in links:
@@ -282,3 +288,21 @@ class PropertyLeaseMasterTests(unittest.TestCase):
             expected=400 if '/view' in parsed.path else 200
             self.assertEqual(result.status_code,expected,target)
         self.assertEqual([dict(row) for row in self.sql('SELECT * FROM bil_lease_draft').mappings()],before)
+
+    def test_upload_file_picker_explains_missing_r2_or_schema_without_bypass(self):
+        for field in ('PM_LEASE_R2_ENDPOINT_URL','PM_LEASE_R2_ACCESS_KEY','PM_LEASE_R2_SECRET_KEY'):
+            with self.subTest(field=field),patch.dict(os.environ,{field:''}):
+                response=self.client.get(self.url());self.assertEqual(response.status_code,200)
+                tree=html.fromstring(response.get_data(as_text=True))
+                self.assertTrue(tree.xpath('//input[@name="master_document" and @disabled]'))
+                self.assertTrue(tree.xpath('//button[text()="Upload Master Document" and @disabled]'))
+                self.assertIn('Shared R2 credentials are not used',tree.text_content())
+                self.assertEqual(self.upload().status_code,503)
+        self.sql("DELETE FROM alembic_version WHERE version_num='pm_lease_master_001'");self.session.commit()
+        response=self.client.get(self.url());self.assertEqual(response.status_code,200)
+        tree=html.fromstring(response.get_data(as_text=True))
+        self.assertTrue(tree.xpath('//input[@name="master_document" and @disabled]'))
+        self.assertIn('pm_lease_master_001 is not recorded in Alembic history',tree.text_content())
+        self.assertEqual(self.upload().status_code,503)
+        self.assertFalse(self.calls)
+        self.assertEqual(len(self.rows()),0)

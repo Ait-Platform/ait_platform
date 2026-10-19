@@ -6,7 +6,6 @@
 <div class="h-2 bg-orange-500"></div><div class="p-6">
 {% include "partials/flash_messages.html" %}
 <div class="flex items-center justify-between gap-4"><h1 class="text-2xl font-semibold">Lease</h1><a href="{{ url_for('billing_bp.learner_dashboard') }}" class="rounded-lg bg-slate-100 px-4 py-2">Back to Property Management</a></div>
-{% set pm_menu_active = 'leases' %}{% include 'program_billing/menu.html' %}
 {% with property=selected_property %}{% include 'program_billing/lease_submenu.html' %}{% endwith %}
 <section class="mt-6 rounded-lg border border-slate-200 p-4">
 <h2 id="select-property" class="text-lg font-semibold"><a href="#select-property" onclick="document.getElementById('lease-property').focus()">1. Select Property</a></h2>

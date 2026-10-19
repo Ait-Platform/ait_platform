@@ -1,4 +1,4 @@
-﻿"""Authorized reusable property accounts/utilities, with explicit draft snapshots."""
+"""Authorized reusable property accounts/utilities, with explicit draft snapshots."""
 from copy import deepcopy
 from datetime import datetime,timezone
 import json,re,uuid
@@ -11,7 +11,7 @@ from app.program_billing import lease_snapshot as snapshot,lease_workflow as wor
 from app.program_billing.lease_management import render_pm_template
 
 REVISION='pm_lease_payments_001'
-BANK_FIELDS=('bank_name','account_holder','account_number','account_type','branch_code')
+BANK_FIELDS=('bank_name','branch_name','account_holder','account_number','account_type','branch_code')
 
 
 def readiness():
@@ -28,9 +28,31 @@ def readiness():
 
 
 def accounts(property_id):
-    return [dict(r) for r in db.session.execute(text('''SELECT a.*,b.bank_name,b.account_holder,b.account_number,b.account_type,b.branch_code
+    return [dict(r) for r in db.session.execute(text('''SELECT a.*,b.bank_name,b.branch_name,b.account_holder,b.account_number,b.account_type,b.branch_code
         FROM bil_property_payment_account a JOIN bil_bank_detail b ON b.id=a.bank_detail_id
         WHERE a.property_id=:p ORDER BY a.created_at,a.id'''),{'p':property_id}).mappings()]
+
+
+def existing_property_accounts(property_id):
+    """Only accounts already linked to this property; never a global bank search."""
+    choices={row['bank_detail_id']:row for row in accounts(property_id)}
+    if 'bank_detail_id' in {c['name'] for c in inspect(db.session.connection()).get_columns('bil_property')}:
+        legacy=db.session.execute(text("SELECT b.* FROM bil_bank_detail b JOIN bil_property p ON p.bank_detail_id=b.id WHERE p.id=:p AND p.manager_id=:u"),{'p':property_id,'u':current_user.id}).mappings().first()
+        if legacy and legacy['id'] not in choices:
+            choices[legacy['id']]=dict(legacy,bank_detail_id=legacy['id'],for_rental=False,for_utilities=False)
+    return list(choices.values())
+
+
+def allocate_existing(property_id,form):
+    try:identifier=int(form.get('bank_detail_id',''))
+    except (ValueError,TypeError):abort(404)
+    if identifier not in {row['bank_detail_id'] for row in existing_property_accounts(property_id)}:abort(404)
+    purpose=form.get('allocation','')
+    if purpose not in ('rental','utilities','both'):raise ValueError('Select Rental, Utilities or Both.')
+    # The caller locks the authorized property. Only allocation links change;
+    # existing bank identities and lease snapshots remain untouched.
+    db.session.execute(text("INSERT INTO bil_property_payment_account(id,property_id,bank_detail_id,for_rental,for_utilities,created_by) VALUES (:id,:p,:b,:r,:u,:creator) ON CONFLICT (property_id,bank_detail_id) DO UPDATE SET for_rental=EXCLUDED.for_rental,for_utilities=EXCLUDED.for_utilities"),
+        {'id':uuid.uuid4(),'p':property_id,'b':identifier,'r':purpose in ('rental','both'),'u':purpose in ('utilities','both'),'creator':int(current_user.id)})
 
 
 def arrangements(property_id):
@@ -47,10 +69,10 @@ def utility_record(property_id,identifier):
 
 
 def account_input(form):
-    values={k:form.get(k,'').strip() for k in BANK_FIELDS}
-    limits={'bank_name':100,'account_holder':150,'account_number':100,'account_type':50,'branch_code':50}
+    values={k:(form.get(k) or '').strip() for k in BANK_FIELDS}
+    limits={'bank_name':100,'branch_name':100,'account_holder':150,'account_number':100,'account_type':50,'branch_code':50}
     for key,value in values.items():
-        if not value or len(value)>limits[key] or any(ord(c)<32 for c in value):raise ValueError('Enter valid '+key.replace('_',' ')+'.')
+        if (not value and key!='branch_name') or len(value)>limits[key] or any(ord(c)<32 for c in value):raise ValueError('Enter valid '+key.replace('_',' ')+'.')
     if not re.fullmatch(r'[0-9]{6,20}',values['account_number']):raise ValueError('Account number must contain 6 to 20 digits.')
     if not re.fullmatch(r'[0-9]{6}',values['branch_code']):raise ValueError('Branch code must contain six digits.')
     if values['account_type'] not in ('current','savings','transmission','other'):raise ValueError('Select an account type.')
@@ -64,16 +86,16 @@ def add_account(property_id,form):
     # Existing property lock serializes duplicate registration and reassignment.
     for row in accounts(property_id):
         if row['account_number']==values['account_number'] and row['branch_code']==values['branch_code'] and row['bank_name'].casefold()==values['bank_name'].casefold():
-            if any(row[k]!=values[k] for k in (*BANK_FIELDS,'for_rental','for_utilities')):
+            if any((row[k] if row[k] is not None else '')!=values[k] for k in (*BANK_FIELDS,'for_rental','for_utilities')):
                 raise ValueError('This account is already registered with different details/allocation; it was not overwritten.')
             return
     bank_id=None
     if 'bank_detail_id' in {c['name'] for c in inspect(db.session.connection()).get_columns('bil_property')}:
         legacy=db.session.execute(text('''SELECT b.* FROM bil_bank_detail b JOIN bil_property p ON p.bank_detail_id=b.id
             WHERE p.id=:p AND p.manager_id=:u'''),{'p':property_id,'u':current_user.id}).mappings().first()
-        if legacy and all(legacy[k]==values[k] for k in BANK_FIELDS):bank_id=legacy['id']
-    if bank_id is None:bank_id=db.session.execute(text('''INSERT INTO bil_bank_detail (bank_name,account_holder,account_number,account_type,branch_code)
-        VALUES (:bank_name,:account_holder,:account_number,:account_type,:branch_code) RETURNING id'''),values).scalar_one()
+        if legacy and all((legacy[k] or '')==values[k] for k in BANK_FIELDS):bank_id=legacy['id']
+    if bank_id is None:bank_id=db.session.execute(text('''INSERT INTO bil_bank_detail (bank_name,branch_name,account_holder,account_number,account_type,branch_code)
+        VALUES (:bank_name,:branch_name,:account_holder,:account_number,:account_type,:branch_code) RETURNING id'''),values).scalar_one()
     db.session.execute(text('''INSERT INTO bil_property_payment_account(id,property_id,bank_detail_id,for_rental,for_utilities,created_by)
         VALUES (:id,:p,:b,:for_rental,:for_utilities,:u)'''),dict(values,id=uuid.uuid4(),p=property_id,b=bank_id,u=int(current_user.id)))
 
@@ -140,6 +162,8 @@ def workspace(property_id):
         try:
             action=request.form.get('action')
             if action=='add_account':add_account(property_id,request.form);db.session.commit();flash('Property bank account saved. Existing leases are unchanged.','success')
+            elif action=='allocate_existing':
+                allocate_existing(property_id,request.form);db.session.commit();flash('Property account allocation saved. Bank details and existing leases are unchanged.','success')
             elif action in ('save_utilities','reuse_utilities'):
                 if action=='reuse_utilities':
                     if not draft:raise ValueError('Select a draft containing the existing utilities first.')
@@ -158,5 +182,5 @@ def workspace(property_id):
             return redirect(url_for('billing_bp.lease_property_banking',property_id=property_id,draft_id=draft['id'] if draft else None))
         except ValueError as error:db.session.rollback();errors.append(str(error))
     return render_pm_template('program_billing/lease_property_banking.html',title='Banking Details',property=prop,lease_draft=draft,
-        unavailable=reason or lease_reason,errors=errors,accounts=[] if reason else accounts(property_id),arrangements=[] if reason else arrangements(property_id),
+        unavailable=reason or lease_reason,errors=errors,accounts=[] if reason else accounts(property_id),existing_accounts=[] if reason else existing_property_accounts(property_id),arrangements=[] if reason else arrangements(property_id),
         saved_banking=draft['items'].get('_banking_utilities',{}) if draft else {},signed_lease=signed(draft) if draft else False),400 if errors else 200

@@ -268,6 +268,7 @@ def particular_group(property_id, group):
         if not draft and group!='parties': abort(400, description='Start and select a persistent draft first.')
         for field in fields:
             key = field['key']
+            if group == 'period' and request.form.get('period_form_version')=='2':continue
             if group == 'amounts':continue  # Structured capture preserves other legacy particulars.
             if group == 'parties' and (request.form.get('parties_form_version') in ('2','3','4','5','6') or key in STRUCTURED_PARTY_KEYS):continue
             if group == 'premises':continue  # Hidden legacy particulars must not be cleared on save.
@@ -392,14 +393,25 @@ def particular_group(property_id, group):
                 if digest in MANIFEST['clause_text_hashes']: errors.append(f'Clause {index} duplicates existing master text; enter only additional conditions.')
                 additional.append({'number':index, 'text':content})
             items['_additional_clauses'] = additional
-        if group == 'period': errors += period_alerts(items, require_complete=True)
+        if group == 'period':
+            automatic=request.form.get('period_form_version')=='2'
+            if automatic:
+                calculated,period_errors=calculated_period(request.form,items)
+                errors.extend(period_errors)
+                if not period_errors:
+                    items['_period']=dict(items.get('_period',{}),**calculated)
+                    items['s1-17']={'value':str(calculated['duration_months'])+' months'}
+                    items['s1-18']={'value':calculated['commencement_date']}
+                    items['s1-20']={'value':calculated['expiry_date']}
+                    if 's1-19' in request.form:items['s1-19']={'value':request.form['s1-19'].strip()}
+            errors += period_alerts(items, require_complete=not automatic)
         if not errors:
             if draft:save_items(draft, items)
             else:draft=create_parties_draft(property_id,items)
             flash('Lease particulars saved successfully. Lease remains a draft.' if group=='parties' else 'Lease particulars saved. This does not approve or activate the lease.', 'success')
             return redirect(url_for('billing_bp.lease_particulars', property_id=property_id, draft_id=draft['id']))
     return render_pm_template('program_billing/lease_particular_group.html', property=prop, lease_draft=draft,
-        unavailable=reason, group=group, title=GROUPS[group][0], fields=fields, items=items, errors=errors,
+        period_months=(request.form.get('s1-17','') if request.method=='POST' else period_duration_months(items)) if group=='period' else '', unavailable=reason, group=group, title=GROUPS[group][0], fields=fields, items=items, errors=errors,
         first_save_available=group=='parties' and not draft and not reason,
         first_save_message='Use Add / Select Tenants to save the contracting tenants, then save Part A.',
         draft_registration_token=(str(draft['registration_token']) if draft else request.form.get('registration_token') or str(uuid.uuid4())) if group=='parties' else None,
@@ -922,11 +934,41 @@ PERIOD_TOKENS = {
 }
 
 
+def calendar_month_date(value,months,preserve_month_end=False):
+    year,month=divmod(value.year*12+value.month-1+months,12)
+    if not 1<=year<=9999:raise ValueError('Date is outside the supported calendar range.')
+    last=calendar.monthrange(year,month+1)[1]
+    day=last if preserve_month_end and value.day==calendar.monthrange(value.year,value.month)[1] else min(value.day,last)
+    return date(year,month+1,day)
+
+
+def calculated_period(form,items):
+    errors=[];raw=form.get('s1-17','').strip();start=form.get('s1-18','').strip()
+    if not re.fullmatch(r'[0-9]{1,4}',raw) or not 1<=int(raw or '0')<=1200:
+        errors.append('Lease duration must be a whole number between 1 and 1200 months.')
+    try:
+        if not re.fullmatch(r'\d{4}-\d{2}-\d{2}',start):raise ValueError()
+        commencement=date.fromisoformat(start)
+    except ValueError:errors.append('Enter a valid lease commencement date (YYYY-MM-DD).')
+    if errors:return {},errors
+    try:
+        expiry=calendar_month_date(commencement,int(raw))-timedelta(days=1)
+        notice=calendar_month_date(expiry,-3,preserve_month_end=True)
+    except (ValueError,OverflowError):return {},['Lease dates exceed the supported calendar range.']
+    return {'duration_months':int(raw),'commencement_date':start,'expiry_date':expiry.isoformat(),'renewal_notice_date':notice.isoformat()},[]
+
+
+def period_duration_months(items):
+    raw=items.get('s1-17',{}).get('value','').strip()
+    match=re.fullmatch(r'(\d+)\s*(months?|years?)?',raw,re.I)
+    return str(int(match[1])*(12 if (match[2] or '').lower().startswith('year') else 1)) if match else ''
+
+
 def period_field(field):
     """Display the approved Stage 5 mapping without rewriting the R01 catalog."""
     result = dict(field)
     if field['key'] == 's1-17':
-        result.update(label='Lease duration (optional consistency check)', requirement='Optional', placeholders=[])
+        result.update(label='Lease Duration (Months)', requirement='Essential', placeholders=[])
     elif field['key'] in PERIOD_TOKENS.values():
         labels = {'s1-18':'Lease commencement date','s1-19':'Physical occupation date','s1-20':'Lease expiry date'}
         result.update(label=labels[field['key']], placeholders=[token for token,key in PERIOD_TOKENS.items() if key==field['key']])

@@ -389,6 +389,18 @@
       "label": "Special conditions",
       "source": "sc-01..sc-10.value / _additional_clauses[].number,text",
       "workspace": "conditions"
+    },
+    {
+      "key": "duration_months",
+      "label": "Lease Duration (Months)",
+      "source": "_period.duration_months / s1-17.value",
+      "workspace": "period"
+    },
+    {
+      "key": "renewal_notice_date",
+      "label": "Renewal notice date",
+      "source": "_period.renewal_notice_date",
+      "workspace": "period"
     }
   ]
 }

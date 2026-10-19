@@ -1,0 +1,13 @@
+<input type="hidden" name="period_form_version" value="2">
+<section id="lease-period" class="rounded-lg border border-slate-200 p-4">
+<label for="lease-duration-months" class="block text-sm font-semibold">Lease Duration (Months)</label>
+<input id="lease-duration-months" name="s1-17" type="number" min="1" max="1200" step="1" required autofocus value="{{ period_months }}" class="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2">
+<label for="lease-commencement-date" class="mt-4 block text-sm font-semibold">Lease commencement date</label>
+<input id="lease-commencement-date" name="s1-18" type="date" required value="{{ request.form.get('s1-18',items.get('s1-18',{}).get('value','')) }}" class="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2">
+<label for="lease-expiry-date" class="mt-4 block text-sm font-semibold">Expiry date (calculated)</label>
+<input id="lease-expiry-date" type="date" readonly value="{{ items.get('s1-20',{}).get('value','') }}" class="mt-2 w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-2">
+<label for="lease-renewal-notice-date" class="mt-4 block text-sm font-semibold">Renewal notice date (calculated)</label>
+<input id="lease-renewal-notice-date" type="date" readonly value="{{ items.get('_period',{}).get('renewal_notice_date','') }}" class="mt-2 w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-2">
+<label for="lease-occupation-date" class="mt-4 block text-sm font-semibold">Physical occupation date (optional)</label>
+<input id="lease-occupation-date" name="s1-19" type="date" value="{{ request.form.get('s1-19',items.get('s1-19',{}).get('value','')) }}" class="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2">
+</section><script src="{{ url_for('static',filename='js/pm_lease_period.js') }}" defer></script>

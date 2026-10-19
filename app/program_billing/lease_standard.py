@@ -150,7 +150,9 @@ def certificate_rows(items):
     values=certificate_values(items)
     rows=[dict(field,value=values.get(field['token']) if values.get(field['token'],'').strip().strip('_') else field['token']) for field in DICTIONARY['fields']]
     for field in DICTIONARY.get('certificate_additional_fields',[]):
-        value=special_conditions(items) if field['key']=='special_conditions' else items.get('_premises',{}).get(field['key'],'')
+        if field['key']=='duration_months':value=workflow.period_duration_months(items)
+        elif field['key']=='renewal_notice_date':value=items.get('_period',{}).get('renewal_notice_date','')
+        else:value=special_conditions(items) if field['key']=='special_conditions' else items.get('_premises',{}).get(field['key'],'')
         rows.append(dict(field,value=value or '[Not supplied: '+field['label']+']'))
     return rows
 

@@ -1,4 +1,4 @@
-﻿"""Ordinary-manager local journey with PostgreSQL and private/mail test transports."""
+"""Ordinary-manager local journey with PostgreSQL and private/mail test transports."""
 import copy,io,json,unittest
 from pathlib import Path
 from hashlib import sha256
@@ -24,11 +24,11 @@ class LeaseUserJourneyTests(unittest.TestCase):
         from app.program_billing import lease_standard as standard
         items=copy.deepcopy(self.stored())
         rows=standard.certificate_rows(items)
-        self.assertEqual(len(rows),42)
+        self.assertEqual(len(rows),44)
         certificate=self.client.get(self.standard_url());self.assertEqual(certificate.status_code,200)
         tree=html.fromstring(certificate.data)
         displayed=tree.xpath('//table[thead/tr/th[text()="Certificate label"]]/tbody/tr')
-        self.assertEqual(len(displayed),42)
+        self.assertEqual(len(displayed),44)
         for row,expected in zip(displayed,rows):
             self.assertIn(' '.join(expected['label'].split()),' '.join(row.text_content().split()))
             self.assertIn(' '.join(expected['value'].split()),' '.join(row.text_content().split()))
@@ -89,7 +89,7 @@ class LeaseUserJourneyTests(unittest.TestCase):
         self.sign_in(8)
         self.assertEqual(self.client.get(self.standard_url('/view')).status_code,404)
         self.assertEqual(self.client.get(self.history_doc_url(original['id'],'/download')).status_code,404)
-        report={'certificate_rows':42,'populated':sum(not r['value'].startswith('[') for r in rows),'unresolved':[r['label'] for r in rows if r['value'].startswith('[')],'ordinary_manager_id':7,'signed_pdf_integrity':'PASS','email_exact_bytes':'PASS','view_no_writes':'PASS','navigation':'PASS','draft_count':1}
+        report={'certificate_rows':44,'populated':sum(not r['value'].startswith('[') for r in rows),'unresolved':[r['label'] for r in rows if r['value'].startswith('[')],'ordinary_manager_id':7,'signed_pdf_integrity':'PASS','email_exact_bytes':'PASS','view_no_writes':'PASS','navigation':'PASS','draft_count':1}
         (directory/'result.json').write_text(json.dumps(report,indent=2),encoding='utf-8')
 
 for cls in (history.LeaseHistoryTests,standard_fixture.StandardLeaseTests,tenant.TenantPageSelectionTests):

@@ -48,7 +48,7 @@ class SimplifiedCertificateTests(standard_fixture.StandardLeaseTests):
         workspace=self.client.get(self.standard_url());self.assertEqual(workspace.status_code,200)
         tree=html.fromstring(workspace.get_data(as_text=True))
         rows=tree.xpath('//table[thead/tr/th[text()="Certificate label"]]/tbody/tr')
-        self.assertEqual(len(rows),42)
+        self.assertEqual(len(rows),44)
         from app.program_billing import lease_standard as standard
         for field in standard.DICTIONARY['fields']:
             self.assertTrue(field['source']);self.assertTrue(field['label']);self.assertIn(field['workspace'],('parties','premises','period','amounts','conditions'))

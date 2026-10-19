@@ -7,6 +7,17 @@
 {% endfor %}
 {% endmacro %}
 {% block workspace %}
+<style>
+@media print {
+  body * { visibility: hidden; }
+  #lease-merged-text, #lease-merged-text * { visibility: visible; }
+  #lease-merged-text { position: absolute; top: 0; left: 0; width: 100%; margin: 0; padding: 0; border: 0; overflow: visible; }
+  #lease-merged-text [data-lease-page], #lease-merged-text [data-lease-page][hidden] { display: block !important; font-size: 12pt !important; width: 100% !important; max-width: 100% !important; }
+  #lease-merged-text .overflow-x-auto { overflow: visible; }
+  #lease-merged-text h2 { break-after: avoid; }
+  #lease-header-actions, #lease-page-controls, script { display: none !important; }
+}
+</style>
 <div id="lease-page-controls" class="mt-5 flex flex-nowrap items-center justify-between gap-3 overflow-x-auto whitespace-nowrap" aria-label="Document controls">
 <div class="flex shrink-0 items-center gap-2">
 <button id="lease-previous" type="button" hidden class="rounded border border-blue-200 bg-blue-50 px-3 py-2 text-blue-900">Previous</button>

@@ -1,0 +1,13 @@
+{
+  "version": "ait-standard-development-001",
+  "terms_approved": false,
+  "disclaimer_approved": false,
+  "clause_policy_approved": false,
+  "approved_terms_sha256": null,
+  "approved_disclaimer_sha256": null,
+  "excludable_clauses": [],
+  "clause_register": {},
+  "review_reference": null,
+  "clause_policy_terms_sha256": null,
+  "clause_inventory_sha256": null
+}

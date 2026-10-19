@@ -1,0 +1,394 @@
+{
+  "version": "ait-lease-fields-001",
+  "fields": [
+    {
+      "key": "landlords",
+      "token": "[S1 LEGAL LANDLORD(S)]",
+      "source": "_contracting_lessors.identities[]",
+      "execution_only": false,
+      "label": "Full legal landlord particulars",
+      "workspace": "parties"
+    },
+    {
+      "key": "landlord_representative",
+      "token": "[LANDLORD SIGNATORY NAME AND CAPACITY]",
+      "source": "_parties.lessor.signatory_name / signatory_identity_number / signatory_capacity",
+      "execution_only": false,
+      "label": "Landlord representative name, ID and capacity",
+      "workspace": "parties"
+    },
+    {
+      "key": "tenants",
+      "token": "[S1 LEGAL TENANT]",
+      "source": "_parties.lessees[].legal_name",
+      "execution_only": false,
+      "label": "Full legal tenant names",
+      "workspace": "parties"
+    },
+    {
+      "key": "tenant_identity",
+      "token": "[TENANT REGISTRATION OR ID]",
+      "source": "_parties.lessees[].identity_number",
+      "execution_only": false,
+      "label": "Tenant ID / registration numbers",
+      "workspace": "parties"
+    },
+    {
+      "key": "tenant_representatives",
+      "token": "[TENANT SIGNATORY NAME AND CAPACITY]",
+      "source": "_parties.lessees[].signatory_name / signatory_identity_number / signatory_capacity",
+      "execution_only": false,
+      "label": "Tenant representatives and capacities",
+      "workspace": "parties"
+    },
+    {
+      "key": "landlord_notices",
+      "token": "[S1 LANDLORD SERVICE ADDRESS AND CONTACT PARTICULARS]",
+      "source": "_parties.lessor.service_address / email / phone",
+      "execution_only": false,
+      "label": "Landlord notices address and contact details",
+      "workspace": "parties"
+    },
+    {
+      "key": "tenant_notices",
+      "token": "[S1 TENANT SERVICE ADDRESS AND CONTACT PARTICULARS]",
+      "source": "_parties.lessees[].address / email / phone",
+      "execution_only": false,
+      "label": "Tenant notices address and contact details",
+      "workspace": "parties"
+    },
+    {
+      "key": "property_name",
+      "token": "[S1 PROPERTY NAME]",
+      "source": "_premises.property_name",
+      "execution_only": false,
+      "label": "Property name",
+      "workspace": "premises"
+    },
+    {
+      "key": "property_address",
+      "token": "[S1 PREMISES ADDRESS]",
+      "source": "_premises.property_address",
+      "execution_only": false,
+      "label": "Property address",
+      "workspace": "premises"
+    },
+    {
+      "key": "property_extent_sqm",
+      "token": "[S1 EXTENT]",
+      "source": "_premises.property_extent_sqm",
+      "execution_only": false,
+      "label": "Property extent (square metres)",
+      "workspace": "premises"
+    },
+    {
+      "key": "leased_area_sqm",
+      "token": "[LEASED PREMISES AREA]",
+      "source": "_premises.leased_area_sqm",
+      "execution_only": false,
+      "label": "Leased premises area (square metres)",
+      "workspace": "premises"
+    },
+    {
+      "key": "unit_count",
+      "token": "[S1 UNIT COUNT]",
+      "source": "_premises.unit_count",
+      "execution_only": false,
+      "label": "Unit count",
+      "workspace": "premises"
+    },
+    {
+      "key": "plan_a_identifier",
+      "token": "[PLAN A IDENTIFIER]",
+      "source": "_premises.plan_a_identifier",
+      "execution_only": false,
+      "label": "Plan a identifier",
+      "workspace": "premises"
+    },
+    {
+      "key": "plan_b_identifier",
+      "token": "[PLAN B IDENTIFIER]",
+      "source": "_premises.plan_b_identifier",
+      "execution_only": false,
+      "label": "Plan b identifier",
+      "workspace": "premises"
+    },
+    {
+      "key": "commencement_date",
+      "token": "[COMMENCEMENT DATE]",
+      "source": "s1-18.value",
+      "execution_only": false,
+      "label": "Commencement date",
+      "workspace": "period"
+    },
+    {
+      "key": "occupation_date",
+      "token": "[OCCUPATION DATE]",
+      "source": "s1-19.value",
+      "execution_only": false,
+      "label": "Occupation date",
+      "workspace": "period"
+    },
+    {
+      "key": "expiry_date",
+      "token": "[EXPIRY DATE]",
+      "source": "s1-20.value",
+      "execution_only": false,
+      "label": "Expiry date",
+      "workspace": "period"
+    },
+    {
+      "key": "monthly_rent",
+      "token": "[MONTHLY RENT INITIAL]",
+      "source": "_amounts.monthly_rent",
+      "execution_only": false,
+      "label": "Monthly rental (ZAR)",
+      "workspace": "amounts"
+    },
+    {
+      "key": "monthly_rent_words",
+      "token": "[MONTHLY RENT INITIAL WORDS]",
+      "source": "_amounts.monthly_rent_words",
+      "execution_only": false,
+      "label": "Monthly rental in words",
+      "workspace": "amounts"
+    },
+    {
+      "key": "rent_effective_date",
+      "token": "[RENT EFFECTIVE DATE]",
+      "source": "_amounts.rent_effective_date",
+      "execution_only": false,
+      "label": "Rent effective date",
+      "workspace": "amounts"
+    },
+    {
+      "key": "deposit_amount",
+      "token": "[DEPOSIT AMOUNT]",
+      "source": "_amounts.deposit_amount",
+      "execution_only": false,
+      "label": "Deposit (ZAR)",
+      "workspace": "amounts"
+    },
+    {
+      "key": "parking_bay_count",
+      "token": "[PARKING BAY COUNT]",
+      "source": "_amounts.parking_bay_count",
+      "execution_only": false,
+      "label": "Parking bay count",
+      "workspace": "amounts"
+    },
+    {
+      "key": "parking_bay_identifiers",
+      "token": "[PARKING BAY IDENTIFIERS]",
+      "source": "_amounts.parking_bay_identifiers",
+      "execution_only": false,
+      "label": "Parking bay identifiers",
+      "workspace": "amounts"
+    },
+    {
+      "key": "parking_rent_per_bay",
+      "token": "[S1 PARKING RENT PER BAY]",
+      "source": "_amounts.parking_rent_per_bay",
+      "execution_only": false,
+      "label": "Parking rent per bay",
+      "workspace": "amounts"
+    },
+    {
+      "key": "adjustment_1_date",
+      "token": "[RENT ADJUSTMENT 1 DATE]",
+      "source": "_amounts.adjustment_1_date",
+      "execution_only": false,
+      "label": "Adjustment 1 date",
+      "workspace": "amounts"
+    },
+    {
+      "key": "adjustment_1_amount",
+      "token": "[RENT ADJUSTMENT 1 AMOUNT]",
+      "source": "_amounts.adjustment_1_amount",
+      "execution_only": false,
+      "label": "Adjustment 1 amount",
+      "workspace": "amounts"
+    },
+    {
+      "key": "adjustment_2_date",
+      "token": "[RENT ADJUSTMENT 2 DATE]",
+      "source": "_amounts.adjustment_2_date",
+      "execution_only": false,
+      "label": "Adjustment 2 date",
+      "workspace": "amounts"
+    },
+    {
+      "key": "adjustment_2_amount",
+      "token": "[RENT ADJUSTMENT 2 AMOUNT]",
+      "source": "_amounts.adjustment_2_amount",
+      "execution_only": false,
+      "label": "Adjustment 2 amount",
+      "workspace": "amounts"
+    },
+    {
+      "key": "adjustment_3_date",
+      "token": "[RENT ADJUSTMENT 3 DATE]",
+      "source": "_amounts.adjustment_3_date",
+      "execution_only": false,
+      "label": "Adjustment 3 date",
+      "workspace": "amounts"
+    },
+    {
+      "key": "adjustment_3_amount",
+      "token": "[RENT ADJUSTMENT 3 AMOUNT]",
+      "source": "_amounts.adjustment_3_amount",
+      "execution_only": false,
+      "label": "Adjustment 3 amount",
+      "workspace": "amounts"
+    },
+    {
+      "key": "landlord_signature_place",
+      "token": "[LANDLORD SIGNATURE PLACE]",
+      "source": "_parties.signatures.landlord_place",
+      "execution_only": true,
+      "label": "Landlord signature place",
+      "workspace": "parties"
+    },
+    {
+      "key": "landlord_signature_date",
+      "token": "[LANDLORD SIGNATURE DATE]",
+      "source": "_parties.signatures.landlord_date",
+      "execution_only": true,
+      "label": "Landlord signature date",
+      "workspace": "parties"
+    },
+    {
+      "key": "tenant_signature_place",
+      "token": "[TENANT SIGNATURE PLACE]",
+      "source": "_parties.signatures.tenant_place",
+      "execution_only": true,
+      "label": "Tenant signature place",
+      "workspace": "parties"
+    },
+    {
+      "key": "tenant_signature_date",
+      "token": "[TENANT SIGNATURE DATE]",
+      "source": "_parties.signatures.tenant_date",
+      "execution_only": true,
+      "label": "Tenant signature date",
+      "workspace": "parties"
+    },
+    {
+      "key": "utility_references",
+      "token": "[UTILITY METER OR ACCOUNT REFERENCES]",
+      "source": "_banking_utilities.utility_references / utility_no_references_reason",
+      "execution_only": false,
+      "label": "Utility references",
+      "workspace": "amounts"
+    },
+    {
+      "key": "utility_allocation",
+      "token": "[SHARED UTILITY ALLOCATION METHOD]",
+      "source": "_banking_utilities.utility_allocation_method",
+      "execution_only": false,
+      "label": "Utility allocation",
+      "workspace": "amounts"
+    },
+    {
+      "key": "banking_details",
+      "token": "[S1 VERIFIED BANK, BRANCH, ACCOUNT HOLDER, ACCOUNT TYPE, ACCOUNT NUMBER AND SWIFT WHERE APPLICABLE]",
+      "source": "_banking_utilities.bank_name / branch_name / branch_code / account_holder / account_type / account_number / swift",
+      "execution_only": false,
+      "label": "Banking details",
+      "workspace": "amounts"
+    }
+  ],
+  "structured_sections": [
+    {
+      "key": "contracting_landlords",
+      "source": "_contracting_lessors.identities[]",
+      "fields": [
+        "owner_id",
+        "name",
+        "identity_number"
+      ],
+      "meaning": "Saved contracting identities, not automatically every registered owner."
+    },
+    {
+      "key": "contracting_tenants",
+      "source": "_parties.lessees[]",
+      "fields": [
+        "tenant_id",
+        "legal_name",
+        "party_type",
+        "identity_number",
+        "address",
+        "email",
+        "phone"
+      ],
+      "meaning": "Each saved contracting tenant remains independent of representatives."
+    },
+    {
+      "key": "landlord_representative",
+      "source": "_parties.lessor",
+      "fields": [
+        "signatory_name",
+        "signatory_identity_number",
+        "signatory_capacity"
+      ],
+      "authority_source": "_ait_standard.authorities.landlords"
+    },
+    {
+      "key": "tenant_representatives",
+      "source": "_parties.lessees[]",
+      "fields": [
+        "signatory_name",
+        "signatory_identity_number",
+        "signatory_capacity"
+      ],
+      "authority_source": "_ait_standard.authorities.tenant-<saved-array-index>"
+    },
+    {
+      "key": "special_conditions",
+      "source": "sc-01..sc-10.value and _additional_clauses[].number/text",
+      "meaning": "Saved text and numbering retained; incorporation and references require review."
+    },
+    {
+      "key": "clause_applicability",
+      "source": "_ait_standard.applicability",
+      "meaning": "Exact source/inventory digest; all mandatory; no exclusions supported."
+    }
+  ],
+  "cover": {
+    "landlords_source": "_contracting_lessors.identities[].short_name or name",
+    "tenants_source": "_parties.lessees[].short_name or legal_name",
+    "display_rule": "Use an existing short name when recorded; otherwise initials and surname for known natural persons, initials for multiword entities. Full legal identities remain in the Certificate. Display abbreviation never changes saved legal names."
+  },
+  "certificate_additional_fields": [
+    {
+      "key": "property_legal_description",
+      "label": "Title / cadastral description (optional)",
+      "source": "_premises.property_legal_description",
+      "workspace": "premises"
+    },
+    {
+      "key": "lease_scope",
+      "label": "Whole property or selected premises",
+      "source": "_premises.lease_scope",
+      "workspace": "premises"
+    },
+    {
+      "key": "leased_portion_description",
+      "label": "Included units / portions",
+      "source": "_premises.leased_portion_description",
+      "workspace": "premises"
+    },
+    {
+      "key": "excluded_areas",
+      "label": "Excluded areas",
+      "source": "_premises.excluded_areas",
+      "workspace": "premises"
+    },
+    {
+      "key": "special_conditions",
+      "label": "Special conditions",
+      "source": "sc-01..sc-10.value / _additional_clauses[].number,text",
+      "workspace": "conditions"
+    }
+  ]
+}

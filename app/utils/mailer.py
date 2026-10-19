@@ -30,7 +30,7 @@ def send_pdf_email(to_email: str, subject: str, body_text: str, pdf_bytes: bytes
     mail.send(msg)
     return True
 
-def send_standard_report_email(to_email: str, subject: str, pdf_url: str, pdf_bytes: bytes, filename: str = "report.pdf", run_id: int = None, user_name: str = None):
+def send_standard_report_email(to_email: str, subject: str, pdf_url: str, pdf_bytes: bytes, filename: str = "report.pdf", run_id: int = None, user_name: str = None, *, attachment_mime: str = "application/pdf", message: str | None = None, document_label: str | None = None):
     """
     Standardized email dispatcher for all modules (slugs) that sends a report 
     with a direct URL link and an attached PDF document.
@@ -48,6 +48,14 @@ def send_standard_report_email(to_email: str, subject: str, pdf_url: str, pdf_by
         "— AIT Platform"
     )
 
+    # Optional document mode reuses the same standardized sender and transport;
+    # assessment callers retain their original body and PDF defaults.
+    if document_label is not None:
+        body_text = f"{greeting}\n\nYour {document_label} is attached.\n\n"
+        if message:
+            body_text += message + "\n\n"
+        body_text += "AIT Platform"
+
     msg = Message(
         subject=subject or f"Your Assessment Report",
         recipients=[to_email],
@@ -57,7 +65,7 @@ def send_standard_report_email(to_email: str, subject: str, pdf_url: str, pdf_by
     if pdf_bytes:
         msg.attach(
             filename,
-            "application/pdf",
+            attachment_mime,
             pdf_bytes,
         )
 

@@ -15,7 +15,7 @@ class LeaseNavigationPagesTests(fixture.TenantPageSelectionTests):
         self.assertFalse(tree.xpath('//nav[@aria-label="Property Management"]'))
         self.assertEqual(len(tree.xpath('//a[text()="Back to Property Management"]')),1)
         links=tree.xpath('//nav[@aria-label="Lease submenu"]/a')
-        self.assertEqual([a.text_content().strip() for a in links],['1. Parties','2. Premises','3. Period','4. Amounts','5. Special Conditions','6. View Lease','7. Generate PDF','8. Upload Master Document'])
+        self.assertEqual([a.text_content().strip() for a in links],['1. Parties','2. Premises','3. Period','4. Amounts','5. Special Conditions','6. View Lease','7. Generate PDF','8. Upload Master Document','Addendum','Lease History'])
         for link,group in zip(links[:5],('parties','premises','period','amounts','conditions')):
             self.assertEqual(link.get('href'),self.route('particulars/'+group))
             self.assertEqual(self.client.get(link.get('href')).status_code,200)
@@ -49,7 +49,7 @@ class LeaseNavigationPagesTests(fixture.TenantPageSelectionTests):
         back=viewer.xpath('//a[text()="Back"]')[0].get('href')
         self.assertEqual(back,'/billing/leases?property_id=26&draft_id='+str(self.draft))
         self.assertEqual(self.client.get(back).status_code,200)
-        word=tree.xpath('//a[text()="Generate Word"]')[0].get('href');self.assertEqual(word,self.route('review'))
+        self.assertFalse(tree.xpath('//a[text()="Generate Word"]'));word=self.route('review')
         self.assertIn('Stage 5 completion check',self.client.get(word).get_data(as_text=True))
         self.assertEqual(dict(self.sql('SELECT * FROM bil_lease_draft').mappings().one()),before)
         self.sign_in(8)

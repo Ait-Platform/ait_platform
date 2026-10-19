@@ -135,6 +135,30 @@ def logical_pages(blocks,source_blocks):
     return pages
 
 
+def prepared_document(property_id,draft,master_id=None):
+    from app.program_billing import lease_property_master as masters,lease_storage as storage
+    from app.extensions import db
+    from sqlalchemy import text
+    from flask import current_app
+    reason=masters.readiness()
+    if reason:abort(503,description=reason)
+    query="SELECT * FROM bil_property_lease_master WHERE property_id=:p AND state='available' AND verified_at IS NOT NULL"
+    params={'p':property_id}
+    if master_id:
+        from uuid import UUID
+        try:params['id']=UUID(str(master_id))
+        except (ValueError,TypeError):abort(404)
+        query+=' AND id=:id'
+    record=db.session.execute(text(query+' ORDER BY version DESC LIMIT 1'),params).mappings().first()
+    if record is None:abort(503,description='No verified uploaded master is available for this property. Upload and verify a master before viewing.')
+    try:
+        master=storage.retrieve_master(record)
+        return record,merged_preview(draft['items'],master,record['sha256'])
+    except Exception as error:
+        current_app.logger.warning('Property master preview failed error=%s',type(error).__name__)
+        abort(503,description='The verified property master could not be retrieved, integrity-checked or displayed. No Stage 5 fallback was used.')
+
+
 @billing_bp.get('/billing/leases/property/<int:property_id>/view',endpoint='lease_live_view')
 @snapshot.endpoint
 def view(property_id):
@@ -142,30 +166,16 @@ def view(property_id):
     prop,reason,draft=workflow.selected_context(property_id)
     if reason:abort(503,description=reason)
     if not draft:abort(400,description='Save lease particulars and select the saved draft before viewing.')
-    from app.program_billing import lease_property_master as masters,lease_storage as storage
-    from app.extensions import db
-    from sqlalchemy import text
-    from flask import current_app
-    reason=masters.readiness()
-    if reason:abort(503,description=reason)
-    record=db.session.execute(text("""SELECT * FROM bil_property_lease_master
-        WHERE property_id=:p AND state='available' AND verified_at IS NOT NULL
-        ORDER BY version DESC LIMIT 1"""),{'p':property_id}).mappings().first()
-    if record is None:abort(503,description='No verified uploaded master is available for this property. Upload and verify a master before viewing.')
-    try:
-        # Keep one selected immutable record and byte payload for the entire view.
-        master=storage.retrieve_master(record)
-        blocks=extract_blocks(merged_preview(draft['items'],master,record['sha256']))
-        pages=logical_pages(blocks,extract_blocks(master))
-        sources=placeholder_sources()
-        for page in pages:
-            page['mappings']=[{'token':token,'count':count,'group':sources.get(token,('unmapped',''))[0],
-                'source':sources.get(token,('unmapped',''))[1]} for token,count in page['tokens'].items()]
-    except Exception as error:
-        current_app.logger.warning('Property master preview failed error=%s',type(error).__name__)
-        abort(503,description='The verified property master could not be retrieved, integrity-checked or displayed. No Stage 5 fallback was used.')
+    if draft['items'].get('_ait_standard'):
+        from app.program_billing import lease_standard as standard
+        return standard.view(property_id)
+    record,output=prepared_document(property_id,draft)
+    blocks=extract_blocks(output)
+    pages=logical_pages(blocks,blocks)
+    from app.program_billing.lease_history import view_token
+    token=view_token(draft,'working',output,master_id=str(record['id']))
     return render_pm_template('program_billing/lease_live_view.html',title='View Lease',property=prop,
-        lease_draft=draft,lease_blocks=blocks,logical_pages=pages,viewer_only=True)
+        lease_draft=draft,lease_blocks=blocks,logical_pages=pages,viewer_only=True,document_token=token)
 
 
 @billing_bp.after_request

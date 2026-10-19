@@ -4118,3 +4118,8 @@ from . import lease_workflow as _lease_workflow
 from . import lease_preview as _lease_preview
 
 from . import lease_property_master as _lease_property_master
+
+# Opt-in AIT Standard Lease development working copies; existing routes unchanged.
+from . import lease_standard as _lease_standard
+
+from . import lease_history as _lease_history

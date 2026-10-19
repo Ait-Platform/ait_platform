@@ -2,9 +2,10 @@
 from copy import deepcopy
 from datetime import datetime,timezone
 import json,re,uuid
-from flask import abort,request,redirect,url_for,flash
+from flask import abort,request,redirect,url_for,flash,current_app
 from flask_login import current_user
 from sqlalchemy import text,inspect
+from sqlalchemy.exc import IntegrityError
 from app.extensions import db
 from app.program_billing.routes import billing_bp
 from app.program_billing import lease_snapshot as snapshot,lease_workflow as workflow
@@ -152,6 +153,21 @@ def snapshot_errors(items):
     return errors
 
 
+def log_banking_integrity(error,action):
+    """Log PostgreSQL identifiers only, never exception text/SQL/request values."""
+    allowed={'add_account','allocate_existing','apply','save_utilities','reuse_utilities'}
+    action=action if action in allowed else 'unknown'
+    original=error.orig
+    diagnostic=getattr(original,'diag',None)
+    def identifier(name):
+        value=getattr(diagnostic,name,None)
+        return value if isinstance(value,str) and re.fullmatch(r'[A-Za-z_][A-Za-z0-9_$]{0,62}',value) else 'unknown'
+    state=getattr(original,'pgcode',None) or getattr(original,'sqlstate',None)
+    state=state if isinstance(state,str) and re.fullmatch(r'[0-9A-Z]{5}',state) else 'unknown'
+    current_app.logger.error('Lease banking integrity failure action=%s sqlstate=%s constraint=%s table=%s column=%s',
+        action,state,identifier('constraint_name'),identifier('table_name'),identifier('column_name'))
+
+
 @billing_bp.route('/billing/leases/property/<int:property_id>/banking',methods=['GET','POST'],endpoint='lease_property_banking')
 @snapshot.endpoint
 def workspace(property_id):
@@ -180,6 +196,9 @@ def workspace(property_id):
                 apply_selection(property_id,draft,request.form);flash('Selected banking and utilities saved to this draft.','success')
             else:abort(400)
             return redirect(url_for('billing_bp.lease_property_banking',property_id=property_id,draft_id=draft['id'] if draft else None))
+        except IntegrityError as error:
+            log_banking_integrity(error,request.form.get('action'))
+            raise  # Existing endpoint handler rolls back and returns its generic 503.
         except ValueError as error:db.session.rollback();errors.append(str(error))
     return render_pm_template('program_billing/lease_property_banking.html',title='Banking Details',property=prop,lease_draft=draft,
         unavailable=reason or lease_reason,errors=errors,accounts=[] if reason else accounts(property_id),existing_accounts=[] if reason else existing_property_accounts(property_id),arrangements=[] if reason else arrangements(property_id),

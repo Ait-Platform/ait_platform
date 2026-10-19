@@ -125,5 +125,5 @@ def protect_masters(response):
     if request.endpoint in ('billing_bp.lease_property_masters','billing_bp.lease_property_master_download'):
         response.headers['Cache-Control']='private, no-store'
         response.headers['X-Content-Type-Options']='nosniff'
-        response.headers['Referrer-Policy']='no-referrer'
+        response.headers['Referrer-Policy']='same-origin' if request.endpoint=='billing_bp.lease_property_masters' else 'no-referrer'
     return response

@@ -25,7 +25,18 @@ class PropertyLeaseMasterTests(unittest.TestCase):
     create=fixture.LeaseSnapshotTests.create
 
     def setUp(self):
-        fixture.LeaseSnapshotTests.setUp(self)
+        if self._testMethodName=='test_https_upload_preserves_real_csrf_and_property_authorisation':
+            from flask import Flask
+            from flask_wtf import CSRFProtect
+            original_init=Flask.__init__
+            def initialise_with_csrf(app,*args,**kwargs):
+                original_init(app,*args,**kwargs)
+                CSRFProtect(app)
+                app.config['WTF_CSRF_ENABLED']=False  # Seed fixture draft only.
+            with patch.object(Flask,'__init__',initialise_with_csrf):
+                fixture.LeaseSnapshotTests.setUp(self)
+        else:
+            fixture.LeaseSnapshotTests.setUp(self)
         spec=importlib.util.spec_from_file_location('local_pm_lease_master_001',ROOT/'migrations/versions/pm_lease_master_001.py')
         self.migration=importlib.util.module_from_spec(spec);spec.loader.exec_module(self.migration)
         self.sql('SELECT 1');self.session.commit()
@@ -306,3 +317,38 @@ class PropertyLeaseMasterTests(unittest.TestCase):
         self.assertEqual(self.upload().status_code,503)
         self.assertFalse(self.calls)
         self.assertEqual(len(self.rows()),0)
+
+    def test_https_upload_preserves_real_csrf_and_property_authorisation(self):
+        from flask_wtf.csrf import generate_csrf
+        from werkzeug.middleware.proxy_fix import ProxyFix
+        # Real global CSRF is installed during fixture application construction.
+        # Match the production proxy configuration without invoking app startup.
+        self.app.config.update(WTF_CSRF_ENABLED=True,WTF_CSRF_SSL_STRICT=True)
+        self.app.jinja_env.globals['csrf_token']=generate_csrf
+        self.app.wsgi_app=ProxyFix(self.app.wsgi_app,x_proto=1,x_host=1)
+        headers={'X-Forwarded-Proto':'https','X-Forwarded-Host':'lease.example.test'}
+        page=self.client.get(self.url(),headers=headers)
+        self.assertEqual(page.status_code,200)
+        self.assertEqual(page.headers['Referrer-Policy'],'same-origin')
+        token=html.fromstring(page.get_data(as_text=True)).xpath('//input[@name="csrf_token"]/@value')[0]
+        def post(token_value=token,referrer='https://lease.example.test'+self.url(),property_id=26):
+            request_headers=dict(headers)
+            if referrer is not None:request_headers['Referer']=referrer
+            data={'master_document':(io.BytesIO(self.docx()),'Master.docx')}
+            if token_value is not None:data['csrf_token']=token_value
+            return self.client.post(self.url(property_id),headers=request_headers,data=data,content_type='multipart/form-data')
+        missing_referrer=post(referrer=None)
+        self.assertEqual(missing_referrer.status_code,400)
+        self.assertIn('The referrer header is missing',missing_referrer.get_data(as_text=True))
+        self.assertEqual(post(referrer='https://attacker.example/').status_code,400)
+        self.assertEqual(post(token_value=None).status_code,400)
+        self.assertEqual(post(token_value='invalid').status_code,400)
+        self.assertFalse(self.rows());self.assertFalse(self.calls)
+        self.assertEqual(post(property_id=27).status_code,404)
+        self.assertFalse(self.rows());self.assertFalse(self.calls)
+        self.assertEqual(post().status_code,302)
+        self.assertEqual(len(self.rows()),1)
+        download=self.client.get(self.download_url(self.rows()[0]),headers=headers)
+        self.assertEqual(download.status_code,200)
+        self.assertEqual(download.headers['Referrer-Policy'],'no-referrer')
+        self.assertIn('no-store',download.headers['Cache-Control'])

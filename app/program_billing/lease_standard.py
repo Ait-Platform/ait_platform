@@ -135,14 +135,18 @@ def certificate_values(items):
 def cover_names(items):
     """Display abbreviations only; never mutate or replace legal party identities."""
     def short(party,key):
-        if party.get('short_name'):return party['short_name']
-        words=party.get(key,'').split()
-        if not words:return '[PARTY NAME]'
+        name=party.get(key,'').strip()
+        words=name.split()
+        if not words:return '[PARTY NAME NOT SUPPLIED]'
         natural=(party.get('type') or party.get('party_type')) in ('individual','natural_person')
-        if natural and len(words)>1:return ' '.join(word[0].upper()+'.' for word in words[:-1])+' '+words[-1]
-        return ''.join(word[0].upper()+'.' for word in words) if len(words)>1 else words[0]
+        if natural and len(words)>1:
+            surname=words[-1]
+            if surname.islower() or surname.isupper():surname=surname.title()
+            return words[0][0].upper()+'. '+surname
+        # Companies, NPCs, trusts and unknown entity types retain their legal name.
+        return name
     parties=items.get('_parties',{})
-    return {'landlords':'; '.join(short(p,'name') for p in items.get('_contracting_lessors',{}).get('identities',[])) or '[LANDLORDS]',
+    return {'landlords':'; '.join(short(p,'name') for p in items.get('_contracting_lessors',{}).get('identities',[])) or '[PARTY NAME NOT SUPPLIED]',
         'tenants':'; '.join(short(p,'legal_name') for p in parties.get('lessees',[]) or [parties.get('lessee',{})])}
 
 
@@ -231,9 +235,19 @@ def build_document(items,state,source,payload):
         body=root.find('{'+W+'}body')
         if body is None:raise ValueError('Source has no document body.')
         names=cover_names(items)
-        front=[paragraph('AIT Standard Lease','Title'),paragraph('Between '+names['landlords']+' and '+names['tenants']),
+        front=[paragraph('AIT Standard Lease','Title'),paragraph(names['landlords']),paragraph('&'),paragraph(names['tenants']),
             paragraph('DRAFT \u2014 DEVELOPMENT WORKING COPY\nNOT FOR SIGNATURE OR ISSUANCE'),
             paragraph('Terms version '+state['terms_version']),paragraph('Lease Certificate','Heading1')]
+        # Keep personal identifiers and the Certificate off the physical cover.
+        cover_end=front[-1]
+        props=cover_end.find('{'+W+'}pPr')
+        ET.SubElement(props,'{'+W+'}pageBreakBefore')
+        for cover_line in front[:-1]:
+            props=cover_line.find('{'+W+'}pPr')
+            if props is None:props=ET.SubElement(cover_line,'{'+W+'}pPr');cover_line.remove(props);cover_line.insert(0,props)
+            ET.SubElement(props,'{'+W+'}jc').set('{'+W+'}val','center')
+        front[0].find('./{'+W+'}pPr/{'+W+'}jc').set('{'+W+'}val','right')
+        ET.SubElement(front[1].find('{'+W+'}pPr'),'{'+W+'}spacing').set('{'+W+'}before','4000')
         table=element('tbl')
         display_rows={row['key']:row for row in certificate_rows(items)}
         for field in DICTIONARY['fields']:

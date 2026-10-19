@@ -54,7 +54,7 @@ class SimplifiedCertificateTests(standard_fixture.StandardLeaseTests):
             self.assertTrue(field['source']);self.assertTrue(field['label']);self.assertIn(field['workspace'],('parties','premises','period','amounts','conditions'))
         direct=self.client.get('/billing/leases/property/26/view?draft_id='+str(self.draft));self.assertEqual(direct.status_code,200)
         visible=html.fromstring(direct.get_data(as_text=True)).xpath('//article')[0].text_content()
-        self.assertIn('Between A. A. Owner and T.T.C.',visible)
+        self.assertIn('A. Owner',visible);self.assertIn('Tenant Trading Company',visible)
         self.assertIn('Alice Anne Owner',visible);self.assertIn('Tenant Trading Company',visible)
         self.assertIn('AIT Core Terms and Conditions',visible)
         self.assertIn('not been separately approved',visible)

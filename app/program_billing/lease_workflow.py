@@ -270,7 +270,7 @@ def particular_group(property_id, group):
             key = field['key']
             if group == 'amounts':continue  # Structured capture preserves other legacy particulars.
             if group == 'parties' and (request.form.get('parties_form_version') in ('2','3','4','5','6') or key in STRUCTURED_PARTY_KEYS):continue
-            if group == 'premises' and key in STRUCTURED_PREMISES_KEYS:continue
+            if group == 'premises':continue  # Hidden legacy particulars must not be cleared on save.
             value = request.form.get(key, '').strip()
             na = request.form.get(key + '_na') == 'on'
             explanation = request.form.get(key + '_reason', '').strip()
@@ -336,18 +336,24 @@ def particular_group(property_id, group):
                     }.items():
                         items[key] = {'value':value}
         if group == 'premises':
-            premises_data, premises_errors = premises_from_form(request.form)
+            premises_data, premises_errors = premises_from_form(request.form, items.get('_premises',{}))
             errors.extend(premises_errors)
             if not errors:
                 items['_premises'] = premises_data
-                # Preserve original R01 summary keys without guessing the leased scope.
-                for key, value in {
-                    's1-10':premises_data['property_name'],
-                    's1-11':premises_data['property_address'],
-                    's1-12':premises_data['leased_portion_description'] + '\nUnits / portions: ' + premises_data['unit_count'],
-                    's1-13':'Whole-site extent (m?): ' + premises_data['property_extent_sqm'] + '\nLeased area (m?): ' + premises_data['leased_area_sqm'] + '\nExcluded areas: ' + premises_data['excluded_areas'],
-                    's1-14':'Plan A: ' + premises_data['plan_a_identifier'] + '\nPlan B: ' + premises_data['plan_b_identifier'],
-                }.items():items[key] = {'value':value}
+                if request.form.get('premises_form_version')=='2':
+                    # Only the visible name/address change. Keep all historic
+                    # premises values and R01 summary keys exactly as saved.
+                    items['s1-10']={'value':premises_data['property_name']}
+                    items['s1-11']={'value':premises_data['property_address']}
+                else:
+                    # Legacy structured submissions retain their existing mappings.
+                    for key, value in {
+                        's1-10':premises_data['property_name'],
+                        's1-11':premises_data['property_address'],
+                        's1-12':premises_data['leased_portion_description'] + '\nUnits / portions: ' + premises_data['unit_count'],
+                        's1-13':'Whole-site extent (m?): ' + premises_data['property_extent_sqm'] + '\nLeased area (m?): ' + premises_data['leased_area_sqm'] + '\nExcluded areas: ' + premises_data['excluded_areas'],
+                        's1-14':'Plan A: ' + premises_data['plan_a_identifier'] + '\nPlan B: ' + premises_data['plan_b_identifier'],
+                    }.items():items[key] = {'value':value}
         if group == 'amounts' and not ancillary_submission:
             amounts_data, financial_errors = amounts_from_form(request.form, items)
             errors.extend(financial_errors)
@@ -864,7 +870,20 @@ def premises_state(items, prop=None):
     return state
 
 
-def premises_from_form(form):
+def premises_from_form(form, existing=None):
+    if form.get('premises_form_version')=='2':
+        state=deepcopy(existing or {})
+        state.setdefault('schema_version',1)
+        state.setdefault('master_sha256',PARTIES_MASTER_SHA256)
+        errors=[]
+        for key in ('property_name','property_address'):
+            label,limit=PREMISES_FIELDS[key]
+            value=form.get('premises_'+key,'').strip()
+            if not value:errors.append(label+' is required.')
+            if len(value)>limit:errors.append(label+': maximum length is '+str(limit)+'.')
+            if re.search(r'\[[^\[\]]+\]',value):errors.append(label+': replace unresolved placeholders with confirmed particulars.')
+            state[key]=value
+        return state,errors
     state = {'schema_version':1, 'master_sha256':PARTIES_MASTER_SHA256}
     errors = []
     if form.get('premises_form_version') != '1':errors.append('Reload the Premises form before saving structured details.')

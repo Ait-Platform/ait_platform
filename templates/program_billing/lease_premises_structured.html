@@ -1,16 +1,7 @@
-<input type="hidden" name="premises_form_version" value="1">
-<section id="s1-10" class="rounded-lg border border-slate-200 p-4"><h2 class="font-semibold">Property and leased premises</h2>
-<p class="mt-2 text-sm">Confirm the property details and describe the portion being leased. The property register is unchanged.</p>
-
-<label for="premises-lease-scope" class="mt-3 block text-sm font-semibold">Scope of this lease</label>
-<select id="premises-lease-scope" name="premises_lease_scope" class="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2" required autofocus><option value="">Choose explicitly</option><option value="whole_property" {% if premises_data.lease_scope=='whole_property' %}selected{% endif %}>Whole property</option><option value="part_only" {% if premises_data.lease_scope=='part_only' %}selected{% endif %}>Part of the property only</option></select>
-{% for key,definition in premises_fields.items() %}
-<div {% if key=='property_address' %}id="s1-11"{% elif key=='leased_portion_description' %}id="s1-12"{% elif key=='property_extent_sqm' %}id="s1-13"{% elif key=='plan_a_identifier' %}id="s1-14"{% endif %}>
-<label for="premises-{{ key }}" class="mt-3 block text-sm font-semibold">{{ definition[0] }}</label>
-{% if definition[1]==2000 %}<textarea id="premises-{{ key }}" name="premises_{{ key }}" rows="3" maxlength="{{ definition[1] }}" {% if key!='property_legal_description' %}required{% endif %} class="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2">{{ premises_data[key] }}</textarea>
-{% else %}<input id="premises-{{ key }}" name="premises_{{ key }}" type="text" maxlength="{{ definition[1] }}" value="{{ premises_data[key] }}" {% if key in ['property_extent_sqm','leased_area_sqm'] %}inputmode="decimal"{% elif key=='unit_count' %}inputmode="numeric"{% endif %} required class="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2">{% endif %}
-</div>{% endfor %}
-<p class="mt-3 text-sm text-amber-900">Plan A: site and leased portion. Plan B: premises / unit layout. Confirm both plan identifiers.</p>
-
+<input type="hidden" name="premises_form_version" value="2">
+<section id="s1-10" class="rounded-lg border border-slate-200 p-4"><h2 class="font-semibold">Property details</h2>
+<label for="premises-property_name" class="mt-3 block text-sm font-semibold">Property identification / name</label>
+<input id="premises-property_name" name="premises_property_name" type="text" maxlength="200" value="{{ premises_data.property_name }}" required autofocus class="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2">
+<div id="s1-11"><label for="premises-property_address" class="mt-3 block text-sm font-semibold">Property physical address</label>
+<textarea id="premises-property_address" name="premises_property_address" rows="3" maxlength="2000" required class="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2">{{ premises_data.property_address }}</textarea></div>
 </section>
-{% if not items.get('_premises') %}<details class="mt-4"><summary>Previously recorded unstructured premises particulars</summary>{% for key in ['s1-12','s1-13','s1-14'] %}<p class="mt-2 whitespace-pre-wrap text-sm">{{ items.get(key,{}).get('value','') }}</p>{% endfor %}</details>{% endif %}

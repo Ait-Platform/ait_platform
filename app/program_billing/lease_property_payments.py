@@ -23,7 +23,7 @@ def readiness():
     for name,columns in required.items():
         if not inspector.has_table(name) or not columns<={c['name'] for c in inspector.get_columns(name)}:
             return 'Reusable property banking and utilities require the reviewed pm_lease_payments_001 migration. No migration was run automatically.'
-    if not inspector.has_table('alembic_version') or not {REVISION,'pm_bank_register_002'}.intersection(db.session.execute(text('SELECT version_num FROM alembic_version')).scalars()):
+    if not inspector.has_table('alembic_version') or not {REVISION,'pm_bank_register_002','pm_bank_id_003'}.intersection(db.session.execute(text('SELECT version_num FROM alembic_version')).scalars()):
         return 'Property payment migration pm_lease_payments_001 is not recorded.'
     return None
 

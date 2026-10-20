@@ -156,6 +156,22 @@ def add_account(property_id,form):
         VALUES (:bank_name,:branch_name,:account_holder,:account_number,:account_type,:branch_code)"""),values)
 
 
+def select_certificate_account(property_id,draft,form):
+    if not draft:raise ValueError('Save lease particulars before selecting its payment account.')
+    if signed(draft) or any(g.get('signature_or_issuance_approved') is True for g in
+            draft['items'].get('_generations',[])+draft['items'].get('_ait_standard',{}).get('generations',[])):
+        abort(409,description='Original lease banking is preserved. Use Addendum for payment changes.')
+    try:identifier=int(form.get('bank_detail_id',''))
+    except (ValueError,TypeError):abort(404)
+    account=next((a for a in accounts(property_id) if a['bank_detail_id']==identifier),None)
+    if account is None:raise ValueError('Choose an account already linked to this property.')
+    items=deepcopy(draft['items'])
+    items['_certificate_banking']={k:account[k] for k in BANK_FIELDS}
+    items['_certificate_banking'].update(schema_version=1,bank_detail_id=identifier,property_id=property_id,
+        selected_by=int(current_user.id),selected_at=datetime.now(timezone.utc).isoformat())
+    workflow.save_items(draft,items)
+
+
 def add_utilities(property_id,details):
     if not isinstance(details,dict) or not str(details.get('utility_allocation_method','')).strip():raise ValueError('Enter a property utility arrangement.')
     if len(json.dumps(details))>16000:raise ValueError('Utility arrangement is too long.')
@@ -239,7 +255,11 @@ def workspace(property_id):
         try:
             action=request.form.get('action')
             if action in ('add_account','allocate_existing') and bank_reason:abort(503,description=bank_reason)
-            if action=='add_account':add_account(property_id,request.form);db.session.commit();flash('Bank account saved to the register. Select it to link it to a property.','success')
+            if action=='allocate_existing' and request.form.get('use_for_lease')=='1':
+                if lease_reason:abort(503,description=lease_reason)
+                select_certificate_account(property_id,draft,request.form)
+                flash('Payment account selected for this lease. Its particulars were saved to the draft.','success')
+            elif action=='add_account':add_account(property_id,request.form);db.session.commit();flash('Bank account saved to the register. Select it to link it to a property.','success')
             elif action=='edit_account':
                 edit_account(request.form);db.session.commit()
                 flash('Bank account updated successfully. Property associations and historical lease snapshots are unchanged.','success')

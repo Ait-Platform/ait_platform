@@ -1,0 +1,18 @@
+{% extends 'program_billing/lease_workflow_base.html' %}
+{% from 'program_billing/lease_live_view.html' import show_blocks with context %}
+{% block workspace %}
+<div class="mt-5 flex flex-wrap justify-end gap-3">
+<a class="rounded bg-blue-50 px-4 py-2" href="{{ certificate_word }}">Download Certificate Word</a>
+<a class="rounded bg-blue-50 px-4 py-2" href="{{ certificate_pdf }}" target="_blank" rel="noopener">Open / Print Certificate PDF</a>
+{% if existing_view %}<a class="rounded bg-slate-100 px-4 py-2" href="{{ existing_view }}">Existing full lease · Email and Print</a>{% endif %}
+</div>
+{% if cover_blocks %}<section id="existing-cover" aria-label="Existing lease cover" class="mt-5 border border-slate-300 p-5">{{ show_blocks(cover_blocks) }}</section>{% elif cover_issue %}<p role="status" class="mt-4 text-amber-900">{{ cover_issue }}</p>{% endif %}
+<section id="approved-certificate" class="mt-5">
+<h2 class="font-semibold">AIT Lease Certificate</h2>
+<p class="mt-2 text-sm">Draft preview. Fields in square brackets await saved particulars. Unconfirmed authority is shown explicitly.</p>
+<iframe title="Approved Word Lease Certificate" src="{{ certificate_pdf }}" class="mt-3 w-full rounded border border-slate-300" style="height:1100px"></iframe>
+<p class="mt-2 text-sm">If your browser cannot display the PDF, use Open / Print Certificate PDF or download the Word certificate.</p>
+</section>
+<p role="status" class="mt-4 rounded border border-amber-200 bg-amber-50 p-3 text-sm">{{ component_limitation }}</p>
+{% if unresolved %}<details class="mt-4"><summary>Fields awaiting saved particulars ({{ unresolved|length }})</summary><ul class="mt-2 list-disc pl-5 text-sm">{% for field in unresolved %}<li>{{ field[1:-1].replace('_',' ').title() }}</li>{% endfor %}</ul></details>{% endif %}
+{% endblock %}

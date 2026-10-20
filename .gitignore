@@ -46,3 +46,6 @@ render_backup.sql
 
 # Disposable Flask-rendered owner modal regression fixture
 /tmp/owner_modal_rendered.json
+
+# Approved reusable lease certificate Word master
+!app/program_billing/private_templates/AIT_Lease_Certificate_Master.docx

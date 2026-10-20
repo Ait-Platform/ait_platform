@@ -119,11 +119,12 @@ def acknowledged(state,items):
 
 def saved_particulars(items):
     """Read compatibility only: selected tenant records win over a legacy mirror."""
-    result=deepcopy(items)
-    parties=result.get('_parties',{})
-    for tenant in parties.get('lessees',[]):
+    from .lease_certificate import compatible_items
+    result=compatible_items(items)
+    for tenant in result.get('_parties',{}).get('lessees',[]):
         for key in workflow.PARTY_FIELDS['lessee']:tenant.setdefault(key,'')
-    if parties.get('lessees'):parties['lessee']=deepcopy(parties['lessees'][0])
+    if result.get('_parties',{}).get('lessees'):
+        result['_parties']['lessee']=deepcopy(result['_parties']['lessees'][0])
     return result
 
 

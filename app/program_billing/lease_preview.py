@@ -163,9 +163,12 @@ def prepared_document(property_id,draft,master_id=None):
 @snapshot.endpoint
 def view(property_id):
     from app.program_billing import lease_workflow as workflow
+    if request.args.get('existing')!='1':
+        from app.program_billing.lease_certificate_view import view as certificate_view
+        return certificate_view(property_id)
     prop,reason,draft=workflow.selected_context(property_id)
     if reason:abort(503,description=reason)
-    if not draft:abort(400,description='Save lease particulars and select the saved draft before viewing.')
+    if not draft:abort(400,description='Select an existing draft for the existing full lease viewer.')
     if draft['items'].get('_ait_standard'):
         from app.program_billing import lease_standard as standard
         return standard.view(property_id)
@@ -180,7 +183,7 @@ def view(property_id):
 
 @billing_bp.after_request
 def private_preview(response):
-    if request.endpoint in ('billing_bp.lease_live_view','billing_bp.lease_pdf_status'):
+    if request.endpoint in ('billing_bp.lease_live_view','billing_bp.lease_pdf_status','billing_bp.lease_certificate_pdf','billing_bp.lease_certificate_word'):
         response.headers['Cache-Control']='private, no-store'
         response.headers['X-Content-Type-Options']='nosniff'
         response.headers['Referrer-Policy']='no-referrer'
@@ -194,3 +197,17 @@ def pdf_status(property_id):
     prop,reason,draft=workflow.selected_context(property_id)
     if reason:abort(503,description=reason)
     return render_pm_template('program_billing/lease_pdf_status.html',title='Generate PDF',property=prop,lease_draft=draft)
+
+
+@billing_bp.get('/billing/leases/property/<int:property_id>/certificate.pdf',endpoint='lease_certificate_pdf')
+@snapshot.endpoint
+def certificate_pdf(property_id):
+    from app.program_billing.lease_certificate_view import pdf
+    return pdf(property_id)
+
+
+@billing_bp.get('/billing/leases/property/<int:property_id>/certificate.docx',endpoint='lease_certificate_word')
+@snapshot.endpoint
+def certificate_word(property_id):
+    from app.program_billing.lease_certificate_view import word
+    return word(property_id)

@@ -1,0 +1,12 @@
+{
+  "reference": "AIT_Lease_Certificate_Revised.docx",
+  "reference_sha256": "81d4756e639b3a648d29c93c95b7f211d69574befd1f13aa67f0270a219b6fc0",
+  "guide_reference_sha256": "e1ab86d5f96eadaf041c6ac7a0ff04a517b94b3a6cf1202c56f2935de2031573",
+  "packaged_master": "AIT_Lease_Certificate_Master.docx",
+  "master_sha256": "5e0987df79cc9e47a92aed3dc26c867cb0b958a8b17cf9cb7dc2b1f4bd52107f",
+  "correction": "Visible BANK_DETAIL_ID replaced with existing ACCOUNT_HOLDER and BANK_NAME placeholders; internal account ID retained in draft selection snapshot.",
+  "format": "A4 portrait",
+  "blank_pages": 2,
+  "approved_word_master": true,
+  "html_certificate_reconstruction": false
+}

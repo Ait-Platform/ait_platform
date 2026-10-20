@@ -4,10 +4,10 @@
 {% macro fields(rows) %}
 {% for row in rows %}<div class="capture-row"><h2>{{ row.label }}</h2>
 {% for part in row.parts if part.token is defined %}
-{% if part.editable and not frozen %}<label class="capture-field"><span>{{ part.name.replace('_',' ').title() }}{% if part.name.endswith('_DATE') %} (YYYY-MM-DD){% endif %}</span>
-{% if part.name.startswith('LESSEE_') and part.name.endswith('_LEGAL_NAME') %}<select class="register-choice" data-field="{{ part.name }}" aria-label="Fill {{ part.name.replace('_',' ').title() }} from tenant register"><option value="">Fill from tenant register&hellip;</option>{% for tenant in tenant_choices %}<option value="{{ loop.index0 }}">{{ tenant.legal_name }}</option>{% endfor %}</select>{% endif %}
-<textarea id="field_{{ part.name }}" name="{{ part.name }}" rows="1" maxlength="4000" placeholder="{{ part.token }}">{{ part.value }}</textarea></label>
-{% else %}<p class="capture-saved"><strong>{{ part.name.replace('_',' ').title() }}:</strong> <span class="{{ 'capture-incomplete' if not part.value else '' }}">{{ part.value or part.token }}</span></p>{% endif %}
+{% if part.editable and not frozen %}<label class="capture-field"><span>{{ part.name.replace('_TEXT','').replace('_',' ').title().replace('Signatory','Representative') }}{% if part.name.endswith('_DATE') %} (YYYY-MM-DD){% endif %}</span>
+{% if part.name.startswith('LESSEE_') and part.name.endswith('_LEGAL_NAME') %}<select class="register-choice" data-field="{{ part.name }}" name="tenant_register_id_{{ part.name.split('_')[1] }}" aria-label="Select Existing Tenant for Lessee {{ part.name.split('_')[1] }}"><option value="">Select Existing Tenant&hellip;</option>{% for tenant in tenant_choices %}<option value="{{ tenant.id }}" {% set idx=part.name.split('_')[1]|int - 1 %}{% if idx < selected_tenant_ids|length and selected_tenant_ids[idx]==tenant.id|string %}selected{% endif %}>{{ tenant.legal_name }}</option>{% endfor %}</select>{% endif %}
+<textarea id="field_{{ part.name }}" name="{{ part.name }}" rows="{{ 4 if part.name.endswith('_TEXT') else 1 }}" maxlength="4000" placeholder="{{ part.token }}">{{ part.value }}</textarea></label>
+{% else %}<p class="capture-saved"><strong>{{ part.name.replace('_TEXT','').replace('_',' ').title().replace('Signatory','Representative') }}:</strong> <span class="{{ 'capture-incomplete' if not part.value else '' }}">{{ part.value or part.token }}</span></p>{% endif %}
 {% endfor %}</div>{% endfor %}
 {% endmacro %}
 {% block content %}
@@ -25,22 +25,29 @@
 <p class="capture-saved"><strong>Lease reference:</strong> {{ lease_reference }}</p>
 <p>Lessors are populated from Property Management &rarr; Owners. Signing authority is never confirmed by saving this form.</p>
 {{ fields(party_rows) }}
-<label class="capture-field" for="lessee-count"><span>Number of Lessees</span><input id="lessee-count" name="lessee_count" type="number" min="1" max="50" value="{{ lessee_count }}" {% if frozen %}disabled{% endif %}></label>
+<input id="lessee-count" name="lessee_count" type="hidden" value="{{ lessee_count }}">
+<button type="button" id="add-lessee" {% if frozen %}disabled{% endif %}>Add Lessee</button>
 <div id="capture-lessees">{% for rows in lessee_groups %}<fieldset data-lessee-index="{{ loop.index }}"><legend>Lessee {{ loop.index }}</legend>{{ fields(rows) }}</fieldset>{% endfor %}</div>
-<template id="capture-lessee-template"><fieldset data-lessee-index="1"><legend>Lessee 1</legend>{{ fields(lessee_template) }}</fieldset></template>
+<template id="capture-lessee-template"><fieldset data-lessee-index="1"><legend>Lessee 1</legend>{% with selected_tenant_ids=[] %}{{ fields(lessee_template) }}{% endwith %}</fieldset></template>
 {% else %}<input type="hidden" name="lessee_count" value="{{ lessee_count }}">
 {% if section_key=='banking' %}
-<label class="capture-field" for="bank_detail_id"><span>Payment account for this lease</span><select id="bank_detail_id" name="bank_detail_id" {% if frozen or bank_reason %}disabled{% endif %}><option value="">No account selected &mdash; incomplete</option>
+{% if not frozen %}<p><a class="capture-register-link" href="{{ url_for('billing_bp.lease_property_banking',property_id=property.id,draft_id=lease_draft.id if lease_draft else None,add_bank=1) }}#add-bank">Add Bank Account</a></p>{% endif %}
+<input type="hidden" name="refresh_bank_snapshot" id="refresh-bank-snapshot" value="0">
+<label class="capture-field" for="bank_detail_id"><span>Select Existing Account</span><select id="bank_detail_id" name="bank_detail_id" {% if frozen or bank_reason %}disabled{% endif %}><option value="">No account selected &mdash; incomplete</option>
 {% set bank_ids=linked_accounts|map(attribute='bank_detail_id')|map('string')|list %}
 {% if selected_bank and selected_bank not in bank_ids %}<option value="{{ selected_bank }}" selected>Preserve saved account snapshot &mdash; no longer available in the linked register</option>{% endif %}
 {% for account in linked_accounts %}<option value="{{ account.bank_detail_id }}" {% if selected_bank==account.bank_detail_id|string %}selected{% endif %}>{{ account.bank_name }} &middot; {{ account.account_holder }} &middot; ending {{ (account.account_number|string)[-4:] }}</option>{% endfor %}</select></label>
 {% if bank_reason %}<input type="hidden" name="bank_detail_id" value="{{ selected_bank }}"><p role="status">Bank selection is currently unavailable. Any saved historical particulars remain below.</p>{% endif %}
 <p>Only accounts linked to {{ property.name }} are available. Saving changes this lease only. The saved particulars below remain a snapshot, even if the register changes later.</p>
 {% endif %}
-{{ fields(section.rows) }}
+{% if section_key=='banking' %}
+<table id="capture-bank-table"><tbody>{% for row in section.rows %}{% for part in row.parts if part.name is defined %}<tr><th>{{ part.name.replace('_TEXT','').replace('_',' ').title().replace('Signatory','Representative') }}</th><td data-bank-field="{{ part.name.lower() }}">{{ part.value or part.token }}</td></tr>{% endfor %}{% endfor %}</tbody></table>
+<p id="bank-selection-status" role="status">{% if selected_bank %}Saved lease account snapshot.{% if missing_bank_fields %} Not recorded: {{ missing_bank_fields|join(', ') }}.{% else %} All banking particulars restored.{% endif %}{% else %}No lease account selected.{% endif %}</p>
+{% else %}{{ fields(section.rows) }}{% endif %}
+{% if section_key=='financial' and historical_financial %}<details class="capture-history"><summary>Previously saved financial particulars (preserved)</summary>{% for row in historical_financial %}<h3>{{ row.label }}</h3>{% for part in row.parts %}<p><strong>{{ part.name.replace('_TEXT','').replace('_',' ').title().replace('Signatory','Representative') }}:</strong> {{ part.value }}</p>{% endfor %}{% endfor %}</details>{% endif %}
 {% endif %}
 <div class="capture-actions"><button type="submit" name="action" value="save" {% if frozen %}disabled{% endif %}>Save</button><a href="{{ capture_back }}">Back</a></div>
 </form>
-{% if section_key=='parties' and not frozen %}<script type="application/json" id="capture-tenants">{{ tenant_choices|tojson }}</script><script src="{{ url_for('static',filename='js/lease_capture.js') }}" defer></script>{% endif %}
+{% if not frozen %}<script type="application/json" id="capture-tenants">{{ tenant_choices|tojson }}</script><script type="application/json" id="capture-banks">{{ bank_choices|tojson }}</script><script src="{{ url_for('static',filename='js/lease_capture.js') }}" defer></script>{% endif %}
 </div></div>
 {% endblock %}

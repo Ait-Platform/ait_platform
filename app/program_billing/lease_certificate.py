@@ -1,6 +1,7 @@
 """Approved Word certificate: pure snapshot mapping, never HTML reconstruction."""
 
 from copy import deepcopy
+from decimal import Decimal
 
 from hashlib import sha256
 
@@ -38,7 +39,7 @@ PREMISES=('property_name','property_address','lease_scope','leased_portion_descr
 
 'plan_a_identifier','plan_b_identifier')
 
-AMOUNTS=('monthly_rent','monthly_rent_words','rent_effective_date','deposit_amount',
+AMOUNTS=('rental_adjustments_text','parking_other_charges_text','utilities_allocation_text','monthly_rent','monthly_rent_words','rent_effective_date','deposit_amount',
 
 'parking_applicability','parking_details','parking_bay_count','parking_rent_per_bay')+tuple(
 
@@ -254,6 +255,50 @@ def values(items,property_record=None,owners=(),tenants=()):
 
 
 
+MONEY_KEYS=('KEY_DEPOSIT_PARTICULARS','AGREEMENT_PREPARATION_FEE_PARTICULARS','MONTHLY_RENT','DEPOSIT_AMOUNT','PARKING_RENT_PER_BAY','ADJUSTMENT_1_AMOUNT','ADJUSTMENT_2_AMOUNT','ADJUSTMENT_3_AMOUNT')
+
+
+def money_amount(raw):
+    raw=str(raw).strip()
+    if not re.fullmatch(r'-?[0-9]{1,12}(?:\.[0-9]{1,2})?',raw):
+        raise ValueError('Enter a rand amount with at most two decimal places, without symbols or separators.')
+    return Decimal(raw).quantize(Decimal('0.01'))
+
+
+def money_words(raw):
+    value=money_amount(raw);amount=abs(value)
+    ones='zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen'.split()
+    tens='zero ten twenty thirty forty fifty sixty seventy eighty ninety'.split()
+    def small(n):
+        if n<20:return ones[n]
+        if n<100:return tens[n//10]+('-'+ones[n%10] if n%10 else '')
+        return ones[n//100]+' hundred'+(' and '+small(n%100) if n%100 else '')
+    def integer(n):
+        if n<1000:return small(n)
+        for size,label in ((10**9,'billion'),(10**6,'million'),(1000,'thousand')):
+            if n>=size:
+                whole,rest=divmod(n,size)
+                return small(whole)+' '+label+((' and ' if rest<100 else ' ')+integer(rest) if rest else '')
+    whole=int(amount);cents=int((amount-whole)*100)
+    return ('minus ' if value<0 else '')+integer(whole)+' rand and '+integer(cents)+(' cent' if cents==1 else ' cents')
+
+
+def document_values(items,property_record=None,owners=(),tenants=()):
+    """Figures and words at render time only; no contractual arithmetic or writes."""
+    result=values(items,property_record,owners,tenants)
+    for name in MONEY_KEYS:
+        token='['+name+']'
+        if token not in result:continue
+        try:
+            raw=result[token];amount=money_amount(raw);words=money_words(raw)
+        except ValueError:continue  # Unverified legacy text is retained verbatim.
+        figures=('-' if amount<0 else '')+'R'+format(abs(amount),',.2f')
+        result[token]=figures if name=='MONTHLY_RENT' else figures+' ('+words+')'
+        if name=='MONTHLY_RENT':result['[MONTHLY_RENT_WORDS]']='('+words+')'
+    return result
+
+
+
 def xml(payload):
 
     with ZipFile(BytesIO(payload)) as z:
@@ -338,7 +383,17 @@ def document(items=None,property_record=None,owners=(),tenants=()):
 
     repeat(root,'_parties.lessees',len(lessees) if lessees else 1,'LESSEE')
 
-    replace(root,values(items,property_record,owners,tenants))
+    for key,token in (('rental_adjustments_text','[ADJUSTMENT_1_APPLICABILITY]'),
+                      ('parking_other_charges_text','[PARKING_APPLICABILITY]'),
+                      ('utilities_allocation_text','[UTILITY_ALLOCATION_METHOD]')):
+        narrative=items.get('_amounts',{}).get(key)
+        if not present(narrative):continue
+        paragraph=next(p for p in root.iter('{'+W+'}p') if token in ''.join(n.text or '' for n in p.iter('{'+W+'}t')))
+        extra=deepcopy(paragraph);texts=list(extra.iter('{'+W+'}t'))
+        texts[0].text='Additional particulars: '+str(narrative)
+        for node in texts[1:]:node.text=''
+        paragraph.addprevious(extra)
+    replace(root,document_values(items,property_record,owners,tenants))
 
     for node in list(root.iter('{'+W+'}t')):
         if '\n' not in (node.text or ''):continue

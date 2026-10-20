@@ -77,7 +77,7 @@ def edit(property_id,section_key):
         generation.get('signature_or_issuance_approved') is True for generation in
         saved.get('_generations',[])+saved.get('_ait_standard',{}).get('generations',[]))
     bank_reason=payments.readiness() if section_key=='banking' else None
-    linked=payments.accounts(property_id) if section_key=='banking' and not bank_reason else []
+    linked=payments.existing_property_accounts(property_id) if section_key=='banking' and not bank_reason else []
     values=certificate.values(items,None if frozen else dict(prop),owners,tenants)
     lessor_count,lessee_count=form.counts(items)
     errors=[]
@@ -90,11 +90,30 @@ def edit(property_id,section_key):
             if request.form.get('action','save')!='save':abort(400)
             if section_key=='parties':
                 _,lessee_count=form.form_counts(request.form)
-            sections=[form.layout(lessor_count,lessee_count)[definition[2]]]
+            sections=form.capture_layout(section_key,lessor_count,lessee_count)
             edits=form.submitted(request.form,sections)
             edits={token:value for token,value in edits.items() if token!='[LEASE_REFERENCE]' and not token.endswith('_AUTHORITY_EVIDENCE]') and not re.fullmatch(r'\[LESSOR_\d+_(?:NAME|IDENTITY_NUMBER)\]',token)}
+            selected_register={}
+            if section_key=='parties':
+                original_tenants=certificate.selected_tenants(items)
+                for index in range(1,lessee_count+1):
+                    identifier=request.form.get('tenant_register_id_'+str(index),'')
+                    if not identifier:continue
+                    registered=tenant_register.selected(identifier)
+                    selected_register[index]=registered
+                    old=original_tenants[index-1] if index<=len(original_tenants) else {}
+                    if str(old.get('tenant_id',''))!=str(registered['id']):
+                        for key in ('legal_name','identity_number','signatory_name','signatory_identity_number'):
+                            edits['[LESSEE_'+str(index)+'_'+key.upper()+']']=registered.get(key) or ''
             pending=form.merge_section(saved,items,edits,lessor_count,lessee_count,section_key)
             if section_key=='parties':
+                for index,registered in selected_register.items():
+                    row=pending['_parties']['lessees'][index-1]
+                    if all(str(row.get(key) or '')==str(registered.get(key) or '') for key in ('legal_name','identity_number')):
+                        row['tenant_id']=registered['id']
+                        for key in ('party_type','address','email','phone'):row[key]=registered.get(key) or ''
+                if pending.get('_parties',{}).get('lessees'):
+                    pending['_parties']['lessee']=deepcopy(pending['_parties']['lessees'][0])
                 original_rep=items.get('_parties',{}).get('lessor',{})
                 proposed_rep=pending.get('_parties',{}).get('lessor',{})
                 if any(original_rep.get(key,'')!=proposed_rep.get(key,'') for key in
@@ -106,7 +125,10 @@ def edit(property_id,section_key):
             if section_key=='banking':
                 saved_id=str(certificate.bank_snapshot(saved).get('bank_detail_id') or '')
                 bank_id=request.form.get('bank_detail_id',saved_id)
-                if bank_id!=saved_id:
+                old_bank=certificate.bank_snapshot(saved)
+                id_only=bank_id and not any(certificate.present(old_bank.get(key)) for key in certificate.BANK_FIELDS)
+                explicitly_selected=request.form.get('refresh_bank_snapshot')=='1'
+                if bank_id!=saved_id or id_only or explicitly_selected:
                     if bank_reason:raise ValueError('Bank selection is unavailable. The saved snapshot has not changed.')
                     account=next((row for row in linked if str(row['bank_detail_id'])==bank_id),None)
                     if bank_id and account is None:raise ValueError('Choose an account already linked to this property.')
@@ -127,10 +149,10 @@ def edit(property_id,section_key):
             errors.append(str(error))
             lessor_count=max(1,min(form.MAX_PARTIES,lessor_count))
             lessee_count=max(1,min(form.MAX_PARTIES,lessee_count))
-            for token in form.tokens([form.layout(lessor_count,lessee_count)[definition[2]]]):
+            for token in form.tokens(form.capture_layout(section_key,lessor_count,lessee_count)):
                 if not form.readonly(token) and not re.fullmatch(r'\[LESSOR_\d+_(?:NAME|IDENTITY_NUMBER)\]',token) and token[1:-1] in request.form:
                     values[token]=request.form[token[1:-1]]
-    section=form.render_rows([form.layout(lessor_count,lessee_count)[definition[2]]],values)[0]
+    section=form.render_rows(form.capture_layout(section_key,lessor_count,lessee_count),values)[0]
     for row in section['rows']:
         for part in row['parts']:
             if re.fullmatch(r'LESSOR_\d+_(?:NAME|IDENTITY_NUMBER)',part.get('name','')):part['editable']=False
@@ -160,25 +182,34 @@ def edit(property_id,section_key):
                 while len(lessee_groups)<index:lessee_groups.append([])
                 lessee_groups[index-1].append(row)
             else:party_rows.append(row)
-        prototype=form.render_rows([form.layout(lessor_count,1)[0]],{})[0]
+        prototype=form.render_rows(form.capture_layout('parties',lessor_count,1),{})[0]
         lessee_template=[dict(row,parts=[part for part in row['parts'] if not part.get('name','').endswith(('_AUTHORITY_CONFIRMED','_AUTHORITY_EVIDENCE'))])
             for row in prototype['rows'] if any(part.get('name','').startswith('LESSEE_1_') for part in row['parts'])]
         for row in lessee_template:
             if row['label']=='Capacity / authority':row['label']='Representative capacity'
     tenant_choices=[] if frozen or section_key!='parties' else [
-        {key:row.get(key) for key in ('legal_name','identity_number','signatory_name','signatory_identity_number','signatory_capacity')}
+        {key:row.get(key) for key in ('id','legal_name','identity_number','signatory_name','signatory_identity_number')}
         for row in tenant_register.rows()]
     saved_bank=str(certificate.bank_snapshot(saved).get('bank_detail_id') or '')
     requested_bank=request.form.get('bank_detail_id',saved_bank)
     selectable={str(row['bank_detail_id']) for row in linked}
     selected_bank=requested_bank if not bank_reason and (requested_bank in selectable or requested_bank in ('',saved_bank)) else saved_bank
+    historical_financial=[]
+    if section_key=='financial':
+        for row in form.render_rows([form.layout(lessor_count,lessee_count)[3]],values)[0]['rows']:
+            parts=[part for part in row['parts'] if part.get('value') and part.get('name') not in ('MONTHLY_RENT','DEPOSIT_AMOUNT')]
+            if parts:historical_financial.append(dict(row,parts=parts))
     arguments={'property_id':property_id,'draft_id':draft['id'] if draft else None}
     return render_pm_template('program_billing/lease_capture_section.html',title=definition[1],property=prop,
         lease_draft=draft,section_key=section_key,section=section,errors=errors,frozen=frozen,
         party_rows=party_rows,lessee_groups=lessee_groups,lessee_template=lessee_template,
         lessor_count=lessor_count,lessee_count=lessee_count,tenant_choices=tenant_choices,
         bank_reason=bank_reason,linked_accounts=linked,
-        selected_bank=selected_bank,
+        selected_bank=selected_bank,historical_financial=historical_financial,
+        missing_bank_fields=[part['name'].replace('_',' ').title() for row in section['rows'] for part in row['parts']
+            if section_key=='banking' and part.get('name') and not part.get('value')],
+        selected_tenant_ids=[str(row.get('tenant_id') or '') for row in certificate.selected_tenants(items)],
+        bank_choices=[{key:account.get(key) for key in ('bank_detail_id',*certificate.BANK_FIELDS)} for account in linked],
         registration_token=request.form.get('registration_token') or str(uuid.uuid4()),
         capture_sections=[{'key':key,'label':label.split('. ',1)[-1],
             'url':url_for('billing_bp.lease_capture_section',section_key=key,**arguments)} for key,label,_,_ in form.CAPTURE_SECTIONS],

@@ -86,8 +86,7 @@ def submitted(form, sections):
             try: date.fromisoformat(value)
             except ValueError: raise ValueError(name.replace('_',' ').title()+' must use YYYY-MM-DD.') from None
         if value and (name in ('MONTHLY_RENT','DEPOSIT_AMOUNT','PARKING_RENT_PER_BAY') or re.fullmatch(r'ADJUSTMENT_[123]_AMOUNT',name)):
-            from .lease_workflow import zar_amount
-            zar_amount(value)
+            certificate.money_amount(value)
         result[token] = value
     return result
 
@@ -180,3 +179,34 @@ def merge_section(saved, displayed, edits, lessor_count, lessee_count, key):
     for name in section[3]:
         if name in merged:result[name]=deepcopy(merged[name])
     return result
+
+
+def capture_layout(key, lessors, lessees):
+    """Capture-only fields; approved document tables and historical keys stay intact."""
+    section=deepcopy(layout(lessors,lessees)[capture_section(key)[2]])
+    if key=='financial':
+        section['rows']=[['Monthly rental','[MONTHLY_RENT]'],['Security deposit','[DEPOSIT_AMOUNT]'],
+            ['Rental Adjustments','[RENTAL_ADJUSTMENTS_TEXT]'],
+            ['Parking / Other Charges','[PARKING_OTHER_CHARGES_TEXT]'],
+            ['Utilities / Allocation','[UTILITIES_ALLOCATION_TEXT]']]
+    elif key=='premises':section['rows']=section['rows'][:1]
+    elif key in ('parties','period'):
+        rows=[]
+        for label,value in section['rows']:
+            kept=[token for token in TOKEN.findall(value) if token!='[LEASE_REFERENCE]' and token!='[RENEWAL_PROVISION]'
+                and not token.endswith(('_SIGNATORY_CAPACITY]','_AUTHORITY_CONFIRMED]','_AUTHORITY_EVIDENCE]'))]
+            if kept:rows.append([label,' | '.join(kept)])
+        section['rows']=rows
+    return [section]
+
+
+def document_rows(sections, values):
+    rows=render_rows(sections,values)
+    narratives={'Rental adjustments':'RENTAL_ADJUSTMENTS_TEXT','Parking / other charges':'PARKING_OTHER_CHARGES_TEXT',
+                'Utilities / allocation':'UTILITIES_ALLOCATION_TEXT'}
+    for section in rows:
+        for row in section['rows']:
+            token='['+narratives.get(row['label'],'')+']'
+            if certificate.present(values.get(token)):
+                row['parts'].insert(0,{'text':'Additional particulars: '+values[token]+'\n'})
+    return rows

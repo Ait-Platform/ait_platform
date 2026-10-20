@@ -34,3 +34,9 @@ div:has(> #lease-management-actions),div:has(> #lease-header-actions > .lease-ma
 .capture-header a { color:#1d4ed8; }
 .capture-section-title { font-size:18px; font-weight:600; }
 .capture-field :is(input,textarea,select):focus { outline:3px solid #fbbf24; outline-offset:2px; }
+
+#add-lessee,.capture-register-link { display:inline-block; margin:12px 0; padding:8px 12px; border:1px solid #0284c7; border-radius:6px; background:#eff6ff; color:#075985; cursor:pointer; }
+#capture-bank-table { width:100%; margin:16px 0; border-collapse:collapse; }
+#capture-bank-table th,#capture-bank-table td { padding:10px; border:1px solid #7dd3fc; text-align:left; overflow-wrap:anywhere; }
+#capture-bank-table th { background:#eff6ff; width:35%; }
+.capture-history { margin:20px 0; padding:12px; border:1px solid #cbd5e1; white-space:pre-wrap; }

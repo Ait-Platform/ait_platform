@@ -74,7 +74,7 @@ def view(property_id):
     frozen=any(entry.get('kind')=='signed_original' for entry in items.get('_lease_history',{}).get('documents',[])) or any(
         generation.get('signature_or_issuance_approved') is True for generation in
         items.get('_generations',[])+items.get('_ait_standard',{}).get('generations',[]))
-    values=certificate.values(items,None if frozen else dict(prop),owners,tenants)
+    values=certificate.document_values(items,None if frozen else dict(prop),owners,tenants)
     sections=form.layout(*form.counts(items))
     unresolved=[token for token in form.tokens(sections) if not certificate.present(values.get(token))]
     arguments={'property_id':property_id,'draft_id':draft['id'] if draft else None}
@@ -83,7 +83,7 @@ def view(property_id):
         components=[{'key':key,'label':label,'url':url_for('billing_bp.lease_live_view',component=key,**arguments)} for key,label in COMPONENTS],
         selected_label=dict(COMPONENTS)[selected],component_labels=dict(COMPONENTS),states=states,print_available=states[selected]['printable'],
         email_unavailable='Email is not yet available for this preview. Print or save it as PDF. Existing document email remains available in Lease History.',
-        sections=form.render_rows(sections,values),unresolved=unresolved,preview=True,cover_blocks=cover_blocks(items),
+        sections=form.document_rows(sections,values),unresolved=unresolved,preview=True,cover_blocks=cover_blocks(items),
         assembly_order=ORDER,selected_documents=list(ORDER) if selected=='lease' and states['lease']['available'] else [selected],
         capture_url=url_for('billing_bp.lease_certificate_edit',**arguments),
         back_url=url_for('billing_bp.pm_lease_management',**arguments),unavailable=None)

@@ -17,9 +17,9 @@ class CaptureSectionTests(capture_cases.HTMLCertificateTests):
         for key in ('parties','premises','period','financial','banking','additional'):
             _,_,response=self.open_form(section=key)
             form=html.fromstring(response.data).xpath('//form[@id="certificate-form"]')[0]
-            self.assertEqual(form.xpath('.//button/text()'),['Save'])
-            self.assertEqual(form.xpath('.//a/text()'),['Back'])
-            self.assertEqual(form.xpath('.//a/@href'),['/billing/leases?property_id=26&draft_id='+str(self.draft)])
+            self.assertEqual(form.xpath('.//button[@type="submit"]/text()'),['Save'])
+            self.assertEqual(form.xpath('.//div[@class="capture-actions"]/a/text()'),['Back'])
+            self.assertEqual(form.xpath('.//div[@class="capture-actions"]/a/@href'),['/billing/leases?property_id=26&draft_id='+str(self.draft)])
             self.assertFalse(form.xpath('.//a[contains(@href,"view") or contains(@href,".docx")]'))
         home=self.client.get('/billing/leases?property_id=26&draft_id='+str(self.draft))
         self.assertEqual(home.status_code,200)
@@ -157,3 +157,106 @@ class CaptureSectionTests(capture_cases.HTMLCertificateTests):
         identifier=parse_qs(urlparse(saved.location).query)['draft_id'][0]
         created=self.session.execute(text('SELECT items FROM bil_lease_draft WHERE id=:i'),{'i':identifier}).scalar()
         self.assertEqual(created['s1-01']['value'],'LEASE-'+identifier)
+
+    def test_removed_inputs_preserve_legacy_values_and_narratives(self):
+        original={'_premises':{'lease_scope':'Historical scope','leased_area_sqm':'400','plan_a_identifier':'Original plan'},
+            '_parties':{'lessor':{'signatory_capacity':'Historical capacity'},'lessee':{'legal_name':'Saved tenant','signatory_capacity':'Historical tenant capacity'}},
+            '_amounts':{'monthly_rent':'0','monthly_rent_words':'Old manual words','rent_effective_date':'2025-01-01',
+                'adjustment_2_amount':'-123.45','adjustment_3_date':'2025-03-01','parking_details':'Original parking agreement'},
+            's1-26':{'value':'Original renewal clause'},'_lease_history':{'documents':[]}}
+        self.session.execute(text('UPDATE bil_lease_draft SET items=CAST(:i AS jsonb)'),{'i':json.dumps(original)});self.session.commit()
+        cases={'parties':{'LESSOR_SIGNATORY_CAPACITY':'forged'},'premises':{'LEASE_SCOPE':'forged'},'period':{'RENEWAL_PROVISION':'forged'},
+            'financial':{'MONTHLY_RENT_WORDS':'forged','RENT_EFFECTIVE_DATE':'2029-01-01','ADJUSTMENT_2_AMOUNT':'200'}}
+        for key,forged in cases.items():
+            url,data,page=self.open_form(section=key)
+            tree=html.fromstring(page.data)
+            for field in forged:self.assertFalse(tree.xpath('//*[@name="'+field+'"]'))
+            data.update(forged)
+            if key=='financial':data.update(RENTAL_ADJUSTMENTS_TEXT='User rental terms',PARKING_OTHER_CHARGES_TEXT='User parking terms',UTILITIES_ALLOCATION_TEXT='User utility terms')
+            self.assertEqual(self.client.post(url,data=data).status_code,302)
+        after=self.sql('SELECT items FROM bil_lease_draft').scalar()
+        for name,value in original['_premises'].items():self.assertEqual(after['_premises'][name],value)
+        for name,value in original['_amounts'].items():self.assertEqual(after['_amounts'][name],value)
+        self.assertEqual(after['s1-26'],original['s1-26'])
+        self.assertEqual(after['_parties']['lessor']['signatory_capacity'],'Historical capacity')
+        preview=self.client.get(self.preview_url()).get_data(as_text=True)
+        for value in ('User rental terms','User parking terms','User utility terms','Original parking agreement','minus one hundred and twenty-three rand and forty-five cents'):
+            self.assertIn(value,preview)
+        _,data,page=self.open_form(section='financial')
+        self.assertEqual(data['MONTHLY_RENT'],'0')
+        self.assertEqual(data['RENTAL_ADJUSTMENTS_TEXT'],'User rental terms')
+        self.assertIn('Previously saved financial particulars',page.get_data(as_text=True))
+
+    def tenant_fixture(self):
+        self.sql('CREATE TEMP TABLE bil_tenant (id integer PRIMARY KEY,manager_id integer,property_id integer,sectional_unit_id integer,party_type text,name text,identity_number text,address text,email text,phone text)')
+        self.sql('CREATE TEMP TABLE bil_tenant_identity (id integer,tenant_id integer,manager_id integer,legal_name text,identity_number text,email text,phone text)')
+        self.sql("INSERT INTO bil_tenant VALUES (71,7,26,NULL,'juristic_person','Saved tenant','REG-71','Test address','test@example.invalid','000'),(72,8,27,NULL,'natural_person','Other manager tenant','REG-72','Other address','','')")
+        self.sql("INSERT INTO bil_tenant_identity VALUES (1,71,7,'Saved representative','REP-71','','')");self.session.commit()
+
+    def test_select_existing_tenant_persists_scoped_identity_and_representative(self):
+        self.tenant_fixture()
+        url,data,page=self.open_form()
+        tree=html.fromstring(page.data)
+        self.assertTrue(tree.xpath('//button[@id="add-lessee"]'))
+        self.assertEqual(tree.xpath('//select[@name="tenant_register_id_1" and not(ancestor::template)]/option/@value'),['','71'])
+        data['tenant_register_id_1']='72'
+        self.assertEqual(self.client.post(url,data=data).status_code,404)
+        data['tenant_register_id_1']='71'
+        self.assertEqual(self.client.post(url,data=data).status_code,302)
+        _,restored,page=self.open_form()
+        self.assertEqual(restored['tenant_register_id_1'],'71')
+        for key,value in (('LEGAL_NAME','Saved tenant'),('IDENTITY_NUMBER','REG-71'),('SIGNATORY_NAME','Saved representative'),('SIGNATORY_IDENTITY_NUMBER','REP-71')):
+            self.assertEqual(restored['LESSEE_1_'+key],value)
+        saved=self.sql('SELECT items FROM bil_lease_draft').scalar()
+        self.assertEqual(saved['_parties']['lessee']['tenant_id'],71)
+        self.assertEqual(saved['_parties']['lessee']['address'],'Test address')
+        self.assertNotIn('confirmed',saved['_parties']['lessee'])
+
+    def test_id_only_bank_snapshot_repaired_and_complete_snapshot_preserved(self):
+        self.bank_setup();self.assertEqual(self.account(branch_name='Synthetic branch').status_code,302)
+        bank=self.sql('SELECT id FROM bil_bank_detail').scalar()
+        self.assertEqual(self.client.post(self.url(),data={'action':'allocate_existing','bank_detail_id':str(bank)}).status_code,302)
+        original={'_certificate_banking':{'schema_version':1,'property_id':26,'bank_detail_id':bank},'_lease_history':{'documents':[]}}
+        self.session.execute(text('UPDATE bil_lease_draft SET items=CAST(:i AS jsonb)'),{'i':json.dumps(original)});self.session.commit()
+        url,data,page=self.open_form(section='banking')
+        self.assertIn('[ACCOUNT_NUMBER]',page.get_data(as_text=True))
+        self.assertEqual(self.client.post(url,data=data).status_code,302)
+        snapshot=copy.deepcopy(self.sql('SELECT items FROM bil_lease_draft').scalar()['_certificate_banking'])
+        self.assertEqual(snapshot['branch_name'],'Synthetic branch')
+        _,_,page=self.open_form(section='banking')
+        self.assertEqual(html.fromstring(page.data).xpath('//*[@data-bank-field="branch_name"]/text()'),['Synthetic branch'])
+        self.assertIn('Synthetic branch',self.client.get(self.preview_url()).get_data(as_text=True))
+        self.assertIn('All banking particulars restored.',page.get_data(as_text=True))
+        add_url=html.fromstring(page.data).xpath('//a[contains(@class,"capture-register-link")]/@href')[0]
+        register=html.fromstring(self.client.get(add_url).data)
+        self.assertFalse(register.xpath('//*[@id="add-bank"]/@hidden'))
+        self.sql("UPDATE bil_bank_detail SET branch_name='Later register branch'");self.session.commit()
+        url,data,_=self.open_form(section='banking')
+        self.assertEqual(self.client.post(url,data=data).status_code,302)
+        self.assertEqual(self.sql('SELECT items FROM bil_lease_draft').scalar()['_certificate_banking'],snapshot)
+        url,data,_=self.open_form(section='banking');data['refresh_bank_snapshot']='1'
+        self.assertEqual(self.client.post(url,data=data).status_code,302)
+        self.assertEqual(self.sql('SELECT items FROM bil_lease_draft').scalar()['_certificate_banking']['branch_name'],'Later register branch')
+
+    def test_money_wording_is_render_only_and_supports_signed_decimal_zero(self):
+        from app.program_billing import lease_certificate as cert
+        examples={'0':'zero rand and zero cents','1.01':'one rand and one cent','0.09':'zero rand and nine cents',
+            '-123.45':'minus one hundred and twenty-three rand and forty-five cents',
+            '1000.10':'one thousand rand and ten cents','1000000001.99':'one billion and one rand and ninety-nine cents'}
+        for raw,expected in examples.items():self.assertEqual(cert.money_words(raw),expected)
+        for raw in ('NaN','Infinity','1.999','1e3','1,000','R10'):
+            with self.assertRaises(ValueError):cert.money_amount(raw)
+        items={'_amounts':{'monthly_rent':'0','deposit_amount':'-123.45','monthly_rent_words':'Preserve manual legacy words'}}
+        before=copy.deepcopy(items);values=cert.document_values(items)
+        self.assertEqual(values['[MONTHLY_RENT]'],'R0.00')
+        self.assertEqual(values['[MONTHLY_RENT_WORDS]'],'(zero rand and zero cents)')
+        self.assertEqual(values['[DEPOSIT_AMOUNT]'],'-R123.45 (minus one hundred and twenty-three rand and forty-five cents)')
+        self.assertEqual(cert.values(items)['[DEPOSIT_AMOUNT]'],'-123.45')
+        self.assertEqual(items,before)
+        items['_amounts'].update(rental_adjustments_text='Separate new rental narrative',parking_other_charges_text='Separate new parking narrative')
+        output,_=cert.document(items)
+        rendered=''.join(cert.xml(output).itertext())
+        self.assertIn('Additional particulars: Separate new rental narrative',rendered)
+        self.assertIn('Separate new parking narrative',rendered)
+        self.assertIn('-R123.45 (minus one hundred and twenty-three rand and forty-five cents)',rendered)
+        self.assertIn('[ADJUSTMENT_1_APPLICABILITY]',rendered)

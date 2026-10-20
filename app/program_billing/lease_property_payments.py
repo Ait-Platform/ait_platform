@@ -6,6 +6,7 @@ from flask import abort,request,redirect,url_for,flash,current_app
 from flask_login import current_user
 from sqlalchemy import text,inspect
 from sqlalchemy.exc import IntegrityError
+from werkzeug.exceptions import NotFound
 from app.extensions import db
 from app.program_billing.routes import billing_bp
 from app.program_billing import lease_snapshot as snapshot,lease_workflow as workflow
@@ -55,6 +56,42 @@ def register_accounts():
     for link in links:names.setdefault(link['bank_detail_id'],[]).append(dict(link))
     for row in rows:row['properties']=names.get(row['id'],[])
     return rows
+
+
+def editable_account(identifier,lock=False):
+    try:identifier=int(identifier)
+    except (ValueError,TypeError):abort(404)
+    # A link in this manager's active portfolio is required. Shared accounts
+    # affecting another portfolio cannot be edited through this manager's page.
+    row=db.session.execute(text("""SELECT b.* FROM bil_bank_detail b
+        WHERE b.id=:b AND EXISTS (
+            SELECT 1 FROM bil_property_payment_account a JOIN bil_property p ON p.id=a.property_id
+            WHERE a.bank_detail_id=b.id AND p.manager_id=:u AND p.is_archived=false)
+        AND NOT EXISTS (
+            SELECT 1 FROM bil_property_payment_account a JOIN bil_property p ON p.id=a.property_id
+            WHERE a.bank_detail_id=b.id AND (p.manager_id IS DISTINCT FROM :u OR p.is_archived IS DISTINCT FROM false))
+        """+(' FOR UPDATE OF b' if lock else '')),{'b':identifier,'u':current_user.id}).mappings().first()
+    if row is None:abort(404)
+    # Legacy direct property links must respect the same editing boundary.
+    if 'bank_detail_id' in {c['name'] for c in inspect(db.session.connection()).get_columns('bil_property')}:
+        if db.session.execute(text("""SELECT 1 FROM bil_property WHERE bank_detail_id=:b
+            AND (manager_id IS DISTINCT FROM :u OR is_archived IS DISTINCT FROM false) LIMIT 1"""),
+            {'b':identifier,'u':current_user.id}).first():abort(404)
+    return dict(row)
+
+
+def edit_account(form):
+    # Match the register's existing addition lock, without changing creation/linking.
+    db.session.execute(text("SELECT pg_advisory_xact_lock(724831902)"))
+    account=editable_account(form.get('bank_detail_id'),lock=True)
+    values={k:v for k,v in account_input(form,require_allocation=False).items() if k in BANK_FIELDS}
+    duplicate=db.session.execute(text("""SELECT 1 FROM bil_bank_detail
+        WHERE id<>:id AND account_number=:account_number AND branch_code=:branch_code
+        AND lower(trim(bank_name))=lower(:bank_name) LIMIT 1"""),dict(values,id=account['id'])).first()
+    if duplicate:raise ValueError('Another registered account already uses these banking details. No changes were saved.')
+    db.session.execute(text("""UPDATE bil_bank_detail SET bank_name=:bank_name,branch_name=:branch_name,
+        account_holder=:account_holder,account_number=:account_number,
+        account_type=:account_type,branch_code=:branch_code WHERE id=:id"""),dict(values,id=account['id']))
 
 
 def association_readiness():
@@ -173,7 +210,7 @@ def snapshot_errors(items):
 
 def log_banking_integrity(error,action):
     """Log PostgreSQL identifiers only, never exception text/SQL/request values."""
-    allowed={'add_account','allocate_existing','apply','save_utilities','reuse_utilities'}
+    allowed={'edit_account','add_account','allocate_existing','apply','save_utilities','reuse_utilities'}
     action=action if action in allowed else 'unknown'
     original=error.orig
     diagnostic=getattr(original,'diag',None)
@@ -192,12 +229,20 @@ def workspace(property_id):
     prop,lease_reason,draft=workflow.selected_context(property_id,request.method=='POST')
     reason=readiness();errors=[]
     bank_reason=reason or association_readiness()
+    editing=None
+    edit_id=request.args.get('edit_bank_detail_id') if request.method=='GET' else (request.form.get('bank_detail_id') if request.form.get('action')=='edit_account' else None)
+    if edit_id is not None:
+        if reason:abort(503,description=reason)
+        editing=editable_account(edit_id)
     if request.method=='POST':
         if reason:abort(503,description=reason)
         try:
             action=request.form.get('action')
             if action in ('add_account','allocate_existing') and bank_reason:abort(503,description=bank_reason)
             if action=='add_account':add_account(property_id,request.form);db.session.commit();flash('Bank account saved to the register. Select it to link it to a property.','success')
+            elif action=='edit_account':
+                edit_account(request.form);db.session.commit()
+                flash('Bank account updated successfully. Property associations and historical lease snapshots are unchanged.','success')
             elif action=='allocate_existing':
                 allocate_existing(property_id,request.form);db.session.commit();flash('Bank account linked to this property.','success')
             elif action in ('save_utilities','reuse_utilities'):
@@ -220,6 +265,11 @@ def workspace(property_id):
             log_banking_integrity(error,request.form.get('action'))
             raise  # Existing endpoint handler rolls back and returns its generic 503.
         except ValueError as error:db.session.rollback();errors.append(str(error))
+    register=[] if reason else register_accounts()
+    for account in register:
+        # Reuse the exact server-side permission check for row actions.
+        try:editable_account(account['id']);account['can_edit']=True
+        except NotFound:account['can_edit']=False
     return render_pm_template('program_billing/lease_property_banking.html',title='Banking Details',property=prop,lease_draft=draft,
-        unavailable=reason or lease_reason,bank_unavailable=bank_reason,errors=errors,accounts=[] if reason else accounts(property_id),register=[] if reason else register_accounts(),arrangements=[] if reason else arrangements(property_id),
+        unavailable=reason or lease_reason,bank_unavailable=bank_reason,errors=errors,accounts=[] if reason else accounts(property_id),register=register,editing=editing,arrangements=[] if reason else arrangements(property_id),
         saved_banking=draft['items'].get('_banking_utilities',{}) if draft else {},signed_lease=signed(draft) if draft else False),400 if errors else 200

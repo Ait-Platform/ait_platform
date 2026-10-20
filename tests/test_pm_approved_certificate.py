@@ -83,7 +83,8 @@ class CertificateRouteTests(unittest.TestCase):
     def test_blank_view_before_capture_authorization_native_pdf_and_existing_cover_order(self):
         view='/billing/leases/property/26/view'
         response=self.client.get(view);self.assertEqual(response.status_code,200)
-        self.assertIn('certificate.pdf',response.get_data(as_text=True))
+        self.assertIn('certificate-form',response.get_data(as_text=True))
+        self.assertNotIn('<iframe',response.get_data(as_text=True))
         word=self.client.get('/billing/leases/property/26/certificate.docx')
         self.assertEqual(word.status_code,200);self.assertIn('[MONTHLY_RENT]',visible(word.data))
         from app.program_billing import lease_certificate as loaded

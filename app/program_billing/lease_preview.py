@@ -159,13 +159,14 @@ def prepared_document(property_id,draft,master_id=None):
         abort(503,description='The verified property master could not be retrieved, integrity-checked or displayed. No Stage 5 fallback was used.')
 
 
-@billing_bp.get('/billing/leases/property/<int:property_id>/view',endpoint='lease_live_view')
+@billing_bp.route('/billing/leases/property/<int:property_id>/view',methods=['GET','POST'],endpoint='lease_live_view')
 @snapshot.endpoint
 def view(property_id):
     from app.program_billing import lease_workflow as workflow
     if request.args.get('existing')!='1':
         from app.program_billing.lease_certificate_view import view as certificate_view
         return certificate_view(property_id)
+    if request.method=='POST':abort(405)
     prop,reason,draft=workflow.selected_context(property_id)
     if reason:abort(503,description=reason)
     if not draft:abort(400,description='Select an existing draft for the existing full lease viewer.')

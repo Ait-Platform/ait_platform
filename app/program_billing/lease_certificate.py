@@ -124,7 +124,7 @@ def compatible_items(items):
 
 def authority_status(items,key,party,represented,has_data):
 
-    saved=items.get('_ait_standard',{}).get('authorities',{}).get(key,{})
+    saved=items.get('_certificate_authorities',{}).get(key,items.get('_ait_standard',{}).get('authorities',{}).get(key,{}))
 
     if not has_data:return {}
 
@@ -140,6 +140,16 @@ def authority_status(items,key,party,represented,has_data):
 
 
 
+
+
+def bank_snapshot(items):
+    """Only explicit selections, including an explicit cleared selection, are used."""
+    saved=items.get('_certificate_banking',{})
+    if saved:return saved
+    legacy=items.get('_banking_utilities',{})
+    if legacy.get('schema_version')==2 and legacy.get('property_id'):
+        return legacy.get('property_accounts',{}).get('rental',{})
+    return {}
 
 
 def values(items,property_record=None,owners=(),tenants=()):
@@ -184,15 +194,7 @@ def values(items,property_record=None,owners=(),tenants=()):
 
     for key in AMOUNTS:put(key.upper(),items.get('_amounts',{}).get(key))
 
-    banking=items.get('_certificate_banking',{})
-
-    if not banking:
-
-        old=items.get('_banking_utilities',{})
-
-        if old.get('schema_version')==2 and old.get('property_id'):
-
-            banking=old.get('property_accounts',{}).get('rental',{})
+    banking=bank_snapshot(items)
 
     if banking.get('bank_detail_id'):
 

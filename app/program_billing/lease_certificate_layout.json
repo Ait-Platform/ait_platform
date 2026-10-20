@@ -1,0 +1,144 @@
+[
+  {
+    "title": "01 CONTRACTING PARTIES",
+    "rows": [
+      [
+        "LESSORS — 1",
+        "[LESSOR_1_NAME] | [LESSOR_1_IDENTITY_NUMBER]"
+      ],
+      [
+        "LESSORS — 2",
+        "[LESSOR_2_NAME] | [LESSOR_2_IDENTITY_NUMBER]"
+      ],
+      [
+        "LESSORS — 3",
+        "[LESSOR_3_NAME] | [LESSOR_3_IDENTITY_NUMBER]"
+      ],
+      [
+        "Lessor representative",
+        "[LESSOR_SIGNATORY_NAME] | [LESSOR_SIGNATORY_IDENTITY_NUMBER]"
+      ],
+      [
+        "Capacity / authority",
+        "[LESSOR_SIGNATORY_CAPACITY]\n[LESSOR_AUTHORITY_CONFIRMED] | [LESSOR_AUTHORITY_EVIDENCE]"
+      ],
+      [
+        "LESSEE",
+        "[LESSEE_1_LEGAL_NAME] | [LESSEE_1_IDENTITY_NUMBER]"
+      ],
+      [
+        "Lessee representative",
+        "[LESSEE_1_SIGNATORY_NAME] | [LESSEE_1_SIGNATORY_IDENTITY_NUMBER]"
+      ],
+      [
+        "Capacity / authority",
+        "[LESSEE_1_SIGNATORY_CAPACITY]\n[LESSEE_1_AUTHORITY_CONFIRMED] | [LESSEE_1_AUTHORITY_EVIDENCE]"
+      ]
+    ]
+  },
+  {
+    "title": "02 PREMISES",
+    "rows": [
+      [
+        "Property / address",
+        "[PROPERTY_NAME] | [PROPERTY_ADDRESS]"
+      ],
+      [
+        "Leased premises",
+        "[LEASE_SCOPE] | [LEASED_PORTION_DESCRIPTION]"
+      ],
+      [
+        "Extent / units",
+        "Property extent: [PROPERTY_EXTENT_SQM] m²\nLeased area: [LEASED_AREA_SQM] m² | Units: [UNIT_COUNT]"
+      ],
+      [
+        "Other particulars",
+        "[PROPERTY_LEGAL_DESCRIPTION]\nExcluded: [EXCLUDED_AREAS]\nPlans: [PLAN_A_IDENTIFIER] | [PLAN_B_IDENTIFIER]"
+      ]
+    ]
+  },
+  {
+    "title": "03 LEASE PERIOD",
+    "rows": [
+      [
+        "Commencement / occupation",
+        "[COMMENCEMENT_DATE] | [OCCUPATION_DATE]"
+      ],
+      [
+        "Duration / expiry",
+        "[DURATION_MONTHS] | [EXPIRY_DATE]"
+      ],
+      [
+        "Renewal notice",
+        "[RENEWAL_NOTICE_DATE]\n[RENEWAL_PROVISION]"
+      ]
+    ]
+  },
+  {
+    "title": "04 FINANCIAL PARTICULARS",
+    "rows": [
+      [
+        "Monthly rental",
+        "[MONTHLY_RENT] | [MONTHLY_RENT_WORDS]"
+      ],
+      [
+        "Rental effective date",
+        "[RENT_EFFECTIVE_DATE]"
+      ],
+      [
+        "Security deposit",
+        "[DEPOSIT_AMOUNT]"
+      ],
+      [
+        "Rental adjustments",
+        "1: [ADJUSTMENT_1_APPLICABILITY] | [ADJUSTMENT_1_DATE] | [ADJUSTMENT_1_AMOUNT]\n2: [ADJUSTMENT_2_APPLICABILITY] | [ADJUSTMENT_2_DATE] | [ADJUSTMENT_2_AMOUNT]\n3: [ADJUSTMENT_3_APPLICABILITY] | [ADJUSTMENT_3_DATE] | [ADJUSTMENT_3_AMOUNT]"
+      ],
+      [
+        "Parking / other charges",
+        "Parking: [PARKING_APPLICABILITY] | [PARKING_DETAILS]\nBays: [PARKING_BAY_COUNT] | Per bay: [PARKING_RENT_PER_BAY]\nKey deposit: [KEY_DEPOSIT_PARTICULARS]\nPreparation fee: [AGREEMENT_PREPARATION_FEE_PARTICULARS]"
+      ],
+      [
+        "Utilities / allocation",
+        "[UTILITY_ALLOCATION_METHOD]\n[UTILITY_REFERENCES] | [UTILITY_NO_REFERENCES_REASON]"
+      ]
+    ]
+  },
+  {
+    "title": "05 BANKING - LEASE PAYMENT ACCOUNT",
+    "rows": [
+      [
+        "Selected account",
+        "[ACCOUNT_HOLDER] | [BANK_NAME]"
+      ],
+      [
+        "Bank / branch",
+        "[BANK_NAME] | [BRANCH_NAME]"
+      ],
+      [
+        "Branch code / account type",
+        "[BRANCH_CODE] | [ACCOUNT_TYPE]"
+      ],
+      [
+        "Account holder",
+        "[ACCOUNT_HOLDER]"
+      ],
+      [
+        "Account number",
+        "[ACCOUNT_NUMBER]"
+      ]
+    ]
+  },
+  {
+    "title": "06 ADDITIONAL LEASE PARTICULARS",
+    "rows": [
+      [
+        "Payment terms / reference",
+        "[PAYMENT_DAY_PARTICULARS]\n[PAYMENT_METHOD_REFERENCE]"
+      ],
+      [
+        "Other agreed particulars",
+        "VAT: [VAT_TREATMENT]\nRates / insurance: [RATES_INSURANCE_BASELINES]\nDeposit deadline: [DEPOSIT_DEADLINE_PARTICULARS]"
+      ]
+    ]
+  }
+]

@@ -1,0 +1,46 @@
+<div id="approved-certificate" class="certificate-document {{ 'certificate-editor' if not preview else 'certificate-preview' }}">
+{% for section in sections %}
+{% if loop.index0 in [0,3] %}<article class="certificate-page">
+<header>{% if loop.first %}<p>AIT | PROPERTY MANAGEMENT</p><h2>LEASE CERTIFICATE</h2><p>Schedule of lease particulars · Draft — fields awaiting completion remain visible</p>{% else %}<h2>LEASE CERTIFICATE · CONTINUED</h2>{% endif %}</header>{% endif %}
+<section class="certificate-section" aria-label="{{ section.title }}">
+<h3>{{ section.title }}</h3>
+{% if loop.first and not preview and not frozen %}
+<div class="certificate-controls">
+{% if not owners_managed|default(false) %}<button type="submit" name="action" value="add_lessor">Add Lessor</button>
+<button type="submit" name="action" value="remove_lessor">Remove last Lessor</button>{% endif %}
+<button type="submit" name="action" value="add_lessee">Add Lessee</button>
+<button type="submit" name="action" value="remove_lessee">Remove last Lessee</button>
+<p>Use a register choice to fill saved particulars; selecting a party does not confirm signing authority.</p>
+</div>
+{% endif %}
+{% if loop.index == 5 and not preview %}<div class="certificate-controls">
+<label for="bank_detail_id">Select a property-linked account</label>
+<select id="bank_detail_id" name="bank_detail_id" {% if frozen or bank_reason %}disabled{% endif %}>
+<option value="">No account selected — incomplete</option>
+{% set bank_ids=linked_accounts|map(attribute='bank_detail_id')|map('string')|list %}
+{% if selected_bank and selected_bank not in bank_ids %}<option value="{{ selected_bank }}" selected>Preserve saved account snapshot</option>{% endif %}
+{% for account in linked_accounts %}<option value="{{ account.bank_detail_id }}" {% if selected_bank == account.bank_detail_id|string %}selected{% endif %}>{{ account.bank_name }} · {{ account.account_holder }} · ending {{ (account.account_number|string)[-4:] }}</option>{% endfor %}
+</select>
+{% if bank_reason %}<input type="hidden" name="bank_detail_id" value="{{ selected_bank }}"><p role="status">Bank selection is unavailable. The saved snapshot is retained.</p>{% endif %}
+<p>The account is copied into this draft only when selected and saved. Existing snapshots are preserved when an account is unchanged.</p>
+</div>{% endif %}
+<table><tbody>{% for row in section.rows %}<tr><th scope="row">{{ row.label }}</th><td>
+{% for part in row.parts %}{% if part.token is defined %}
+{% if not preview and part.editable and not frozen %}
+<label class="certificate-field"><span>{{ part.name.replace('_',' ').title() }}{% if part.name.endswith('_DATE') %} (YYYY-MM-DD){% endif %}</span>
+{% if part.name.startswith('LESSOR_') and part.name.endswith('_NAME') and 'SIGNATORY' not in part.name %}
+<select class="register-choice" data-kind="owner" data-field="{{ part.name }}" aria-label="Fill {{ part.name.replace('_',' ').title() }} from ownership register"><option value="">Fill from ownership register…</option>{% for owner in owner_choices %}<option value="{{ loop.index0 }}">{{ owner.name }}</option>{% endfor %}</select>
+{% elif part.name.startswith('LESSEE_') and part.name.endswith('_LEGAL_NAME') %}
+<select class="register-choice" data-kind="tenant" data-field="{{ part.name }}" aria-label="Fill {{ part.name.replace('_',' ').title() }} from tenant register"><option value="">Fill from tenant register…</option>{% for tenant in tenant_choices %}<option value="{{ loop.index0 }}">{{ tenant.legal_name }}</option>{% endfor %}</select>
+{% endif %}
+<textarea id="field_{{ part.name }}" name="{{ part.name }}" rows="1" maxlength="4000" placeholder="{{ part.token }}" {% if part.name.endswith('_DATE') %}data-date-field="true"{% endif %}>{{ part.value }}</textarea>
+</label>
+{% else %}<span class="{{ 'certificate-incomplete' if not part.value else 'certificate-value' }}">{{ part.value or part.token }}</span>{% endif %}
+{% else %}<span class="certificate-literal">{{ part.text }}</span>{% endif %}{% endfor %}
+</td></tr>{% endfor %}</tbody></table>
+</section>
+{% if loop.index0 in [2,5] %}
+{% if loop.last %}<p class="certificate-note">Special Conditions and the Signing Page form separate parts of the lease documentation.</p><p class="certificate-note"><strong>DRAFT — NOT FOR SIGNATURE OR ISSUANCE</strong></p>{% endif %}
+<footer>AIT Property Management | Lease Certificate | {{ '1' if loop.index0 == 2 else '2' }}</footer></article>{% endif %}
+{% endfor %}
+</div>

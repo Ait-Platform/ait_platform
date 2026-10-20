@@ -25,11 +25,12 @@ class LeaseFoundationTests(unittest.TestCase):
         response=self.client.get('/billing/leases?property_id=26')
         self.assertEqual(response.status_code,200)
         html=response.get_data(as_text=True)
-        for text in ('>Lease</h1>','1. Select Property','2. Lease Particulars','3. Master Lease Document','4. Supporting Documents and Annexures','5. Generate / Review Lease','Almond','Original address','Persisted Owner','501'):
+        for text in ('>DIY Lease Kit</h1>','1. Select Property','Data Capture','View Lease','Banking Register','Addendum','Lease History','4. Supporting Documents and Annexures','Almond','Original address','Persisted Owner','501'):
             self.assertIn(text,html)
         self.assertNotIn('Private address',html);self.assertNotIn('601',html)
         self.assertNotIn('>Property &amp; Owner</a>',html.split('</nav>')[-1])
-        self.assertIn('Persistent lease draft storage is not approved',html)
+        self.assertIn('The approved lease draft/document schema is not available.',html)
+        self.assertNotIn('Download Word',html)
         self.assertEqual(self.client.post('/billing/leases',data={'reference':'Must not create'}).status_code,405)
         self.assertEqual(self.client.get('/billing/leases?property_id=27').status_code,404)
         for value in ('bad','0','-1'):

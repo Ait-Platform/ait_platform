@@ -1,10 +1,9 @@
 <nav aria-label="Lease submenu" class="mt-4 flex flex-wrap gap-3 border-b border-slate-200 pb-3">
-{% for key,label in [('parties','1. Parties'),('premises','2. Premises'),('period','3. Period'),('amounts','4. Amounts')] %}
-{% if property %}<a class="text-blue-700 underline" href="{{ url_for('billing_bp.lease_particular_group',property_id=property.id,group=key,draft_id=lease_draft.id if lease_draft else None) }}">{{ label }}</a>{% else %}<a class="text-blue-700 underline" href="{{ url_for('billing_bp.pm_lease_management') }}#select-property">{{ label }}</a>{% endif %}{% endfor %}
-{% if property %}<a class="text-blue-700 underline" href="{{ url_for('billing_bp.lease_property_banking',property_id=property.id,draft_id=lease_draft.id if lease_draft else None) }}">5. Banking Details</a>{% else %}<a class="text-blue-700 underline" href="{{ url_for('billing_bp.pm_lease_management') }}#select-property">5. Banking Details</a>{% endif %}
-{% if property %}<a class="text-blue-700 underline" href="{{ url_for('billing_bp.lease_live_view',property_id=property.id,draft_id=lease_draft.id if lease_draft else None) }}">6. View Lease</a>{% else %}<a class="text-blue-700 underline" href="{{ url_for('billing_bp.pm_lease_management') }}#select-property">6. View Lease</a>{% endif %}
-{% for endpoint,label in [('lease_addendum','7. Addendum'),('lease_history','8. Lease History')] %}
-{% if property and lease_draft %}<a class="text-blue-700 underline" href="{{ url_for('billing_bp.' ~ endpoint,property_id=property.id,draft_id=lease_draft.id) }}">{{ label }}</a>{% else %}<a class="text-blue-700 underline" href="{{ url_for('billing_bp.lease_particular_group',property_id=property.id,group='parties') if property else url_for('billing_bp.pm_lease_management') ~ '#select-property' }}" title="Select a property and save particulars first">{{ label }}</a>{% endif %}
+{% for endpoint,label in [('lease_certificate_edit','Data Capture'),('lease_live_view','View Lease'),('lease_property_banking','Banking Register')] %}
+<a class="text-blue-700 underline" href="{{ url_for('billing_bp.' ~ endpoint,property_id=property.id,draft_id=lease_draft.id if lease_draft else None) if property else url_for('billing_bp.pm_lease_management') ~ '#select-property' }}">{{ label }}</a>
+{% endfor %}
+{% for endpoint,label in [('lease_addendum','Addendum'),('lease_history','Lease History')] %}
+<a class="text-blue-700 underline" href="{{ url_for('billing_bp.' ~ endpoint,property_id=property.id,draft_id=lease_draft.id) if property and lease_draft else url_for('billing_bp.lease_certificate_edit',property_id=property.id) if property else url_for('billing_bp.pm_lease_management') ~ '#select-property' }}">{{ label }}</a>
 {% endfor %}
 </nav>
-{% if not property %}<p class="mt-2 text-sm" role="status">Select a property below to open its Lease options.</p>{% elif not lease_draft %}<p class="mt-2 text-sm" role="status">View Lease includes the blank certificate. Save Parties to create a draft for Addendum and Lease History.</p>{% endif %}
+{% if not property %}<p class="mt-2 text-sm" role="status">Select a property to open its Lease Kit.</p>{% elif not lease_draft %}<p class="mt-2 text-sm" role="status">View Lease is available now. Save Data Capture to create a draft for Addendum and Lease History.</p>{% endif %}

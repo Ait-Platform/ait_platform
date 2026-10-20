@@ -6,13 +6,11 @@
   {% if preview %}<a href="{{ certificate_edit }}">Edit certificate</a>
   <button type="button" onclick="window.print()">Print</button>
   {% else %}<a href="{{ certificate_preview }}">Preview saved certificate</a>{% endif %}
-  <a href="{{ certificate_word }}">Optional Word export</a>
-  {% if existing_view %}<a href="{{ existing_view }}">Existing full lease · Email and Print</a>{% endif %}
 </div>
 {% if errors %}<ul role="alert" class="certificate-errors">{% for error in errors %}<li>{{ error }}</li>{% endfor %}</ul>{% endif %}
 {% if frozen %}<p role="status" class="certificate-controls">Issued or signed particulars are read-only. Use Addendum for changes.</p>{% endif %}
 {% if not preview %}
-<p class="certificate-controls">Complete any available particulars and Save. Preview and Print use saved values. Empty fields remain incomplete. Adding or removing party rows does not save until you select Save.</p>
+<p class="certificate-controls">Owners remain in Property Management, Menu 1. Complete the remaining particulars here and Save. Preview and Print use saved values. Empty fields remain incomplete. Adding or removing party rows does not save until you select Save.</p>
 <form method="post" action="{{ certificate_edit }}" id="certificate-form">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 <input type="hidden" name="draft_id" value="{{ lease_draft.id if lease_draft else '' }}">
@@ -21,55 +19,9 @@
 <input type="hidden" name="lessor_count" value="{{ lessor_count }}">
 <input type="hidden" name="lessee_count" value="{{ lessee_count }}">
 {% endif %}
-{% if cover_blocks %}<section id="existing-cover" class="certificate-cover">{{ show_blocks(cover_blocks) }}</section>{% elif cover_issue %}<p role="status" class="certificate-controls">{{ cover_issue }}</p>{% endif %}
-<div id="approved-certificate" class="certificate-document {{ 'certificate-editor' if not preview else 'certificate-preview' }}">
-{% for section in sections %}
-{% if loop.index0 in [0,3] %}<article class="certificate-page">
-<header>{% if loop.first %}<p>AIT | PROPERTY MANAGEMENT</p><h2>LEASE CERTIFICATE</h2><p>Schedule of lease particulars · Draft — fields awaiting completion remain visible</p>{% else %}<h2>LEASE CERTIFICATE · CONTINUED</h2>{% endif %}</header>{% endif %}
-<section class="certificate-section" aria-label="{{ section.title }}">
-<h3>{{ section.title }}</h3>
-{% if loop.first and not preview and not frozen %}
-<div class="certificate-controls">
-<button type="submit" name="action" value="add_lessor">Add Lessor</button>
-<button type="submit" name="action" value="remove_lessor">Remove last Lessor</button>
-<button type="submit" name="action" value="add_lessee">Add Lessee</button>
-<button type="submit" name="action" value="remove_lessee">Remove last Lessee</button>
-<p>Use a register choice to fill saved particulars; selecting a party does not confirm signing authority.</p>
-</div>
-{% endif %}
-{% if loop.index == 5 and not preview %}<div class="certificate-controls">
-<label for="bank_detail_id">Select a property-linked account</label>
-<select id="bank_detail_id" name="bank_detail_id" {% if frozen or bank_reason %}disabled{% endif %}>
-<option value="">No account selected — incomplete</option>
-{% set bank_ids=linked_accounts|map(attribute='bank_detail_id')|map('string')|list %}
-{% if selected_bank and selected_bank not in bank_ids %}<option value="{{ selected_bank }}" selected>Preserve saved account snapshot</option>{% endif %}
-{% for account in linked_accounts %}<option value="{{ account.bank_detail_id }}" {% if selected_bank == account.bank_detail_id|string %}selected{% endif %}>{{ account.bank_name }} · {{ account.account_holder }} · ending {{ (account.account_number|string)[-4:] }}</option>{% endfor %}
-</select>
-{% if bank_reason %}<input type="hidden" name="bank_detail_id" value="{{ selected_bank }}"><p role="status">Bank selection is unavailable. The saved snapshot is retained.</p>{% endif %}
-<p>The account is copied into this draft only when selected and saved. Existing snapshots are preserved when an account is unchanged.</p>
-</div>{% endif %}
-<table><tbody>{% for row in section.rows %}<tr><th scope="row">{{ row.label }}</th><td>
-{% for part in row.parts %}{% if part.token is defined %}
-{% if not preview and part.editable and not frozen %}
-<label class="certificate-field"><span>{{ part.name.replace('_',' ').title() }}{% if part.name.endswith('_DATE') %} (YYYY-MM-DD){% endif %}</span>
-{% if part.name.startswith('LESSOR_') and part.name.endswith('_NAME') and 'SIGNATORY' not in part.name %}
-<select class="register-choice" data-kind="owner" data-field="{{ part.name }}" aria-label="Fill {{ part.name.replace('_',' ').title() }} from ownership register"><option value="">Fill from ownership register…</option>{% for owner in owner_choices %}<option value="{{ loop.index0 }}">{{ owner.name }}</option>{% endfor %}</select>
-{% elif part.name.startswith('LESSEE_') and part.name.endswith('_LEGAL_NAME') %}
-<select class="register-choice" data-kind="tenant" data-field="{{ part.name }}" aria-label="Fill {{ part.name.replace('_',' ').title() }} from tenant register"><option value="">Fill from tenant register…</option>{% for tenant in tenant_choices %}<option value="{{ loop.index0 }}">{{ tenant.legal_name }}</option>{% endfor %}</select>
-{% endif %}
-<textarea id="field_{{ part.name }}" name="{{ part.name }}" rows="1" maxlength="4000" placeholder="{{ part.token }}" {% if part.name.endswith('_DATE') %}data-date-field="true"{% endif %}>{{ part.value }}</textarea>
-</label>
-{% else %}<span class="{{ 'certificate-incomplete' if not part.value else 'certificate-value' }}">{{ part.value or part.token }}</span>{% endif %}
-{% else %}<span class="certificate-literal">{{ part.text }}</span>{% endif %}{% endfor %}
-</td></tr>{% endfor %}</tbody></table>
-</section>
-{% if loop.index0 in [2,5] %}
-{% if loop.last %}<p class="certificate-note">Special Conditions and the Signing Page form separate parts of the lease documentation.</p><p class="certificate-note"><strong>DRAFT — NOT FOR SIGNATURE OR ISSUANCE</strong></p>{% endif %}
-<footer>AIT Property Management | Lease Certificate | {{ '1' if loop.index0 == 2 else '2' }}</footer></article>{% endif %}
-{% endfor %}
-</div>
+{% include 'program_billing/lease_certificate_document.html' %}
 {% if not preview %}<div class="certificate-controls mt-4">{% if not frozen %}<button type="submit" name="action" value="save">Save certificate</button>{% endif %}<a href="{{ certificate_preview }}">Preview saved certificate</a><a href="{{ certificate_preview }}#print">Print saved certificate</a></div></form>{% endif %}
-<p role="status" class="certificate-controls">{{ component_limitation }}</p>
+
 {% if unresolved %}<details class="certificate-controls"><summary>Incomplete fields ({{ unresolved|length }})</summary><ul>{% for field in unresolved %}<li>{{ field }}</li>{% endfor %}</ul></details>{% endif %}
 {% if not preview and not frozen %}
 <script type="application/json" id="certificate-registers">{{ {'owner':owner_choices,'tenant':tenant_choices}|tojson }}</script>

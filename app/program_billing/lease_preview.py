@@ -159,13 +159,13 @@ def prepared_document(property_id,draft,master_id=None):
         abort(503,description='The verified property master could not be retrieved, integrity-checked or displayed. No Stage 5 fallback was used.')
 
 
-@billing_bp.route('/billing/leases/property/<int:property_id>/view',methods=['GET','POST'],endpoint='lease_live_view')
+@billing_bp.get('/billing/leases/property/<int:property_id>/view',endpoint='lease_live_view')
 @snapshot.endpoint
 def view(property_id):
     from app.program_billing import lease_workflow as workflow
     if request.args.get('existing')!='1':
-        from app.program_billing.lease_certificate_view import view as certificate_view
-        return certificate_view(property_id)
+        from app.program_billing.lease_kit import view as kit_view
+        return kit_view(property_id)
     if request.method=='POST':abort(405)
     prop,reason,draft=workflow.selected_context(property_id)
     if reason:abort(503,description=reason)
@@ -184,7 +184,7 @@ def view(property_id):
 
 @billing_bp.after_request
 def private_preview(response):
-    if request.endpoint in ('billing_bp.lease_live_view','billing_bp.lease_pdf_status','billing_bp.lease_certificate_pdf','billing_bp.lease_certificate_word'):
+    if request.endpoint in ('billing_bp.lease_live_view','billing_bp.lease_pdf_status','billing_bp.lease_certificate_pdf','billing_bp.lease_certificate_word','billing_bp.lease_certificate_edit'):
         response.headers['Cache-Control']='private, no-store'
         response.headers['X-Content-Type-Options']='nosniff'
         response.headers['Referrer-Policy']='no-referrer'
@@ -212,3 +212,10 @@ def certificate_pdf(property_id):
 def certificate_word(property_id):
     from app.program_billing.lease_certificate_view import word
     return word(property_id)
+
+
+@billing_bp.route('/billing/leases/property/<int:property_id>/certificate',methods=['GET','POST'],endpoint='lease_certificate_edit')
+@snapshot.endpoint
+def certificate_edit(property_id):
+    from app.program_billing.lease_certificate_view import edit
+    return edit(property_id)

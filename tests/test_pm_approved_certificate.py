@@ -82,26 +82,28 @@ class CertificateRouteTests(unittest.TestCase):
 
     def test_blank_view_before_capture_authorization_native_pdf_and_existing_cover_order(self):
         view='/billing/leases/property/26/view'
-        response=self.client.get(view);self.assertEqual(response.status_code,200)
-        self.assertIn('certificate-form',response.get_data(as_text=True))
+        response=self.client.get(view+'?component=certificate');self.assertEqual(response.status_code,200)
+        self.assertIn('approved-certificate',response.get_data(as_text=True))
+        self.assertNotIn('<form',response.get_data(as_text=True))
         self.assertNotIn('<iframe',response.get_data(as_text=True))
+        capture=self.client.get('/billing/leases/property/26/certificate')
+        self.assertEqual(capture.status_code,200);self.assertIn('certificate-form',capture.get_data(as_text=True))
         word=self.client.get('/billing/leases/property/26/certificate.docx')
         self.assertEqual(word.status_code,200);self.assertIn('[MONTHLY_RENT]',visible(word.data))
         from app.program_billing import lease_certificate as loaded
-        with patch.object(loaded,'render_pdf',return_value=b'%PDF-1.4\nsynthetic-converter-double') as render:
+        with patch.object(loaded,'render_pdf',return_value=b'%PDF-1.4\nsynthetic-converter-double'):
             response=self.client.get('/billing/leases/property/26/certificate.pdf')
             self.assertEqual(response.status_code,200);self.assertEqual(response.mimetype,'application/pdf')
-            self.assertIn('[PROPERTY_NAME]',visible(render.call_args[0][0]))
-        # Existing cover is extracted only from the unchanged existing source builder.
-        self.sql("UPDATE bil_lease_draft SET items='{\"_ait_standard\":{\"source\":{}}}'::jsonb");self.session.commit()
-        from app.program_billing import lease_standard as standard,lease_preview as preview
-        with patch.object(standard,'source_master',return_value=({},b'existing-source')),patch.object(standard,'build_document',return_value=b'existing-built'),patch.object(preview,'extract_blocks',return_value=[
-            {'kind':'paragraph','text':'EXISTING COVER'},{'kind':'page_break'},{'kind':'paragraph','text':'REFERENCE BODY'}]):
-            page=self.client.get(view+'?draft_id='+str(self.draft))
+        # Cover selection is independent of Word source retrieval and uses the same wording.
+        from app.program_billing import lease_standard as standard
+        with patch.object(standard,'source_master',side_effect=AssertionError('Word source read')),patch.object(standard,'build_document',side_effect=AssertionError('Word builder called')):
+            page=self.client.get(view)
             text=page.get_data(as_text=True)
             self.assertEqual(page.status_code,200)
-            self.assertLess(text.index('id="existing-cover"'),text.index('id="approved-certificate"'))
-            self.assertNotIn('REFERENCE BODY',text)
+            self.assertIn('AIT Standard Lease',text)
+            self.assertIn('id="existing-cover"',text)
+            self.assertNotIn('id="approved-certificate"',text)
+        self.assertEqual(self.client.post(view,data={}).status_code,405)
         self.sign_in(8)
         self.assertEqual(self.client.get(view).status_code,404)
         self.assertEqual(self.client.get('/billing/leases/property/26/certificate.docx').status_code,404)

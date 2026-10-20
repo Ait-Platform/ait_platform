@@ -5,7 +5,7 @@
 <div class="mx-auto max-w-5xl rounded-xl border border-slate-200 bg-white shadow overflow-hidden">
 <div class="h-2 bg-orange-500"></div><div class="p-6">
 {% include "partials/flash_messages.html" %}
-<div class="flex items-center justify-between gap-4"><h1 class="text-2xl font-semibold">Lease</h1><a href="{{ url_for('billing_bp.learner_dashboard') }}" class="rounded-lg bg-slate-100 px-4 py-2">Back to Property Management</a></div>
+<div class="flex items-center justify-between gap-4"><h1 class="text-2xl font-semibold">DIY Lease Kit</h1><a href="{{ url_for('billing_bp.learner_dashboard') }}" class="rounded-lg bg-slate-100 px-4 py-2">Back to Property Management</a></div>
 {% with property=selected_property %}{% include 'program_billing/lease_submenu.html' %}{% endwith %}
 <section class="mt-6 rounded-lg border border-slate-200 p-4">
 <h2 id="select-property" class="text-lg font-semibold"><a href="#select-property" onclick="document.getElementById('lease-property').focus()">1. Select Property</a></h2>
@@ -22,25 +22,20 @@
 </section>
 {% if selected_property %}
 <section class="mt-4 rounded-lg border border-slate-200 p-4">
-<h2 class="text-lg font-semibold"><a href="{{ url_for('billing_bp.lease_particulars',property_id=selected_property.id,draft_id=lease_draft.id if lease_draft else None) }}" class="text-blue-700 underline">2. Lease Particulars</a></h2>
-<p class="mt-2 text-sm">Parties &middot; Premises &middot; Period &middot; Amounts &middot; Banking Details &middot; Addendum for special arrangements</p>
+<h2 class="text-lg font-semibold"><a href="{{ url_for('billing_bp.lease_certificate_edit',property_id=selected_property.id,draft_id=lease_draft.id if lease_draft else None) }}" class="text-blue-700 underline">Data Capture</a></h2>
+<p class="mt-2 text-sm">Owners are maintained in Property Management, Menu 1. Capture lease parties, premises, periods, amounts, banking and additional particulars here.</p>
 <p class="mt-2 text-sm text-amber-900">Data completeness is separate from legal approval. No activation, signature or issuance.</p>
 {% if draft_unavailable %}<p role="status" class="mt-3 text-sm">{{ draft_unavailable }}</p>
 {% elif not lease_draft %}<form method="post" action="{{ url_for('billing_bp.lease_draft_create',property_id=selected_property.id) }}" class="mt-3"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="registration_token" value="{{ draft_token }}"><button type="submit" class="rounded-lg bg-orange-600 px-4 py-2 text-white">Create Lease</button></form>{% endif %}
 {% if lease_draft %}<p class="mt-3 text-sm">Draft {{ lease_draft.id }} &middot; Revision {{ lease_draft.version }} &middot; R01</p>{% endif %}
 {% if lease_drafts|length > 1 %}<details class="mt-3"><summary>Existing drafts</summary>{% for draft in lease_drafts %}<a class="block text-sm text-blue-700 underline" href="{{ url_for('billing_bp.pm_lease_management',property_id=selected_property.id,draft_id=draft.id) }}">{{ draft.id }}</a>{% endfor %}</details>{% endif %}
 </section>
-<details id="lease-document-administration" class="mt-4 rounded-lg border border-slate-200 p-4"><summary class="font-semibold">Document administration</summary>
-<p class="mt-2 text-sm">Property-specific masters and draft release settings. Existing access and private-storage checks apply.</p>
-<a class="mt-3 block text-blue-700 underline" href="{{ url_for('billing_bp.lease_property_masters',property_id=selected_property.id,draft_id=lease_draft.id if lease_draft else None) }}">Upload Master Document</a>
-{% if lease_draft %}<a class="mt-3 block text-blue-700 underline" href="{{ url_for('billing_bp.lease_standard',property_id=selected_property.id,draft_id=lease_draft.id) }}">Working-copy settings and notice</a>
-<a class="mt-3 block text-blue-700 underline" href="{{ url_for('billing_bp.lease_core_terms_pdf',property_id=selected_property.id,draft_id=lease_draft.id,revision=lease_draft.version) }}">Core Terms PDF - development draft</a>{% endif %}
-</details>
+
 <section class="mt-4 rounded-lg border border-slate-200 p-4"><h2 class="text-lg font-semibold"><a class="text-blue-700 underline" href="{{ url_for('billing_bp.lease_supporting',property_id=selected_property.id,draft_id=lease_draft.id if lease_draft else None) }}">4. Supporting Documents and Annexures</a></h2><p class="mt-2 text-sm">Lease plans, schedules, inventories, requirements and private attachments.</p></section>
-<p class="mt-4 text-sm">View the developing lease with saved particulars inserted into the document.</p>{% if not lease_draft %}<p class="mt-2 text-sm text-amber-900">View Lease is available now with the blank certificate; save particulars to populate it.</p>{% endif %}
+<p class="mt-4 text-sm">Open View Lease to view and print individual documents. Capture and correct particulars in Data Capture.</p>{% if not lease_draft %}<p class="mt-2 text-sm text-amber-900">View Lease is available before capture; missing particulars remain visible.</p>{% endif %}
 <details class="mt-4 rounded-lg border border-slate-200 p-4"><summary class="font-semibold">Existing documents and lease history</summary>
 <section class="mt-4 rounded-lg border border-slate-200 p-4"><h2 class="text-lg font-semibold">Existing R01 review document</h2>
-{% if available %}<div class="mt-3 flex gap-3"><a href="{{ url_for('billing_bp.pm_lease_preview',property_id=selected_property.id) }}" target="_blank" rel="noopener" class="text-blue-700 underline">View Lease</a><a href="{{ url_for('billing_bp.pm_lease_word',property_id=selected_property.id) }}" class="text-blue-700 underline">Download Word</a></div>
+{% if available %}<div class="mt-3 flex gap-3"><a href="{{ url_for('billing_bp.pm_lease_preview',property_id=selected_property.id) }}" target="_blank" rel="noopener" class="text-blue-700 underline">View archived R01 reference</a></div>
 {% elif associated %}<p role="alert" class="mt-2 text-sm">The associated R01 files are unavailable; property selection remains usable.</p>
 {% else %}<p class="mt-2 text-sm">No verified R01 association for this property. Production property verification is required before associating Almond 26.</p>{% endif %}</section>
 {% endif %}

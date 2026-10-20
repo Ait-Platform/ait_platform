@@ -13,7 +13,7 @@ import test_pm_approved_certificate as existing
 
 class HTMLCertificateTests(existing.CertificateRouteTests):
     def open_form(self, draft=True):
-        url='/billing/leases/property/26/view'+('?draft_id='+str(self.draft) if draft else '')
+        url='/billing/leases/property/26/certificate'+('?draft_id='+str(self.draft) if draft else '')
         response=self.client.get(url)
         self.assertEqual(response.status_code,200)
         tree=html.fromstring(response.data)
@@ -29,6 +29,8 @@ class HTMLCertificateTests(existing.CertificateRouteTests):
         from app.program_billing import lease_certificate_render as renderer
         self.assertEqual(len(form.tokens(form.layout(3,1))),69)
         self.assertEqual(set(form.tokens(form.layout(3,1))),set(cert.TOKEN.findall(''.join(cert.xml(cert.load_master()).itertext()))))
+        for i,name in enumerate(('Synthetic Almond Lessor One','Synthetic Almond Lessor Two','Synthetic Almond Lessor Three'),1):
+            self.assertEqual(self.assign(name=name,identity_number='TEST-'+str(i)).status_code,200)
         before=copy.deepcopy(self.sql('SELECT items FROM bil_lease_draft').scalar())
         url,data,page=self.open_form()
         self.assertEqual(data['PROPERTY_NAME'],'Almond')
@@ -47,7 +49,7 @@ class HTMLCertificateTests(existing.CertificateRouteTests):
             reopened=self.client.get(saved.location)
             self.assertEqual(reopened.status_code,200)
             self.assertIn('Synthetic Almond Lessor Three',reopened.get_data(as_text=True))
-            preview=self.client.get(url+'&mode=preview')
+            preview=self.client.get(url.replace('/certificate','/view')+'&component=certificate')
             self.assertEqual(preview.status_code,200)
             text=preview.get_data(as_text=True)
             for value in ('Synthetic Almond Lessor One','Synthetic Almond Lessor Two','Synthetic Almond Lessor Three',
@@ -76,7 +78,7 @@ class HTMLCertificateTests(existing.CertificateRouteTests):
         expanded=self.client.post(url,data=data)
         self.assertEqual(expanded.status_code,200)
         self.assertIn('name="LESSEE_2_LEGAL_NAME"',expanded.get_data(as_text=True))
-        self.assertIn('Unsaved first lessor',expanded.get_data(as_text=True))
+        self.assertNotIn('Unsaved first lessor',expanded.get_data(as_text=True))
         self.assertEqual(self.sql('SELECT count(*) FROM bil_lease_draft').scalar(),count)
         data.update(action='save',lessee_count='2',LESSEE_2_LEGAL_NAME='Additional local Lessee')
         saved=self.client.post(url,data=data)
@@ -93,13 +95,13 @@ class HTMLCertificateTests(existing.CertificateRouteTests):
         data.update(COMMENCEMENT_DATE='2026-99-99',LESSOR_1_NAME='Retain entered name')
         invalid=self.client.post(url,data=data)
         self.assertEqual(invalid.status_code,400)
-        self.assertIn('Retain entered name',invalid.get_data(as_text=True))
+        self.assertNotIn('Retain entered name',invalid.get_data(as_text=True))
         self.assertEqual(self.session.execute(text('SELECT items FROM bil_lease_draft WHERE id=:id'),{'id':self.draft}).scalar(),original)
         # Extra parties, long content and HTML are rendered as text, never markup.
         data.update(COMMENCEMENT_DATE='',lessor_count='5',lessee_count='3',
-                    LESSOR_5_NAME='<script>alert(1)</script>'+' extended '*50,LESSEE_3_LEGAL_NAME='Third Lessee')
+                    LESSOR_5_NAME='Ignore unregistered owner',LESSEE_3_LEGAL_NAME='Third Lessee <script>alert(1)</script>'+' extended '*50)
         self.assertEqual(self.client.post(url,data=data).status_code,302)
-        preview=self.client.get(url+'&mode=preview').get_data(as_text=True)
+        preview=self.client.get(url.replace('/certificate','/view')+'&component=certificate').get_data(as_text=True)
         self.assertIn('Third Lessee',preview)
         self.assertIn('&lt;script&gt;alert(1)&lt;/script&gt;',preview)
         self.assertNotIn('<script>alert(1)</script>',preview)
@@ -146,7 +148,7 @@ class HTMLCertificateTests(existing.CertificateRouteTests):
         client=secure.test_client()
         with client.session_transaction() as session:
             session['_user_id']='7';session['_fresh']=True
-        url='/billing/leases/property/26/view?draft_id='+str(self.draft)
+        url='/billing/leases/property/26/certificate?draft_id='+str(self.draft)
         page=client.get(url)
         self.assertEqual(page.status_code,200)
         tree=html.fromstring(page.data)

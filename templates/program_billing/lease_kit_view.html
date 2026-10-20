@@ -1,0 +1,23 @@
+{% extends 'program_billing/lease_workflow_base.html' %}
+{% from 'program_billing/lease_live_view.html' import show_blocks with context %}
+{% block workspace %}
+{% if selected_component in ['certificate','lease'] %}<link rel="stylesheet" href="{{ url_for('static',filename='css/lease_certificate.css') }}">{% endif %}
+<link rel="stylesheet" href="{{ url_for('static',filename='css/lease_kit.css') }}">
+<nav id="lease-kit-selectors" aria-label="View Lease documents" class="mt-5 flex flex-wrap gap-2">
+{% for component in components %}<a href="{{ component.url }}" data-component="{{ component.key }}" {% if selected_component==component.key %}aria-current="page"{% endif %} class="rounded border px-4 py-2 {{ 'bg-blue-100 font-semibold' if selected_component==component.key else 'bg-slate-50' }}">{{ component.label }}</a>{% endfor %}
+</nav>
+<p class="kit-controls mt-3">Viewing: <strong>{{ selected_label }}</strong>. Draft particulars are not confirmation of signing authority.</p>
+<p class="kit-controls mt-2"><a class="text-blue-700 underline" href="{{ capture_url }}">Data Capture — enter or correct lease particulars</a>. Correct owner information in Property Management → Menu 1: Owners.</p>
+<p class="kit-controls mt-2 text-sm" role="status">{{ email_unavailable }}</p>
+{% if not print_available %}<p class="kit-controls mt-3 text-amber-900" role="status">Print is unavailable for this selection until its document is available.</p>{% endif %}
+<div id="lease-kit-document" data-selected-document="{{ selected_component }}">
+{% for key in selected_documents %}
+{% if key=='cover' %}<section id="existing-cover" class="certificate-cover kit-cover-page" aria-label="Cover">{{ show_blocks(cover_blocks) }}</section>
+{% elif key=='certificate' %}{% include 'program_billing/lease_certificate_document.html' %}
+{% elif states[key].get('text') %}<article class="kit-text-page" data-document="{{ key }}"><h2>Special Conditions — Draft</h2><p class="kit-draft-notice">{{ states[key].reason }}</p><div class="whitespace-pre-wrap" style="white-space:pre-wrap">{{ states[key].text }}</div><p>DRAFT — NOT FOR SIGNATURE OR ISSUANCE</p></article>
+{% else %}<section class="kit-unavailable" data-document="{{ key }}" role="status"><h2>{{ selected_label }} — unavailable</h2><p>{{ states[key].reason }}</p></section>{% endif %}
+{% endfor %}
+</div>
+{% if selected_component=='certificate' and unresolved %}<details class="kit-controls mt-4"><summary>Incomplete fields ({{ unresolved|length }})</summary><ul>{% for field in unresolved %}<li>{{ field }}</li>{% endfor %}</ul></details>{% endif %}
+<script src="{{ url_for('static',filename='js/lease_kit.js') }}" defer></script>
+{% endblock %}

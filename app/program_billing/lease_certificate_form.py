@@ -154,3 +154,29 @@ def save_evidence(result, original, key, value):
         original.get('_ait_standard', {}).get('authorities', {}).get(key, {}))
     if value != saved.get('evidence', ''):
         result.setdefault('_certificate_authorities', {})[key] = {'evidence': value, 'confirmed': False}
+
+
+# Capture pages reuse the approved six-section field layout; only their owned keys may change.
+CAPTURE_SECTIONS = (
+    ('parties','1. Parties',0,('_contracting_lessors','_parties','_certificate_authorities','s1-01')),
+    ('premises','2. Premises',1,('_premises',)),
+    ('period','3. Lease Period',2,('_period','s1-18','s1-17','s1-20','s1-19','s1-26')),
+    ('financial','4. Financial Particulars',3,('_amounts','_banking_utilities','s1-30','s1-31')),
+    ('banking','5. Banking',4,('_certificate_banking',)),
+    ('additional','6. Additional Particulars',5,('s1-25','s1-37','s1-34','s1-35','s1-29')),
+)
+
+
+def capture_section(key):
+    return next((section for section in CAPTURE_SECTIONS if section[0] == key),None)
+
+
+def merge_section(saved, displayed, edits, lessor_count, lessee_count, key):
+    """Do not normalize or rewrite another section while saving a partial form."""
+    section=capture_section(key)
+    if section is None:raise ValueError('Choose a valid Data Capture section.')
+    merged=merge(displayed,edits,lessor_count,lessee_count)
+    result=deepcopy(saved)
+    for name in section[3]:
+        if name in merged:result[name]=deepcopy(merged[name])
+    return result

@@ -86,7 +86,7 @@ class CertificateRouteTests(unittest.TestCase):
         self.assertIn('approved-certificate',response.get_data(as_text=True))
         self.assertNotIn('<form',response.get_data(as_text=True))
         self.assertNotIn('<iframe',response.get_data(as_text=True))
-        capture=self.client.get('/billing/leases/property/26/certificate')
+        capture=self.client.get('/billing/leases/property/26/certificate/parties')
         self.assertEqual(capture.status_code,200);self.assertIn('certificate-form',capture.get_data(as_text=True))
         word=self.client.get('/billing/leases/property/26/certificate.docx')
         self.assertEqual(word.status_code,200);self.assertIn('[MONTHLY_RENT]',visible(word.data))

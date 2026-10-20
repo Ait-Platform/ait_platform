@@ -25,7 +25,7 @@ class LeaseFoundationTests(unittest.TestCase):
         response=self.client.get('/billing/leases?property_id=26')
         self.assertEqual(response.status_code,200)
         html=response.get_data(as_text=True)
-        for text in ('>DIY Lease Kit</h1>','1. Select Property','Data Capture','View Lease','Banking Register','Addendum','Lease History','4. Supporting Documents and Annexures','Almond','Original address','Persisted Owner','501'):
+        for text in ('>Lease Management</h1>','1. Select Property','Data Capture','View Lease','Banking Register','Addendum','Lease History','4. Supporting Documents and Annexures','Almond','Original address','Persisted Owner','501'):
             self.assertIn(text,html)
         self.assertNotIn('Private address',html);self.assertNotIn('601',html)
         self.assertNotIn('>Property &amp; Owner</a>',html.split('</nav>')[-1])

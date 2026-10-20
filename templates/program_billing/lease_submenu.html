@@ -1,4 +1,4 @@
-<nav aria-label="Lease submenu" class="mt-4 flex flex-wrap gap-3 border-b border-slate-200 pb-3">
+<nav aria-label="Lease submenu" class="lease-main-navigation">
 {% for endpoint,label in [('lease_certificate_edit','Data Capture'),('lease_live_view','View Lease'),('lease_property_banking','Banking Register')] %}
 <a class="text-blue-700 underline" href="{{ url_for('billing_bp.' ~ endpoint,property_id=property.id,draft_id=lease_draft.id if lease_draft else None) if property else url_for('billing_bp.pm_lease_management') ~ '#select-property' }}">{{ label }}</a>
 {% endfor %}
@@ -6,4 +6,3 @@
 <a class="text-blue-700 underline" href="{{ url_for('billing_bp.' ~ endpoint,property_id=property.id,draft_id=lease_draft.id) if property and lease_draft else url_for('billing_bp.lease_certificate_edit',property_id=property.id) if property else url_for('billing_bp.pm_lease_management') ~ '#select-property' }}">{{ label }}</a>
 {% endfor %}
 </nav>
-{% if not property %}<p class="mt-2 text-sm" role="status">Select a property to open its Lease Kit.</p>{% elif not lease_draft %}<p class="mt-2 text-sm" role="status">View Lease is available now. Save Data Capture to create a draft for Addendum and Lease History.</p>{% endif %}

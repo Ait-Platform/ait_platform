@@ -187,7 +187,7 @@ def private_preview(response):
     if request.endpoint in ('billing_bp.lease_live_view','billing_bp.lease_pdf_status','billing_bp.lease_certificate_pdf','billing_bp.lease_certificate_word','billing_bp.lease_certificate_edit','billing_bp.lease_capture_section'):
         response.headers['Cache-Control']='private, no-store'
         response.headers['X-Content-Type-Options']='nosniff'
-        response.headers['Referrer-Policy']='no-referrer'
+        response.headers['Referrer-Policy']='same-origin' if request.endpoint in ('billing_bp.lease_capture_section','billing_bp.lease_certificate_edit') else 'no-referrer'
     return response
 
 

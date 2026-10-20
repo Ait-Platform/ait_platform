@@ -60,21 +60,26 @@ def save_items(draft, items):
     db.session.commit()
 
 
-def create_parties_draft(property_id, items):
+def create_parties_draft(property_id, items, automatic_reference=False):
     """First valid Part A save: one insert/commit with existing token uniqueness."""
     try:token=uuid.UUID(request.form.get('registration_token',''))
     except (ValueError,TypeError):abort(400,description='Reload Part A before starting a draft.')
+    identifier=uuid.uuid4()
+    if automatic_reference:
+        items=deepcopy(items)
+        items['s1-01']={'value':'LEASE-'+str(identifier)}
     draft=db.session.execute(text("""INSERT INTO bil_lease_draft
         (id,property_id,manager_id,registration_token,source_version,items)
         VALUES (:id,:p,:u,:token,:source,CAST(:items AS jsonb))
         ON CONFLICT (manager_id,registration_token) DO NOTHING RETURNING *"""),
-        {'id':uuid.uuid4(),'p':property_id,'u':current_user.id,'token':token,
+        {'id':identifier,'p':property_id,'u':current_user.id,'token':token,
          'source':snapshot.CATALOG['version'],'items':json.dumps(items)}).mappings().first()
     if draft is None:
         existing_id=db.session.execute(text('SELECT id FROM bil_lease_draft WHERE manager_id=:u AND registration_token=:t AND property_id=:p'),
             {'u':current_user.id,'t':token,'p':property_id}).scalar_one_or_none()
         if existing_id is None:abort(409,description='This registration token belongs to another draft context. Reload Part A.')
         draft=snapshot.draft_row(property_id,existing_id,True)
+        if automatic_reference:items['s1-01']={'value':'LEASE-'+str(draft['id'])}
         if draft['items']!=items:
             abort(409,description='This draft was already saved. Reopen it before making further changes.')
     db.session.commit()

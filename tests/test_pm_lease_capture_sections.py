@@ -12,16 +12,14 @@ class CaptureSectionTests(capture_cases.HTMLCertificateTests):
         page=self.client.get(selector);self.assertEqual(page.status_code,200)
         tree=html.fromstring(page.data)
         self.assertEqual(tree.xpath('//a[@data-capture-section]/@data-capture-section'),['parties','premises','period','financial','banking','additional'])
-        nav=tree.xpath('//div[@id="lease-header-actions"]/nav')[0]
-        self.assertEqual(nav.xpath('./a/text()'),['Data Capture','View Lease','Banking Register','Addendum','Lease History'])
-        self.assertEqual(nav.getprevious().text,'Back')
-        self.assertFalse(tree.xpath('//textarea'))
+        self.assertFalse(tree.xpath('//nav[contains(@class,"lease-main-navigation")]'))
+        self.assertTrue(tree.xpath('//form[@id="certificate-form"]'))
         for key in ('parties','premises','period','financial','banking','additional'):
             _,_,response=self.open_form(section=key)
             form=html.fromstring(response.data).xpath('//form[@id="certificate-form"]')[0]
             self.assertEqual(form.xpath('.//button/text()'),['Save'])
             self.assertEqual(form.xpath('.//a/text()'),['Back'])
-            self.assertEqual(form.xpath('.//a/@href'),[selector])
+            self.assertEqual(form.xpath('.//a/@href'),['/billing/leases?property_id=26&draft_id='+str(self.draft)])
             self.assertFalse(form.xpath('.//a[contains(@href,"view") or contains(@href,".docx")]'))
         home=self.client.get('/billing/leases?property_id=26&draft_id='+str(self.draft))
         self.assertEqual(home.status_code,200)
@@ -102,3 +100,60 @@ class CaptureSectionTests(capture_cases.HTMLCertificateTests):
         self.assertEqual(dict(self.sql('SELECT * FROM bil_property WHERE id=26').mappings().one()),before_property)
         self.assertEqual([dict(row) for row in self.sql('SELECT * FROM bil_property_payment_account ORDER BY id').mappings()],before_links)
         self.draft=original_id
+
+    def test_https_proxy_csrf_all_six_tabs_and_reference(self):
+        from flask import Flask
+        from flask_wtf import CSRFProtect
+        from werkzeug.middleware.proxy_fix import ProxyFix
+        secure=Flask('capture-https-proxy')
+        secure.config.update(TESTING=True,SECRET_KEY='local-test-only')
+        secure.jinja_loader=self.app.jinja_loader
+        self.app.login_manager.init_app(secure);CSRFProtect(secure)
+        secure.wsgi_app=ProxyFix(secure.wsgi_app,x_proto=1,x_host=1)
+        secure.register_blueprint(self.app.blueprints['billing_bp']);client=secure.test_client()
+        with client.session_transaction() as session:session['_user_id']='7';session['_fresh']=True
+        proxy={'X-Forwarded-Proto':'https','X-Forwarded-Host':'localhost'}
+        for section in ('parties','premises','period','financial','banking','additional'):
+            url='/billing/leases/property/26/certificate/'+section+'?draft_id='+str(self.draft)
+            page=client.get(url,headers=proxy);self.assertEqual(page.status_code,200)
+            self.assertEqual(page.headers['Referrer-Policy'],'same-origin')
+            tree=html.fromstring(page.data)
+            self.assertEqual(tree.xpath('//nav[@class="capture-tabs"]/a[@aria-current]/@data-capture-section'),[section])
+            data={node.get('name'):node.get('value','') for node in tree.xpath('//form[@id="certificate-form"]//input[@name]')}
+            data['action']='save'
+            before=copy.deepcopy(self.sql('SELECT items FROM bil_lease_draft').scalar())
+            # Valid token without a referrer still fails: strict HTTPS protection is intact.
+            missing=client.post(url,data=data,headers=proxy)
+            self.assertEqual(missing.status_code,400)
+            self.assertIn(b'The referrer header is missing',missing.data)
+            self.assertEqual(client.post(url,data=data,headers=dict(proxy,Referer='https://foreign.invalid/')).status_code,400)
+            invalid=dict(data,csrf_token='invalid')
+            headers=dict(proxy,Referer='https://localhost'+url)
+            self.assertEqual(client.post(url,data=invalid,headers=headers).status_code,400)
+            self.assertEqual(self.sql('SELECT items FROM bil_lease_draft').scalar(),before)
+            saved=client.post(url,data=data,headers=headers);self.assertEqual(saved.status_code,302)
+            self.assertEqual(client.get(saved.location,headers=proxy).status_code,200)
+            self.assertEqual(client.post(url,data=data,headers=headers).status_code,409)
+        items=self.sql('SELECT items FROM bil_lease_draft').scalar()
+        self.assertEqual(items['s1-01']['value'],'LEASE-'+str(self.draft))
+
+    def test_parties_simple_fields_preserve_evidence_and_existing_reference(self):
+        original={'s1-01':{'value':'Historical reference'},'_parties':{'lessor':{'signatory_name':'Existing name'}},
+            '_certificate_authorities':{'landlords':{'evidence':'Existing evidence','confirmed':False}}}
+        self.session.execute(text('UPDATE bil_lease_draft SET items=CAST(:i AS jsonb)'),{'i':json.dumps(original)});self.session.commit()
+        url,data,page=self.open_form()
+        tree=html.fromstring(page.data)
+        self.assertFalse(tree.xpath('//*[@name="LEASE_REFERENCE" or contains(@name,"AUTHORITY")]'))
+        self.assertIn('Historical reference',page.get_data(as_text=True))
+        data.update(LEASE_REFERENCE='Injected reference',LESSOR_AUTHORITY_EVIDENCE='Injected evidence',LESSOR_SIGNATORY_NAME='Updated name')
+        self.assertEqual(self.client.post(url,data=data).status_code,302)
+        after=self.sql('SELECT items FROM bil_lease_draft').scalar()
+        self.assertEqual(after['s1-01'],original['s1-01'])
+        self.assertEqual(after['_certificate_authorities'],original['_certificate_authorities'])
+        self.assertFalse(after['_parties']['lessor']['capacity_confirmed'])
+        url,data,_=self.open_form(False);data['LESSEE_1_LEGAL_NAME']='New local tenant'
+        saved=self.client.post(url,data=data);self.assertEqual(saved.status_code,302)
+        self.assertEqual(self.client.post(url,data=data).status_code,302)
+        identifier=parse_qs(urlparse(saved.location).query)['draft_id'][0]
+        created=self.session.execute(text('SELECT items FROM bil_lease_draft WHERE id=:i'),{'i':identifier}).scalar()
+        self.assertEqual(created['s1-01']['value'],'LEASE-'+identifier)

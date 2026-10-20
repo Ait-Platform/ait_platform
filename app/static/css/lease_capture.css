@@ -15,7 +15,7 @@ div:has(> #lease-management-actions),div:has(> #lease-header-actions > .lease-ma
 .capture-row h2 { font-weight:600; margin:0 0 8px; }
 .capture-field { display:block; margin:10px 0; }
 .capture-field>span { display:block; margin-bottom:4px; }
-.capture-field input,.capture-field select,.capture-field textarea { box-sizing:border-box; width:100%; padding:8px 10px; border:1px solid #94a3b8; border-radius:4px; background:white; font:inherit; color:inherit; }
+.capture-field input,.capture-field select,.capture-field textarea { box-sizing:border-box; width:100%; padding:8px 10px; border:2px solid #0284c7; border-radius:4px; background:white; font:inherit; color:inherit; }
 .capture-field textarea { min-height:38px; resize:vertical; }
 .capture-saved { margin:6px 0; white-space:pre-wrap; overflow-wrap:anywhere; }
 .capture-incomplete { color:#9a3412; }
@@ -26,3 +26,11 @@ div:has(> #lease-management-actions),div:has(> #lease-header-actions > .lease-ma
 .capture-actions button,.capture-actions a { padding:8px 20px; border:0; border-radius:6px; text-decoration:none; background:#e2e8f0; color:#172c3e; font:inherit; }
 .capture-actions button { background:#ea580c; color:white; cursor:pointer; }
 .capture-actions button:disabled { opacity:.5; cursor:not-allowed; }
+
+.capture-tabs { display:flex; gap:6px; overflow-x:auto; margin:20px 0; border-bottom:2px solid #0284c7; padding-bottom:6px; }
+.capture-tabs a { flex:0 0 auto; padding:10px 12px; background:#eff6ff; color:#075985; border:1px solid #7dd3fc; border-radius:6px 6px 0 0; text-decoration:none; }
+.capture-tabs a[aria-current] { background:#0369a1; color:white; font-weight:bold; }
+.capture-header { display:flex; justify-content:space-between; gap:16px; }
+.capture-header a { color:#1d4ed8; }
+.capture-section-title { font-size:18px; font-weight:600; }
+.capture-field :is(input,textarea,select):focus { outline:3px solid #fbbf24; outline-offset:2px; }

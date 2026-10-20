@@ -62,13 +62,7 @@ def word(property_id):
 
 
 def selector(property_id):
-    from app.program_billing.lease_management import render_pm_template
-    prop,draft,_,_,_=context(property_id,allow_blank=False)
-    arguments={'property_id':property_id,'draft_id':draft['id'] if draft else None}
-    return render_pm_template('program_billing/lease_certificate_view.html',title='Data Capture',
-        property=prop,lease_draft=draft,viewer_only=True,show_main_navigation=True,document_token='',
-        capture_sections=[{'key':key,'label':label,'url':url_for('billing_bp.lease_capture_section',section_key=key,**arguments)}
-                          for key,label,_,_ in form.CAPTURE_SECTIONS],unavailable=None)
+    return edit(property_id,'parties')
 
 
 def edit(property_id,section_key):
@@ -98,7 +92,7 @@ def edit(property_id,section_key):
                 _,lessee_count=form.form_counts(request.form)
             sections=[form.layout(lessor_count,lessee_count)[definition[2]]]
             edits=form.submitted(request.form,sections)
-            edits={token:value for token,value in edits.items() if not re.fullmatch(r'\[LESSOR_\d+_(?:NAME|IDENTITY_NUMBER)\]',token)}
+            edits={token:value for token,value in edits.items() if token!='[LEASE_REFERENCE]' and not token.endswith('_AUTHORITY_EVIDENCE]') and not re.fullmatch(r'\[LESSOR_\d+_(?:NAME|IDENTITY_NUMBER)\]',token)}
             pending=form.merge_section(saved,items,edits,lessor_count,lessee_count,section_key)
             if section_key=='parties':
                 original_rep=items.get('_parties',{}).get('lessor',{})
@@ -121,8 +115,12 @@ def edit(property_id,section_key):
                         pending['_certificate_banking'].update(schema_version=1,bank_detail_id=account['bank_detail_id'],
                             property_id=property_id,selected_by=int(current_user.id),selected_at=datetime.now(timezone.utc).isoformat())
                     else:pending['_certificate_banking']={'schema_version':1,'property_id':property_id,'bank_detail_id':None}
-            if draft:workflow.save_items(draft,pending)
-            else:draft=workflow.create_parties_draft(property_id,pending)
+            if draft:
+                if section_key=='parties' and not saved.get('s1-01',{}).get('value'):
+                    pending['s1-01']={'value':'LEASE-'+str(draft['id'])}
+                elif section_key=='parties':pending['s1-01']=deepcopy(saved['s1-01'])
+                workflow.save_items(draft,pending)
+            else:draft=workflow.create_parties_draft(property_id,pending,automatic_reference=True)
             flash(definition[1]+' saved. Missing particulars remain incomplete.','success')
             return redirect(url_for('billing_bp.lease_capture_section',property_id=property_id,section_key=section_key,draft_id=draft['id']))
         except ValueError as error:
@@ -136,6 +134,13 @@ def edit(property_id,section_key):
     for row in section['rows']:
         for part in row['parts']:
             if re.fullmatch(r'LESSOR_\d+_(?:NAME|IDENTITY_NUMBER)',part.get('name','')):part['editable']=False
+    if section_key=='parties':
+        section['rows']=[dict(row,parts=[part for part in row['parts'] if part.get('name')!='LEASE_REFERENCE'
+            and not part.get('name','').endswith(('_AUTHORITY_CONFIRMED','_AUTHORITY_EVIDENCE'))])
+            for row in section['rows']]
+        section['rows']=[row for row in section['rows'] if any('token' in part for part in row['parts'])]
+        for row in section['rows']:
+            if row['label']=='Capacity / authority':row['label']='Representative capacity'
     if section_key=='banking':
         # Show each saved account field once; the document layout repeats some of them.
         seen=set();summary=[]
@@ -156,7 +161,10 @@ def edit(property_id,section_key):
                 lessee_groups[index-1].append(row)
             else:party_rows.append(row)
         prototype=form.render_rows([form.layout(lessor_count,1)[0]],{})[0]
-        lessee_template=[row for row in prototype['rows'] if any(part.get('name','').startswith('LESSEE_1_') for part in row['parts'])]
+        lessee_template=[dict(row,parts=[part for part in row['parts'] if not part.get('name','').endswith(('_AUTHORITY_CONFIRMED','_AUTHORITY_EVIDENCE'))])
+            for row in prototype['rows'] if any(part.get('name','').startswith('LESSEE_1_') for part in row['parts'])]
+        for row in lessee_template:
+            if row['label']=='Capacity / authority':row['label']='Representative capacity'
     tenant_choices=[] if frozen or section_key!='parties' else [
         {key:row.get(key) for key in ('legal_name','identity_number','signatory_name','signatory_identity_number','signatory_capacity')}
         for row in tenant_register.rows()]
@@ -172,4 +180,7 @@ def edit(property_id,section_key):
         bank_reason=bank_reason,linked_accounts=linked,
         selected_bank=selected_bank,
         registration_token=request.form.get('registration_token') or str(uuid.uuid4()),
-        capture_back=url_for('billing_bp.lease_certificate_edit',**arguments)),400 if errors else 200
+        capture_sections=[{'key':key,'label':label.split('. ',1)[-1],
+            'url':url_for('billing_bp.lease_capture_section',section_key=key,**arguments)} for key,label,_,_ in form.CAPTURE_SECTIONS],
+        lease_reference=saved.get('s1-01',{}).get('value') or ('LEASE-'+str(draft['id']) if draft else 'Generated on first save'),
+        capture_back=url_for('billing_bp.pm_lease_management',**arguments)),400 if errors else 200

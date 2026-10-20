@@ -14,12 +14,15 @@
 <link rel="stylesheet" href="{{ url_for('static',filename='css/lease_capture.css') }}">
 <div class="capture-page"><div class="capture-accent"></div><div class="capture-content">
 {% include 'partials/flash_messages.html' %}
-<h1>{{ title }}</h1><p>{{ property.name }}{% if lease_draft %} &middot; Revision {{ lease_draft.version }}{% endif %}</p>
+<div class="capture-header"><h1>Data Capture</h1><a href="{{ capture_back }}">Back</a></div><p>{{ property.name }}{% if lease_draft %} &middot; Revision {{ lease_draft.version }}{% endif %}</p>
+<nav class="capture-tabs" aria-label="Data Capture sections">{% for tab in capture_sections %}<a href="{{ tab.url }}" data-capture-section="{{ tab.key }}" {% if tab.key==section_key %}aria-current="page"{% endif %}>{{ tab.label }}</a>{% endfor %}</nav>
+<h2 class="capture-section-title">{{ title.split('. ',1)[-1] }}</h2>
 {% if errors %}<ul role="alert" class="capture-errors">{% for error in errors %}<li>{{ error }}</li>{% endfor %}</ul>{% endif %}
 {% if frozen %}<p role="status">Issued or signed particulars are read-only. Use Addendum for changes.</p>{% endif %}
-<form method="post" id="certificate-form">
+<form method="post" id="certificate-form" action="{{ url_for('billing_bp.lease_capture_section',property_id=property.id,section_key=section_key,draft_id=lease_draft.id if lease_draft else None) }}">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="draft_id" value="{{ lease_draft.id if lease_draft else '' }}"><input type="hidden" name="version" value="{{ lease_draft.version if lease_draft else '' }}"><input type="hidden" name="registration_token" value="{{ registration_token }}"><input type="hidden" name="lessor_count" value="{{ lessor_count }}">
 {% if section_key=='parties' %}
+<p class="capture-saved"><strong>Lease reference:</strong> {{ lease_reference }}</p>
 <p>Lessors are populated from Property Management &rarr; Owners. Signing authority is never confirmed by saving this form.</p>
 {{ fields(party_rows) }}
 <label class="capture-field" for="lessee-count"><span>Number of Lessees</span><input id="lessee-count" name="lessee_count" type="number" min="1" max="50" value="{{ lessee_count }}" {% if frozen %}disabled{% endif %}></label>

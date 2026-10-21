@@ -2,42 +2,43 @@
 {% block title %}{{ title }} | Lease Management{% endblock %}
 {% block flashes %}{% endblock %}
 {% macro fields(rows) %}
-{% for row in rows %}<div class="capture-row"><h2>{{ row.label }}</h2>
+{% for row in rows %}{% if section_key=='additional' and row.label=='Rental Adjustments' %}<h2 class="capture-section-title">Additional Conditions</h2>{% endif %}<div class="capture-row"><h2>{{ row.label }}</h2>
 {% for part in row.parts if part.token is defined %}
 {% if part.editable and not frozen %}<label class="capture-field"><span>{{ part.name.replace('_TEXT','').replace('_',' ').title().replace('Signatory','Representative') }}{% if part.name.endswith('_DATE') %} (YYYY-MM-DD){% endif %}</span>
 {% if part.name.startswith('LESSEE_') and part.name.endswith('_LEGAL_NAME') %}<select class="register-choice" data-field="{{ part.name }}" name="tenant_register_id_{{ part.name.split('_')[1] }}" aria-label="Select Existing Tenant for Lessee {{ part.name.split('_')[1] }}"><option value="">Select Existing Tenant&hellip;</option>{% for tenant in tenant_choices %}<option value="{{ tenant.id }}" {% set idx=part.name.split('_')[1]|int - 1 %}{% if idx < selected_tenant_ids|length and selected_tenant_ids[idx]==tenant.id|string %}selected{% endif %}>{{ tenant.legal_name }}</option>{% endfor %}</select>{% endif %}
 <textarea id="field_{{ part.name }}" name="{{ part.name }}" rows="{{ 4 if part.name.endswith('_TEXT') else 1 }}" maxlength="4000" placeholder="{{ part.token }}">{{ part.value }}</textarea></label>
-{% else %}<p class="capture-saved"><strong>{{ part.name.replace('_TEXT','').replace('_',' ').title().replace('Signatory','Representative') }}:</strong> <span class="{{ 'capture-incomplete' if not part.value else '' }}">{{ part.value or part.token }}</span></p>{% endif %}
+{% else %}<p class="capture-saved"><strong>{{ part.name.replace('_TEXT','').replace('_',' ').title().replace('Signatory','Representative') }}:</strong> <span id="display_{{ part.name }}" class="{{ 'capture-incomplete' if not part.value else '' }}">{{ part.value or part.token }}</span></p>{% endif %}
 {% endfor %}</div>{% endfor %}
 {% endmacro %}
 {% block content %}
 <link rel="stylesheet" href="{{ url_for('static',filename='css/lease_capture.css') }}">
 <div class="capture-page"><div class="capture-accent"></div><div class="capture-content">
 {% include 'partials/flash_messages.html' %}
-<div class="capture-header"><h1>Data Capture</h1><a href="{{ capture_back }}">Back</a></div><p>{{ property.name }}{% if lease_draft %} &middot; Revision {{ lease_draft.version }}{% endif %}</p>
+<h1>Data Capture</h1><p>{{ property.name }}</p>
 <nav class="capture-tabs" aria-label="Data Capture sections">{% for tab in capture_sections %}<a href="{{ tab.url }}" data-capture-section="{{ tab.key }}" {% if tab.key==section_key %}aria-current="page"{% endif %}>{{ tab.label }}</a>{% endfor %}</nav>
-<h2 class="capture-section-title">{{ title.split('. ',1)[-1] }}</h2>
+<div class="capture-header"><h2 class="capture-section-title">{{ title.split('. ',1)[-1] }}</h2><div class="capture-actions"><button type="submit" name="action" value="save" form="certificate-form" id="capture-save" {% if frozen %}disabled{% endif %}>Save</button><a href="{{ capture_back }}" data-capture-back>Back</a></div></div>
 {% if errors %}<ul role="alert" class="capture-errors">{% for error in errors %}<li>{{ error }}</li>{% endfor %}</ul>{% endif %}
 {% if frozen %}<p role="status">Issued or signed particulars are read-only. Use Addendum for changes.</p>{% endif %}
-<form method="post" id="certificate-form" action="{{ url_for('billing_bp.lease_capture_section',property_id=property.id,section_key=section_key,draft_id=lease_draft.id if lease_draft else None) }}">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="draft_id" value="{{ lease_draft.id if lease_draft else '' }}"><input type="hidden" name="version" value="{{ lease_draft.version if lease_draft else '' }}"><input type="hidden" name="registration_token" value="{{ registration_token }}"><input type="hidden" name="lessor_count" value="{{ lessor_count }}">
+<form method="post" id="certificate-form" data-has-errors="{{ '1' if errors else '0' }}" action="{{ url_for('billing_bp.lease_capture_section',property_id=property.id,section_key=section_key,draft_id=lease_draft.id if lease_draft else None) }}">
+<input type="hidden" name="capture_return" id="capture-return" value=""><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="draft_id" value="{{ lease_draft.id if lease_draft else '' }}"><input type="hidden" name="version" value="{{ lease_draft.version if lease_draft else '' }}"><input type="hidden" name="registration_token" value="{{ registration_token }}"><input type="hidden" name="lessor_count" value="{{ lessor_count }}">
 {% if section_key=='parties' %}
-<p class="capture-saved"><strong>Lease reference:</strong> {{ lease_reference }}</p>
-<p>Lessors are populated from Property Management &rarr; Owners. Signing authority is never confirmed by saving this form.</p>
-{{ fields(party_rows) }}
 <input id="lessee-count" name="lessee_count" type="hidden" value="{{ lessee_count }}">
-<button type="button" id="add-lessee" {% if frozen %}disabled{% endif %}>Add Lessee</button>
+<div class="party-controls"><div><span>Lessors</span><button type="button" id="show-lessors">Show Lessors</button></div><div><span>Lessee</span><button type="button" id="select-tenant">Select Existing Tenant</button><button type="button" id="add-lessee" {% if frozen %}disabled{% endif %}>Add Lessee</button></div></div>
 <div id="capture-lessees">{% for rows in lessee_groups %}<fieldset data-lessee-index="{{ loop.index }}"><legend>Lessee {{ loop.index }}</legend>{{ fields(rows) }}</fieldset>{% endfor %}</div>
 <template id="capture-lessee-template"><fieldset data-lessee-index="1"><legend>Lessee 1</legend>{% with selected_tenant_ids=[] %}{{ fields(lessee_template) }}{% endwith %}</fieldset></template>
 {% else %}<input type="hidden" name="lessee_count" value="{{ lessee_count }}">
 {% if section_key=='banking' %}
-{% if not frozen %}<p><a class="capture-register-link" href="{{ url_for('billing_bp.lease_property_banking',property_id=property.id,draft_id=lease_draft.id if lease_draft else None,add_bank=1) }}#add-bank">Add Bank Account</a></p>{% endif %}
+<div class="bank-controls"><button type="button" data-bank-operation="select">Select Bank</button><button type="button" data-bank-operation="add" {% if frozen %}disabled{% endif %}>Add Bank</button></div>
+<input type="hidden" name="bank_operation" id="bank-operation" value="{{ bank_operation }}">
+<fieldset id="bank-add-operation" {% if bank_operation!='add' %}hidden disabled{% endif %} {% if frozen or bank_reason %}disabled{% endif %}><legend>Add Bank</legend><p>Save adds the account to the existing register and links it to this property. Select Bank to choose it for this lease.</p>{% with editing=None %}{% include 'program_billing/lease_bank_fields.html' %}{% endwith %}</fieldset>
+<fieldset id="bank-select-operation" {% if bank_operation!='select' %}hidden disabled{% endif %}><legend>Select Bank</legend>
 <input type="hidden" name="refresh_bank_snapshot" id="refresh-bank-snapshot" value="0">
 <label class="capture-field" for="bank_detail_id"><span>Select Existing Account</span><select id="bank_detail_id" name="bank_detail_id" {% if frozen or bank_reason %}disabled{% endif %}><option value="">No account selected &mdash; incomplete</option>
 {% set bank_ids=linked_accounts|map(attribute='bank_detail_id')|map('string')|list %}
 {% if selected_bank and selected_bank not in bank_ids %}<option value="{{ selected_bank }}" selected>Preserve saved account snapshot &mdash; no longer available in the linked register</option>{% endif %}
 {% for account in linked_accounts %}<option value="{{ account.bank_detail_id }}" {% if selected_bank==account.bank_detail_id|string %}selected{% endif %}>{{ account.bank_name }} &middot; {{ account.account_holder }} &middot; ending {{ (account.account_number|string)[-4:] }}</option>{% endfor %}</select></label>
 {% if bank_reason %}<input type="hidden" name="bank_detail_id" value="{{ selected_bank }}"><p role="status">Bank selection is currently unavailable. Any saved historical particulars remain below.</p>{% endif %}
+</fieldset>
 <p>Only accounts linked to {{ property.name }} are available. Saving changes this lease only. The saved particulars below remain a snapshot, even if the register changes later.</p>
 {% endif %}
 {% if section_key=='banking' %}
@@ -46,8 +47,11 @@
 {% else %}{{ fields(section.rows) }}{% endif %}
 {% if section_key=='financial' and historical_financial %}<details class="capture-history"><summary>Previously saved financial particulars (preserved)</summary>{% for row in historical_financial %}<h3>{{ row.label }}</h3>{% for part in row.parts %}<p><strong>{{ part.name.replace('_TEXT','').replace('_',' ').title().replace('Signatory','Representative') }}:</strong> {{ part.value }}</p>{% endfor %}{% endfor %}</details>{% endif %}
 {% endif %}
-<div class="capture-actions"><button type="submit" name="action" value="save" {% if frozen %}disabled{% endif %}>Save</button><a href="{{ capture_back }}">Back</a></div>
+
+{% if section_key=='period' %}<p>Expiry is calculated from commencement and duration. Renewal notice uses the existing three-calendar-month rule.</p><div id="period-conflicts" role="status" class="capture-date-conflicts" {% if not date_differences %}hidden{% endif %}><div id="period-differences"><p>Saved dates differ from the calculation:</p>{% for difference in date_differences %}<p>{{ difference.label }}: saved {{ difference.saved }}; calculated {{ difference.calculated }}.</p>{% endfor %}</div><label><input type="checkbox" name="confirm_period_dates" value="1"> Replace these saved dates with the calculated values</label></div>{% endif %}
 </form>
-{% if not frozen %}<script type="application/json" id="capture-tenants">{{ tenant_choices|tojson }}</script><script type="application/json" id="capture-banks">{{ bank_choices|tojson }}</script><script src="{{ url_for('static',filename='js/lease_capture.js') }}" defer></script>{% endif %}
+{% if section_key=='parties' %}<dialog id="lessors-dialog"><h2>Lessors</h2>{% for owner in owner_information %}<p><strong>{{ owner.name }}</strong> &middot; {{ owner.identity_number or 'Identity not recorded' }}</p>{% else %}<p>No owner records available.</p>{% endfor %}<h3>Lessor representative</h3>{% if owner_representative %}<p>{{ owner_representative.name }} &middot; {{ owner_representative.identity_number }}</p>{% else %}<p>No unique representative match to an existing Owner is recorded. No representative has been assumed.</p>{% endif %}<button type="button" data-close-dialog="lessors-dialog">Close</button></dialog>{% endif %}
+<dialog id="capture-unsaved-dialog"><h2>Unsaved changes</h2><p>Save your changes before returning?</p><div class="capture-dialog-actions"><button type="button" id="capture-save-back">Save and Back</button><button type="button" id="capture-discard-back">Discard and Back</button><button type="button" data-close-dialog="capture-unsaved-dialog">Continue editing</button></div></dialog>
+<script type="application/json" id="capture-tenants">{{ tenant_choices|tojson }}</script><script type="application/json" id="capture-banks">{{ bank_choices|tojson }}</script><script src="{{ url_for('static',filename='js/lease_capture.js') }}" defer></script>
 </div></div>
 {% endblock %}

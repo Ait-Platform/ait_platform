@@ -162,7 +162,7 @@ CAPTURE_SECTIONS = (
     ('period','3. Lease Period',2,('_period','s1-18','s1-17','s1-20','s1-19','s1-26')),
     ('financial','4. Financial Particulars',3,('_amounts','_banking_utilities','s1-30','s1-31')),
     ('banking','5. Banking',4,('_certificate_banking',)),
-    ('additional','6. Additional Particulars',5,('s1-25','s1-37','s1-34','s1-35','s1-29')),
+    ('additional','6. Additional Particulars',5,('s1-25','s1-37','s1-34','s1-35','s1-29','_amounts')),
 )
 
 
@@ -177,7 +177,11 @@ def merge_section(saved, displayed, edits, lessor_count, lessee_count, key):
     merged=merge(displayed,edits,lessor_count,lessee_count)
     result=deepcopy(saved)
     for name in section[3]:
-        if name in merged:result[name]=deepcopy(merged[name])
+        if name=='_amounts' and key=='additional':
+            result.setdefault(name,deepcopy(saved.get(name,{})))
+            for field in ('rental_adjustments_text','parking_other_charges_text','utilities_allocation_text'):
+                if '['+field.upper()+']' in edits:result[name][field]=merged[name][field]
+        elif name in merged:result[name]=deepcopy(merged[name])
     return result
 
 
@@ -185,17 +189,18 @@ def capture_layout(key, lessors, lessees):
     """Capture-only fields; approved document tables and historical keys stay intact."""
     section=deepcopy(layout(lessors,lessees)[capture_section(key)[2]])
     if key=='financial':
-        section['rows']=[['Monthly rental','[MONTHLY_RENT]'],['Security deposit','[DEPOSIT_AMOUNT]'],
-            ['Rental Adjustments','[RENTAL_ADJUSTMENTS_TEXT]'],
-            ['Parking / Other Charges','[PARKING_OTHER_CHARGES_TEXT]'],
-            ['Utilities / Allocation','[UTILITIES_ALLOCATION_TEXT]']]
-    elif key=='premises':section['rows']=section['rows'][:1]
+        section['rows']=[['Monthly rental','[MONTHLY_RENT]'],['Security deposit','[DEPOSIT_AMOUNT]']]
+    elif key=='additional':
+        section['rows'] += [['Rental Adjustments','[RENTAL_ADJUSTMENTS_TEXT]'],
+            ['Parking / Other Charges','[PARKING_OTHER_CHARGES_TEXT]'],['Utilities / Allocation','[UTILITIES_ALLOCATION_TEXT]']]
+    elif key=='premises':section['rows']=section['rows'][:1]+[['Unit','[LEASED_PORTION_DESCRIPTION]']]
     elif key in ('parties','period'):
         rows=[]
         for label,value in section['rows']:
-            kept=[token for token in TOKEN.findall(value) if token!='[LEASE_REFERENCE]' and token!='[RENEWAL_PROVISION]'
+            kept=[token for token in TOKEN.findall(value) if token not in ('[LEASE_REFERENCE]','[RENEWAL_PROVISION]','[OCCUPATION_DATE]')
+                and not (key=='parties' and token.startswith('[LESSOR_SIGNATORY_'))
                 and not token.endswith(('_SIGNATORY_CAPACITY]','_AUTHORITY_CONFIRMED]','_AUTHORITY_EVIDENCE]'))]
-            if kept:rows.append([label,' | '.join(kept)])
+            if kept:rows.append(['Commencement' if key=='period' and label=='Commencement / occupation' else label,' | '.join(kept)])
         section['rows']=rows
     return [section]
 

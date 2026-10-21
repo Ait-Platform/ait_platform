@@ -6,8 +6,8 @@
 <div class="h-2 bg-orange-500"></div><div class="p-6">
 {% include "partials/flash_messages.html" %}
 <link rel="stylesheet" href="{{ url_for('static',filename='css/lease_capture.css') }}">
-<div class="flex items-start justify-between gap-4"><h1 class="text-2xl font-semibold">Lease Management</h1><div id="lease-management-actions"><a href="{{ url_for('billing_bp.learner_dashboard') }}" class="rounded-lg bg-slate-100 px-4 py-2">Back to Property Management</a>
-{% with property=selected_property %}{% include 'program_billing/lease_submenu.html' %}{% endwith %}</div></div>
+<div class="lease-management-header"><h1 class="text-2xl font-semibold">Lease Management</h1><a href="{{ url_for('billing_bp.learner_dashboard') }}">Back</a></div>
+<div id="lease-management-actions">{% with property=selected_property %}{% include 'program_billing/lease_submenu.html' %}{% endwith %}</div>
 <section class="mt-6 rounded-lg border border-slate-200 p-4">
 <h2 id="select-property" class="text-lg font-semibold"><a href="#select-property" onclick="document.getElementById('lease-property').focus()">1. Select Property</a></h2>
 <form method="get" action="{{ url_for('billing_bp.pm_lease_management') }}" class="mt-4 flex gap-3">
@@ -24,11 +24,11 @@
 {% if selected_property %}
 {% if draft_unavailable %}<p role="status" class="mt-3 text-sm">{{ draft_unavailable }}</p>
 {% elif not lease_draft %}<form method="post" action="{{ url_for('billing_bp.lease_draft_create',property_id=selected_property.id) }}" class="mt-3"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="registration_token" value="{{ draft_token }}"><button type="submit" class="rounded-lg bg-orange-600 px-4 py-2 text-white">Create Lease</button></form>{% endif %}
-{% if lease_draft %}<p class="mt-3 text-sm">Draft {{ lease_draft.id }} &middot; Revision {{ lease_draft.version }} &middot; R01</p>{% endif %}
-{% if lease_drafts|length > 1 %}<details class="mt-3"><summary>Existing drafts</summary>{% for draft in lease_drafts %}<a class="block text-sm text-blue-700 underline" href="{{ url_for('billing_bp.pm_lease_management',property_id=selected_property.id,draft_id=draft.id) }}">{{ draft.id }}</a>{% endfor %}</details>{% endif %}
+
+{% if lease_drafts|length > 1 %}<details class="mt-3"><summary>Existing drafts</summary>{% for draft in lease_drafts %}<a class="block text-sm text-blue-700 underline" href="{{ url_for('billing_bp.pm_lease_management',property_id=selected_property.id,draft_id=draft.id) }}">Lease {{ loop.index }}</a>{% endfor %}</details>{% endif %}
 
 {% endif %}
 {% if not selected_property %}<p class="mt-4">Select an authorized property to continue.</p>{% endif %}
-<p class="mt-4 text-sm font-bold text-amber-900">{{ status }}</p>
+
 </div></div>
 {% endblock %}

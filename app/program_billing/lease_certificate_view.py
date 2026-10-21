@@ -1,12 +1,14 @@
 """Scoped approved-certificate preview integration. Imported by lease_preview routes."""
 from copy import deepcopy
 from io import BytesIO
-from flask import abort,request,url_for,current_app,send_file,redirect,flash
+from flask import abort,request,url_for,current_app,send_file,redirect,flash,jsonify
 from datetime import datetime,timezone
 import uuid,re
 from flask_login import current_user
 from . import lease_certificate_form as form
 from app.extensions import db
+from sqlalchemy import text
+from sqlalchemy.exc import IntegrityError
 from app.program_billing import lease_snapshot as snapshot,lease_certificate as certificate
 
 
@@ -80,7 +82,23 @@ def edit(property_id,section_key):
     linked=payments.existing_property_accounts(property_id) if section_key=='banking' and not bank_reason else []
     values=certificate.values(items,None if frozen else dict(prop),owners,tenants)
     lessor_count,lessee_count=form.counts(items)
-    errors=[]
+    errors=[];date_differences=[];calculated_dates={}
+    bank_operation=request.form.get('bank_operation',request.args.get('bank_op','select'))
+    if bank_operation not in ('select','add'):bank_operation='select'
+    if section_key=='period' and not frozen:
+        start=request.values.get('COMMENCEMENT_DATE',values.get('[COMMENCEMENT_DATE]',''))
+        duration=request.values.get('DURATION_MONTHS',values.get('[DURATION_MONTHS]',''))
+        if start and duration:
+            calculated_dates,period_errors=workflow.calculated_period({'s1-18':start,'s1-17':duration},saved)
+            if request.method=='POST':errors.extend(period_errors)
+            for key,label in (('expiry_date','Expiry Date'),('renewal_notice_date','Renewal Notice Date')):
+                old=values.get('['+key.upper()+']','');new=calculated_dates.get(key)
+                if old and new and old!=new:date_differences.append({'label':label,'saved':old,'calculated':new})
+                legacy=saved.get('s1-20',{}).get('value') if key=='expiry_date' else None
+                if legacy and new and legacy!=new and legacy!=old:
+                    date_differences.append({'label':'Legacy Expiry Date','saved':legacy,'calculated':new})
+    if section_key=='period' and request.method=='GET' and request.args.get('calculate')=='1':
+        return jsonify(dates=calculated_dates,differences=date_differences)
     if request.method=='POST':
         snapshot.require_particulars_schema()
         if frozen:abort(409,description='Issued or signed lease particulars are preserved. Use Addendum for changes.')
@@ -91,7 +109,16 @@ def edit(property_id,section_key):
             if section_key=='parties':
                 _,lessee_count=form.form_counts(request.form)
             sections=form.capture_layout(section_key,lessor_count,lessee_count)
-            edits=form.submitted(request.form,sections)
+            submitted_form=request.form.copy()
+            for key in ('EXPIRY_DATE','RENEWAL_NOTICE_DATE'):
+                if section_key=='period':submitted_form.pop(key,None)
+            edits=form.submitted(submitted_form,sections)
+            if section_key=='period':
+                if errors:raise ValueError('Review the lease period inputs.')
+                if date_differences and request.form.get('confirm_period_dates')!='1':
+                    raise ValueError('Saved dates differ from the calculated dates. Confirm the replacements before saving.')
+                for key in ('expiry_date','renewal_notice_date'):
+                    if key in calculated_dates:edits['['+key.upper()+']']=calculated_dates[key]
             edits={token:value for token,value in edits.items() if token!='[LEASE_REFERENCE]' and not token.endswith('_AUTHORITY_EVIDENCE]') and not re.fullmatch(r'\[LESSOR_\d+_(?:NAME|IDENTITY_NUMBER)\]',token)}
             selected_register={}
             if section_key=='parties':
@@ -122,7 +149,17 @@ def edit(property_id,section_key):
                 if original_rep.get('signatory_identity_number','')!=proposed_rep.get('signatory_identity_number',''):
                     proposed_rep.pop('owner_id',None)
                     if 'identity_source' in proposed_rep:proposed_rep['identity_source']='lease_particulars'
-            if section_key=='banking':
+            if section_key=='banking' and bank_operation=='add':
+                if bank_reason or payments.association_readiness():raise ValueError('Bank account creation is currently unavailable.')
+                bank_fields=payments.account_input(request.form,require_allocation=False)
+                payments.add_account(property_id,request.form)
+                identifier=db.session.execute(text('''SELECT id FROM bil_bank_detail WHERE account_number=:account_number
+                    AND branch_code=:branch_code AND lower(trim(bank_name))=lower(:bank_name)
+                    AND coalesce(trim(branch_name),'')=:branch_name AND coalesce(trim(account_holder),'')=:account_holder
+                    AND coalesce(trim(account_type),'')=:account_type ORDER BY id LIMIT 1'''),bank_fields).scalar_one()
+                payments.allocate_existing(property_id,{'bank_detail_id':str(identifier)})
+                # Addition and linking do not choose a lease account or replace its snapshot.
+            if section_key=='banking' and bank_operation=='select':
                 saved_id=str(certificate.bank_snapshot(saved).get('bank_detail_id') or '')
                 bank_id=request.form.get('bank_detail_id',saved_id)
                 old_bank=certificate.bank_snapshot(saved)
@@ -143,18 +180,28 @@ def edit(property_id,section_key):
                 elif section_key=='parties':pending['s1-01']=deepcopy(saved['s1-01'])
                 workflow.save_items(draft,pending)
             else:draft=workflow.create_parties_draft(property_id,pending,automatic_reference=True)
-            flash(definition[1]+' saved. Missing particulars remain incomplete.','success')
+            flash('Bank account saved and linked. Select Bank to choose it for this lease.' if section_key=='banking' and bank_operation=='add' else definition[1]+' saved.','success')
+            if request.form.get('capture_return')=='back':
+                return redirect(url_for('billing_bp.pm_lease_management',property_id=property_id,draft_id=draft['id']))
             return redirect(url_for('billing_bp.lease_capture_section',property_id=property_id,section_key=section_key,draft_id=draft['id']))
+        except IntegrityError as error:
+            db.session.rollback();payments.log_banking_integrity(error,'add_account')
+            errors.append('Bank account could not be saved. Its details and existing lease selections were not changed.')
         except ValueError as error:
+            if section_key=='banking' and bank_operation=='add':db.session.rollback()
             errors.append(str(error))
             lessor_count=max(1,min(form.MAX_PARTIES,lessor_count))
             lessee_count=max(1,min(form.MAX_PARTIES,lessee_count))
             for token in form.tokens(form.capture_layout(section_key,lessor_count,lessee_count)):
                 if not form.readonly(token) and not re.fullmatch(r'\[LESSOR_\d+_(?:NAME|IDENTITY_NUMBER)\]',token) and token[1:-1] in request.form:
                     values[token]=request.form[token[1:-1]]
+    if section_key=='period' and not frozen:
+        for key in ('expiry_date','renewal_notice_date'):
+            if key in calculated_dates:values['['+key.upper()+']']=calculated_dates[key]
     section=form.render_rows(form.capture_layout(section_key,lessor_count,lessee_count),values)[0]
     for row in section['rows']:
         for part in row['parts']:
+            if section_key=='period' and part.get('name') in ('EXPIRY_DATE','RENEWAL_NOTICE_DATE'):part['editable']=False
             if re.fullmatch(r'LESSOR_\d+_(?:NAME|IDENTITY_NUMBER)',part.get('name','')):part['editable']=False
     if section_key=='parties':
         section['rows']=[dict(row,parts=[part for part in row['parts'] if part.get('name')!='LEASE_REFERENCE'
@@ -199,6 +246,11 @@ def edit(property_id,section_key):
         for row in form.render_rows([form.layout(lessor_count,lessee_count)[3]],values)[0]['rows']:
             parts=[part for part in row['parts'] if part.get('value') and part.get('name') not in ('MONTHLY_RENT','DEPOSIT_AMOUNT')]
             if parts:historical_financial.append(dict(row,parts=parts))
+    representative=items.get('_parties',{}).get('lessor',{})
+    matches=[row for row in owners if representative.get('owner_id') is not None and str(row.get('owner_id'))==str(representative['owner_id'])]
+    if not matches and representative.get('signatory_identity_number'):
+        matches=[row for row in owners if row.get('identity_number')==representative['signatory_identity_number']]
+    representative_owner=matches[0] if len(matches)==1 else None
     arguments={'property_id':property_id,'draft_id':draft['id'] if draft else None}
     return render_pm_template('program_billing/lease_capture_section.html',title=definition[1],property=prop,
         lease_draft=draft,section_key=section_key,section=section,errors=errors,frozen=frozen,
@@ -206,6 +258,8 @@ def edit(property_id,section_key):
         lessor_count=lessor_count,lessee_count=lessee_count,tenant_choices=tenant_choices,
         bank_reason=bank_reason,linked_accounts=linked,
         selected_bank=selected_bank,historical_financial=historical_financial,
+        date_differences=date_differences,calculated_dates=calculated_dates,bank_operation=bank_operation,
+        owner_information=owners,owner_representative=representative_owner,
         missing_bank_fields=[part['name'].replace('_',' ').title() for row in section['rows'] for part in row['parts']
             if section_key=='banking' and part.get('name') and not part.get('value')],
         selected_tenant_ids=[str(row.get('tenant_id') or '') for row in certificate.selected_tenants(items)],

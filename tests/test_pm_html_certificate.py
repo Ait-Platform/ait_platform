@@ -14,7 +14,7 @@ class HTMLCertificateTests(existing.CertificateRouteTests):
         url='/billing/leases/property/26/certificate/'+section+('?draft_id='+str(self.draft) if draft else '')
         response=self.client.get(url);self.assertEqual(response.status_code,200)
         tree=html.fromstring(response.data)
-        fields={node.get('name'):node.get('value','') for node in tree.xpath('//form[@id="certificate-form"]//input[@name and not(ancestor::template)]')}
+        fields={node.get('name'):node.get('value','') for node in tree.xpath('//form[@id="certificate-form"]//input[@name and not(ancestor::template) and not(@type="checkbox" and not(@checked))]')}
         fields.update({node.get('name'):node.text or '' for node in tree.xpath('//form[@id="certificate-form"]//textarea[not(ancestor::template)]')})
         fields.update({node.get('name'):(node.xpath('./option[@selected]/@value') or [''])[0] for node in tree.xpath('//form[@id="certificate-form"]//select[@name and not(ancestor::template)]')})
         fields['action']='save'
@@ -34,17 +34,22 @@ class HTMLCertificateTests(existing.CertificateRouteTests):
         self.assertEqual(len(form.tokens(form.layout(3,1))),69)
         self.assertEqual(set(form.tokens(form.layout(3,1))),set(cert.TOKEN.findall(''.join(cert.xml(cert.load_master()).itertext()))))
         for i in (1,2,3):self.assertEqual(self.assign(name='Synthetic Almond Lessor '+str(i),identity_number='TEST-'+str(i)).status_code,200)
-        before=copy.deepcopy(self.sql('SELECT items FROM bil_lease_draft').scalar())
-        entries={'parties':{'LESSEE_1_LEGAL_NAME':'WBH NPC','LESSEE_1_SIGNATORY_NAME':'Synthetic tenant representative','LESSOR_SIGNATORY_NAME':'Synthetic lessor representative'},
+        from app.program_billing import lease_workflow as workflow
+        owner=self.sql('SELECT id AS owner_id,display_name AS name,identity_number FROM bil_owner_identity ORDER BY display_name LIMIT 1').mappings().one()
+        seeded=copy.deepcopy(self.sql('SELECT items FROM bil_lease_draft').scalar())
+        seeded.setdefault('_parties',{})['lessor']={'owner_id':str(owner['owner_id']),'signatory_name':owner['name'],'signatory_identity_number':owner['identity_number']}
+        self.session.execute(text('UPDATE bil_lease_draft SET items=CAST(:i AS jsonb)'),{'i':json.dumps(seeded)});self.session.commit()
+        before=copy.deepcopy(seeded)
+        entries={'parties':{'LESSEE_1_LEGAL_NAME':'WBH NPC','LESSEE_1_SIGNATORY_NAME':'Synthetic tenant representative'},
             'premises':{'PROPERTY_ADDRESS':'21 Almond Road, Warner Beach, 4126'},
-            'period':{'COMMENCEMENT_DATE':'2026-10-01','DURATION_MONTHS':'6','EXPIRY_DATE':'2027-03-31','RENEWAL_NOTICE_DATE':'2026-12-31'},
+            'period':{'COMMENCEMENT_DATE':'2026-10-01','DURATION_MONTHS':'6'},
             'financial':{'MONTHLY_RENT':'1000.00'},'banking':{},'additional':{'PAYMENT_DAY_PARTICULARS':'User supplied payment day'}}
         with patch.object(cert,'document',side_effect=AssertionError('Word used')),patch.object(renderer,'render_pdf',side_effect=AssertionError('Converter used')):
             for section,updates in entries.items():
                 url,data,response=self.open_form(section=section)
                 tree=html.fromstring(response.data)
-                self.assertEqual(tree.xpath('//form//button[@type="submit"]/text()'),['Save'])
-                self.assertEqual(tree.xpath('//form//div[@class="capture-actions"]/a/text()'),['Back'])
+                self.assertEqual(tree.xpath('//button[@form="certificate-form"]/text()'),['Save'])
+                self.assertEqual(tree.xpath('//a[@data-capture-back]/text()'),['Back'])
                 self.assertFalse(tree.xpath('//iframe|//a[contains(@href,"view")]'))
                 data.update(updates)
                 self.assertEqual(self.client.post(url,data=data).status_code,302)
@@ -52,7 +57,7 @@ class HTMLCertificateTests(existing.CertificateRouteTests):
                 for key,value in updates.items():self.assertEqual(reopened[key],value)
                 self.assertEqual(self.client.post(url,data=data).status_code,409)
             preview=self.client.get(self.preview_url()).get_data(as_text=True)
-            for value in ('WBH NPC','Synthetic tenant representative','Synthetic lessor representative','2026-10-01','2027-03-31','2026-12-31','[ACCOUNT_NUMBER]','Unconfirmed','window.print()'):
+            for value in ('WBH NPC','Synthetic tenant representative',owner['name'],'2026-10-01','2027-03-31','2026-12-31','[ACCOUNT_NUMBER]','Unconfirmed','window.print()'):
                 self.assertIn(value,preview)
             for i in (1,2,3):self.assertIn('Synthetic Almond Lessor '+str(i),preview)
         after=self.sql('SELECT items FROM bil_lease_draft').scalar()

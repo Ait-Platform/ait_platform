@@ -103,7 +103,7 @@ class LeaseKitTests(HTMLCertificateTests):
         self.assertEqual(saved[0]['identity_number'],'SOURCE-OWNER')
         self.assertEqual(self.sql('SELECT display_name FROM bil_owner_identity').scalar(),'Registered owner only')
 
-    def test_representative_correction_does_not_retain_previous_owner_link(self):
+    def test_capture_cannot_replace_registered_owner_representative(self):
         self.assertEqual(self.assign(name='Registered Owner',identity_number='OWNER-REP').status_code,200)
         owner_id=str(self.sql('SELECT id FROM bil_owner_identity').scalar())
         items={'_parties':{'lessor':{'owner_id':owner_id,'signatory_name':'Registered Owner',
@@ -114,9 +114,9 @@ class LeaseKitTests(HTMLCertificateTests):
         data.update(LESSOR_SIGNATORY_NAME='New representative supplied by user',LESSOR_SIGNATORY_IDENTITY_NUMBER='NEW-REP',LESSOR_SIGNATORY_CAPACITY='')
         self.assertEqual(self.client.post(url,data=data).status_code,302)
         preview=self.client.get(self.view_url('certificate')).get_data(as_text=True)
-        self.assertIn('New representative supplied by user',preview)
+        self.assertNotIn('New representative supplied by user',preview)
+        self.assertIn('Registered Owner',preview)
         self.assertIn('Unconfirmed',preview)
         saved=self.sql('SELECT items FROM bil_lease_draft').scalar()['_parties']['lessor']
-        self.assertNotIn('owner_id',saved)
-        self.assertFalse(saved['capacity_confirmed'])
+        self.assertEqual(saved,items['_parties']['lessor'])
         self.assertEqual(self.sql('SELECT display_name FROM bil_owner_identity').scalar(),'Registered Owner')

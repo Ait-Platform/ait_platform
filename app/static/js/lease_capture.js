@@ -2,6 +2,78 @@
   'use strict';
   const form = document.getElementById('certificate-form');
   if (!form) return;
+  const ignored = new Set(['csrf_token','version','registration_token','capture_return','bank_operation']);
+  function state() {
+    return JSON.stringify(Array.from(form.querySelectorAll('input[name],select[name],textarea[name]'))
+      .filter(input => !ignored.has(input.name) && !(['checkbox','radio'].includes(input.type) && !input.checked) && input.value !== '')
+      .map(input => [input.name,input.value]));
+  }
+  const originalState = state();
+  let submitting = false;
+  const dirty = () => form.dataset.hasErrors === '1' || state() !== originalState;
+  const back = document.querySelector('[data-capture-back]');
+  const unsaved = document.getElementById('capture-unsaved-dialog');
+  if (back) back.addEventListener('click', function (event) {
+    if (!dirty()) return;
+    event.preventDefault();unsaved.showModal();
+  });
+  document.getElementById('capture-save-back').addEventListener('click', function () {
+    unsaved.close();
+    if (!form.reportValidity()) return;
+    document.getElementById('capture-return').value = 'back';
+    form.requestSubmit(document.getElementById('capture-save'));
+  });
+  document.getElementById('capture-discard-back').addEventListener('click', function () {
+    submitting = true;window.location.assign(back.href);
+  });
+  form.addEventListener('submit', function () { submitting = true; });
+  window.addEventListener('beforeunload', function (event) {
+    if (!submitting && dirty()) { event.preventDefault();event.returnValue = ''; }
+  });
+  document.querySelectorAll('[data-close-dialog]').forEach(button => button.addEventListener('click', function () {
+    document.getElementById(button.dataset.closeDialog).close();
+  }));
+  const lessors = document.getElementById('show-lessors');
+  if (lessors) lessors.addEventListener('click', () => document.getElementById('lessors-dialog').showModal());
+  const selectTenant = document.getElementById('select-tenant');
+  if (selectTenant) selectTenant.addEventListener('click', () => document.querySelector('#capture-lessees select').focus());
+  document.querySelectorAll('[data-bank-operation]').forEach(button => button.addEventListener('click', function () {
+    const operation = button.dataset.bankOperation;
+    document.getElementById('bank-operation').value = operation;
+    ['select','add'].forEach(key => {
+      const panel = document.getElementById('bank-' + key + '-operation');
+      panel.hidden = key !== operation;panel.disabled = key !== operation;
+    });
+  }));
+  const commencement = document.getElementById('field_COMMENCEMENT_DATE');
+  const duration = document.getElementById('field_DURATION_MONTHS');
+  if (commencement && duration) {
+    let timer, requestNumber = 0;
+    function calculate() {
+      clearTimeout(timer);
+      const current = ++requestNumber;
+      timer = setTimeout(async function () {
+        const url = new URL(form.getAttribute('action'), window.location.href);
+        url.searchParams.set('calculate','1');url.searchParams.set('COMMENCEMENT_DATE',commencement.value);
+        url.searchParams.set('DURATION_MONTHS',duration.value);
+        try {
+          const response = await fetch(url,{credentials:'same-origin'});
+          if (!response.ok) return;
+          const data = await response.json();if (current !== requestNumber) return;
+          ['expiry_date','renewal_notice_date'].forEach(key => {
+            const output = document.getElementById('display_' + key.toUpperCase());
+            if (output) output.textContent = data.dates[key] || '[' + key.toUpperCase() + ']';
+          });
+          const conflicts = document.getElementById('period-conflicts');
+          conflicts.hidden = !data.differences.length;
+          document.getElementById('period-differences').textContent = data.differences.map(row => row.label + ': saved ' + row.saved + '; calculated ' + row.calculated).join('\n');
+          conflicts.querySelector('input').checked = false;
+        } catch (error) { /* Save still performs authoritative calculation and validation. */ }
+      },200);
+    }
+    commencement.addEventListener('input',calculate);duration.addEventListener('input',calculate);
+  }
+
   const bank = document.getElementById('bank_detail_id');
   if (bank) {
     const data = document.getElementById('capture-banks');

@@ -1,8 +1,8 @@
-div:has(> #lease-management-actions),div:has(> #lease-header-actions > .lease-main-navigation) { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; }
+div:has(> #lease-header-actions > .lease-main-navigation) { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; }
 #lease-header-actions:has(> .lease-main-navigation) { display:flex; flex-direction:column; align-items:flex-end; gap:8px; }
 #lease-management-actions { display:flex; flex-direction:column; align-items:flex-end; gap:8px; }
-.lease-main-navigation { display:flex; justify-content:flex-end; flex-wrap:wrap; gap:12px; margin-top:8px; font:14px Arial,sans-serif; }
-.lease-main-navigation a { display:inline-block; padding:6px 8px; border-radius:4px; background:#eff6ff; color:#1d4ed8; text-decoration:none; }
+.lease-main-navigation { display:grid; grid-template-columns:repeat(5,minmax(max-content,1fr)); gap:8px; overflow-x:auto; margin-top:8px; font:14px Arial,sans-serif; }
+.lease-main-navigation a { text-align:center; white-space:nowrap; display:inline-block; padding:6px 8px; border-radius:4px; background:#eff6ff; color:#1d4ed8; text-decoration:none; }
 .capture-selector { width:100%; margin-top:24px; border-collapse:collapse; text-align:left; }
 .capture-selector th,.capture-selector td { padding:14px 12px; border-bottom:1px solid #e2e8f0; }
 .capture-selector th { background:#f1f5f9; }
@@ -40,3 +40,22 @@ div:has(> #lease-management-actions),div:has(> #lease-header-actions > .lease-ma
 #capture-bank-table th,#capture-bank-table td { padding:10px; border:1px solid #7dd3fc; text-align:left; overflow-wrap:anywhere; }
 #capture-bank-table th { background:#eff6ff; width:35%; }
 .capture-history { margin:20px 0; padding:12px; border:1px solid #cbd5e1; white-space:pre-wrap; }
+
+.lease-management-header { display:flex; align-items:center; justify-content:space-between; flex-wrap:nowrap; gap:16px; white-space:nowrap; }
+.lease-management-header h1 { min-width:0; font-size:clamp(18px,3vw,24px); }
+#lease-management-actions { display:block; margin-top:12px; }
+#lease-management-actions .lease-main-navigation { display:grid; grid-template-columns:repeat(5,minmax(max-content,1fr)); gap:8px; overflow-x:auto; }
+#lease-management-actions .lease-main-navigation a { text-align:center; white-space:nowrap; }
+.capture-header { align-items:center; flex-wrap:nowrap; margin:16px 0; }
+.capture-header .capture-actions { margin:0; flex-shrink:0; }
+.party-controls,.bank-controls { display:flex; flex-wrap:nowrap; gap:12px; align-items:flex-end; overflow-x:auto; margin:16px 0; }
+.party-controls>div { display:flex; align-items:center; gap:8px; flex-shrink:0; }
+.party-controls span { font-weight:bold; }
+.party-controls button,.bank-controls button { white-space:nowrap; padding:8px 12px; border:1px solid #0284c7; border-radius:6px; background:#eff6ff; color:#075985; }
+.party-controls #add-lessee { margin:0; }
+.capture-content dialog { max-width:min(600px,90vw); padding:24px; border:2px solid #0284c7; border-radius:8px; }
+.capture-content dialog::backdrop { background:rgba(15,23,42,.4); }
+.capture-dialog-actions { display:flex; flex-wrap:wrap; gap:12px; margin-top:16px; }
+.capture-date-conflicts { margin-top:16px; padding:12px; border:2px solid #f59e0b; }
+#bank-add-operation label { display:block; margin-top:12px; }
+#bank-add-operation input,#bank-add-operation select { width:100%; box-sizing:border-box; padding:8px; border:2px solid #0284c7; }

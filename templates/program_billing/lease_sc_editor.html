@@ -1,0 +1,19 @@
+{% macro clause_fields(clause, index) %}
+<fieldset class="sc-clause" {% if frozen %}disabled{% endif %}>
+<legend>SC-{{ '%02d' % index }}</legend>
+<label class="capture-field"><span>Clause Heading</span><select name="sc_heading_type_{{ index }}" data-sc-kind>{% for heading in sc_headings %}<option value="{{ heading }}" {% if clause.get('heading_type')==heading %}selected{% endif %}>{{ heading }}</option>{% endfor %}</select></label>
+<label class="capture-field" data-sc-custom-wrap {% if clause.get('heading_type')!='Custom' %}hidden{% endif %}><span>Custom Heading</span><input type="text" name="sc_custom_heading_{{ index }}" data-sc-custom maxlength="200" value="{{ clause.get('heading','') if clause.get('heading_type')=='Custom' else '' }}"></label>
+<label class="capture-field"><span>Clause Text</span><textarea name="sc_text_{{ index }}" data-sc-text rows="8" maxlength="20000">{{ clause.get('text','') }}</textarea></label>
+<button type="button" data-sc-remove {% if frozen %}disabled{% endif %}>Remove SC</button>
+</fieldset>
+{% endmacro %}
+<section id="sc-editor" data-frozen="{{ '1' if frozen else '0' }}">
+<h2 class="capture-section-title">SUPPLEMENTARY CONDITIONS</h2>
+<p>Supplementary Conditions required?</p>
+<input type="hidden" name="sc_editor_version" value="1"><input type="hidden" id="sc-mode" name="sc_mode" value="{{ sc_editor.mode }}"><input type="hidden" id="sc-count" name="sc_count" value="{{ sc_editor.clauses|length }}">
+<div class="sc-controls"><button type="button" id="sc-none" {% if frozen %}disabled{% endif %}>None</button><button type="button" id="sc-add" {% if frozen %}disabled{% endif %}>Add SC</button></div>
+<p id="sc-none-note" {% if sc_editor.mode!='none' %}hidden{% endif %}>No supplementary conditions are required. No supplementary page will be generated.</p>
+<div id="sc-entry" {% if sc_editor.mode!='add' %}hidden{% endif %}><div id="sc-clauses">{% for clause in sc_editor.clauses %}{{ clause_fields(clause,loop.index) }}{% endfor %}</div><button type="button" id="sc-another" {% if frozen %}disabled{% endif %}>+ Add Another SC</button></div>
+<template id="sc-template">{{ clause_fields({'heading_type':'Rental Adjustments','heading':'','text':''},1) }}</template>
+</section>
+{% if legacy_additional or legacy_sc %}<details class="capture-history"><summary>Previously saved Additional Particulars (preserved)</summary>{% for row in legacy_additional %}<h3>{{ row.label }}</h3>{% for part in row.parts %}<p><strong>{{ part.name.replace('_TEXT','').replace('_',' ').title() }}:</strong> {{ part.value }}</p>{% endfor %}{% endfor %}{% if legacy_sc %}<h3>Previously saved conditions</h3><p>{{ legacy_sc }}</p>{% endif %}</details>{% endif %}

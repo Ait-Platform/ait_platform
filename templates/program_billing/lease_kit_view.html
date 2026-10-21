@@ -10,10 +10,12 @@
 <p class="kit-controls mt-2"><a class="text-blue-700 underline" href="{{ capture_url }}">Data Capture — enter or correct lease particulars</a>. Correct owner information in Property Management → Menu 1: Owners.</p>
 <p class="kit-controls mt-2 text-sm" role="status">{{ email_unavailable }}</p>
 {% if not print_available %}<p class="kit-controls mt-3 text-amber-900" role="status">Print is unavailable for this selection until its document is available.</p>{% endif %}
+{% if states[selected_component].get('omitted') %}<p class="kit-controls">{{ states[selected_component].reason }}</p>{% endif %}
 <div id="lease-kit-document" data-selected-document="{{ selected_component }}">
 {% for key in selected_documents %}
 {% if key=='cover' %}<section id="existing-cover" class="certificate-cover kit-cover-page" aria-label="Cover">{{ show_blocks(cover_blocks) }}</section>
 {% elif key=='certificate' %}{% include 'program_billing/lease_certificate_document.html' %}
+{% elif key=='special_conditions' and states[key].get('clauses') and states[key]['available'] %}{% include 'program_billing/lease_supplementary_conditions.html' %}
 {% elif states[key].get('text') %}<article class="kit-text-page" data-document="{{ key }}"><h2>Special Conditions — Draft</h2><p class="kit-draft-notice">{{ states[key].reason }}</p><div class="whitespace-pre-wrap" style="white-space:pre-wrap">{{ states[key].text }}</div><p>DRAFT — NOT FOR SIGNATURE OR ISSUANCE</p></article>
 {% else %}<section class="kit-unavailable" data-document="{{ key }}" role="status"><h2>{{ selected_label }} — unavailable</h2><p>{{ states[key].reason }}</p></section>{% endif %}
 {% endfor %}

@@ -1,12 +1,12 @@
 {% extends 'layout.html' %}
 {% block title %}{{ title }} | Lease Management{% endblock %}
 {% block flashes %}{% endblock %}
-{% macro fields(rows) %}
-{% for row in rows %}{% if section_key=='additional' and row.label=='Rental Adjustments' %}<h2 class="capture-section-title">Additional Conditions</h2>{% endif %}<div class="capture-row"><h2>{{ row.label }}</h2>
+{% macro fields(rows, lessee_entry=false) %}
+{% for row in rows %}{% if section_key=='additional' and row.label=='Rental Adjustments' %}<h2 class="capture-section-title">Additional Conditions</h2>{% endif %}<div class="capture-row">{% if not lessee_entry %}<h2>{{ row.label }}</h2>{% endif %}
 {% for part in row.parts if part.token is defined %}
-{% if part.editable and not frozen %}<label class="capture-field"><span>{{ part.name.replace('_TEXT','').replace('_',' ').title().replace('Signatory','Representative') }}{% if part.name.endswith('_DATE') %} (YYYY-MM-DD){% endif %}</span>
+{% if part.editable and not frozen %}<label class="capture-field"><span>{{ {'LEGAL_NAME':'Name','IDENTITY_NUMBER':'Registration / ID Number','SIGNATORY_NAME':'Representative','SIGNATORY_IDENTITY_NUMBER':'Representative ID Number'}.get(part.name.split('_',2)[-1],part.name.replace('_',' ').title()) if lessee_entry else part.name.replace('_TEXT','').replace('_',' ').title().replace('Signatory','Representative') }}{% if part.name.endswith('_DATE') %} (YYYY-MM-DD){% endif %}</span>
 {% if part.name.startswith('LESSEE_') and part.name.endswith('_LEGAL_NAME') %}<select class="register-choice" data-field="{{ part.name }}" name="tenant_register_id_{{ part.name.split('_')[1] }}" aria-label="Select Existing Tenant for Lessee {{ part.name.split('_')[1] }}"><option value="">Select Existing Tenant&hellip;</option>{% for tenant in tenant_choices %}<option value="{{ tenant.id }}" {% set idx=part.name.split('_')[1]|int - 1 %}{% if idx < selected_tenant_ids|length and selected_tenant_ids[idx]==tenant.id|string %}selected{% endif %}>{{ tenant.legal_name }}</option>{% endfor %}</select>{% endif %}
-<textarea id="field_{{ part.name }}" name="{{ part.name }}" rows="{{ 4 if part.name.endswith('_TEXT') else 1 }}" maxlength="4000" placeholder="{{ part.token }}">{{ part.value }}</textarea></label>
+<textarea id="field_{{ part.name }}" name="{{ part.name }}" rows="{{ 4 if part.name.endswith('_TEXT') else 1 }}" maxlength="4000" placeholder="{{ '' if lessee_entry else part.token }}">{{ part.value }}</textarea></label>
 {% else %}<p class="capture-saved"><strong>{{ part.name.replace('_TEXT','').replace('_',' ').title().replace('Signatory','Representative') }}:</strong> <span id="display_{{ part.name }}" class="{{ 'capture-incomplete' if not part.value else '' }}">{{ part.value or part.token }}</span></p>{% endif %}
 {% endfor %}</div>{% endfor %}
 {% endmacro %}
@@ -27,10 +27,10 @@
 <section id="party-work-area" aria-label="Parties work area">
 <p id="party-initial-message">View existing Lessors, select a tenant or add a new Lessee.</p>
 <div id="party-lessors" hidden><h2>Lessors</h2>{{ fields(party_rows) }}<h3>Lessor representative</h3>{% if owner_representative %}<p>{{ owner_representative.name }} &middot; {{ owner_representative.identity_number }}</p>{% else %}<p>No unique representative match to an existing Owner is recorded. No representative has been assumed.</p>{% endif %}</div>
-<div id="party-tenant-selection" hidden><label class="capture-field" for="party-tenant-choice"><span>Select Existing Tenant</span><select id="party-tenant-choice" {% if frozen %}disabled{% endif %}><option value="">Choose a tenant</option>{% for tenant in tenant_choices %}<option value="{{ tenant.id }}">{{ tenant.legal_name }}</option>{% endfor %}</select></label><p id="party-tenant-status" role="status"></p></div>
-<div id="capture-lessees" hidden>{% for rows in lessee_groups %}<fieldset data-lessee-index="{{ loop.index }}" hidden><legend>Lessee {{ loop.index }}</legend>{{ fields(rows) }}</fieldset>{% endfor %}</div>
+<div id="party-tenant-selection" hidden><label class="capture-field" for="party-tenant-choice"><span>Select Existing Tenant</span><select id="party-tenant-choice" {% if frozen %}disabled{% endif %}><option value="">Choose a tenant</option>{% for tenant in tenant_choices %}<option value="{{ tenant.id }}">{{ tenant.legal_name }}</option>{% endfor %}</select></label><p id="party-tenant-status" role="status"></p><div id="party-selected-details" aria-live="polite"></div><div id="party-saved-details"><h3>Saved lease Lessees</h3>{% for party in lessee_details %}<section class="party-particulars"><h3>Lessee</h3><dl>{% for key,label in [('legal_name','Name'),('party_type','Party Type'),('entity_type','Entity Type'),('identity_number','Registration / ID Number'),('address','Address'),('physical_address','Physical Address'),('service_address','Service Address'),('email','Email'),('phone','Phone'),('signatory_name','Representative'),('signatory_identity_number','Representative ID Number'),('signatory_capacity','Representative Capacity (as recorded)'),('representative_email','Representative Email'),('representative_phone','Representative Phone')] %}{% if party.get(key) %}<dt>{{ label }}</dt><dd>{{ party[key] }}</dd>{% endif %}{% endfor %}</dl></section>{% else %}<p>No Lessee particulars have been saved on this lease.</p>{% endfor %}</div></div>
+<div id="capture-lessees" hidden>{% for rows in lessee_groups %}<fieldset data-lessee-index="{{ loop.index }}" hidden><legend>Lessee</legend>{{ fields(rows,true) }}</fieldset>{% endfor %}</div>
 </section>
-<template id="capture-lessee-template"><fieldset data-lessee-index="1"><legend>Lessee 1</legend>{% with selected_tenant_ids=[] %}{{ fields(lessee_template) }}{% endwith %}</fieldset></template>
+<template id="capture-lessee-template"><fieldset data-lessee-index="1"><legend>Lessee</legend>{% with selected_tenant_ids=[] %}{{ fields(lessee_template,true) }}{% endwith %}</fieldset></template>
 {% else %}<input type="hidden" name="lessee_count" value="{{ lessee_count }}">
 {% if section_key=='banking' %}
 <div class="bank-controls"><button type="button" data-bank-operation="select">Select Bank</button><button type="button" data-bank-operation="add" {% if frozen %}disabled{% endif %}>Add Bank</button></div>
@@ -49,6 +49,7 @@
 {% if section_key=='banking' %}
 <table id="capture-bank-table"><tbody>{% for row in section.rows %}{% for part in row.parts if part.name is defined %}<tr><th>{{ part.name.replace('_TEXT','').replace('_',' ').title().replace('Signatory','Representative') }}</th><td data-bank-field="{{ part.name.lower() }}">{{ part.value or part.token }}</td></tr>{% endfor %}{% endfor %}</tbody></table>
 <p id="bank-selection-status" role="status">{% if selected_bank %}Saved lease account snapshot.{% if missing_bank_fields %} Not recorded: {{ missing_bank_fields|join(', ') }}.{% else %} All banking particulars restored.{% endif %}{% else %}No lease account selected.{% endif %}</p>
+{% elif section_key=='additional' %}{% include 'program_billing/lease_sc_editor.html' %}
 {% else %}{{ fields(section.rows) }}{% endif %}
 {% if section_key=='financial' and historical_financial %}<details class="capture-history"><summary>Previously saved financial particulars (preserved)</summary>{% for row in historical_financial %}<h3>{{ row.label }}</h3>{% for part in row.parts %}<p><strong>{{ part.name.replace('_TEXT','').replace('_',' ').title().replace('Signatory','Representative') }}:</strong> {{ part.value }}</p>{% endfor %}{% endfor %}</details>{% endif %}
 {% endif %}

@@ -70,6 +70,59 @@
     commencement.addEventListener('input',calculate);duration.addEventListener('input',calculate);
   }
 
+  const scEditor = document.getElementById('sc-editor');
+  if (scEditor) {
+    const mode = document.getElementById('sc-mode');
+    const list = document.getElementById('sc-clauses');
+    const count = document.getElementById('sc-count');
+    const entry = document.getElementById('sc-entry');
+    const another = document.getElementById('sc-another');
+    const readOnly = scEditor.dataset.frozen === '1';
+    function scMode() {
+      entry.hidden = mode.value !== 'add';
+      document.getElementById('sc-none-note').hidden = mode.value !== 'none';
+      document.getElementById('sc-none').setAttribute('aria-pressed',String(mode.value === 'none'));
+      document.getElementById('sc-add').setAttribute('aria-pressed',String(mode.value === 'add'));
+    }
+    function numberClauses() {
+      Array.from(list.children).forEach(function (clause,index) {
+        const number = index + 1;
+        clause.querySelector('legend').textContent = 'SC-' + String(number).padStart(2,'0');
+        clause.querySelector('[data-sc-kind]').name = 'sc_heading_type_' + number;
+        clause.querySelector('[data-sc-custom]').name = 'sc_custom_heading_' + number;
+        clause.querySelector('[data-sc-text]').name = 'sc_text_' + number;
+        clause.querySelector('[data-sc-custom-wrap]').hidden = clause.querySelector('[data-sc-kind]').value !== 'Custom';
+      });
+      count.value = String(list.children.length);
+      another.disabled = readOnly || list.children.length >= 50;
+    }
+    function appendClause() {
+      if (readOnly || list.children.length >= 50) return;
+      list.appendChild(document.getElementById('sc-template').content.cloneNode(true));
+      numberClauses();
+      list.lastElementChild.querySelector('[data-sc-text]').focus();
+    }
+    document.getElementById('sc-none').addEventListener('click',function () {
+      mode.value = 'none';scMode();
+    });
+    document.getElementById('sc-add').addEventListener('click',function () {
+      mode.value = 'add';scMode();if (!list.children.length) appendClause();
+    });
+    another.addEventListener('click',appendClause);
+    list.addEventListener('change',function (event) {
+      if (event.target.matches('[data-sc-kind]')) {
+        const clause = event.target.closest('.sc-clause');
+        clause.querySelector('[data-sc-custom-wrap]').hidden = event.target.value !== 'Custom';
+      }
+    });
+    list.addEventListener('click',function (event) {
+      const remove = event.target.closest('[data-sc-remove]');
+      if (!remove || readOnly) return;
+      remove.closest('.sc-clause').remove();numberClauses();
+      if (!list.children.length) { mode.value = 'none';scMode(); }
+    });
+    numberClauses();scMode();
+  }
   const bank = document.getElementById('bank_detail_id');
   if (bank) {
     const data = document.getElementById('capture-banks');
@@ -125,7 +178,7 @@
     holder.innerHTML = prototype.innerHTML.replaceAll('LESSEE_1_', 'LESSEE_' + index + '_').replaceAll('Lessee 1', 'Lessee ' + index).replaceAll('tenant_register_id_1', 'tenant_register_id_' + index);
     const group = holder.content.firstElementChild;
     group.dataset.lesseeIndex = index;
-    group.querySelector('legend').textContent = 'Lessee ' + index;
+    group.querySelector('legend').textContent = 'Lessee';
     groups.appendChild(group);
     count.value = String(groups.children.length);
     return group;
@@ -142,7 +195,25 @@
     if (register) register.hidden = true;
     newGroup.querySelector('textarea')?.focus();
   });
+  function showTenantDetails(tenant) {
+    const host = document.getElementById('party-selected-details');
+    host.replaceChildren();
+    if (!tenant) return;
+    const card = document.createElement('section');card.className = 'party-particulars';
+    const heading = document.createElement('h3');heading.textContent = 'Selected tenant';card.appendChild(heading);
+    const details = document.createElement('dl');
+    const labels = {legal_name:'Name',party_type:'Party Type',entity_type:'Entity Type',identity_number:'Registration / ID Number',address:'Address',physical_address:'Physical Address',service_address:'Service Address',email:'Email',phone:'Phone',signatory_name:'Representative',signatory_identity_number:'Representative ID Number',signatory_capacity:'Representative Capacity (as recorded)',representative_email:'Representative Email',representative_phone:'Representative Phone'};
+    Object.entries(labels).forEach(function (entry) {
+      const value = tenant[entry[0]];
+      if (value == null || String(value).trim() === '') return;
+      const label = document.createElement('dt');label.textContent = entry[1];
+      const content = document.createElement('dd');content.textContent = value;
+      details.append(label,content);
+    });
+    card.appendChild(details);host.appendChild(card);
+  }
   choice.addEventListener('change', function () {
+    showTenantDetails(tenants.find(tenant => String(tenant.id) === choice.value));
     if (!choice.value) return;
     const existing = Array.from(groups.children).find(group => group.querySelector('.register-choice')?.value === choice.value);
     const target = existing || selectedGroup || availableGroup();

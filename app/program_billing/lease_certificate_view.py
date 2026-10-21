@@ -6,6 +6,7 @@ from datetime import datetime,timezone
 import uuid,re
 from flask_login import current_user
 from . import lease_certificate_form as form
+from . import lease_supplementary_conditions as supplementary
 from app.extensions import db
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
@@ -108,7 +109,7 @@ def edit(property_id,section_key):
             if request.form.get('action','save')!='save':abort(400)
             if section_key=='parties':
                 _,lessee_count=form.form_counts(request.form)
-            sections=form.capture_layout(section_key,lessor_count,lessee_count)
+            sections=[] if section_key=='additional' else form.capture_layout(section_key,lessor_count,lessee_count)
             submitted_form=request.form.copy()
             for key in ('EXPIRY_DATE','RENEWAL_NOTICE_DATE'):
                 if section_key=='period':submitted_form.pop(key,None)
@@ -132,7 +133,11 @@ def edit(property_id,section_key):
                     if str(old.get('tenant_id',''))!=str(registered['id']):
                         for key in ('legal_name','identity_number','signatory_name','signatory_identity_number'):
                             edits['[LESSEE_'+str(index)+'_'+key.upper()+']']=registered.get(key) or ''
-            pending=form.merge_section(saved,items,edits,lessor_count,lessee_count,section_key)
+            if section_key=='additional':
+                pending=deepcopy(saved)
+                sc_data=supplementary.submitted(request.form,saved)
+                if sc_data is not None:pending[supplementary.KEY]=sc_data
+            else:pending=form.merge_section(saved,items,edits,lessor_count,lessee_count,section_key)
             if section_key=='parties':
                 for index,registered in selected_register.items():
                     row=pending['_parties']['lessees'][index-1]
@@ -235,7 +240,7 @@ def edit(property_id,section_key):
         for row in lessee_template:
             if row['label']=='Capacity / authority':row['label']='Representative capacity'
     tenant_choices=[] if frozen or section_key!='parties' else [
-        {key:row.get(key) for key in ('id','legal_name','identity_number','signatory_name','signatory_identity_number')}
+        {key:row.get(key) for key in ('id','party_type','legal_name','identity_number','address','email','phone','signatory_name','signatory_identity_number','signatory_capacity','representative_phone','representative_email')}
         for row in tenant_register.rows()]
     saved_bank=str(certificate.bank_snapshot(saved).get('bank_detail_id') or '')
     requested_bank=request.form.get('bank_detail_id',saved_bank)
@@ -246,6 +251,19 @@ def edit(property_id,section_key):
         for row in form.render_rows([form.layout(lessor_count,lessee_count)[3]],values)[0]['rows']:
             parts=[part for part in row['parts'] if part.get('value') and part.get('name') not in ('MONTHLY_RENT','DEPOSIT_AMOUNT')]
             if parts:historical_financial.append(dict(row,parts=parts))
+    lessee_details=[]
+    for party in certificate.selected_tenants(saved):
+        registered=next((row for row in tenants if str(row['id'])==str(party.get('tenant_id'))),{})
+        detail={key:registered.get(key) for key in ('party_type','legal_name','identity_number','address','email','phone','signatory_name','signatory_identity_number','signatory_capacity','representative_phone','representative_email')}
+        detail.update({key:value for key,value in party.items() if certificate.present(value)})
+        if any(certificate.present(detail.get(key)) for key in ('legal_name','identity_number','signatory_name')):lessee_details.append(detail)
+    legacy_additional=[];legacy_sc=''
+    if section_key=='additional':
+        from .lease_standard import special_conditions
+        legacy_sc=special_conditions(saved)
+        for row in section['rows']:
+            parts=[part for part in row['parts'] if part.get('value')]
+            if parts:legacy_additional.append(dict(row,parts=parts))
     representative=items.get('_parties',{}).get('lessor',{})
     matches=[row for row in owners if representative.get('owner_id') is not None and str(row.get('owner_id'))==str(representative['owner_id'])]
     if not matches and representative.get('signatory_identity_number'):
@@ -255,6 +273,8 @@ def edit(property_id,section_key):
     return render_pm_template('program_billing/lease_capture_section.html',title=definition[1],property=prop,
         lease_draft=draft,section_key=section_key,section=section,errors=errors,frozen=frozen,
         party_rows=party_rows,lessee_groups=lessee_groups,lessee_template=lessee_template,
+        lessee_details=lessee_details,sc_headings=supplementary.HEADINGS,legacy_additional=legacy_additional,
+        sc_editor=supplementary.editor(saved,request.form if errors and section_key=='additional' else None),legacy_sc=legacy_sc,
         lessor_count=lessor_count,lessee_count=lessee_count,tenant_choices=tenant_choices,
         bank_reason=bank_reason,linked_accounts=linked,
         selected_bank=selected_bank,historical_financial=historical_financial,

@@ -63,3 +63,11 @@ div:has(> #lease-header-actions > .lease-main-navigation) { display:flex; justif
 .party-controls { display:grid; grid-template-columns:repeat(3,minmax(max-content,1fr)); align-items:stretch; }
 .party-controls button { margin:0; text-align:center; }
 #party-work-area { min-height:100px; margin-top:16px; }
+
+.sc-controls { display:flex; gap:12px; margin:12px 0; }
+.sc-controls button,#sc-another,[data-sc-remove] { padding:8px 12px; border:1px solid #0284c7; border-radius:6px; background:#eff6ff; color:#075985; }
+.sc-clause textarea { min-height:180px; }
+.party-particulars { margin:12px 0; padding:16px; border:1px solid #7dd3fc; border-radius:6px; }
+.party-particulars h3 { font-weight:bold; margin:0 0 12px; }
+.party-particulars dt { font-weight:bold; margin-top:8px; }
+.party-particulars dd { margin:2px 0 8px; white-space:pre-wrap; overflow-wrap:anywhere; }

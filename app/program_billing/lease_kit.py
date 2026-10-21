@@ -57,6 +57,9 @@ def component_states(items):
         'signature':{'available':False,'printable':False,'state':'unavailable',
                 'reason':'An independently approved Signature page is not yet available. No signing wording or authority has been invented.'},
     }
+    from .lease_supplementary_conditions import preview as supplementary_preview
+    supplementary=supplementary_preview(items)
+    if supplementary is not None:states['special_conditions']=supplementary
     complete=all(states[key]['available'] for key in ORDER)
     states['lease']={'available':complete,'printable':complete,'state':'draft' if complete else 'unavailable',
                      'reason':'The complete lease is unavailable until Cover, Certificate, Core, Special Conditions and Signature are all independently available.'}
@@ -84,6 +87,6 @@ def view(property_id):
         selected_label=dict(COMPONENTS)[selected],component_labels=dict(COMPONENTS),states=states,print_available=states[selected]['printable'],
         email_unavailable='Email is not yet available for this preview. Print or save it as PDF. Existing document email remains available in Lease History.',
         sections=form.document_rows(sections,values),unresolved=unresolved,preview=True,cover_blocks=cover_blocks(items),
-        assembly_order=ORDER,selected_documents=list(ORDER) if selected=='lease' and states['lease']['available'] else [selected],
+        assembly_order=ORDER,selected_documents=[key for key in ORDER if not states[key].get('omitted')] if selected=='lease' and states['lease']['available'] else [] if states[selected].get('omitted') else [selected],
         capture_url=url_for('billing_bp.lease_certificate_edit',**arguments),
         back_url=url_for('billing_bp.pm_lease_management',**arguments),unavailable=None)

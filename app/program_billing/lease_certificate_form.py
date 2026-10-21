@@ -101,7 +101,7 @@ def merge(items, values, lessor_count, lessee_count):
     for token, value in values.items():
         name = token[1:-1]
         owner = re.fullmatch(r'LESSOR_(\d+)_(NAME|IDENTITY_NUMBER)', name)
-        tenant = re.fullmatch(r'LESSEE_(\d+)_(LEGAL_NAME|IDENTITY_NUMBER|SIGNATORY_NAME|SIGNATORY_IDENTITY_NUMBER|SIGNATORY_CAPACITY|AUTHORITY_EVIDENCE)', name)
+        tenant = re.fullmatch(r'LESSEE_(\d+)_(LEGAL_NAME|IDENTITY_NUMBER|SIGNATORY_NAME|SIGNATORY_IDENTITY_NUMBER|SIGNATORY_CAPACITY|AUTHORITY_EVIDENCE|ADDRESS|EMAIL|PHONE)', name)
         if owner:
             lessors[int(owner[1])-1][owner[2].lower()] = value
         elif tenant:
@@ -202,6 +202,10 @@ def capture_layout(key, lessors, lessees):
                 and not token.endswith(('_SIGNATORY_CAPACITY]','_AUTHORITY_CONFIRMED]','_AUTHORITY_EVIDENCE]'))]
             if kept:rows.append(['Commencement' if key=='period' and label=='Commencement / occupation' else label,' | '.join(kept)])
         section['rows']=rows
+    if key=='parties':
+        for index in range(1,lessees+1):
+            for field in ('ADDRESS','EMAIL','PHONE'):
+                section['rows'].append([field.title(),'[LESSEE_'+str(index)+'_'+field+']'])
     return [section]
 
 

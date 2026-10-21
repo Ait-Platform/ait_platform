@@ -82,6 +82,11 @@ def edit(property_id,section_key):
     bank_reason=payments.readiness() if section_key=='banking' else None
     linked=payments.existing_property_accounts(property_id) if section_key=='banking' and not bank_reason else []
     values=certificate.values(items,None if frozen else dict(prop),owners,tenants)
+    if section_key=='parties':
+        for index,party in enumerate(certificate.selected_tenants(items),1):
+            registered=next((row for row in tenants if str(row['id'])==str(party.get('tenant_id'))),{})
+            for key in ('address','email','phone'):
+                values['[LESSEE_'+str(index)+'_'+key.upper()+']']=party.get(key,registered.get(key)) or ''
     lessor_count,lessee_count=form.counts(items)
     errors=[];date_differences=[];calculated_dates={}
     bank_operation=request.form.get('bank_operation',request.args.get('bank_op','select'))
@@ -164,7 +169,9 @@ def edit(property_id,section_key):
                     row=pending['_parties']['lessees'][index-1]
                     if all(str(row.get(key) or '')==str(registered.get(key) or '') for key in ('legal_name','identity_number')):
                         row['tenant_id']=registered['id']
-                        for key in ('party_type','address','email','phone'):row[key]=registered.get(key) or ''
+                        row['party_type']=registered.get('party_type') or ''
+                        for key in ('address','email','phone'):
+                            if '[LESSEE_'+str(index)+'_'+key.upper()+']' not in edits:row[key]=registered.get(key) or ''
                 if pending.get('_parties',{}).get('lessees'):
                     pending['_parties']['lessee']=deepcopy(pending['_parties']['lessees'][0])
                 original_rep=items.get('_parties',{}).get('lessor',{})
@@ -197,6 +204,8 @@ def edit(property_id,section_key):
                 workflow.save_items(draft,pending)
             else:draft=workflow.create_parties_draft(property_id,pending,automatic_reference=True)
             flash(definition[1]+' saved.','success')
+            if request.form.get('capture_return')=='section' and form.capture_section(request.form.get('capture_return_section')):
+                return redirect(url_for('billing_bp.lease_capture_section',property_id=property_id,section_key=request.form['capture_return_section'],draft_id=draft['id']))
             if request.form.get('capture_return')=='back':
                 return redirect(url_for('billing_bp.pm_lease_management',property_id=property_id,draft_id=draft['id']))
             return redirect(url_for('billing_bp.lease_capture_section',property_id=property_id,section_key=section_key,draft_id=draft['id']))

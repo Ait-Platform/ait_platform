@@ -7,7 +7,6 @@
 <p id="bank-selection-status" role="status">{% if selected_bank %}Saved lease account retained. Assign and Save to replace its snapshot.{% else %}No account assigned to this lease.{% endif %}</p>
 {% set bank_ids=linked_accounts|map(attribute='bank_detail_id')|map('string')|list %}
 {% if selected_bank and selected_bank not in bank_ids %}<details><summary>Saved historical account &mdash; no longer available in this property's register</summary>{% for key in ['bank_name','account_holder','account_type','branch_name','branch_code'] %}<p>{{ key.replace('_',' ').title() }}: {{ saved_bank_snapshot.get(key) or 'Not recorded' }}</p>{% endfor %}<p>Account number: &bull;&bull;&bull;&bull;{{ (saved_bank_snapshot.get('account_number') or '')[-4:] }}</p></details>{% endif %}
-<button type="button" id="bank-add" {% if frozen or bank_reason %}disabled{% endif %}>+ Add Bank</button>
 <fieldset id="bank-editor" hidden disabled><legend id="bank-editor-title">Add Bank</legend>
 <input type="hidden" name="bank_operation" id="bank-operation" value="add">
 <input type="hidden" name="edit_bank_detail_id" id="bank-edit-id" value="">

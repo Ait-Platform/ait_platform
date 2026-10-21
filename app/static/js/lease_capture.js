@@ -2,29 +2,32 @@
   'use strict';
   const form = document.getElementById('certificate-form');
   if (!form) return;
-  const ignored = new Set(['csrf_token','version','registration_token','capture_return','bank_operation']);
+  const ignored = new Set(['csrf_token','version','registration_token','capture_return','bank_operation','capture_return_section','lessor_count','lessee_count']);
   function state() {
     return JSON.stringify(Array.from(form.querySelectorAll('input[name],select[name],textarea[name]'))
-      .filter(input => !ignored.has(input.name) && !(['checkbox','radio'].includes(input.type) && !input.checked) && input.value !== '')
+      .filter(input => !input.closest('#bank-editor') && !ignored.has(input.name) && !(['checkbox','radio'].includes(input.type) && !input.checked) && input.value !== '')
       .map(input => [input.name,input.value]));
   }
   let originalState = state();
   let submitting = false;
-  const dirty = () => form.dataset.hasErrors === '1' || state() !== originalState;
+  let bankEditorDirty = () => false;
+  const dirty = () => state() !== originalState || bankEditorDirty();
   const back = document.querySelector('[data-capture-back]');
   const unsaved = document.getElementById('capture-unsaved-dialog');
-  if (back) back.addEventListener('click', function (event) {
-    if (!dirty()) return;
-    event.preventDefault();unsaved.showModal();
-  });
+  let destination = back;
+  document.querySelectorAll('[data-capture-back],[data-capture-section]').forEach(link => link.addEventListener('click', function (event) {
+    if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey || !dirty()) return;
+    event.preventDefault();destination = link;unsaved.showModal();
+  }));
   document.getElementById('capture-save-back').addEventListener('click', function () {
     unsaved.close();
     if (!form.reportValidity()) return;
-    document.getElementById('capture-return').value = 'back';
+    document.getElementById('capture-return').value = destination.dataset.captureSection ? 'section' : 'back';
+    document.getElementById('capture-return-section').value = destination.dataset.captureSection || '';
     form.requestSubmit(document.getElementById('capture-save'));
   });
   document.getElementById('capture-discard-back').addEventListener('click', function () {
-    submitting = true;window.location.assign(back.href);
+    submitting = true;window.location.assign(destination.href);
   });
   form.addEventListener('submit', function () { submitting = true; });
   window.addEventListener('beforeunload', function (event) {
@@ -123,6 +126,9 @@
     const readonly = document.getElementById('capture-banking').dataset.readonly === '1';
     const status = document.getElementById('bank-selection-status');
     let busy = false;
+    let editorInitial = '';
+    const editorState = () => JSON.stringify(Array.from(editor.querySelectorAll('input,select')).map(input => [input.name,input.value]));
+    bankEditorDirty = () => !editor.hidden && editorState() !== editorInitial;
     function closeEditor() {
       editor.hidden = true;editor.disabled = true;
       editor.querySelectorAll('input,select').forEach(input => { input.value = ''; });
@@ -136,6 +142,7 @@
       editor.querySelectorAll('input,select').forEach(input => {
         if (account && Object.hasOwn(account,input.name)) input.value = account[input.name] || '';
       });
+      editorInitial = editorState();
       editor.querySelector('[name="bank_name"]').focus();
     }
     function renderAccounts() {
@@ -262,6 +269,7 @@
     if (!existing) selectedGroup = target;
     const register = target.querySelector('.register-choice');
     if (!register) return;
+    if (existing) { document.getElementById('party-tenant-status').textContent = '';return; }
     register.value = choice.value;
     register.dispatchEvent(new Event('change', {bubbles:true}));
     document.getElementById('party-tenant-status').textContent = 'Tenant particulars selected. Save to keep them on this lease.';
@@ -280,7 +288,7 @@
     const tenant = tenants.find(row => String(row.id) === select.value);
     if (!tenant) return;
     const prefix = select.dataset.field.replace(/LEGAL_NAME$/, '');
-    const fields = {LEGAL_NAME:'legal_name',IDENTITY_NUMBER:'identity_number',SIGNATORY_NAME:'signatory_name',SIGNATORY_IDENTITY_NUMBER:'signatory_identity_number'};
+    const fields = {LEGAL_NAME:'legal_name',IDENTITY_NUMBER:'identity_number',SIGNATORY_NAME:'signatory_name',SIGNATORY_IDENTITY_NUMBER:'signatory_identity_number',ADDRESS:'address',EMAIL:'email',PHONE:'phone'};
     Object.keys(fields).forEach(function (suffix) {
       const input = document.getElementById('field_' + prefix + suffix);
       if (input) input.value = tenant[fields[suffix]] || '';

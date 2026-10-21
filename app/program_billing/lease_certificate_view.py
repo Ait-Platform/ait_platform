@@ -8,7 +8,6 @@ from flask_login import current_user
 from . import lease_certificate_form as form
 from . import lease_supplementary_conditions as supplementary
 from app.extensions import db
-from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 from app.program_billing import lease_snapshot as snapshot,lease_certificate as certificate
 
@@ -89,8 +88,6 @@ def edit(property_id,section_key):
                 values['[LESSEE_'+str(index)+'_'+key.upper()+']']=party.get(key,registered.get(key)) or ''
     lessor_count,lessee_count=form.counts(items)
     errors=[];date_differences=[];calculated_dates={}
-    bank_operation=request.form.get('bank_operation',request.args.get('bank_op','select'))
-    if bank_operation not in ('select','add','edit'):bank_operation='select'
     if section_key=='period' and not frozen:
         start=request.values.get('COMMENCEMENT_DATE',values.get('[COMMENCEMENT_DATE]',''))
         duration=request.values.get('DURATION_MONTHS',values.get('[DURATION_MONTHS]',''))
@@ -111,27 +108,6 @@ def edit(property_id,section_key):
         try:
             if draft and str(draft['version'])!=request.form.get('version'):
                 abort(409,description='The draft changed. Reload before saving.')
-            if section_key=='banking' and request.form.get('action')=='save_bank':
-                if bank_reason:raise ValueError('The Banking Register is currently unavailable.')
-                if bank_operation=='edit':
-                    identifier=request.form.get('edit_bank_detail_id','')
-                    if not any(str(row['bank_detail_id'])==identifier for row in linked):abort(404)
-                    bank_form=request.form.copy();bank_form['bank_detail_id']=identifier
-                    payments.edit_account(bank_form)
-                elif bank_operation=='add':
-                    if payments.association_readiness():raise ValueError('Bank account creation is currently unavailable.')
-                    bank_fields=payments.account_input(request.form,require_allocation=False)
-                    payments.add_account(property_id,request.form)
-                    identifier=db.session.execute(text('''SELECT id FROM bil_bank_detail WHERE account_number=:account_number
-                        AND branch_code=:branch_code AND lower(trim(bank_name))=lower(:bank_name)
-                        AND coalesce(trim(branch_name),'')=:branch_name AND coalesce(trim(account_holder),'')=:account_holder
-                        AND coalesce(trim(account_type),'')=:account_type ORDER BY id LIMIT 1'''),bank_fields).scalar_one()
-                    payments.allocate_existing(property_id,{'bank_detail_id':str(identifier)})
-                else:abort(400)
-                # Register changes never save, refresh or assign any lease snapshot.
-                db.session.commit()
-                accounts=payments.existing_property_accounts(property_id)
-                return jsonify(accounts=[{key:row.get(key) for key in ('bank_detail_id',*certificate.BANK_FIELDS)} for row in accounts])
             if request.form.get('action','save')!='save':abort(400)
             if section_key=='parties':
                 _,lessee_count=form.form_counts(request.form)
@@ -216,14 +192,11 @@ def edit(property_id,section_key):
                 return redirect(url_for('billing_bp.pm_lease_management',property_id=property_id,draft_id=draft['id']))
             return redirect(url_for('billing_bp.lease_capture_section',property_id=property_id,section_key=section_key,draft_id=draft['id']))
         except IntegrityError as error:
-            db.session.rollback();payments.log_banking_integrity(error,'edit_account' if bank_operation=='edit' else 'add_account')
-            if section_key=='banking' and request.form.get('action')=='save_bank':
-                return jsonify(error='Bank account could not be saved. Existing lease snapshots were not changed.'),400
+            db.session.rollback();payments.log_banking_integrity(error,'apply' if section_key=='banking' else 'add_account')
             errors.append('Bank account could not be saved. Its details and existing lease selections were not changed.')
         except ValueError as error:
             if section_key=='banking':
                 db.session.rollback()
-                if request.form.get('action')=='save_bank':return jsonify(error=str(error)),400
             errors.append(str(error))
             lessor_count=max(1,min(form.MAX_PARTIES,lessor_count))
             lessee_count=max(1,min(form.MAX_PARTIES,lessee_count))
@@ -312,7 +285,7 @@ def edit(property_id,section_key):
         bank_reason=bank_reason,linked_accounts=linked,
         selected_bank=selected_bank,historical_financial=historical_financial,
         saved_bank_snapshot=certificate.bank_snapshot(saved),
-        date_differences=date_differences,calculated_dates=calculated_dates,bank_operation=bank_operation,
+        date_differences=date_differences,calculated_dates=calculated_dates,
         owner_information=owners,owner_representative=representative_owner,
         missing_bank_fields=[part['name'].replace('_',' ').title() for row in section['rows'] for part in row['parts']
             if section_key=='banking' and part.get('name') and not part.get('value')],

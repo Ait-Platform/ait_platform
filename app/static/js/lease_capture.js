@@ -2,17 +2,16 @@
   'use strict';
   const form = document.getElementById('certificate-form');
   if (!form) return;
-  const ignored = new Set(['csrf_token','version','registration_token','capture_return','bank_operation','capture_return_section','lessor_count','lessee_count']);
+  const ignored = new Set(['csrf_token','version','registration_token','capture_return','capture_return_section','lessor_count','lessee_count']);
   function state() {
     return JSON.stringify(Array.from(form.querySelectorAll('input[name],select[name],textarea[name]'))
-      .filter(input => !input.closest('#bank-editor') && !ignored.has(input.name) && !(['checkbox','radio'].includes(input.type) && !input.checked) && input.value !== '')
+      .filter(input => !ignored.has(input.name) && !(['checkbox','radio'].includes(input.type) && !input.checked) && input.value !== '')
       .map(input => [input.name,input.value]));
   }
   let originalState = state();
   let submitting = false;
-  let bankEditorDirty = () => false;
   let scEntryDirty = () => false;
-  const dirty = () => state() !== originalState || bankEditorDirty() || scEntryDirty();
+  const dirty = () => state() !== originalState || scEntryDirty();
   const back = document.querySelector('[data-capture-back]');
   const unsaved = document.getElementById('capture-unsaved-dialog');
   let destination = back;
@@ -163,36 +162,15 @@
   }
   const bank = document.getElementById('bank_detail_id');
   if (bank) {
-    let accounts = JSON.parse(document.getElementById('capture-banks').textContent);
+    const accounts = JSON.parse(document.getElementById('capture-banks').textContent);
     const rows = document.getElementById('capture-bank-rows');
-    const editor = document.getElementById('bank-editor');
     const readonly = document.getElementById('capture-banking').dataset.readonly === '1';
     const status = document.getElementById('bank-selection-status');
-    let busy = false;
-    let editorInitial = '';
-    const editorState = () => JSON.stringify(Array.from(editor.querySelectorAll('input,select')).map(input => [input.name,input.value]));
-    bankEditorDirty = () => !editor.hidden && editorState() !== editorInitial;
-    function closeEditor() {
-      editor.hidden = true;editor.disabled = true;
-      editor.querySelectorAll('input,select').forEach(input => { input.value = ''; });
-      document.getElementById('bank-editor-status').textContent = '';
-    }
-    function openEditor(account) {
-      closeEditor();editor.hidden = false;editor.disabled = false;
-      document.getElementById('bank-operation').value = account ? 'edit' : 'add';
-      document.getElementById('bank-edit-id').value = account ? account.bank_detail_id : '';
-      document.getElementById('bank-editor-title').textContent = account ? 'Edit Bank' : 'Add Bank';
-      editor.querySelectorAll('input,select').forEach(input => {
-        if (account && Object.hasOwn(account,input.name)) input.value = account[input.name] || '';
-      });
-      editorInitial = editorState();
-      editor.querySelector('[name="bank_name"]').focus();
-    }
     function renderAccounts() {
       rows.replaceChildren();
       if (!accounts.length) {
         const cell = rows.insertRow().insertCell();cell.colSpan = 4;
-        cell.textContent = 'No bank accounts recorded for this property.';
+        cell.textContent = 'No bank accounts registered for this property. Please add an account in Banking Register.';
       }
       accounts.forEach(account => {
         const row = rows.insertRow();const assigned = String(account.bank_detail_id) === bank.value;
@@ -201,8 +179,6 @@
           row.insertCell().textContent = value || 'Not recorded';
         });
         const actions = row.insertCell();
-        const edit = document.createElement('button');edit.type = 'button';edit.textContent = 'Edit';edit.disabled = readonly;
-        edit.addEventListener('click',() => openEditor(account));actions.append(edit);
         const assign = document.createElement('button');assign.type = 'button';assign.textContent = 'Assign';assign.disabled = readonly;
         assign.addEventListener('click',function () {
           bank.value = String(account.bank_detail_id);
@@ -212,32 +188,7 @@
         if (assigned) { const label = document.createElement('strong');label.textContent = ' Assigned to this Lease';actions.append(label); }
       });
     }
-    async function saveBank() {
-      if (busy) return false;
-      if (!form.reportValidity()) return false;
-      busy = true;document.getElementById('bank-save').disabled = true;
-      try {
-        const data = new FormData(form);data.set('action','save_bank');
-        const response = await fetch(form.getAttribute('action'),{method:'POST',body:data,credentials:'same-origin'});
-        const result = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(result.error || 'Bank account could not be saved. Reload if the draft changed or your session expired.');
-        accounts = result.accounts;closeEditor();renderAccounts();
-        status.textContent = 'Bank account saved. Lease assignment has not changed; click Assign and Save to choose an account.';
-        return true;
-      } catch (error) {
-        document.getElementById('bank-editor-status').textContent = error.message;return false;
-      } finally { busy = false;document.getElementById('bank-save').disabled = false; }
-    }
-    // The main Save still uses the ordinary protected, version-checked draft save.
-    form.addEventListener('submit',async function (event) {
-      if (editor.hidden) return;
-      event.preventDefault();submitting = false;
-      if (await saveBank()) form.requestSubmit(document.getElementById('capture-save'));
-    });
-    document.getElementById('bank-save').addEventListener('click',saveBank);
-    document.getElementById('bank-add').addEventListener('click',() => openEditor(null));
-    document.getElementById('bank-cancel').addEventListener('click',closeEditor);
-    closeEditor();renderAccounts();originalState = state();
+    renderAccounts();
   }
   const count = document.getElementById('lessee-count');
   const groups = document.getElementById('capture-lessees');

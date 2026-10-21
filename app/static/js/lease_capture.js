@@ -8,7 +8,7 @@
       .filter(input => !ignored.has(input.name) && !(['checkbox','radio'].includes(input.type) && !input.checked) && input.value !== '')
       .map(input => [input.name,input.value]));
   }
-  const originalState = state();
+  let originalState = state();
   let submitting = false;
   const dirty = () => form.dataset.hasErrors === '1' || state() !== originalState;
   const back = document.querySelector('[data-capture-back]');
@@ -32,14 +32,6 @@
   });
   document.querySelectorAll('[data-close-dialog]').forEach(button => button.addEventListener('click', function () {
     document.getElementById(button.dataset.closeDialog).close();
-  }));
-  document.querySelectorAll('[data-bank-operation]').forEach(button => button.addEventListener('click', function () {
-    const operation = button.dataset.bankOperation;
-    document.getElementById('bank-operation').value = operation;
-    ['select','add'].forEach(key => {
-      const panel = document.getElementById('bank-' + key + '-operation');
-      panel.hidden = key !== operation;panel.disabled = key !== operation;
-    });
   }));
   const commencement = document.getElementById('field_COMMENCEMENT_DATE');
   const duration = document.getElementById('field_DURATION_MONTHS');
@@ -125,28 +117,77 @@
   }
   const bank = document.getElementById('bank_detail_id');
   if (bank) {
-    const data = document.getElementById('capture-banks');
-    const accounts = data ? JSON.parse(data.textContent) : [];
-    const originalId = bank.value;
-    const historical = Array.from(document.querySelectorAll('[data-bank-field]')).map(cell => [cell, cell.textContent]);
-    bank.addEventListener('change', function () {
-      const account = accounts.find(row => String(row.bank_detail_id) === bank.value);
-      // A historical unavailable choice keeps its saved display and snapshot.
-      if (bank.value && !account) {
-        if (bank.value === originalId) {
-          historical.forEach(entry => { entry[0].textContent = entry[1]; });
-          document.getElementById('refresh-bank-snapshot').value = '0';
-          document.getElementById('bank-selection-status').textContent = 'Saved historical account snapshot preserved.';
-        }
-        return;
-      }
-      document.getElementById('refresh-bank-snapshot').value = '1';
-      document.querySelectorAll('[data-bank-field]').forEach(function (cell) {
-        const key = cell.dataset.bankField;
-        cell.textContent = account && account[key] != null && String(account[key]).trim() !== '' ? account[key] : '[' + key.toUpperCase() + ']';
+    let accounts = JSON.parse(document.getElementById('capture-banks').textContent);
+    const rows = document.getElementById('capture-bank-rows');
+    const editor = document.getElementById('bank-editor');
+    const readonly = document.getElementById('capture-banking').dataset.readonly === '1';
+    const status = document.getElementById('bank-selection-status');
+    let busy = false;
+    function closeEditor() {
+      editor.hidden = true;editor.disabled = true;
+      editor.querySelectorAll('input,select').forEach(input => { input.value = ''; });
+      document.getElementById('bank-editor-status').textContent = '';
+    }
+    function openEditor(account) {
+      closeEditor();editor.hidden = false;editor.disabled = false;
+      document.getElementById('bank-operation').value = account ? 'edit' : 'add';
+      document.getElementById('bank-edit-id').value = account ? account.bank_detail_id : '';
+      document.getElementById('bank-editor-title').textContent = account ? 'Edit Bank' : 'Add Bank';
+      editor.querySelectorAll('input,select').forEach(input => {
+        if (account && Object.hasOwn(account,input.name)) input.value = account[input.name] || '';
       });
-      document.getElementById('bank-selection-status').textContent = account ? 'Selected register particulars shown. Save to preserve them for this lease.' : 'No lease account selected. Save to clear the selection.';
+      editor.querySelector('[name="bank_name"]').focus();
+    }
+    function renderAccounts() {
+      rows.replaceChildren();
+      if (!accounts.length) {
+        const cell = rows.insertRow().insertCell();cell.colSpan = 4;
+        cell.textContent = 'No bank accounts recorded for this property.';
+      }
+      accounts.forEach(account => {
+        const row = rows.insertRow();const assigned = String(account.bank_detail_id) === bank.value;
+        row.style.backgroundColor = assigned ? '#dcfce7' : '';
+        [account.bank_name,account.account_holder,'\u2022\u2022\u2022\u2022' + String(account.account_number || '').slice(-4)].forEach(value => {
+          row.insertCell().textContent = value || 'Not recorded';
+        });
+        const actions = row.insertCell();
+        const edit = document.createElement('button');edit.type = 'button';edit.textContent = 'Edit';edit.disabled = readonly;
+        edit.addEventListener('click',() => openEditor(account));actions.append(edit);
+        const assign = document.createElement('button');assign.type = 'button';assign.textContent = 'Assign';assign.disabled = readonly;
+        assign.addEventListener('click',function () {
+          bank.value = String(account.bank_detail_id);
+          document.getElementById('refresh-bank-snapshot').value = '1';
+          renderAccounts();status.textContent = 'Assignment not yet saved. Click Save to keep it on this lease.';
+        });actions.append(assign);
+        if (assigned) { const label = document.createElement('strong');label.textContent = ' Assigned to this Lease';actions.append(label); }
+      });
+    }
+    async function saveBank() {
+      if (busy) return false;
+      if (!form.reportValidity()) return false;
+      busy = true;document.getElementById('bank-save').disabled = true;
+      try {
+        const data = new FormData(form);data.set('action','save_bank');
+        const response = await fetch(form.getAttribute('action'),{method:'POST',body:data,credentials:'same-origin'});
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(result.error || 'Bank account could not be saved. Reload if the draft changed or your session expired.');
+        accounts = result.accounts;closeEditor();renderAccounts();
+        status.textContent = 'Bank account saved. Lease assignment has not changed; click Assign and Save to choose an account.';
+        return true;
+      } catch (error) {
+        document.getElementById('bank-editor-status').textContent = error.message;return false;
+      } finally { busy = false;document.getElementById('bank-save').disabled = false; }
+    }
+    // The main Save still uses the ordinary protected, version-checked draft save.
+    form.addEventListener('submit',async function (event) {
+      if (editor.hidden) return;
+      event.preventDefault();submitting = false;
+      if (await saveBank()) form.requestSubmit(document.getElementById('capture-save'));
     });
+    document.getElementById('bank-save').addEventListener('click',saveBank);
+    document.getElementById('bank-add').addEventListener('click',() => openEditor(null));
+    document.getElementById('bank-cancel').addEventListener('click',closeEditor);
+    closeEditor();renderAccounts();originalState = state();
   }
   const count = document.getElementById('lessee-count');
   const groups = document.getElementById('capture-lessees');

@@ -1,0 +1,17 @@
+<section id="capture-banking" data-readonly="{{ '1' if frozen or bank_reason else '0' }}">
+<h3>BANKING DETAILS</h3>
+<input type="hidden" name="bank_detail_id" id="bank_detail_id" value="{{ selected_bank }}">
+<input type="hidden" name="refresh_bank_snapshot" id="refresh-bank-snapshot" value="{{ request.form.get('refresh_bank_snapshot','0') }}">
+{% if bank_reason %}<p role="status">The Banking Register is currently unavailable. Saved lease particulars remain preserved.</p>{% endif %}
+<div style="overflow-x:auto"><table id="capture-bank-table" style="width:100%"><thead><tr><th>Bank</th><th>Account Holder</th><th>Account Number</th><th>Actions</th></tr></thead><tbody id="capture-bank-rows">{% for account in linked_accounts %}<tr {% if selected_bank==account.bank_detail_id|string %}style="background-color:#dcfce7"{% endif %}><td>{{ account.bank_name }}</td><td>{{ account.account_holder }}</td><td>&bull;&bull;&bull;&bull;{{ (account.account_number|string)[-4:] }}</td><td>{% if selected_bank==account.bank_detail_id|string %}Assigned to this Lease{% endif %}</td></tr>{% else %}<tr><td colspan="4">No bank accounts recorded for this property.</td></tr>{% endfor %}</tbody></table></div>
+<p id="bank-selection-status" role="status">{% if selected_bank %}Saved lease account retained. Assign and Save to replace its snapshot.{% else %}No account assigned to this lease.{% endif %}</p>
+{% set bank_ids=linked_accounts|map(attribute='bank_detail_id')|map('string')|list %}
+{% if selected_bank and selected_bank not in bank_ids %}<details><summary>Saved historical account &mdash; no longer available in this property's register</summary>{% for key in ['bank_name','account_holder','account_type','branch_name','branch_code'] %}<p>{{ key.replace('_',' ').title() }}: {{ saved_bank_snapshot.get(key) or 'Not recorded' }}</p>{% endfor %}<p>Account number: &bull;&bull;&bull;&bull;{{ (saved_bank_snapshot.get('account_number') or '')[-4:] }}</p></details>{% endif %}
+<button type="button" id="bank-add" {% if frozen or bank_reason %}disabled{% endif %}>+ Add Bank</button>
+<fieldset id="bank-editor" hidden disabled><legend id="bank-editor-title">Add Bank</legend>
+<input type="hidden" name="bank_operation" id="bank-operation" value="add">
+<input type="hidden" name="edit_bank_detail_id" id="bank-edit-id" value="">
+{% with editing=None %}{% include 'program_billing/lease_bank_fields.html' %}{% endwith %}
+<button type="button" id="bank-save">Save Bank</button><button type="button" id="bank-cancel">Cancel</button>
+<p id="bank-editor-status" role="alert"></p></fieldset>
+</section>

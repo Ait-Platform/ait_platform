@@ -33,22 +33,7 @@
 <template id="capture-lessee-template"><fieldset data-lessee-index="1"><legend>Lessee</legend>{% with selected_tenant_ids=[] %}{{ fields(lessee_template,true) }}{% endwith %}</fieldset></template>
 {% else %}<input type="hidden" name="lessee_count" value="{{ lessee_count }}">
 {% if section_key=='banking' %}
-<div class="bank-controls"><button type="button" data-bank-operation="select">Select Bank</button><button type="button" data-bank-operation="add" {% if frozen %}disabled{% endif %}>Add Bank</button></div>
-<input type="hidden" name="bank_operation" id="bank-operation" value="{{ bank_operation }}">
-<fieldset id="bank-add-operation" {% if bank_operation!='add' %}hidden disabled{% endif %} {% if frozen or bank_reason %}disabled{% endif %}><legend>Add Bank</legend><p>Save adds the account to the existing register and links it to this property. Select Bank to choose it for this lease.</p>{% with editing=None %}{% include 'program_billing/lease_bank_fields.html' %}{% endwith %}</fieldset>
-<fieldset id="bank-select-operation" {% if bank_operation!='select' %}hidden disabled{% endif %}><legend>Select Bank</legend>
-<input type="hidden" name="refresh_bank_snapshot" id="refresh-bank-snapshot" value="0">
-<label class="capture-field" for="bank_detail_id"><span>Select Existing Account</span><select id="bank_detail_id" name="bank_detail_id" {% if frozen or bank_reason %}disabled{% endif %}><option value="">No account selected &mdash; incomplete</option>
-{% set bank_ids=linked_accounts|map(attribute='bank_detail_id')|map('string')|list %}
-{% if selected_bank and selected_bank not in bank_ids %}<option value="{{ selected_bank }}" selected>Preserve saved account snapshot &mdash; no longer available in the linked register</option>{% endif %}
-{% for account in linked_accounts %}<option value="{{ account.bank_detail_id }}" {% if selected_bank==account.bank_detail_id|string %}selected{% endif %}>{{ account.bank_name }} &middot; {{ account.account_holder }} &middot; ending {{ (account.account_number|string)[-4:] }}</option>{% endfor %}</select></label>
-{% if bank_reason %}<input type="hidden" name="bank_detail_id" value="{{ selected_bank }}"><p role="status">Bank selection is currently unavailable. Any saved historical particulars remain below.</p>{% endif %}
-</fieldset>
-<p>Only accounts linked to {{ property.name }} are available. Saving changes this lease only. The saved particulars below remain a snapshot, even if the register changes later.</p>
-{% endif %}
-{% if section_key=='banking' %}
-<table id="capture-bank-table"><tbody>{% for row in section.rows %}{% for part in row.parts if part.name is defined %}<tr><th>{{ part.name.replace('_TEXT','').replace('_',' ').title().replace('Signatory','Representative') }}</th><td data-bank-field="{{ part.name.lower() }}">{{ part.value or part.token }}</td></tr>{% endfor %}{% endfor %}</tbody></table>
-<p id="bank-selection-status" role="status">{% if selected_bank %}Saved lease account snapshot.{% if missing_bank_fields %} Not recorded: {{ missing_bank_fields|join(', ') }}.{% else %} All banking particulars restored.{% endif %}{% else %}No lease account selected.{% endif %}</p>
+{% include 'program_billing/lease_capture_banking.html' %}
 {% elif section_key=='additional' %}{% include 'program_billing/lease_sc_editor.html' %}
 {% else %}{{ fields(section.rows) }}{% endif %}
 {% if section_key=='financial' and historical_financial %}<details class="capture-history"><summary>Previously saved financial particulars (preserved)</summary>{% for row in historical_financial %}<h3>{{ row.label }}</h3>{% for part in row.parts %}<p><strong>{{ part.name.replace('_TEXT','').replace('_',' ').title().replace('Signatory','Representative') }}:</strong> {{ part.value }}</p>{% endfor %}{% endfor %}</details>{% endif %}

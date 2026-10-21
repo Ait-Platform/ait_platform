@@ -71,3 +71,11 @@ div:has(> #lease-header-actions > .lease-main-navigation) { display:flex; justif
 .party-particulars h3 { font-weight:bold; margin:0 0 12px; }
 .party-particulars dt { font-weight:bold; margin-top:8px; }
 .party-particulars dd { margin:2px 0 8px; white-space:pre-wrap; overflow-wrap:anywhere; }
+
+/* Property-linked register inside the Banking capture work area only. */
+#capture-banking #capture-bank-table th { width:auto; }
+#capture-banking #capture-bank-table td { vertical-align:top; }
+#capture-banking button { margin:3px; padding:6px 10px; border:1px solid #0284c7; border-radius:4px; background:#eff6ff; color:#075985; }
+#capture-banking button:disabled { opacity:.5; cursor:not-allowed; }
+#bank-editor label { display:block; margin-top:12px; }
+#bank-editor input:not([type="hidden"]),#bank-editor select { width:100%; box-sizing:border-box; padding:8px; border:2px solid #0284c7; }

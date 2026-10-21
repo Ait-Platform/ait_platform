@@ -1,5 +1,6 @@
 """Read-only DIY Lease Kit selections over existing particulars and approved layouts."""
 from copy import deepcopy
+import re
 from flask import abort,request,url_for
 from . import lease_certificate as certificate,lease_certificate_form as form
 
@@ -51,6 +52,21 @@ def cover_blocks(items):
     return [{'kind':'paragraph','text':text} for text in ('\n'.join(landlords),'&','\n'.join(tenants))]
 
 
+def certificate_display_rows(sections, values, items):
+    """Hide exact saved duplicates in this display, never merge distinct party particulars."""
+    rows=form.render_rows(sections,values)
+    seen=[];duplicates=set()
+    for index,party in enumerate(certificate.selected_tenants(items),1):
+        # A name alone cannot establish that two contracting parties are the same.
+        identified=certificate.present(party.get('tenant_id')) or certificate.present(party.get('identity_number'))
+        if identified and party in seen:duplicates.add(index)
+        else:seen.append(party)
+    rows[0]['rows']=[row for row in rows[0]['rows'] if not any(
+        (match:=re.fullmatch(r'LESSEE_(\d+)_.+',part.get('name',''))) and int(match[1]) in duplicates
+        for part in row['parts'])]
+    return rows
+
+
 def component_states(items):
     from .lease_standard import special_conditions
     conditions=special_conditions(items)
@@ -93,7 +109,7 @@ def view(property_id):
         components=[{'key':key,'label':label,'url':url_for('billing_bp.lease_live_view',component=key,**arguments)} for key,label in COMPONENTS],
         selected_label=dict(COMPONENTS)[selected],component_labels=dict(COMPONENTS),states=states,print_available=states[selected]['printable'],
         email_unavailable='Email is not yet available for this preview. Print or save it as PDF. Existing document email remains available in Lease History.',
-        sections=form.render_rows(sections,values),unresolved=unresolved,preview=True,cover_blocks=cover_blocks(items),
+        sections=certificate_display_rows(sections,values,items),unresolved=unresolved,preview=True,cover_blocks=cover_blocks(items),
         assembly_order=ORDER,selected_documents=[key for key in ORDER if not states[key].get('omitted')] if selected=='lease' and states['lease']['available'] else [] if states[selected].get('omitted') else [selected],
         capture_url=url_for('billing_bp.lease_certificate_edit',**arguments),
         back_url=url_for('billing_bp.pm_lease_management',**arguments),unavailable=None)

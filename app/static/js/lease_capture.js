@@ -11,7 +11,8 @@
   let originalState = state();
   let submitting = false;
   let bankEditorDirty = () => false;
-  const dirty = () => state() !== originalState || bankEditorDirty();
+  let scEntryDirty = () => false;
+  const dirty = () => state() !== originalState || bankEditorDirty() || scEntryDirty();
   const back = document.querySelector('[data-capture-back]');
   const unsaved = document.getElementById('capture-unsaved-dialog');
   let destination = back;
@@ -70,53 +71,83 @@
     const mode = document.getElementById('sc-mode');
     const list = document.getElementById('sc-clauses');
     const count = document.getElementById('sc-count');
+    const rows = document.getElementById('sc-table-rows');
     const entry = document.getElementById('sc-entry');
-    const another = document.getElementById('sc-another');
+    const heading = document.getElementById('sc-heading');
+    const custom = document.getElementById('sc-custom');
+    const body = document.getElementById('sc-text');
+    const status = document.getElementById('sc-entry-status');
+    const add = document.getElementById('sc-add');
     const readOnly = scEditor.dataset.frozen === '1';
-    function scMode() {
-      entry.hidden = mode.value !== 'add';
-      document.getElementById('sc-none-note').hidden = mode.value !== 'none';
-      document.getElementById('sc-none').setAttribute('aria-pressed',String(mode.value === 'none'));
-      document.getElementById('sc-add').setAttribute('aria-pressed',String(mode.value === 'add'));
+    const clauses = JSON.parse(document.getElementById('sc-saved-clauses').textContent);
+    let editing = -1, entryInitial = '';
+    const entryState = () => JSON.stringify([heading.value,custom.value,body.value]);
+    scEntryDirty = () => !entry.hidden && entryState() !== entryInitial;
+    function closeEntry() { entry.hidden = true;entry.disabled = true;status.textContent = ''; }
+    function openEntry(index) {
+      if (readOnly) return;
+      editing = index;
+      const clause = clauses[index];
+      heading.value = clause ? clause.heading_type : '';
+      custom.value = clause && clause.heading_type === 'Custom' ? clause.heading : '';
+      body.value = clause ? clause.text : '';
+      document.getElementById('sc-custom-wrap').hidden = heading.value !== 'Custom';
+      document.getElementById('sc-entry-number').textContent = 'SC-' + String(index < 0 ? clauses.length + 1 : index + 1).padStart(2,'0');
+      entry.hidden = false;entry.disabled = false;status.textContent = '';
+      entryInitial = entryState();heading.focus();
     }
-    function numberClauses() {
-      Array.from(list.children).forEach(function (clause,index) {
-        const number = index + 1;
-        clause.querySelector('legend').textContent = 'SC-' + String(number).padStart(2,'0');
-        clause.querySelector('[data-sc-kind]').name = 'sc_heading_type_' + number;
-        clause.querySelector('[data-sc-custom]').name = 'sc_custom_heading_' + number;
-        clause.querySelector('[data-sc-text]').name = 'sc_text_' + number;
-        clause.querySelector('[data-sc-custom-wrap]').hidden = clause.querySelector('[data-sc-kind]').value !== 'Custom';
+    function renderTable() {
+      rows.replaceChildren();
+      if (!clauses.length) {
+        const cell = rows.insertRow().insertCell();cell.colSpan = 3;
+        cell.textContent = 'No supplementary conditions recorded.';
+      }
+      clauses.forEach((clause,index) => {
+        const row = rows.insertRow();
+        row.insertCell().textContent = 'SC-' + String(index + 1).padStart(2,'0');
+        row.insertCell().textContent = clause.heading_type === 'Custom' ? clause.heading : clause.heading_type;
+        const button = document.createElement('button');button.type = 'button';button.textContent = 'Edit';button.disabled = readOnly;
+        button.addEventListener('click',() => openEntry(index));row.insertCell().append(button);
       });
-      count.value = String(list.children.length);
-      another.disabled = readOnly || list.children.length >= 50;
+      add.disabled = readOnly || clauses.length >= 50;
     }
-    function appendClause() {
-      if (readOnly || list.children.length >= 50) return;
-      list.appendChild(document.getElementById('sc-template').content.cloneNode(true));
-      numberClauses();
-      list.lastElementChild.querySelector('[data-sc-text]').focus();
+    function stageClauses() {
+      list.replaceChildren();count.value = String(clauses.length);
+      clauses.forEach((clause,index) => {
+        Object.entries({sc_heading_type:clause.heading_type,sc_custom_heading:clause.heading_type === 'Custom' ? clause.heading : '',sc_text:clause.text}).forEach(([key,value]) => {
+          const input = document.createElement('input');input.type = 'hidden';input.name = key + '_' + (index + 1);input.value = value;list.append(input);
+        });
+      });
     }
-    document.getElementById('sc-none').addEventListener('click',function () {
-      mode.value = 'none';scMode();
+    add.addEventListener('click',() => openEntry(-1));
+    heading.addEventListener('change',() => { document.getElementById('sc-custom-wrap').hidden = heading.value !== 'Custom'; });
+    document.getElementById('sc-cancel').addEventListener('click',closeEntry);
+    document.getElementById('sc-save-clause').addEventListener('click',function () {
+      if (readOnly) return;
+      if (!heading.value) {
+        if (!clauses.length) mode.value = 'none';
+        closeEntry();return;
+      }
+      const title = heading.value === 'Custom' ? custom.value.trim() : heading.value;
+      const text = body.value.trim();
+      if (!title || !text) { status.textContent = 'Enter a clause heading and clause text.';return; }
+      const clause = {heading_type:heading.value,heading:title,text:text};
+      const proposed = clauses.slice();
+      if (editing < 0) proposed.push(clause);else proposed[editing] = clause;
+      if (proposed.length > 50 || proposed.reduce((sum,item) => sum + item.heading.length + item.text.length,0) > 20000) {
+        status.textContent = 'Use at most 50 clauses and 20000 characters in total.';return;
+      }
+      clauses.splice(0,clauses.length,...proposed);mode.value = 'add';
+      stageClauses();renderTable();closeEntry();
+      document.getElementById('sc-table-status').textContent = 'Clause added to the table. Click Save to keep these changes on the lease.';
     });
-    document.getElementById('sc-add').addEventListener('click',function () {
-      mode.value = 'add';scMode();if (!list.children.length) appendClause();
-    });
-    another.addEventListener('click',appendClause);
-    list.addEventListener('change',function (event) {
-      if (event.target.matches('[data-sc-kind]')) {
-        const clause = event.target.closest('.sc-clause');
-        clause.querySelector('[data-sc-custom-wrap]').hidden = event.target.value !== 'Custom';
+    form.addEventListener('submit',function (event) {
+      if (scEntryDirty()) {
+        event.preventDefault();submitting = false;
+        status.textContent = 'Click Save Clause or Cancel before saving the lease.';
       }
     });
-    list.addEventListener('click',function (event) {
-      const remove = event.target.closest('[data-sc-remove]');
-      if (!remove || readOnly) return;
-      remove.closest('.sc-clause').remove();numberClauses();
-      if (!list.children.length) { mode.value = 'none';scMode(); }
-    });
-    numberClauses();scMode();
+    renderTable();
   }
   const bank = document.getElementById('bank_detail_id');
   if (bank) {

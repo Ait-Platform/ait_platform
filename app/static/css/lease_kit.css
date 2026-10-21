@@ -6,10 +6,10 @@
 #lease-header-actions>a { background:#f1f5f9; }
 #lease-kit-actions button:disabled { opacity:.5; cursor:not-allowed; }
 .kit-controls { font:14px/1.5 Arial,sans-serif; }
-/* Existing cover: title right, remaining paragraphs centred, 4000 twips before parties. */
-.kit-cover-page>p { text-align:center; }
-.kit-cover-page>p:first-child { text-align:right; }
-.kit-cover-page>p:nth-child(2) { margin-top:200pt; }
+/* Cover particulars retain their centred layout; branding sits at the foot. */
+.kit-cover-page { display:flex; flex-direction:column; }
+.kit-cover-particulars { margin-top:200pt; text-align:center; }
+.kit-cover-footer { margin-top:auto; padding-top:24px; text-align:right; }
 div:has(> #lease-header-actions) { display:flex; justify-content:space-between; align-items:center; gap:1rem; }
 #lease-header-actions { display:flex; flex-direction:column; align-items:flex-end; gap:.5rem; }
 #lease-kit-actions { display:flex; align-items:center; justify-content:flex-end; gap:.5rem; }
@@ -28,6 +28,7 @@ div:has(> #lease-header-actions) { display:flex; justify-content:space-between; 
   .kit-print-ancestor > :not(.kit-print-ancestor):not(#lease-kit-document) { display:none !important; }
   #lease-kit-document { position:static; width:100%; }
   #lease-kit-document .kit-cover-page,#lease-kit-document .kit-text-page { width:100%; min-height:0; max-width:none; padding:0; margin:0; box-shadow:none; break-after:page; }
+  #lease-kit-document .kit-cover-page { min-height:265mm; }
   #lease-kit-document > :last-child { break-after:auto; }
   #lease-kit-document .kit-unavailable { display:none; }
   .kit-controls,#lease-header-actions,#lease-kit-selectors { display:none !important; }

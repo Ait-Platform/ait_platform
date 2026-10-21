@@ -34,14 +34,21 @@ def developing_items(items,owners):
 
 
 def cover_blocks(items):
-    # Same six paragraphs and wording as lease_standard.build_document's existing cover.
-    # Reuse its name formatting and the existing show_blocks HTML renderer, without opening Word.
+    """Cover presentation only; saved parties and internal version records are untouched."""
     from .lease_standard import cover_names
     names=cover_names(items)
-    version=items.get('_ait_standard',{}).get('terms_version') or '[TERMS_VERSION]'
-    return [{'kind':'paragraph','text':text} for text in (
-        'AIT Standard Lease',names['landlords'],'&',names['tenants'],
-        'DRAFT \u2014 DEVELOPMENT WORKING COPY\nNOT FOR SIGNATURE OR ISSUANCE','Terms version '+version)]
+    def representative_lines(party,label):
+        lines=[]
+        for key,title in (('signatory_name',label+' Representative'),
+                          ('signatory_identity_number','Representative ID Number')):
+            value=party.get(key)
+            if certificate.present(value):lines.append(title+': '+str(value).strip())
+        return lines
+    landlords=[names['landlords']]+representative_lines(items.get('_parties',{}).get('lessor',{}),'Lessor')
+    tenants=[names['tenants']]
+    for party in certificate.selected_tenants(items):
+        tenants.extend(representative_lines(party,'Lessee'))
+    return [{'kind':'paragraph','text':text} for text in ('\n'.join(landlords),'&','\n'.join(tenants))]
 
 
 def component_states(items):

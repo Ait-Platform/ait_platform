@@ -2,7 +2,7 @@
 {% for section in sections %}
 {% if loop.index0 in [0,3] %}<article class="certificate-page">
 <header>{% if loop.first %}<p>AIT | PROPERTY MANAGEMENT</p><h2>LEASE CERTIFICATE</h2><p>Schedule of lease particulars · Draft — fields awaiting completion remain visible</p>{% else %}<h2>LEASE CERTIFICATE · CONTINUED</h2>{% endif %}</header>{% endif %}
-<section class="certificate-section" aria-label="{{ section.title }}">
+{% if section.rows %}<section class="certificate-section" aria-label="{{ section.title }}">
 <h3>{{ section.title }}</h3>
 {% if loop.first and not preview and not frozen %}
 <div class="certificate-controls">
@@ -38,7 +38,7 @@
 {% else %}<span class="{{ 'certificate-incomplete' if not part.value else 'certificate-value' }}">{{ part.value or part.token }}</span>{% endif %}
 {% else %}<span class="certificate-literal">{{ part.text }}</span>{% endif %}{% endfor %}
 </td></tr>{% endfor %}</tbody></table>
-</section>
+</section>{% endif %}
 {% if loop.index0 in [2,5] %}
 {% if loop.last %}<p class="certificate-note">Special Conditions and the Signing Page form separate parts of the lease documentation.</p><p class="certificate-note"><strong>DRAFT — NOT FOR SIGNATURE OR ISSUANCE</strong></p>{% endif %}
 <footer>AIT Property Management | Lease Certificate | {{ '1' if loop.index0 == 2 else '2' }}</footer></article>{% endif %}

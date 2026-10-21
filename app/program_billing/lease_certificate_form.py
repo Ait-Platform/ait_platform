@@ -29,6 +29,23 @@ def layout(lessors, lessees):
     return sections
 
 
+def certificate_layout(lessors, lessees):
+    """Current HTML Certificate only; capture, historical values and Word assets stay intact."""
+    sections=layout(lessors,lessees)
+    sections[0]['rows']=[row for row in sections[0]['rows'] if not any(
+        token.endswith(('_SIGNATORY_CAPACITY]','_AUTHORITY_CONFIRMED]','_AUTHORITY_EVIDENCE]'))
+        for token in TOKEN.findall(row[1]))]
+    sections[1]['rows']=[sections[1]['rows'][0],['Unit','[LEASED_PORTION_DESCRIPTION]']]
+    sections[2]['rows']=[['Commencement','[COMMENCEMENT_DATE]'],
+        ['Duration / expiry','[DURATION_MONTHS] | [EXPIRY_DATE]'],
+        ['Renewal notice','[RENEWAL_NOTICE_DATE]']]
+    sections[3]['rows']=[row for row in sections[3]['rows'] if row[0] in ('Monthly rental','Security deposit')]
+    # Additional conditions belong only to their independently saved SC document.
+    # Retain six section positions so the approved two-page breaks remain unchanged.
+    sections[5]['rows']=[]
+    return sections
+
+
 def tokens(sections):
     return list(dict.fromkeys(token for section in sections for _, value in section['rows']
                               for token in TOKEN.findall(value)))

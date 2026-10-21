@@ -262,6 +262,16 @@
     count.value = String(groups.children.length);
     return group;
   }
+  function lesseeTypeLabels(group) {
+    const type = group.querySelector('[data-lessee-type]');
+    if (!type) return;
+    const juristic = type.value === 'juristic_person';
+    group.querySelector('[data-lessee-label="LEGAL_NAME"]').textContent = juristic ? 'Registered Entity Name' : 'Full Name';
+    group.querySelector('[data-lessee-label="IDENTITY_NUMBER"]').textContent = juristic ? 'Registration Number' : 'ID Number';
+  }
+  groups.addEventListener('change',function (event) {
+    if (event.target.matches('[data-lessee-type]')) lesseeTypeLabels(event.target.closest('fieldset'));
+  });
   document.getElementById('show-lessors').addEventListener('click', () => show('lessors'));
   document.getElementById('select-tenant').addEventListener('click', function () {
     show('select');choice.focus();
@@ -318,6 +328,9 @@
     if (!select || select.value === '') return;
     const tenant = tenants.find(row => String(row.id) === select.value);
     if (!tenant) return;
+    const group = select.closest('fieldset');
+    const type = group.querySelector('[data-lessee-type]');
+    if (type) { type.value = tenant.party_type || '';lesseeTypeLabels(group); }
     const prefix = select.dataset.field.replace(/LEGAL_NAME$/, '');
     const fields = {LEGAL_NAME:'legal_name',IDENTITY_NUMBER:'identity_number',SIGNATORY_NAME:'signatory_name',SIGNATORY_IDENTITY_NUMBER:'signatory_identity_number',ADDRESS:'address',EMAIL:'email',PHONE:'phone'};
     Object.keys(fields).forEach(function (suffix) {

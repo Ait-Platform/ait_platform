@@ -165,11 +165,17 @@ def edit(property_id,section_key):
                 if sc_data is not None:pending[supplementary.KEY]=sc_data
             else:pending=form.merge_section(saved,items,edits,lessor_count,lessee_count,section_key)
             if section_key=='parties':
+                for index in range(1,lessee_count+1):
+                    party_type=request.form.get('LESSEE_'+str(index)+'_PARTY_TYPE','')
+                    if party_type:
+                        if party_type not in ('natural_person','juristic_person'):raise ValueError('Choose a valid Lessee type.')
+                        pending['_parties']['lessees'][index-1]['party_type']=party_type
                 for index,registered in selected_register.items():
                     row=pending['_parties']['lessees'][index-1]
                     if all(str(row.get(key) or '')==str(registered.get(key) or '') for key in ('legal_name','identity_number')):
                         row['tenant_id']=registered['id']
-                        row['party_type']=registered.get('party_type') or ''
+                        if not request.form.get('LESSEE_'+str(index)+'_PARTY_TYPE'):
+                            row['party_type']=registered.get('party_type') or ''
                         for key in ('address','email','phone'):
                             if '[LESSEE_'+str(index)+'_'+key.upper()+']' not in edits:row[key]=registered.get(key) or ''
                 if pending.get('_parties',{}).get('lessees'):
@@ -293,10 +299,13 @@ def edit(property_id,section_key):
     if not matches and representative.get('signatory_identity_number'):
         matches=[row for row in owners if row.get('identity_number')==representative['signatory_identity_number']]
     representative_owner=matches[0] if len(matches)==1 else None
+    saved_lessees=certificate.selected_tenants(items)
+    lessee_types=[request.form.get('LESSEE_'+str(index+1)+'_PARTY_TYPE',saved_lessees[index].get('party_type','') if index<len(saved_lessees) else '') for index in range(lessee_count)]
     arguments={'property_id':property_id,'draft_id':draft['id'] if draft else None}
     return render_pm_template('program_billing/lease_capture_section.html',title=definition[1],property=prop,
         lease_draft=draft,section_key=section_key,section=section,errors=errors,frozen=frozen,
         party_rows=party_rows,lessee_groups=lessee_groups,lessee_template=lessee_template,
+        lessee_types=lessee_types,
         lessee_details=lessee_details,sc_headings=supplementary.HEADINGS,legacy_additional=legacy_additional,
         sc_editor=supplementary.editor(saved,request.form if errors and section_key=='additional' else None),legacy_sc=legacy_sc,
         lessor_count=lessor_count,lessee_count=lessee_count,tenant_choices=tenant_choices,

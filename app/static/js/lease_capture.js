@@ -33,10 +33,6 @@
   document.querySelectorAll('[data-close-dialog]').forEach(button => button.addEventListener('click', function () {
     document.getElementById(button.dataset.closeDialog).close();
   }));
-  const lessors = document.getElementById('show-lessors');
-  if (lessors) lessors.addEventListener('click', () => document.getElementById('lessors-dialog').showModal());
-  const selectTenant = document.getElementById('select-tenant');
-  if (selectTenant) selectTenant.addEventListener('click', () => document.querySelector('#capture-lessees select').focus());
   document.querySelectorAll('[data-bank-operation]').forEach(button => button.addEventListener('click', function () {
     const operation = button.dataset.bankOperation;
     document.getElementById('bank-operation').value = operation;
@@ -105,28 +101,67 @@
   const data = document.getElementById('capture-tenants');
   if (!count || !groups || !prototype) return;
   const tenants = data ? JSON.parse(data.textContent) : [];
-  function resize() {
-    const total = Number(count.value);
-    if (!Number.isInteger(total) || total < 1 || total > 50) return;
-    while (groups.children.length > total) groups.lastElementChild.remove();
-    while (groups.children.length < total) {
-      const index = groups.children.length + 1;
-      const holder = document.createElement('template');
-      holder.innerHTML = prototype.innerHTML.replaceAll('LESSEE_1_', 'LESSEE_' + index + '_').replaceAll('Lessee 1', 'Lessee ' + index).replaceAll('tenant_register_id_1', 'tenant_register_id_' + index);
-      const group = holder.content.firstElementChild;
-      group.dataset.lesseeIndex = index;
-      group.querySelector('legend').textContent = 'Lessee ' + index;
-      groups.appendChild(group);
-    }
-    document.getElementById('add-lessee').disabled = total >= 50;
+  let operation = '';
+  let newGroup = null;
+  let selectedGroup = null;
+  const choice = document.getElementById('party-tenant-choice');
+  function show(operationName) {
+    document.getElementById('party-initial-message').hidden = true;
+    document.getElementById('party-lessors').hidden = operationName !== 'lessors';
+    document.getElementById('party-tenant-selection').hidden = operationName !== 'select';
+    groups.hidden = operationName !== 'add';
+    Array.from(groups.children).forEach(group => { group.hidden = true; });
+    operation = operationName;
   }
-  count.addEventListener('change', resize);
-  document.getElementById('add-lessee').addEventListener('click', function () {
-    if (Number(count.value) >= 50) return;
-    count.value = String(Number(count.value) + 1);
-    resize();
-    groups.lastElementChild.querySelector('select,textarea').focus();
+  function hasParticulars(group) {
+    return Array.from(group.querySelectorAll('textarea')).some(input => input.value.trim() !== '');
+  }
+  function availableGroup() {
+    const empty = Array.from(groups.children).find(group => !hasParticulars(group) && !group.querySelector('.register-choice')?.value);
+    if (empty) return empty;
+    if (groups.children.length >= 50) return null;
+    const index = groups.children.length + 1;
+    const holder = document.createElement('template');
+    holder.innerHTML = prototype.innerHTML.replaceAll('LESSEE_1_', 'LESSEE_' + index + '_').replaceAll('Lessee 1', 'Lessee ' + index).replaceAll('tenant_register_id_1', 'tenant_register_id_' + index);
+    const group = holder.content.firstElementChild;
+    group.dataset.lesseeIndex = index;
+    group.querySelector('legend').textContent = 'Lessee ' + index;
+    groups.appendChild(group);
+    count.value = String(groups.children.length);
+    return group;
+  }
+  document.getElementById('show-lessors').addEventListener('click', () => show('lessors'));
+  document.getElementById('select-tenant').addEventListener('click', function () {
+    show('select');choice.focus();
   });
+  document.getElementById('add-lessee').addEventListener('click', function () {
+    if (!newGroup || (operation === 'add' && hasParticulars(newGroup))) newGroup = availableGroup();
+    if (!newGroup) return;
+    show('add');newGroup.hidden = false;
+    const register = newGroup.querySelector('.register-choice');
+    if (register) register.hidden = true;
+    newGroup.querySelector('textarea')?.focus();
+  });
+  choice.addEventListener('change', function () {
+    if (!choice.value) return;
+    const existing = Array.from(groups.children).find(group => group.querySelector('.register-choice')?.value === choice.value);
+    const target = existing || selectedGroup || availableGroup();
+    if (!target) { document.getElementById('party-tenant-status').textContent = 'The lease already has 50 Lessees.';return; }
+    if (!existing) selectedGroup = target;
+    const register = target.querySelector('.register-choice');
+    if (!register) return;
+    register.value = choice.value;
+    register.dispatchEvent(new Event('change', {bubbles:true}));
+    document.getElementById('party-tenant-status').textContent = 'Tenant particulars selected. Save to keep them on this lease.';
+  });
+  if (form.dataset.hasErrors === '1') {
+    newGroup = Array.from(groups.children).filter(hasParticulars).pop() || groups.firstElementChild;
+    if (newGroup) {
+      show('add');newGroup.hidden = false;
+      const register = newGroup.querySelector('.register-choice');
+      if (register) register.hidden = true;
+    }
+  }
   form.addEventListener('change', function (event) {
     const select = event.target.closest('.register-choice');
     if (!select || select.value === '') return;

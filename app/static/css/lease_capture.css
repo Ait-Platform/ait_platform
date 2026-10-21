@@ -59,3 +59,7 @@ div:has(> #lease-header-actions > .lease-main-navigation) { display:flex; justif
 .capture-date-conflicts { margin-top:16px; padding:12px; border:2px solid #f59e0b; }
 #bank-add-operation label { display:block; margin-top:12px; }
 #bank-add-operation input,#bank-add-operation select { width:100%; box-sizing:border-box; padding:8px; border:2px solid #0284c7; }
+
+.party-controls { display:grid; grid-template-columns:repeat(3,minmax(max-content,1fr)); align-items:stretch; }
+.party-controls button { margin:0; text-align:center; }
+#party-work-area { min-height:100px; margin-top:16px; }

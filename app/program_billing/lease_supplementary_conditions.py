@@ -2,7 +2,7 @@
 from copy import deepcopy
 
 KEY = '_supplementary_conditions'
-HEADINGS = ('Rental Adjustments', 'Parking / Other Charges', 'Utilities / Allocation', 'Custom')
+HEADINGS = ('Deposit Refund \u2014 Lessee Banking Details', 'Rental Adjustments', 'Parking / Other Charges', 'Utilities / Allocation', 'Custom')
 MAX_CLAUSES = 50
 MAX_TEXT = 20000
 

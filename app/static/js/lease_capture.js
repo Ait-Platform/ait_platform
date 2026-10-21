@@ -120,7 +120,19 @@
       });
     }
     add.addEventListener('click',() => openEntry(-1));
-    heading.addEventListener('change',() => { document.getElementById('sc-custom-wrap').hidden = heading.value !== 'Custom'; });
+    heading.addEventListener('change',() => {
+      document.getElementById('sc-custom-wrap').hidden = heading.value !== 'Custom';
+      // Seed new, empty clauses only; never replace existing wording or user edits.
+      if (editing < 0 && heading.value === 'Deposit Refund \u2014 Lessee Banking Details' && !body.value.trim()) {
+        body.value = [
+          'Any refundable deposit due to the Lessee upon termination of the lease shall be paid into the following bank account nominated by the Lessee, subject to the deposit refund provisions of the Core Lease Agreement.',
+          'Account Holder: __________________________',
+          'Bank Name: ______________________________',
+          'Account Number: _________________________',
+          'Branch Code: ____________________________'
+        ].join('\n');
+      }
+    });
     document.getElementById('sc-cancel').addEventListener('click',closeEntry);
     document.getElementById('sc-save-clause').addEventListener('click',function () {
       if (readOnly) return;

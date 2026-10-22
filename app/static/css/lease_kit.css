@@ -33,3 +33,12 @@ div:has(> #lease-header-actions) { display:flex; justify-content:space-between; 
   #lease-kit-document .kit-unavailable { display:none; }
   .kit-controls,#lease-header-actions,#lease-kit-selectors { display:none !important; }
 }
+/* AIT controlled-document canvas viewer; PDF bytes remain behind authorised routes. */
+#lease-kit-toolbar { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin:16px 0; }
+#lease-kit-toolbar button,#lease-kit-email-form button { padding:8px 12px; border:1px solid #cbd5e1; border-radius:6px; background:#eff6ff; color:#172c3e; }
+#lease-kit-toolbar button:disabled { opacity:.45; cursor:not-allowed; }
+#lease-kit-page { width:64px; padding:6px; border:1px solid #cbd5e1; border-radius:4px; }
+#lease-kit-viewport { height:75vh; overflow:auto; border:1px solid #cbd5e1; background:#e2e8f0; padding:4px; }
+#lease-kit-canvas { display:block; margin:0 auto; background:white; max-width:none; }
+#lease-kit-status:empty { display:none; }
+#lease-kit-email-form[hidden] { display:none; }

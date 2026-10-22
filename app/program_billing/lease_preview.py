@@ -184,7 +184,7 @@ def view(property_id):
 
 @billing_bp.after_request
 def private_preview(response):
-    if request.endpoint in ('billing_bp.lease_live_view','billing_bp.lease_kit_pdf','billing_bp.lease_pdf_status','billing_bp.lease_certificate_pdf','billing_bp.lease_certificate_word','billing_bp.lease_certificate_edit','billing_bp.lease_capture_section'):
+    if request.endpoint in ('billing_bp.lease_live_view','billing_bp.lease_kit_pdf','billing_bp.lease_kit_email','billing_bp.lease_pdf_status','billing_bp.lease_certificate_pdf','billing_bp.lease_certificate_word','billing_bp.lease_certificate_edit','billing_bp.lease_capture_section'):
         response.headers['Cache-Control']='private, no-store'
         response.headers['X-Content-Type-Options']='nosniff'
         response.headers['Referrer-Policy']='same-origin' if request.endpoint in ('billing_bp.lease_capture_section','billing_bp.lease_certificate_edit') else 'no-referrer'
@@ -247,6 +247,59 @@ def kit_pdf(property_id):
         download_name='AIT-Lease-'+component+'-REVIEW.pdf',conditional=False,etag=False,max_age=0)
     response.headers['Cache-Control']='private, no-store'
     response.headers['X-Content-Type-Options']='nosniff'
+    if context['lease_draft']:
+        response.headers['X-Lease-PDF-Token']=kit_email_signer().dumps(kit_email_selection(context,payload))
     response.headers['Content-Security-Policy']="frame-ancestors 'self'"
     response.headers['Referrer-Policy']='no-referrer'
     return response
+
+
+def kit_email_signer():
+    from flask import current_app
+    from itsdangerous import URLSafeTimedSerializer
+    return URLSafeTimedSerializer(current_app.secret_key, salt='lease-kit-review-email')
+
+
+def kit_email_selection(context, payload):
+    from hashlib import sha256
+    from flask_login import current_user
+    return {'property_id': context['property']['id'], 'draft_id': str(context['lease_draft']['id']),
+            'version': context['lease_draft'].get('version'), 'component': context['selected_component'],
+            'user_id': str(current_user.id), 'sha256': sha256(payload).hexdigest()}
+
+
+@billing_bp.post('/billing/leases/property/<int:property_id>/kit/email',endpoint='lease_kit_email')
+@snapshot.endpoint
+def kit_email(property_id):
+    from flask import current_app,jsonify
+    from itsdangerous import BadSignature,SignatureExpired
+    from email_validator import validate_email,EmailNotValidError
+    from .lease_kit import preview_context
+    from .lease_kit_pdf import build_pdf
+    context=preview_context(property_id)
+    component=context['selected_component']
+    if not context['states'][component]['available'] or context['states'][component].get('omitted'):
+        abort(409,description='The selected review PDF is unavailable.')
+    if not context['lease_draft']:abort(409,description='Select a saved lease draft before emailing.')
+    try:selection=kit_email_signer().loads(request.form.get('document_token',''),max_age=900)
+    except (BadSignature,SignatureExpired):abort(400,description='Reopen the PDF before emailing.')
+    try:recipient=validate_email(request.form.get('recipient','').strip(),check_deliverability=False).normalized
+    except EmailNotValidError:abort(400,description='Enter a valid recipient email address.')
+    message=request.form.get('message','').strip()
+    if len(message)>5000:abort(400,description='Keep the message within 5000 characters.')
+    try:payload=build_pdf(component,context)
+    except Exception as error:
+        current_app.logger.warning('Lease Kit email PDF failed error=%s',type(error).__name__)
+        abort(503,description='The review PDF could not be generated. No email was sent.')
+    if selection!=kit_email_selection(context,payload):
+        abort(409,description='The document changed. Reload the PDF before emailing.')
+    from app.utils.mailer import send_standard_report_email
+    try:
+        accepted=send_standard_report_email(to_email=recipient,subject='AIT Lease Kit - '+context['selected_label']+' - REVIEW ONLY',
+            pdf_url='',pdf_bytes=payload,filename='AIT-Lease-'+component+'-REVIEW.pdf',
+            message=message,document_label='lease review PDF') is True
+    except Exception as error:
+        current_app.logger.warning('Lease Kit email submission failed error=%s',type(error).__name__)
+        abort(503,description='Email submission was not confirmed. Check before retrying.')
+    if not accepted:abort(503,description='Email submission was not confirmed. Check before retrying.')
+    return jsonify(message='PDF submitted by email. Delivery is not guaranteed.')

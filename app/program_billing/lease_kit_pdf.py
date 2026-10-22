@@ -146,6 +146,20 @@ def signature_pdf(context):
     return output.getvalue()
 
 
+def stable_review_pdf(payload):
+    """Drop renderer timestamps so unchanged review PDFs retain an exact email hash."""
+    from pypdf import PdfReader, PdfWriter
+    reader = PdfReader(BytesIO(payload))
+    writer = PdfWriter()
+    writer.append(reader)
+    if reader.metadata:
+        writer.add_metadata({key: str(value) for key, value in reader.metadata.items()
+                             if key not in ('/CreationDate', '/ModDate')})
+    output = BytesIO()
+    writer.write(output)
+    return output.getvalue()
+
+
 def html_pdf(component, context):
     if component == 'signature':
         return signature_pdf(context)
@@ -163,13 +177,13 @@ def html_pdf(component, context):
         # Reuse the configured Windows converter; embedded CSS needs no resource fetches.
         fallback_css = '@media print { #approved-certificate .certificate-page footer { display:block !important; position:fixed; bottom:0; right:0; } }'
         html = html.replace('<style>', '<style>'+css+'\n'+fallback_css+'\n', 1)
-        return html_to_pdf_bytes(html)
+        return stable_review_pdf(html_to_pdf_bytes(html))
     from weasyprint import HTML, CSS
     styles = [CSS(string=css)]
     # Reject network/local resource requests from rendered content. All content is escaped text.
     def no_resources(url):
         raise ValueError('External PDF resources are disabled')
-    return HTML(string=html, url_fetcher=no_resources).write_pdf(stylesheets=styles)
+    return stable_review_pdf(HTML(string=html, url_fetcher=no_resources).write_pdf(stylesheets=styles))
 
 
 def build_pdf(component, context):

@@ -6,13 +6,15 @@
 .certificate-page { display:flex; flex-direction:column; overflow:visible; }
 .certificate-page header p { font-size:8pt; margin:0 0 3px; }
 .certificate-page header h2 { font-size:15pt; font-weight:bold; margin:4px 0; }
-.certificate-page:first-child header h2,.certificate-page:first-child header p:not(:first-child) { text-align:center; }
-.certificate-page footer { font-size:8pt; text-align:center; margin-top:auto; padding-top:6mm; }
+.certificate-page:first-child header h2,.certificate-page:first-child header p { text-align:center; }
+.certificate-page footer { font-size:8pt; text-align:right; margin-top:auto; padding-top:6mm; }
 .certificate-section { margin-top:3mm; }
 .certificate-section h3 { color:#203748; font-size:10pt; font-weight:bold; margin:0 0 4px; break-after:avoid; }
 .certificate-section table { width:100%; table-layout:fixed; border-collapse:collapse; font-size:9pt; }
-.certificate-section th { width:31%; background:#e8eff3; font-weight:bold; text-align:left; }
+.certificate-section th { width:31%; background:#e8eff3; font-weight:normal; text-align:left; }
 .certificate-section th,.certificate-section td { padding:2px 4px; vertical-align:top; border-bottom:1px solid #e0e8ee; overflow-wrap:anywhere; }
+.certificate-section td { font-weight:bold; }
+.certificate-section td.certificate-reference { font-size:7.5pt; overflow-wrap:anywhere; }
 .certificate-literal,.certificate-value,.certificate-incomplete { white-space:pre-wrap; }
 .certificate-incomplete { color:#9a3412; background:#fff7ed; }
 .certificate-field { display:block; margin:3px 0 7px; font-size:9pt; }
@@ -23,7 +25,8 @@
 @page lease-certificate {
   size:A4 portrait;
   margin:12mm 14mm;
-  @bottom-center { content:"AIT Property Management | Lease Certificate | Page " counter(page); font:8pt Arial,sans-serif; }
+  @bottom-center { content:"Lease Certificate | Page " counter(page); font:8pt Arial,sans-serif; }
+  @bottom-right { content:"Powered by AIT | PROPERTY MANAGEMENT"; font:8pt Arial,sans-serif; }
 }
 @media print {
   body * { visibility:hidden; }

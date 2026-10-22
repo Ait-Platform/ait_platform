@@ -37,11 +37,34 @@ def developing_items(items,owners):
 def cover_blocks(items):
     """Cover presentation only; saved parties and internal version records are untouched."""
     from .lease_standard import cover_names
-    # Apply the Certificate's exact-snapshot suppression to a Cover-only copy.
-    distinct=[]
+    # Snapshots may differ in metadata/contact fields while identifying the same Lessee.
+    def identity(party,key):
+        value=party.get(key)
+        if not certificate.present(value):return ''
+        return re.sub(r'[^a-z0-9]','',str(value).casefold())
+    def same_lessee(left,right):
+        left_id=identity(left,'identity_number');right_id=identity(right,'identity_number')
+        register_id=identity(left,'tenant_id')
+        same_register=bool(register_id and register_id==identity(right,'tenant_id'))
+        if left_id and right_id:
+            if left_id!=right_id:return False
+            if same_register:return True
+            left_type=left.get('party_type');right_type=right.get('party_type')
+            return not (left_type and right_type and left_type!=right_type)
+        return same_register
+    groups=[]
     for party in certificate.selected_tenants(items):
-        identified=certificate.present(party.get('tenant_id')) or certificate.present(party.get('identity_number'))
-        if not identified or party not in distinct:distinct.append(party)
+        group=next((entry for entry in groups if same_lessee(entry['party'],party)),None)
+        if group is None:
+            group={'party':deepcopy(party),'representatives':[]};groups.append(group)
+        for key,value in party.items():
+            if not certificate.present(group['party'].get(key)) and certificate.present(value):group['party'][key]=value
+        representative={key:party.get(key) for key in ('signatory_name','signatory_identity_number')}
+        if any(certificate.present(value) for value in representative.values()):
+            fingerprint=tuple(' '.join(str(representative[key] or '').split()).casefold() for key in representative)
+            if not any(saved[0]==fingerprint for saved in group['representatives']):
+                group['representatives'].append((fingerprint,representative))
+    distinct=[group['party'] for group in groups]
     cover_items=deepcopy(items)
     cover_items.setdefault('_parties',{})['lessees']=distinct
     names=cover_names(cover_items)
@@ -53,9 +76,10 @@ def cover_blocks(items):
             if certificate.present(value):lines.append(title+': '+str(value).strip())
         return lines
     landlords=[names['landlords']]+representative_lines(items.get('_parties',{}).get('lessor',{}),'Lessor')
-    tenants=[names['tenants']]
-    for party in distinct:
-        tenants.extend(representative_lines(party,'Lessee'))
+    tenants=['Lessee: '+names['tenants']]
+    for group in groups:
+        for _,representative in group['representatives']:
+            tenants.extend(representative_lines(representative,'Lessee'))
     return [{'kind':'paragraph','text':text} for text in ('\n'.join(landlords),'&','\n'.join(tenants))]
 
 

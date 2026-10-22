@@ -1,6 +1,6 @@
 <div id="approved-certificate" class="certificate-document {{ 'certificate-editor' if not preview else 'certificate-preview' }}">
 <article class="certificate-page">
-<header><p>AIT | PROPERTY MANAGEMENT</p><h2>LEASE CERTIFICATE</h2><p>Schedule of lease particulars</p></header>
+<header><h2>LEASE CERTIFICATE</h2><p>Schedule of lease particulars</p></header>
 {% for section in sections %}
 {% if section.rows %}<section class="certificate-section" aria-label="{{ section.title }}">
 <h3>{{ section.title }}</h3>
@@ -24,7 +24,7 @@
 {% if bank_reason %}<input type="hidden" name="bank_detail_id" value="{{ selected_bank }}"><p role="status">Bank selection is unavailable. The saved snapshot is retained.</p>{% endif %}
 <p>The account is copied into this draft only when selected and saved. Existing snapshots are preserved when an account is unchanged.</p>
 </div>{% endif %}
-<table><tbody>{% for row in section.rows %}<tr><th scope="row">{{ row.label }}</th><td>
+<table><tbody>{% for row in section.rows %}<tr><th scope="row">{{ row.label }}</th><td{% if row.label=='Lease reference' %} class="certificate-reference"{% endif %}>
 {% for part in row.parts %}{% if part.token is defined %}
 {% if not preview and part.editable and not frozen %}
 <label class="certificate-field"><span>{{ part.name.replace('_',' ').title() }}{% if part.name.endswith('_DATE') %} (YYYY-MM-DD){% endif %}</span>
@@ -40,6 +40,5 @@
 </td></tr>{% endfor %}</tbody></table>
 </section>{% endif %}
 {% endfor %}
-<p class="certificate-note">Special Conditions and the Signing Page form separate parts of the lease documentation.</p>
-<footer>AIT Property Management | Lease Certificate</footer></article>
+<footer>Powered by AIT | PROPERTY MANAGEMENT</footer></article>
 </div>

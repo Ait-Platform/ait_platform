@@ -37,7 +37,14 @@ def developing_items(items,owners):
 def cover_blocks(items):
     """Cover presentation only; saved parties and internal version records are untouched."""
     from .lease_standard import cover_names
-    names=cover_names(items)
+    # Apply the Certificate's exact-snapshot suppression to a Cover-only copy.
+    distinct=[]
+    for party in certificate.selected_tenants(items):
+        identified=certificate.present(party.get('tenant_id')) or certificate.present(party.get('identity_number'))
+        if not identified or party not in distinct:distinct.append(party)
+    cover_items=deepcopy(items)
+    cover_items.setdefault('_parties',{})['lessees']=distinct
+    names=cover_names(cover_items)
     def representative_lines(party,label):
         lines=[]
         for key,title in (('signatory_name',label+' Representative'),
@@ -47,7 +54,7 @@ def cover_blocks(items):
         return lines
     landlords=[names['landlords']]+representative_lines(items.get('_parties',{}).get('lessor',{}),'Lessor')
     tenants=[names['tenants']]
-    for party in certificate.selected_tenants(items):
+    for party in distinct:
         tenants.extend(representative_lines(party,'Lessee'))
     return [{'kind':'paragraph','text':text} for text in ('\n'.join(landlords),'&','\n'.join(tenants))]
 

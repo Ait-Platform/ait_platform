@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>AIT Lease Kit - review only</title>
+<style>
+html,body { margin:0; color:#111; font:11pt/1.4 Arial,sans-serif; }
+@page { size:A4 portrait; margin:16mm 17mm; @bottom-center { content:"DRAFT - FOR REVIEW ONLY - NOT FOR SIGNATURE OR ISSUANCE"; font:7pt Arial,sans-serif; } }
+.kit-text-page,.kit-cover-page { width:100%; max-width:none; min-height:0; margin:0; padding:0; box-shadow:none; }
+.kit-cover-page { display:block; position:relative; height:265mm; min-height:265mm; }
+.kit-cover-particulars { margin-top:0; padding-top:200pt; text-align:center; }
+.kit-cover-footer { position:absolute; bottom:0; right:0; padding-top:0; }
+.signature-party { break-inside:avoid; border-bottom:1px solid #bbb; padding:4mm 0; }
+.signature-party p { margin:2mm 0; overflow-wrap:anywhere; }
+h2 { font-size:17pt; margin:0 0 4mm; } h3 { font-size:12pt; margin:5mm 0 2mm; break-after:avoid; }
+.signature-line { display:inline-block; min-width:60mm; border-bottom:1px solid #555; min-height:5mm; }
+.signature-metadata { font-size:10pt; margin-bottom:5mm; }
+.sc-preview-clause { overflow-wrap:anywhere; } .sc-preview-clause h3 { break-after:avoid; }
+.certificate-page { page:lease-certificate; }
+@page lease-certificate { @top-center { content:"DRAFT - FOR REVIEW ONLY - NOT FOR SIGNATURE OR ISSUANCE"; font:7pt Arial,sans-serif; } }
+</style></head><body><div id="lease-kit-document">
+{% if pdf_component=='cover' %}
+{% from 'program_billing/lease_live_view.html' import show_blocks with context %}
+<section class="certificate-cover kit-cover-page"><div class="kit-cover-particulars">{{ show_blocks(cover_blocks) }}</div><footer class="kit-cover-footer">Powered by AIT Standard Lease</footer></section>
+{% elif pdf_component=='certificate' %}
+{% include 'program_billing/lease_certificate_document.html' %}
+{% elif pdf_component=='special_conditions' %}
+<div class="signature-metadata">Lease reference: {{ lease_reference }}<br>Premises: {{ premises_name }} {{ premises_address }}</div>
+{% set key='special_conditions' %}{% include 'program_billing/lease_supplementary_conditions.html' %}
+{% elif pdf_component=='signature' %}
+<h2>SIGNATURE PAGE</h2>
+<p class="signature-metadata">Lease reference: <strong>{{ lease_reference }}</strong><br>Premises: {{ premises_name }} {{ premises_address }}</p>
+<p>Execution of the identified Lease Kit: Cover, Lease Certificate, Residential Core and saved Supplementary Conditions, where applicable.</p>
+<p><strong>{{ review_notice }}</strong></p>
+{% if lessor_representative.signatory_name %}<p class="signature-metadata">Recorded Lessor representative: {{ lessor_representative.signatory_name }}{% if lessor_representative.signatory_identity_number %} | {{ lessor_representative.signatory_identity_number }}{% endif %}{% if lessor_representative.signatory_capacity %}<br>Recorded capacity: {{ lessor_representative.signatory_capacity }}{% endif %}<br>Signing authority is not confirmed by this preview.</p>{% endif %}
+{% for title,parties in [('LESSOR EXECUTION',signature_lessors),('LESSEE EXECUTION',signature_lessees)] %}
+<h3>{{ title }}</h3>
+{% for party in parties %}<section class="signature-party">
+<p>Contracting party: <strong>{{ party.legal_name or party.name or '' }}</strong>{% if party.identity_number %} | {{ party.identity_number }}{% endif %}</p>
+<p>Signature: <span class="signature-line"></span></p>
+<p>Name of signatory: {{ party.signatory_name or '' }}{% if not party.signatory_name %}<span class="signature-line"></span>{% endif %}</p>
+{% if party.signatory_identity_number %}<p>Signatory ID number: {{ party.signatory_identity_number }}</p>{% endif %}
+<p>Capacity, where applicable: {{ party.signatory_capacity or '' }}{% if not party.signatory_capacity %}<span class="signature-line"></span>{% endif %}</p>
+<p>Date: <span class="signature-line"></span></p><p>Place of signature: <span class="signature-line"></span></p>
+</section>{% else %}<p>Contracting party particulars are incomplete.</p>{% endfor %}
+{% endfor %}
+{% endif %}
+</div></body></html>

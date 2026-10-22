@@ -184,7 +184,7 @@ def view(property_id):
 
 @billing_bp.after_request
 def private_preview(response):
-    if request.endpoint in ('billing_bp.lease_live_view','billing_bp.lease_pdf_status','billing_bp.lease_certificate_pdf','billing_bp.lease_certificate_word','billing_bp.lease_certificate_edit','billing_bp.lease_capture_section'):
+    if request.endpoint in ('billing_bp.lease_live_view','billing_bp.lease_kit_pdf','billing_bp.lease_pdf_status','billing_bp.lease_certificate_pdf','billing_bp.lease_certificate_word','billing_bp.lease_certificate_edit','billing_bp.lease_capture_section'):
         response.headers['Cache-Control']='private, no-store'
         response.headers['X-Content-Type-Options']='nosniff'
         response.headers['Referrer-Policy']='same-origin' if request.endpoint in ('billing_bp.lease_capture_section','billing_bp.lease_certificate_edit') else 'no-referrer'
@@ -226,3 +226,27 @@ def certificate_edit(property_id):
 def capture_section(property_id,section_key):
     from app.program_billing.lease_certificate_view import edit
     return edit(property_id,section_key)
+
+
+@billing_bp.get('/billing/leases/property/<int:property_id>/kit.pdf',endpoint='lease_kit_pdf')
+@snapshot.endpoint
+def kit_pdf(property_id):
+    from flask import current_app,send_file
+    from .lease_kit import preview_context
+    from .lease_kit_pdf import build_pdf
+    context=preview_context(property_id)
+    component=context['selected_component']
+    if not context['states'][component]['available'] or context['states'][component].get('omitted'):
+        abort(409,description=context['states'][component].get('reason','Document unavailable.'))
+    try:
+        payload=build_pdf(component,context)
+    except Exception as error:
+        current_app.logger.warning('Lease Kit review PDF failed component=%s error=%s',component,type(error).__name__)
+        abort(503,description='The review PDF could not be generated. No lease data or issuance status was changed.')
+    response=send_file(BytesIO(payload),mimetype='application/pdf',as_attachment=False,
+        download_name='AIT-Lease-'+component+'-REVIEW.pdf',conditional=False,etag=False,max_age=0)
+    response.headers['Cache-Control']='private, no-store'
+    response.headers['X-Content-Type-Options']='nosniff'
+    response.headers['Content-Security-Policy']="frame-ancestors 'self'"
+    response.headers['Referrer-Policy']='no-referrer'
+    return response

@@ -49,3 +49,6 @@ render_backup.sql
 
 # Approved reusable lease certificate Word master
 !app/program_billing/private_templates/AIT_Lease_Certificate_Master.docx
+
+# Private Residential Core review asset required by View Lease
+!app/program_billing/private_templates/AIT_Residential_Core_Final_Review.pdf

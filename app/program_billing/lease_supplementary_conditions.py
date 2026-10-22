@@ -64,3 +64,21 @@ def preview(items):
     complete = bool(clauses) and all(isinstance(row,dict) and row.get('heading') and row.get('text') for row in clauses)
     return {'available': complete, 'printable': complete, 'state': 'draft', 'clauses': clauses,
             'reason': 'Complete the supplementary clause headings and text before previewing.'}
+
+
+def legacy_entries(items):
+    """Read-only inventory; never guess whether old terms were superseded by the editor."""
+    import json,re
+    entries=[]
+    def add(key,value):
+        if value is None or value == '' or value == [] or value == {}:return
+        text=value if isinstance(value,str) else json.dumps(value,ensure_ascii=False,sort_keys=True,default=str)
+        if text.strip():entries.append({'source':key,'text':text})
+    for key in sorted(items):
+        if re.fullmatch(r'sc-\d+',key):
+            saved=items[key]
+            add(key,saved.get('value') if isinstance(saved,dict) and set(saved)<= {'value'} else saved)
+    add('_additional_clauses',items.get('_additional_clauses'))
+    for key in ('rental_adjustments_text','parking_other_charges_text','utilities_allocation_text'):
+        add('_amounts.'+key,items.get('_amounts',{}).get(key))
+    return entries

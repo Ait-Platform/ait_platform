@@ -5,7 +5,7 @@ from flask import abort,request,url_for
 from . import lease_certificate as certificate,lease_certificate_form as form
 
 COMPONENTS=(('cover','Cover'),('certificate','Certificate'),('core','Core'),
-            ('special_conditions','Special Conditions'),('signature','Signature'),('lease','Lease'))
+            ('special_conditions','Supplementary Conditions'),('signature','Signature'),('lease','Lease'))
 ORDER=('cover','certificate','core','special_conditions','signature')
 
 
@@ -99,8 +99,9 @@ def certificate_display_rows(sections, values, items):
 
 
 def component_states(items):
-    from .lease_standard import special_conditions
-    conditions=special_conditions(items)
+    from .lease_supplementary_conditions import legacy_entries
+    legacy=legacy_entries(items)
+    conditions='\n'.join(entry['text'] for entry in legacy)
     states={
         'cover':{'available':True,'printable':True,'state':'draft'},
         'certificate':{'available':True,'printable':True,'state':'draft'},
@@ -114,15 +115,31 @@ def component_states(items):
     from .lease_supplementary_conditions import preview as supplementary_preview
     supplementary=supplementary_preview(items)
     if supplementary is not None:states['special_conditions']=supplementary
+    from .lease_kit_pdf import core_bytes
+    try:
+        core_bytes()
+        states['core']={'available':True,'printable':True,'state':'review'}
+    except (OSError,ValueError):
+        states['core']['reason']='The Residential Core review PDF is unavailable or failed integrity verification.'
+    states['signature']={'available':True,'printable':True,'state':'review'}
+    if supplementary is None and not conditions:
+        states['special_conditions']={'available':True,'printable':False,'state':'none','omitted':True,
+            'clauses':[],'reason':'Supplementary Conditions: None'}
+    elif states['special_conditions'].get('omitted'):
+        states['special_conditions']['reason']='Supplementary Conditions: None'
+    if legacy:
+        states['special_conditions'].update(available=False,printable=False,omitted=False,
+            state='legacy_review_required',legacy_conditions=legacy,
+            reason='Saved legacy Supplementary Conditions require review before PDF assembly. No conditions have been discarded or rewritten. Affected sources: '+', '.join(entry['source'] for entry in legacy))
     complete=all(states[key]['available'] for key in ORDER)
     states['lease']={'available':complete,'printable':complete,'state':'draft' if complete else 'unavailable',
                      'reason':'The complete lease is unavailable until Cover, Certificate, Core, Special Conditions and Signature are all independently available.'}
+    if legacy:states['lease']['reason']=states['special_conditions']['reason']
     return states
 
 
-def view(property_id):
+def preview_context(property_id):
     from .lease_certificate_view import context
-    from .lease_management import render_pm_template
     prop,draft,items,owners,tenants=context(property_id,allow_blank=False)
     items=developing_items(items,owners)
     selected=request.args.get('component','cover')
@@ -135,7 +152,14 @@ def view(property_id):
     sections=form.certificate_layout(*form.counts(items))
     unresolved=[token for token in form.tokens(sections) if not certificate.present(values.get(token))]
     arguments={'property_id':property_id,'draft_id':draft['id'] if draft else None}
-    return render_pm_template('program_billing/lease_kit_view.html',title='View Lease',property=prop,
+    from .lease_kit_pdf import signature_parties
+    lessors,lessees=signature_parties(items)
+    return dict(title='View Lease',property=prop,signature_lessors=lessors,signature_lessees=lessees,
+        lessor_representative=items.get('_parties',{}).get('lessor',{}),
+        lease_reference=values.get('[LEASE_REFERENCE]') or ('LEASE-'+str(draft['id']) if draft else ''),
+        premises_name=values.get('[PROPERTY_NAME]',''),premises_address=values.get('[PROPERTY_ADDRESS]',''),
+        pdf_url=url_for('billing_bp.lease_kit_pdf',component=selected,**arguments),
+        pdf_view=selected in ('core','signature','lease') or (selected=='special_conditions' and states[selected]['available'] and not states[selected].get('omitted')),
         lease_draft=draft,viewer_only=True,kit_view=True,document_token='',selected_component=selected,
         components=[{'key':key,'label':label,'url':url_for('billing_bp.lease_live_view',component=key,**arguments)} for key,label in COMPONENTS],
         selected_label=dict(COMPONENTS)[selected],component_labels=dict(COMPONENTS),states=states,print_available=states[selected]['printable'],
@@ -144,3 +168,8 @@ def view(property_id):
         assembly_order=ORDER,selected_documents=[key for key in ORDER if not states[key].get('omitted')] if selected=='lease' and states['lease']['available'] else [] if states[selected].get('omitted') else [selected],
         capture_url=url_for('billing_bp.lease_certificate_edit',**arguments),
         back_url=url_for('billing_bp.pm_lease_management',**arguments),unavailable=None)
+
+
+def view(property_id):
+    from .lease_management import render_pm_template
+    return render_pm_template('program_billing/lease_kit_view.html', **preview_context(property_id))

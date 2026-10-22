@@ -11,8 +11,15 @@
 <p class="kit-controls mt-2 text-sm" role="status">{{ email_unavailable }}</p>
 {% if not print_available %}<p class="kit-controls mt-3 text-amber-900" role="status">Print is unavailable for this selection until its document is available.</p>{% endif %}
 {% if states[selected_component].get('omitted') %}<p class="kit-controls">{{ states[selected_component].reason }}</p>{% endif %}
+<p class="kit-controls mt-3" role="status"><strong>DRAFT &mdash; FOR REVIEW ONLY &mdash; NOT FOR SIGNATURE OR ISSUANCE</strong></p>
+{% if pdf_view and states[selected_component]['available'] %}<p class="kit-controls"><a href="{{ pdf_url }}" target="_blank" rel="noopener">Open review PDF in a new tab (all pages / Print)</a></p><iframe id="lease-kit-pdf" title="{{ selected_label }} - review PDF" src="{{ pdf_url }}" style="width:100%;height:80vh;border:1px solid #cbd5e1"></iframe>{% endif %}
+{% if states['special_conditions'].get('legacy_conditions') and selected_component in ['special_conditions','lease'] %}
+<aside class="kit-controls" role="alert"><h2>Supplementary Conditions review required</h2><p>Lease reference: {{ lease_reference }}</p><p>{{ states['special_conditions'].reason }}</p>
+{% for entry in states['special_conditions'].legacy_conditions %}<h3>{{ entry.source }}</h3><pre style="white-space:pre-wrap;overflow-wrap:anywhere">{{ entry.text }}</pre>{% endfor %}
+{% if states['special_conditions'].get('clauses') %}<h3>Saved editor clauses (not assembled)</h3>{% for clause in states['special_conditions'].clauses %}<h4>SC-{{ '%02d' % loop.index }} &mdash; {{ clause.heading }}</h4><div style="white-space:pre-wrap">{{ clause.text }}</div>{% endfor %}{% endif %}
+</aside>{% endif %}
 <div id="lease-kit-document" data-selected-document="{{ selected_component }}">
-{% for key in selected_documents %}
+{% for key in selected_documents if not pdf_view or not states[selected_component]['available'] %}
 {% if key=='cover' %}<section id="existing-cover" class="certificate-cover kit-cover-page" aria-label="Cover"><div class="kit-cover-particulars">{{ show_blocks(cover_blocks) }}</div><footer class="kit-cover-footer">Powered by AIT Standard Lease</footer></section>
 {% elif key=='certificate' %}{% include 'program_billing/lease_certificate_document.html' %}
 {% elif key=='special_conditions' and states[key].get('clauses') and states[key]['available'] %}{% include 'program_billing/lease_supplementary_conditions.html' %}

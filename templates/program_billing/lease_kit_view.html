@@ -2,18 +2,22 @@
 {% block workspace %}
 {% if selected_component in ['certificate','lease'] %}<link rel="stylesheet" href="{{ url_for('static',filename='css/lease_certificate.css') }}">{% endif %}
 <link rel="stylesheet" href="{{ url_for('static',filename='css/lease_kit.css') }}">
-<nav id="lease-kit-selectors" aria-label="View Lease documents" class="mt-5 flex flex-wrap gap-2">
-{% for component in components %}<a href="{{ component.url }}" data-component="{{ component.key }}" {% if selected_component==component.key %}aria-current="page"{% endif %} class="rounded border px-4 py-2 {{ 'bg-blue-100 font-semibold' if selected_component==component.key else 'bg-slate-50' }}">{{ component.label }}</a>{% endfor %}
+<nav id="lease-kit-selectors" aria-label="View Lease documents" class="mt-5">
+{% for component in components %}<a href="{{ component.url }}" data-component="{{ component.key }}" {% if selected_component==component.key %}aria-current="page"{% endif %} class="kit-document-choice">{{ component.label }}</a>{% endfor %}
 </nav>
 {% if states[selected_component]['available'] and not states[selected_component].get('omitted') %}
 <section id="lease-kit-document" data-pdf-url="{{ pdf_url }}" aria-label="{{ selected_label }} PDF viewer">
 <div id="lease-kit-toolbar" role="toolbar" aria-label="PDF controls" class="kit-controls">
+<div class="kit-viewer-group" role="group" aria-label="Document zoom">
 <button type="button" id="lease-kit-zoom-out" disabled>Zoom Out</button>
 <button type="button" id="lease-kit-zoom-in" disabled>Zoom In</button>
+</div>
+<div class="kit-viewer-group" role="group" aria-label="Page navigation">
 <button type="button" id="lease-kit-previous" disabled>Previous</button>
 <label>Page <input id="lease-kit-page" type="number" min="1" value="1" disabled aria-label="Page number"></label>
 <span id="lease-kit-page-count">of 0</span>
 <button type="button" id="lease-kit-next" disabled>Next</button>
+</div>
 </div>
 <p id="lease-kit-status" role="status" aria-live="polite">Loading PDF...</p>
 <div id="lease-kit-viewport" tabindex="0" aria-label="PDF page"><canvas id="lease-kit-canvas" aria-label="{{ selected_label }} page"></canvas></div>

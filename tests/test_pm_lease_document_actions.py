@@ -77,7 +77,7 @@ class LeaseDocumentsActionsTests(unittest.TestCase):
     def test_six_ordered_rows_without_history_or_upload_display(self):
         response=self.client.get('/billing/leases/property/26/history?draft_id=draft-one',headers={'X-Test-Owner':'yes'})
         self.assertEqual(response.status_code,200);html=response.text
-        labels=['Cover','Certificate','Residential Core','Supplementary Conditions','Signature Page','Full Lease Agreement']
+        labels=['Cover','Certificate','Core Lease','Special Conditions','Signatures','Full Lease Agreement']
         positions=[html.index('<th scope="row">'+label+'</th>') for label in labels]
         self.assertEqual(positions,sorted(positions))
         self.assertEqual(html.count('data-action="email"'),6);self.assertEqual(html.count('data-action="print"'),6)

@@ -41,3 +41,10 @@
   #approved-certificate th { print-color-adjust:exact; -webkit-print-color-adjust:exact; }
   .certificate-controls { display:none !important; }
 }
+
+.certificate-party-block { margin-top:3mm; }
+.certificate-party-block h4 { font-size:9pt; margin:0 0 2px; color:#203748; break-after:avoid; }
+.certificate-party { break-inside:avoid; }
+.certificate-party-representative { margin-top:3px; }
+.certificate-party-warning { color:#9a3412; background:#fff7ed; font-size:8pt; font-weight:normal; margin:2px 0; }
+.certificate-group-representative { margin:3px 0; padding:3px; border:1px solid #e0e8ee; font-size:8pt; }

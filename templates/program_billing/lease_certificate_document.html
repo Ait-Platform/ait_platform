@@ -38,6 +38,7 @@
 {% else %}<span class="{{ 'certificate-incomplete' if not part.value else 'certificate-value' }}">{{ part.value or part.token }}</span>{% endif %}
 {% else %}<span class="certificate-literal">{{ part.text }}</span>{% endif %}{% endfor %}
 </td></tr>{% endfor %}</tbody></table>
+{% if section.party_blocks is defined %}{% include 'program_billing/lease_certificate_party_blocks.html' %}{% endif %}
 </section>{% endif %}
 {% endfor %}
 <footer>Powered by AIT | PROPERTY MANAGEMENT</footer></article>

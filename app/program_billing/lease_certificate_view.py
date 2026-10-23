@@ -46,15 +46,9 @@ def payload(property_id):
 
 
 def pdf(property_id):
-    _,_,output,_=payload(property_id)
-    try:rendered=certificate.render_pdf(output)
-    except Exception as error:
-        from app.program_billing.lease_certificate_render import RenderUnavailable
-        if not isinstance(error,RenderUnavailable):raise
-        current_app.logger.warning('Certificate render unavailable error=%s',type(error).__name__)
-        abort(503,description='The approved Word certificate PDF renderer is unavailable. The Word preview remains downloadable.')
-    return send_file(BytesIO(rendered),mimetype='application/pdf',as_attachment=False,
-        download_name='AIT-Lease-Certificate-DRAFT.pdf',conditional=False,etag=False,max_age=0)
+    # Keep legacy Certificate PDF links on the same protected renderer as View Lease.
+    return redirect(url_for('billing_bp.lease_kit_pdf',property_id=property_id,
+        draft_id=request.args.get('draft_id'),component='certificate'))
 
 
 def word(property_id):

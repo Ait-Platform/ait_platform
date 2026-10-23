@@ -35,6 +35,7 @@
 <input type="hidden" name="capture_return_section" id="capture-return-section" value=""><input type="hidden" name="capture_return" id="capture-return" value=""><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="draft_id" value="{{ lease_draft.id if lease_draft else '' }}"><input type="hidden" name="version" value="{{ lease_draft.version if lease_draft else '' }}"><input type="hidden" name="registration_token" value="{{ registration_token }}"><input type="hidden" name="lessor_count" value="{{ lessor_count }}">
 {% if section_key=='parties' %}
 <input id="lessee-count" name="lessee_count" type="hidden" value="{{ lessee_count }}">
+{% if party_validation %}<aside class="capture-errors" role="status"><h2>Party particulars requiring attention</h2><ul>{% for warning in party_validation %}<li>{{ warning }}</li>{% endfor %}</ul></aside>{% endif %}
 <div class="party-controls"><button type="button" id="show-lessors">Show Lessors</button><button type="button" id="select-tenant">Select Existing Tenant</button><button type="button" id="add-lessee" {% if frozen %}disabled{% endif %}>Add Lessee</button></div>
 <section id="party-work-area" aria-label="Parties work area">
 <p id="party-initial-message">View existing Lessors, select a tenant or add a new Lessee.</p>

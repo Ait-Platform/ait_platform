@@ -2,7 +2,7 @@
 <html lang="en"><head><meta charset="utf-8"><title>AIT Lease Kit - review only</title>
 <style>
 html,body { margin:0; color:#111; font:11pt/1.4 Arial,sans-serif; }
-@page { size:A4 portrait; margin:16mm 17mm; @bottom-center { content:"DRAFT - FOR REVIEW ONLY - NOT FOR SIGNATURE OR ISSUANCE"; font:7pt Arial,sans-serif; } }
+@page { size:A4 portrait; margin:16mm 17mm; }
 .kit-text-page,.kit-cover-page { width:100%; max-width:none; min-height:0; margin:0; padding:0; box-shadow:none; }
 .kit-cover-page { display:block; position:relative; height:265mm; min-height:265mm; }
 .kit-cover-particulars { margin-top:0; padding-top:200pt; text-align:center; }
@@ -29,7 +29,7 @@ h2 { font-size:17pt; margin:0 0 4mm; } h3 { font-size:12pt; margin:5mm 0 2mm; br
 <p class="signature-metadata">Lease reference: <strong>{{ lease_reference }}</strong><br>Premises: {{ premises_name }} {{ premises_address }}</p>
 <p>Execution of the identified Lease Kit: Cover, Lease Certificate, Residential Core and saved Supplementary Conditions, where applicable.</p>
 <p><strong>{{ review_notice }}</strong></p>
-{% if lessor_representative.signatory_name %}<p class="signature-metadata">Recorded Lessor representative: {{ lessor_representative.signatory_name }}{% if lessor_representative.signatory_identity_number %} | {{ lessor_representative.signatory_identity_number }}{% endif %}{% if lessor_representative.signatory_capacity %}<br>Recorded capacity: {{ lessor_representative.signatory_capacity }}{% endif %}<br>Signing authority is not confirmed by this preview.</p>{% endif %}
+{% if lessor_representative.signatory_name %}<p class="signature-metadata">Recorded Lessor representative: {{ lessor_representative.signatory_name }}{% if lessor_representative.signatory_identity_number %} | {{ lessor_representative.signatory_identity_number }}{% endif %}{% if lessor_representative.signatory_capacity %}<br>Recorded capacity: {{ lessor_representative.signatory_capacity }}{% endif %}</p>{% endif %}
 {% for title,parties in [('LESSOR EXECUTION',signature_lessors),('LESSEE EXECUTION',signature_lessees)] %}
 <h3>{{ title }}</h3>
 {% for party in parties %}<section class="signature-party">
@@ -39,7 +39,7 @@ h2 { font-size:17pt; margin:0 0 4mm; } h3 { font-size:12pt; margin:5mm 0 2mm; br
 {% if party.signatory_identity_number %}<p>Signatory ID number: {{ party.signatory_identity_number }}</p>{% endif %}
 <p>Capacity, where applicable: {{ party.signatory_capacity or '' }}{% if not party.signatory_capacity %}<span class="signature-line"></span>{% endif %}</p>
 <p>Date: <span class="signature-line"></span></p><p>Place of signature: <span class="signature-line"></span></p>
-</section>{% else %}<p>Contracting party particulars are incomplete.</p>{% endfor %}
+</section>{% endfor %}
 {% endfor %}
 {% endif %}
 </div></body></html>

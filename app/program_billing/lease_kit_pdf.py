@@ -118,9 +118,8 @@ def signature_pdf(context):
         text = 'Recorded Lessor representative: '+str(representative['signatory_name'])
         if representative.get('signatory_identity_number'):text += ' | '+str(representative['signatory_identity_number'])
         if representative.get('signatory_capacity'):text += '\nRecorded capacity: '+str(representative['signatory_capacity'])
-        story += [para(text, small), para('Signing authority is not confirmed by this preview.', small)]
+        story += [para(text, small)]
     for label, parties in (('LESSOR EXECUTION', context['signature_lessors']), ('LESSEE EXECUTION', context['signature_lessees'])):
-        if not parties:story.append(KeepTogether([para(label, heading), para('Contracting party particulars are incomplete.')]))
         for index, party in enumerate(parties):
             name = party.get('legal_name') or party.get('name') or ''
             if party.get('identity_number'):name += ' | '+str(party['identity_number'])
@@ -138,7 +137,6 @@ def signature_pdf(context):
     def footer(canvas, doc):
         canvas.saveState()
         canvas.setFont('AITSignature', 7)
-        canvas.drawCentredString(A4[0]/2, 9*mm, 'DRAFT - FOR REVIEW ONLY - NOT FOR SIGNATURE OR ISSUANCE')
         canvas.drawRightString(A4[0]-17*mm, 13*mm, 'Signature | Page '+str(doc.page))
         canvas.restoreState()
     document.build(story, onFirstPage=footer, onLaterPages=footer,

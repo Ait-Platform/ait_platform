@@ -268,10 +268,16 @@ def edit(property_id,section_key):
     representative_owner=matches[0] if len(matches)==1 else None
     saved_lessees=certificate.selected_tenants(items)
     lessee_types=[request.form.get('LESSEE_'+str(index+1)+'_PARTY_TYPE',saved_lessees[index].get('party_type','') if index<len(saved_lessees) else '') for index in range(lessee_count)]
+    party_validation=[]
+    if section_key=='parties':
+        from .lease_certificate_parties import blocks
+        for group in blocks(saved,owners,tenants):
+            for party in group['parties']:
+                party_validation.extend(group['label']+' '+(party['name'] or party['identity_number'])+': '+warning for warning in party['warnings'])
     arguments={'property_id':property_id,'draft_id':draft['id'] if draft else None}
     return render_pm_template('program_billing/lease_capture_section.html',title=definition[1],property=prop,
         lease_draft=draft,section_key=section_key,section=section,errors=errors,frozen=frozen,
-        party_rows=party_rows,lessee_groups=lessee_groups,lessee_template=lessee_template,
+        party_rows=party_rows,lessee_groups=lessee_groups,lessee_template=lessee_template,party_validation=party_validation,
         lessee_types=lessee_types,
         lessee_details=lessee_details,sc_headings=supplementary.HEADINGS,legacy_additional=legacy_additional,
         sc_editor=supplementary.editor(saved,request.form if errors and section_key=='additional' else None),legacy_sc=legacy_sc,

@@ -35,16 +35,16 @@ class CertificatePartyTests(unittest.TestCase):
         self.assertNotIn('Representative',tree.text_content());self.assertNotIn('SIGNATORY',rendered)
         self.assertFalse(tree.xpath('//*[contains(@class,"certificate-party-warning")]'))
 
-    def test_multiple_parties_preserve_source_order_even_similar_or_identical(self):
+    def test_multiple_parties_preserve_source_order_without_merging_distinct_identities(self):
         lessors=[{'type':'individual','name':'Same Name','identity_number':'A'}, {}, {'type':'company','name':'Same Name','identity_number':'B','signatory_name':'Director B','signatory_identity_number':'REP-B'}]
         tenants=[{'party_type':'natural_person','legal_name':'Same Tenant','identity_number':'T-A'}, {},
                  {'party_type':'natural_person','legal_name':'Same Tenant','identity_number':'T-B'},
                  {'party_type':'natural_person','legal_name':'Same Tenant','identity_number':'T-B'}]
         _,tree=self.rendered(self.items(lessors,tenants))
         rows=tree.xpath('//tr[@class="certificate-party"]')
-        self.assertEqual([r.find('th').text for r in rows],['Lessor','Lessor','Lessee','Lessee','Lessee'])
+        self.assertEqual([r.find('th').text for r in rows],['Lessor','Lessor','Lessee','Lessee'])
         identities=tree.xpath('//div[@class="certificate-party-identity"]/text()')
-        self.assertEqual([text.strip() for text in identities],['Same Name | A','Same Name | B','Same Tenant | T-A','Same Tenant | T-B','Same Tenant | T-B'])
+        self.assertEqual([text.strip() for text in identities],['Same Name | A','Same Name | B','Same Tenant | T-A','Same Tenant | T-B'])
         self.assertIn('Director B',rows[1].text_content());self.assertNotIn('Director B',rows[0].text_content())
 
     def test_entity_lessee_keeps_representative_beneath_its_own_identity(self):
@@ -59,8 +59,10 @@ class CertificatePartyTests(unittest.TestCase):
     def test_entities_on_both_sides_warn_when_representative_is_missing(self):
         items=self.items([{'type':'trust','name':'Example Trust','identity_number':'TRUST-1'}],[{'party_type':'juristic_person','legal_name':'Example NPC','identity_number':'NPC-1'}])
         rendered,tree=self.rendered(items)
-        warnings=tree.xpath('//*[contains(@class,"certificate-party-warning")]/text()')
+        warnings=[w for group in self.parties.blocks(items) for party in group['parties'] for w in party['warnings']]
         self.assertEqual(sum('Required representative' in w for w in warnings),2)
+        self.assertNotIn('Required representative',tree.text_content())
+        self.assertFalse(tree.xpath('//*[contains(@class,"certificate-party-warning")]'))
         self.assertNotIn('[LESSOR_',rendered);self.assertNotIn('[LESSEE_',rendered)
 
     def test_individual_self_signatory_is_not_repeated_and_unknown_type_not_inferred(self):
@@ -69,7 +71,8 @@ class CertificatePartyTests(unittest.TestCase):
         _,tree=self.rendered(items)
         rows=tree.xpath('//tr[@class="certificate-party"][th="Lessee"]')
         self.assertNotIn('Representative',rows[0].text_content())
-        self.assertIn('Party type is not recorded',rows[1].text_content())
+        self.assertIn('Party type is not recorded',' '.join(self.parties.blocks(items)[1]['parties'][1]['warnings']))
+        self.assertNotIn('Party type is not recorded',rows[1].text_content())
         self.assertIn('Recorded Agent',rows[1].text_content())
         self.assertNotIn('Required representative details are missing',rows[1].text_content())
 
@@ -79,8 +82,8 @@ class CertificatePartyTests(unittest.TestCase):
         _,tree=self.rendered(items,owners=[{'owner_id':1,'type':'individual','name':'Changed Register','identity_number':'CHANGED'}])
         self.assertIn('Saved Company | CO-1',tree.text_content());self.assertNotIn('Changed Register',tree.text_content())
         self.assertEqual(tree.text_content().count('Group Agent'),1)
-        self.assertIn('not linked to an individual Lessor',tree.text_content())
-        self.assertIn('Required representative details are missing',tree.text_content())
+        self.assertNotIn('not linked to an individual Lessor',tree.text_content())
+        self.assertIn('Required representative details are missing',' '.join(self.parties.blocks(items)[0]['parties'][0]['warnings']))
 
     def test_single_company_lessor_uses_saved_lessor_representative(self):
         items=self.items([{'type':'company','name':'Lessor Company','identity_number':'CO-1'}])
@@ -122,5 +125,34 @@ class CertificatePartyTests(unittest.TestCase):
         self.assertEqual(response.status_code,302)
         self.assertIn('component=certificate',response.location)
         self.assertIn('draft_id=stored-draft',response.location)
+
+    def test_duplicate_entity_is_one_row_but_natural_person_is_never_merged(self):
+        natural={'tenant_id':11,'party_type':'natural_person','legal_name':'Same Name','identity_number':'123'}
+        entity={'tenant_id':22,'party_type':'juristic_person','legal_name':'Same Name','identity_number':'123','signatory_name':'Director','signatory_identity_number':'REP-1'}
+        items=self.items(lessees=[natural,entity,copy.deepcopy(entity)])
+        original=copy.deepcopy(items)
+        _,tree=self.rendered(items)
+        self.assertEqual(len(tree.xpath('//tr[@class="certificate-party"][th="Lessee"]')),2)
+        self.assertEqual(tree.text_content().count('Representative: Director'),1)
+        self.assertEqual(items,original);self.assertEqual(len(items['_parties']['lessees']),3)
+
+    def test_generated_signature_footer_removed_and_approved_core_unchanged(self):
+        import fitz
+        from hashlib import sha256
+        from app.program_billing import lease_kit_pdf
+        context={'lease_reference':'SYNTHETIC','premises_name':'Property','premises_address':'Address',
+                 'signature_lessors':[{'name':'Owner','identity_number':'OWNER-1'}],
+                 'signature_lessees':[{'legal_name':'Natural Lessee','identity_number':'NAT-11'}]}
+        output=lease_kit_pdf.signature_pdf(context)
+        document=fitz.open(stream=output,filetype='pdf')
+        self.assertIn('REVIEW ONLY',document.metadata['title'])
+        for page in document:
+            footer=page.get_text(clip=fitz.Rect(0,page.rect.height-60,page.rect.width,page.rect.height))
+            self.assertNotIn('DRAFT',footer);self.assertIn('Signature | Page',footer)
+        local=lease_kit_pdf.CORE.read_bytes()
+        self.assertEqual(sha256(local).hexdigest(),lease_kit_pdf.CORE_SHA256)
+        self.assertEqual(len(fitz.open(stream=local,filetype='pdf')),9)
+        template=(ROOT/'templates/program_billing/lease_kit_pdf.html').read_text()
+        self.assertNotRegex(template,r'@bottom-center[^}]*DRAFT')
 
 if __name__=='__main__':unittest.main()

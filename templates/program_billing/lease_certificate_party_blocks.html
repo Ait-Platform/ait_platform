@@ -5,19 +5,17 @@
 {% if person.phone %}<div>Representative phone: {{ person.phone }}</div>{% endif %}
 {% if person.email %}<div>Representative email: {{ person.email }}</div>{% endif %}
 {% endmacro %}
-{% for block in section.party_blocks %}
+{% for block in section.party_blocks if block.parties or block.group_representative %}
 <div class="certificate-party-block" aria-label="{{ block.title }}">
 <h4>{{ block.title }}</h4>
 <table><tbody>
 {% for party in block.parties %}<tr class="certificate-party"><th scope="row">{{ block.label }}</th><td>
 <div class="certificate-party-identity">{% if party.name %}{{ party.name }}{% endif %}{% if party.name and party.identity_number %} | {% endif %}{% if party.identity_number %}{{ party.identity_number }}{% endif %}</div>
-{% if party.representative %}{{ representative_details(party.representative) }}{% endif %}
-{% for warning in party.warnings %}<p class="certificate-party-warning" role="status">{{ warning }}</p>{% endfor %}
-</td></tr>{% else %}<tr><td colspan="2" class="certificate-party-warning">No {{ block.title|lower }} recorded. Contracting party particulars are incomplete.</td></tr>{% endfor %}
+{% for person in party.representatives %}{{ representative_details(person) }}{% endfor %}
+</td></tr>{% endfor %}
 </tbody></table>
 {% if block.group_representative %}<aside class="certificate-group-representative">
 <strong>Recorded representative for Lessors</strong>{{ representative_details(block.group_representative) }}
-<p class="certificate-party-warning" role="status">This group representative is not linked to an individual Lessor in the saved particulars. Individual signing authority requires review.</p>
 </aside>{% endif %}
 </div>
 {% endfor %}

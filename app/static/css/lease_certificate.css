@@ -16,7 +16,7 @@
 .certificate-section td { font-weight:bold; }
 .certificate-section td.certificate-reference { font-size:7.5pt; overflow-wrap:anywhere; }
 .certificate-literal,.certificate-value,.certificate-incomplete { white-space:pre-wrap; }
-.certificate-incomplete { color:#9a3412; background:#fff7ed; }
+.certificate-incomplete { color:inherit; background:transparent; }
 .certificate-field { display:block; margin:3px 0 7px; font-size:9pt; }
 .certificate-field>span { display:block; font-size:8pt; color:#475569; }
 .certificate-field textarea,.certificate-field select { display:block; box-sizing:border-box; width:100%; padding:5px; border:1px solid #94a3b8; border-radius:3px; color:#111; background:white; font:inherit; }

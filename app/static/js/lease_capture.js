@@ -198,7 +198,6 @@
   const tenants = data ? JSON.parse(data.textContent) : [];
   let operation = '';
   let newGroup = null;
-  let selectedGroup = null;
   const choice = document.getElementById('party-tenant-choice');
   function show(operationName) {
     document.getElementById('party-initial-message').hidden = true;
@@ -229,9 +228,12 @@
     const type = group.querySelector('[data-lessee-type]');
     if (!type) return;
     const juristic = type.value === 'juristic_person';
+    const representative = group.querySelector('.lessee-representative');
+    if (representative) representative.hidden = !juristic && !Array.from(representative.querySelectorAll('textarea')).some(input => input.value.trim() !== '');
     group.querySelector('[data-lessee-label="LEGAL_NAME"]').textContent = juristic ? 'Registered Entity Name' : 'Full Name';
     group.querySelector('[data-lessee-label="IDENTITY_NUMBER"]').textContent = juristic ? 'Registration Number' : 'ID Number';
   }
+  Array.from(groups.children).forEach(lesseeTypeLabels);
   groups.addEventListener('change',function (event) {
     if (event.target.matches('[data-lessee-type]')) lesseeTypeLabels(event.target.closest('fieldset'));
   });
@@ -268,9 +270,8 @@
     showTenantDetails(tenants.find(tenant => String(tenant.id) === choice.value));
     if (!choice.value) return;
     const existing = Array.from(groups.children).find(group => group.querySelector('.register-choice')?.value === choice.value);
-    const target = existing || selectedGroup || availableGroup();
+    const target = existing || availableGroup();
     if (!target) { document.getElementById('party-tenant-status').textContent = 'The lease already has 50 Lessees.';return; }
-    if (!existing) selectedGroup = target;
     const register = target.querySelector('.register-choice');
     if (!register) return;
     if (existing) { document.getElementById('party-tenant-status').textContent = '';return; }
@@ -300,5 +301,6 @@
       const input = document.getElementById('field_' + prefix + suffix);
       if (input) input.value = tenant[fields[suffix]] || '';
     });
+    lesseeTypeLabels(group);
   });
 }());

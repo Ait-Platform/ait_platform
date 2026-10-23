@@ -26,7 +26,7 @@
 <link rel="stylesheet" href="{{ url_for('static',filename='css/lease_capture.css') }}">
 <div class="capture-page"><div class="capture-accent"></div><div class="capture-content">
 {% include 'partials/flash_messages.html' %}
-<div class="capture-header"><h1>Data Capture</h1><div class="capture-actions"><a href="{{ capture_back }}" data-capture-back>Back</a></div></div><p>{{ property.name }}</p>
+<div class="capture-header"><h1>Data Capture</h1><div class="capture-actions"><a class="lease-cross-navigation lease-view-link" href="{{ capture_view }}" data-capture-back data-capture-return="view">View Lease</a><a class="lease-back-link" href="{{ capture_back }}" data-capture-back>Back</a></div></div><p>{{ property.name }}</p>
 <nav class="capture-tabs" aria-label="Data Capture sections">{% for tab in capture_sections %}<a href="{{ tab.url }}" data-capture-section="{{ tab.key }}" {% if tab.key==section_key %}aria-current="page"{% endif %}>{{ tab.label }}</a>{% endfor %}</nav>
 <div class="capture-header"><h2 class="capture-section-title">{{ title.split('. ',1)[-1] }}</h2><div class="capture-actions">{% if section_key=='additional' %}<button type="button" id="sc-add" {% if frozen %}disabled{% endif %}>+ Add SC</button>{% endif %}<button type="submit" name="action" value="save" form="certificate-form" id="capture-save" {% if frozen %}disabled{% endif %}>Save</button></div></div>
 {% if errors %}<ul role="alert" class="capture-errors">{% for error in errors %}<li>{{ error }}</li>{% endfor %}</ul>{% endif %}
@@ -41,7 +41,8 @@
 <section id="party-work-area" aria-label="Parties work area">
 <p id="party-initial-message">View existing Lessors, select a tenant or add a new Lessee.</p>
 <div id="party-lessors" hidden><h2>Lessors</h2>{{ fields(party_rows) }}<h3>Lessor representative</h3>{% if owner_representative %}<p>{{ owner_representative.name }} &middot; {{ owner_representative.identity_number }}</p>{% else %}<p>No unique representative match to an existing Owner is recorded. No representative has been assumed.</p>{% endif %}</div>
-<div id="party-tenant-selection" hidden><label class="capture-field" for="party-tenant-choice"><span>Select Existing Tenant</span><select id="party-tenant-choice" {% if frozen %}disabled{% endif %}><option value="">Choose a tenant</option>{% for tenant in tenant_choices %}<option value="{{ tenant.id }}">{{ tenant.legal_name }}</option>{% endfor %}</select></label><p id="party-tenant-status" role="status"></p><div id="party-selected-details" aria-live="polite"></div></div>
+<div id="party-tenant-selection" hidden><input type="hidden" name="lease_selection_version" value="1"><fieldset><legend>Select the lessees for this lease</legend><p>Check every contracting lessee to include. Uncheck a lessee to remove them when you save.</p>
+{% for tenant in tenant_choices %}<label class="party-tenant-option"><input type="checkbox" name="lease_selected_tenant_id" value="{{ tenant.id }}" data-lease-tenant-selection {% if tenant.id|string in selected_tenant_ids %}checked{% endif %} {% if frozen %}disabled{% endif %}><span>{{ tenant.legal_name }}{% if tenant.identity_number %} — {{ tenant.identity_number }}{% endif %}</span></label>{% endfor %}</fieldset><p id="party-tenant-status" role="status"></p><div id="party-selected-details" aria-live="polite"></div></div>
 <div id="capture-lessees" hidden>{% for rows in lessee_groups %}<fieldset data-lessee-index="{{ loop.index }}" hidden><legend>Lessee</legend>{{ lessee_fields(rows,loop.index,lessee_types[loop.index-1]) }}</fieldset>{% endfor %}</div>
 </section>
 <template id="capture-lessee-template"><fieldset data-lessee-index="1"><legend>Lessee</legend>{% with selected_tenant_ids=[] %}{{ lessee_fields(lessee_template,1) }}{% endwith %}</fieldset></template>

@@ -40,17 +40,18 @@ class LesseePersistenceTests(unittest.TestCase):
         self.conn.execute(text("INSERT INTO bil_tenant_identity VALUES (33,22,7,'Entity Representative','REP-33','rep@example.com','000')"))
         self.catalog=json.loads((ROOT/'app/program_billing/lease_snapshot_catalog.json').read_text(encoding='utf-8-sig'))
         self.identifier=uuid.uuid4();self.initial={'_contracting_lessors':{'identities':[{'type':'individual','name':'Owner','identity_number':'OWNER-1'}]},'_certificate_authorities':{'sentinel':{'confirmed':False}},'_parties':{'lessees':[]}}
+        self.initial['_lease_history']={'documents':[],'emails':[{'recipient':'audit@example.com','status':'submitted'}]}
         self.conn.execute(text("INSERT INTO bil_lease_draft VALUES (:id,26,7,'draft',:source,CAST(:items AS jsonb),1,now())"),{'id':self.identifier,'source':self.catalog['version'],'items':json.dumps(self.initial)});self.conn.commit()
         self.session=Session(self.conn);self.addCleanup(lambda:self.session.close())
         self.db=types.SimpleNamespace(session=self.session)
         self.user=types.SimpleNamespace(id=7)
         self.user_patch=patch('flask_login.current_user',self.user);self.user_patch.start();self.addCleanup(self.user_patch.stop)
-        mods={name:types.ModuleType(name) for name in ('app','app.program_billing','app.program_billing.lease_snapshot','app.program_billing.lease_workflow','app.program_billing.lease_property_payments','app.program_billing.tenant_register','app.program_billing.lease_management')}
+        mods={name:types.ModuleType(name) for name in ('app','app.program_billing','app.program_billing.lease_snapshot','app.program_billing.lease_workflow','app.program_billing.lease_property_payments','app.program_billing.tenant_register','app.program_billing.lease_management','app.program_billing.lease_certificate_view')}
         mods['app'].__path__=[str(ROOT/'app')];mods['app.program_billing'].__path__=[str(ROOT/'app/program_billing')]
         self.mods=patch.dict(sys.modules,mods);self.mods.start();self.addCleanup(self.mods.stop)
         from app.program_billing import lease_certificate as certificate,lease_certificate_form as form,lease_supplementary_conditions as supplementary,lease_kit as kit
         self.kit=kit;self.cert=certificate;self.form=form
-        app=Flask('real-local-lessee-persistence');app.secret_key='synthetic-local-test';app.config['TESTING']=True
+        app=Flask('real-local-lessee-persistence',root_path=str(ROOT/'app'));app.secret_key='synthetic-local-test';app.config['TESTING']=True
         CSRFProtect(app);app.jinja_env.globals['csrf_token']=generate_csrf
         app.jinja_loader=ChoiceLoader([DictLoader({'layout.html':'{% block content %}{% endblock %}','partials/flash_messages.html':''}),FileSystemLoader(ROOT/'templates')])
         self.app=app;bp=Blueprint('billing_bp',__name__)
@@ -75,7 +76,13 @@ class LesseePersistenceTests(unittest.TestCase):
              'deepcopy':copy.deepcopy,'current_user':self.user,'uuid':uuid,'re':re,'datetime':datetime,'timezone':timezone,'IntegrityError':IntegrityError}
         functions('app/program_billing/lease_certificate_view.py',{'context','edit'},env)
         bp.add_url_rule('/capture/<int:property_id>/<section_key>',endpoint='lease_capture_section',view_func=snap.endpoint(env['edit']),methods=['GET','POST'])
-        for endpoint in ('pm_lease_management','lease_certificate_edit'):
+        mods['app.program_billing.lease_certificate_view'].context=env['context']
+        bp.add_url_rule('/view/<int:property_id>',endpoint='lease_live_view',view_func=snap.endpoint(kit.view))
+        bp.add_url_rule('/certificate/<int:property_id>',endpoint='lease_certificate_edit',view_func=snap.endpoint(lambda property_id:env['edit'](property_id,'parties')))
+        bp.add_url_rule('/kit-email/<int:property_id>',endpoint='lease_kit_email',view_func=lambda **kw:'')
+        pdf_env={'__name__':'app.program_billing.lease_preview','__package__':'app.program_billing','billing_bp':bp,'snapshot':snap,'BytesIO':__import__('io').BytesIO,'abort':abort}
+        functions('app/program_billing/lease_preview.py',{'kit_pdf','kit_email_signer','kit_email_selection'},pdf_env)
+        for endpoint in ('pm_lease_management',):
             bp.add_url_rule('/stub/'+endpoint+'/<int:property_id>',endpoint=endpoint,view_func=lambda **kw:'')
         app.register_blueprint(bp);app.add_url_rule('/csrf',view_func=generate_csrf)
         self.client=app.test_client();self.csrf=self.client.get('/csrf').text
@@ -89,6 +96,8 @@ class LesseePersistenceTests(unittest.TestCase):
         data={'csrf_token':self.csrf,'version':str(version),'lessor_count':'1','lessee_count':'2','action':'save',
               'tenant_register_id_1':'11','LESSEE_1_PARTY_TYPE':'natural_person','tenant_register_id_2':'22','LESSEE_2_PARTY_TYPE':'juristic_person'}
         data.update(changes)
+        data.setdefault('lease_selection_version','1')
+        data.setdefault('lease_selected_tenant_id',[data['tenant_register_id_'+str(index)] for index in range(1,int(data['lessee_count'])+1) if data.get('tenant_register_id_'+str(index))])
         return self.client.post(self.url,headers={'X-Test-Owner':'yes'},data=data)
 
     def test_both_types_persist_and_reopen_as_real_distinct_lessees(self):
@@ -180,6 +189,71 @@ class LesseePersistenceTests(unittest.TestCase):
         data={'csrf_token':self.csrf,'version':str(self.stored()['version']),'signing_place_'+current['key']:'Blocked'}
         self.assertEqual(self.client.post(url,headers={'X-Test-Owner':'yes'},data=data).status_code,409)
         self.assertEqual(self.stored()['items'],frozen)
+
+
+    def test_rendered_form_deselection_persists_and_matches_certificate_pdf(self):
+        from urllib.parse import urlsplit,parse_qs
+        import fitz
+        self.session.execute(text("UPDATE bil_tenant SET name=CASE id WHEN 11 THEN 'Marelise van der Merwe' ELSE 'WBH NPC' END"));self.session.commit()
+        self.assertEqual(self.save_both().status_code,302)
+        for selected_ids,expected in ((['11'],['Marelise van der Merwe']),(['22'],['WBH NPC']),(['11','22'],['Marelise van der Merwe','WBH NPC']),([],[])):
+            # Start with both saved; submit real rendered controls, leaving stale hidden
+            # party fields in place while the visible checkbox selection changes.
+            self.assertEqual(self.save_both().status_code,302)
+            page=self.client.get(self.url,headers={'X-Test-Owner':'yes'});tree=html.fromstring(page.data)
+            self.assertEqual(tree.xpath('//input[@data-lease-tenant-selection and @checked]/@value'),['11','22'])
+            data={}
+            form_node=tree.get_element_by_id('certificate-form')
+            for element in form_node.xpath('.//input[@name and not(ancestor::template)] | .//textarea[@name and not(ancestor::template)] | .//select[@name and not(ancestor::template)]'):
+                name=element.get('name')
+                if element.get('type')=='checkbox':continue
+                if element.tag=='textarea':value=element.text or ''
+                elif element.tag=='select':value=(element.xpath('./option[@selected]/@value') or element.xpath('./option/@value') or [''])[0]
+                else:value=element.get('value','')
+                data[name]=value
+            data['lease_selected_tenant_id']=selected_ids
+            self.assertEqual(self.client.post(self.url,headers={'X-Test-Owner':'yes'},data=data).status_code,302)
+            self.session.close();self.session=Session(self.conn);self.db.session=self.session
+            saved=self.stored()['items']
+            self.assertEqual([row['legal_name'] for row in self.cert.selected_tenants(saved)],expected)
+            reopened=html.fromstring(self.client.get(self.url,headers={'X-Test-Owner':'yes'}).data)
+            self.assertEqual(reopened.xpath('//input[@data-lease-tenant-selection and @checked]/@value'),selected_ids)
+            view_link=reopened.xpath('//a[normalize-space()="View Lease"]')[0]
+            self.assertEqual(view_link.getnext().text_content(),'Back')
+            self.assertFalse(view_link.xpath('ancestor-or-self::*[@hidden]'))
+            target=view_link.get('href');query=parse_qs(urlsplit(target).query)
+            self.assertEqual(query['draft_id'],[str(self.identifier)]);self.assertIn('/26',target)
+            view=self.client.get(target+'&component=certificate',headers={'X-Test-Owner':'yes'})
+            self.assertEqual(view.status_code,200);certificate=html.fromstring(view.data)
+            party_rows=certificate.xpath('//tr[@class="certificate-party"][th="Lessee"]')
+            self.assertEqual(len(party_rows),len(expected))
+            pdf=self.client.get('/billing/leases/property/26/kit.pdf?draft_id='+str(self.identifier)+'&component=certificate',headers={'X-Test-Owner':'yes'})
+            self.assertEqual(pdf.status_code,200)
+            pdf_text=''.join(page.get_text() for page in fitz.open(stream=pdf.data,filetype='pdf'))
+            for name in ('Marelise van der Merwe','WBH NPC'):
+                self.assertEqual(name in certificate.text_content(),name in expected)
+                self.assertEqual(name in pdf_text,name in expected)
+            capture_link=certificate.xpath('//*[@id="lease-header-actions"]/a[normalize-space()="Data Capture"]')[0]
+            self.assertEqual(capture_link.getnext().text_content(),'Back')
+            self.assertFalse(capture_link.xpath('ancestor-or-self::*[@hidden]'))
+            capture_target=capture_link.get('href');self.assertIn('/26',capture_target)
+            self.assertEqual(parse_qs(urlsplit(capture_target).query)['draft_id'],[str(self.identifier)])
+            returned=self.client.get(capture_target,headers={'X-Test-Owner':'yes'})
+            self.assertEqual(returned.status_code,200);self.assertIn('View Lease',returned.text)
+            self.assertEqual(self.session.execute(text('SELECT count(*) FROM bil_tenant')).scalar(),2)
+            self.assertEqual(saved['_certificate_authorities'],self.initial['_certificate_authorities'])
+            self.assertEqual(saved['_lease_history'],self.initial['_lease_history'])
+        for asset,selector in (('lease_capture.css','.capture-header .lease-view-link'),('lease_kit.css','#lease-header-actions > .lease-capture-link')):
+            css=self.client.get('/static/css/'+asset)
+            self.assertEqual(css.status_code,200);self.assertIn(selector,css.text);css.close()
+        self.assertIn('lease-cross-actions',view.text)
+        saved_view=self.save_both(lease_selected_tenant_id=[],capture_return='view')
+        self.assertEqual(saved_view.status_code,302);self.assertIn('/view/26?',saved_view.location)
+        self.assertEqual(self.client.get(saved_view.location,headers={'X-Test-Owner':'yes'}).status_code,200)
+        stale=self.save_both(lease_selection_version='')
+        self.assertEqual(stale.status_code,400)
+        self.assertEqual(self.cert.selected_tenants(self.stored()['items']),[])
+        self.assertEqual(self.save_both(lease_selected_tenant_id=['999']).status_code,400)
 
     def test_signed_draft_edit_is_still_rejected(self):
         frozen=copy.deepcopy(self.initial);frozen['_lease_history']={'documents':[{'kind':'signed_original'}]}

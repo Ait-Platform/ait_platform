@@ -22,7 +22,7 @@
   document.getElementById('capture-save-back').addEventListener('click', function () {
     unsaved.close();
     if (!form.reportValidity()) return;
-    document.getElementById('capture-return').value = destination.dataset.captureSection ? 'section' : 'back';
+    document.getElementById('capture-return').value = destination.dataset.captureReturn || (destination.dataset.captureSection ? 'section' : 'back');
     document.getElementById('capture-return-section').value = destination.dataset.captureSection || '';
     form.requestSubmit(document.getElementById('capture-save'));
   });
@@ -198,7 +198,8 @@
   const tenants = data ? JSON.parse(data.textContent) : [];
   let operation = '';
   let newGroup = null;
-  const choice = document.getElementById('party-tenant-choice');
+  const choices = Array.from(document.querySelectorAll('[data-lease-tenant-selection]'));
+  const selection = identifier => choices.find(input => input.value === identifier);
   function show(operationName) {
     document.getElementById('party-initial-message').hidden = true;
     document.getElementById('party-lessors').hidden = operationName !== 'lessors';
@@ -234,18 +235,9 @@
     group.querySelector('[data-lessee-label="IDENTITY_NUMBER"]').textContent = juristic ? 'Registration Number' : 'ID Number';
   }
   const current = document.getElementById('party-current-lessees');
-  function refreshSelected() {
-    if (!current) return;
-    current.replaceChildren();
-    Array.from(groups.children).forEach(group => {
-      if (!hasParticulars(group) && !group.querySelector('.register-choice')?.value) return;
-      const row = document.createElement('div');row.className = 'party-selected-row';
-      const label = document.createElement('span');label.textContent = group.querySelector('textarea')?.value || 'Lessee';
-      const edit = document.createElement('button');edit.type = 'button';edit.textContent = 'Edit';
-      edit.addEventListener('click',() => {show('add');group.hidden = false;group.querySelector('textarea')?.focus();});
-      const remove = document.createElement('button');remove.type = 'button';remove.textContent = 'Remove';remove.disabled = form.dataset.frozen === '1';
-      remove.addEventListener('click',() => {
-        if (form.dataset.frozen === '1') return;
+  function removeGroup(group) {
+        const registered = group.querySelector('.register-choice')?.value;
+        if (selection(registered)) selection(registered).checked = false;
         group.remove();newGroup = null;
         Array.from(groups.children).forEach((item,offset) => {
           const index = offset + 1;item.dataset.lesseeIndex = String(index);
@@ -260,6 +252,20 @@
         count.value = String(groups.children.length);
         if (!groups.children.length) availableGroup();
         refreshSelected();
+  }
+  function refreshSelected() {
+    if (!current) return;
+    current.replaceChildren();
+    Array.from(groups.children).forEach(group => {
+      if (!hasParticulars(group) && !group.querySelector('.register-choice')?.value) return;
+      const row = document.createElement('div');row.className = 'party-selected-row';
+      const label = document.createElement('span');label.textContent = group.querySelector('textarea')?.value || 'Lessee';
+      const edit = document.createElement('button');edit.type = 'button';edit.textContent = 'Edit';
+      edit.addEventListener('click',() => {show('add');group.hidden = false;group.querySelector('textarea')?.focus();});
+      const remove = document.createElement('button');remove.type = 'button';remove.textContent = 'Remove';remove.disabled = form.dataset.frozen === '1';
+      remove.addEventListener('click',() => {
+        if (form.dataset.frozen === '1') return;
+        removeGroup(group);
         document.getElementById('party-tenant-status').textContent = 'Selection changed. Save to keep it on this lease.';
       });
       row.append(label,edit,remove);current.appendChild(row);
@@ -273,7 +279,7 @@
   });
   document.getElementById('show-lessors').addEventListener('click', () => show('lessors'));
   document.getElementById('select-tenant').addEventListener('click', function () {
-    show('select');choice.focus();
+    show('select');choices[0]?.focus();
   });
   document.getElementById('add-lessee').addEventListener('click', function () {
     if (!newGroup || (operation === 'add' && hasParticulars(newGroup))) newGroup = availableGroup();
@@ -300,19 +306,24 @@
     });
     card.appendChild(details);host.appendChild(card);
   }
-  choice.addEventListener('change', function () {
-    showTenantDetails(tenants.find(tenant => String(tenant.id) === choice.value));
-    if (!choice.value) return;
-    const existing = Array.from(groups.children).find(group => group.querySelector('.register-choice')?.value === choice.value);
+  function selectTenant(identifier) {
+    showTenantDetails(tenants.find(tenant => String(tenant.id) === identifier));
+    const existing = Array.from(groups.children).find(group => group.querySelector('.register-choice')?.value === identifier);
     const target = existing || availableGroup();
     if (!target) { document.getElementById('party-tenant-status').textContent = 'The lease already has 50 Lessees.';return; }
     const register = target.querySelector('.register-choice');
     if (!register) return;
     if (existing) { document.getElementById('party-tenant-status').textContent = '';return; }
-    register.value = choice.value;
+    register.value = identifier;
     register.dispatchEvent(new Event('change', {bubbles:true}));
-    document.getElementById('party-tenant-status').textContent = 'Tenant particulars selected. Save to keep them on this lease.';
-  });
+    document.getElementById('party-tenant-status').textContent = 'Selection changed. Save to keep it on this lease.';
+  }
+  choices.forEach(input => input.addEventListener('change',function () {
+    if (form.dataset.frozen === '1') return;
+    if (input.checked) selectTenant(input.value);
+    else Array.from(groups.children).filter(group => group.querySelector('.register-choice')?.value === input.value).forEach(removeGroup);
+    refreshSelected();
+  }));
   if (form.dataset.hasErrors === '1') {
     newGroup = Array.from(groups.children).filter(hasParticulars).pop() || groups.firstElementChild;
     if (newGroup) {

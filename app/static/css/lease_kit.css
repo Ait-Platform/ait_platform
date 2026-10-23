@@ -72,3 +72,5 @@ div:has(> #lease-header-actions) { display:flex; justify-content:space-between; 
 .signature-document p { margin:8px 0; overflow-wrap:anywhere; }
 .handwritten-signature { padding-top:20px; }
 .certificate-signing th { width:auto; }
+
+#lease-header-actions > .lease-capture-link { background:#dcfce7; }

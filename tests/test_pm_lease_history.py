@@ -9,7 +9,7 @@ import test_pm_property_lease_master as fixture
 
 
 class LeaseHistoryTests(fixture.PropertyLeaseMasterTests):
-    def url_history(self):return '/billing/leases/property/26/history?draft_id='+str(self.draft)
+    def url_history(self):return '/billing/leases/property/26/signed-copy?draft_id='+str(self.draft)
     def ledger(self):return self.sql('SELECT items FROM bil_lease_draft').scalar().get('_lease_history',{'documents':[],'emails':[]})
     def version(self):return str(self.sql('SELECT version FROM bil_lease_draft').scalar())
     def signed(self,kind='signed_original',**extra):

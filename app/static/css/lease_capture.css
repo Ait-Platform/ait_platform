@@ -1,7 +1,7 @@
 div:has(> #lease-header-actions > .lease-main-navigation) { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; }
 #lease-header-actions:has(> .lease-main-navigation) { display:flex; flex-direction:column; align-items:flex-end; gap:8px; }
 #lease-management-actions { display:flex; flex-direction:column; align-items:flex-end; gap:8px; }
-.lease-main-navigation { display:grid; grid-template-columns:repeat(5,minmax(max-content,1fr)); gap:8px; overflow-x:auto; margin-top:8px; font:14px Arial,sans-serif; }
+.lease-main-navigation { display:flex; flex-wrap:nowrap; gap:6px; overflow-x:auto; margin-top:8px; font:14px Arial,sans-serif; }
 .lease-main-navigation a { text-align:center; white-space:nowrap; display:inline-block; padding:6px 8px; border-radius:4px; background:#eff6ff; color:#1d4ed8; text-decoration:none; }
 .capture-selector { width:100%; margin-top:24px; border-collapse:collapse; text-align:left; }
 .capture-selector th,.capture-selector td { padding:14px 12px; border-bottom:1px solid #e2e8f0; }
@@ -44,7 +44,7 @@ div:has(> #lease-header-actions > .lease-main-navigation) { display:flex; justif
 .lease-management-header { display:flex; align-items:center; justify-content:space-between; flex-wrap:nowrap; gap:16px; white-space:nowrap; }
 .lease-management-header h1 { min-width:0; font-size:clamp(18px,3vw,24px); }
 #lease-management-actions { display:block; margin-top:12px; }
-#lease-management-actions .lease-main-navigation { display:grid; grid-template-columns:repeat(5,minmax(max-content,1fr)); gap:8px; overflow-x:auto; }
+#lease-management-actions .lease-main-navigation { display:flex; flex-wrap:nowrap; gap:6px; overflow-x:auto; }
 #lease-management-actions .lease-main-navigation a { text-align:center; white-space:nowrap; }
 .capture-header { align-items:center; flex-wrap:nowrap; margin:16px 0; }
 .capture-header .capture-actions { margin:0; flex-shrink:0; }
@@ -79,3 +79,7 @@ div:has(> #lease-header-actions > .lease-main-navigation) { display:flex; justif
 #capture-banking button:disabled { opacity:.5; cursor:not-allowed; }
 #bank-editor label { display:block; margin-top:12px; }
 #bank-editor input:not([type="hidden"]),#bank-editor select { width:100%; box-sizing:border-box; padding:8px; border:2px solid #0284c7; }
+
+@media (max-width:640px) {
+  .lease-main-navigation,#lease-management-actions .lease-main-navigation { flex-wrap:wrap; overflow-x:visible; }
+}

@@ -1,7 +1,7 @@
 {% extends 'program_billing/lease_workflow_base.html' %}
 {% block workspace %}
 <link rel="stylesheet" href="{{ url_for('static',filename='css/lease_kit.css') }}">
-<section id="lease-document-actions" class="mt-5" aria-label="Lease Documents & Actions">
+<section id="lease-document-actions" class="mt-5" aria-label="Email / Print">
 <table class="w-full border-collapse text-left"><thead><tr><th scope="col">Document</th><th scope="col">Email</th><th scope="col">Print</th></tr></thead><tbody>
 {% for document in action_documents %}<tr data-component="{{ document.key }}" data-label="{{ document.label }}" data-pdf-url="{{ document.pdf_url }}" data-email-url="{{ document.email_url }}">
 <th scope="row">{{ document.label }}</th><td><button type="button" data-action="email" aria-label="Email {{ document.label }}">Email</button></td><td><button type="button" data-action="print" aria-label="Print {{ document.label }}">Print</button></td>
@@ -16,21 +16,6 @@
 <div class="mt-3 flex justify-end gap-2"><button type="button" id="lease-actions-email-cancel">Cancel</button><button type="submit" id="lease-actions-email-send">Send Email</button></div>
 <p id="lease-actions-email-status" role="status" aria-live="polite"></p>
 </form>
-</section>
-<section id="lease-document-history" class="mt-8" aria-labelledby="lease-history-heading">
-<h2 id="lease-history-heading" class="text-lg font-semibold">History</h2>
-
-<h2 class="mt-5 font-semibold">Upload a signed copy</h2><p class="mt-2">Files are private and versioned. Uploading does not verify signatures or legal validity. Original particulars are snapshotted when the original signed copy is uploaded.</p>
-<form method="post" enctype="multipart/form-data" class="mt-4">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="draft_id" value="{{ lease_draft.id }}"><input type="hidden" name="version" value="{{ lease_draft.version }}">
-<label class="block">Document type<select name="kind" class="mt-2 block w-full rounded border border-slate-300 p-2">{% for key,label in kinds.items() %}<option value="{{ key }}">{{ label }}</option>{% endfor %}</select></label>
-<label class="mt-3 block">Original agreement reference<input name="lease_reference" maxlength="300" required autofocus class="mt-2 block w-full rounded border border-slate-300 p-2" value="{{ request.form.get('lease_reference','') }}"></label>
-<label class="mt-3 block">Original signed lease being amended or terminated<select name="original_id" class="mt-2 block w-full rounded border border-slate-300 p-2"><option value="">Not applicable for an original lease upload</option>{% for original in originals %}<option value="{{ original.id }}">{{ original.lease_reference }} &middot; Version {{ original.version }}</option>{% endfor %}</select></label>
-<label class="mt-3 block">Signed PDF or DOCX (maximum 10 MB)<input name="signed_document" type="file" accept=".pdf,.docx" required class="mt-2 block w-full rounded border border-slate-300 p-2"></label>
-<div class="mt-4 flex justify-end"><button class="rounded bg-orange-600 px-4 py-2 text-white">Upload Signed Copy</button></div></form>
-<h2 class="mt-6 font-semibold">Chronological document history</h2>
-{% for entry in entries %}<section class="mt-3 rounded border border-slate-300 p-3"><h3 class="font-semibold">{{ entry.filename }}</h3><p>{{ entry.kind }} &middot; Version {{ entry.version or 'not recorded' }} &middot; {{ entry.uploaded_at }} &middot; Uploader {{ entry.uploaded_by or 'not recorded' }}</p><p>Status: {{ entry.state }} &middot; signatures/legal validity not verified</p>{% if entry.original_id %}<p>Original document: {{ entry.original_id }}</p>{% endif %}{% if entry.state=='available' %}<a class="mr-3 text-blue-700 underline" href="{{ url_for('billing_bp.lease_history_document',property_id=property.id,document_id=entry.id,draft_id=lease_draft.id) }}">View / Open</a><a class="text-blue-700 underline" href="{{ url_for('billing_bp.lease_history_download',property_id=property.id,document_id=entry.id,draft_id=lease_draft.id) }}">Download exact copy</a><a class="ml-3 text-blue-700 underline" href="{{ url_for('billing_bp.lease_document_email',property_id=property.id,draft_id=lease_draft.id,document_token=entry.email_token) }}">Email exact copy</a>{% endif %}</section>{% else %}<p class="mt-3">No documents have been recorded for this lease.</p>{% endfor %}
-<h2 class="mt-6 font-semibold">Email submission history</h2>{% for attempt in lease_draft['items'].get('_lease_history',{}).get('emails',[]) %}<p class="mt-2">{{ attempt.at }} &middot; {{ attempt.recipient }} &middot; {{ attempt.filename }} &middot; {{ attempt.status }}</p>{% else %}<p>No email attempts recorded.</p>{% endfor %}
 </section>
 <script src="{{ url_for('static',filename='js/lease_document_actions.js') }}" defer></script>
 {% endblock %}

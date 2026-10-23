@@ -1,8 +1,8 @@
 <nav aria-label="Lease submenu" class="lease-main-navigation">
-{% for endpoint,label in [('lease_certificate_edit','Data Capture'),('lease_live_view','View Lease'),('lease_property_banking','Banking Register')] %}
+{% for endpoint,label in [('lease_certificate_edit','Data Capture'),('lease_live_view','View Lease'),('lease_property_banking','Bank')] %}
 <a class="text-blue-700 underline" href="{{ url_for('billing_bp.' ~ endpoint,property_id=property.id,draft_id=lease_draft.id if lease_draft else None) if property else url_for('billing_bp.pm_lease_management') ~ '#select-property' }}">{{ label }}</a>
 {% endfor %}
-{% for endpoint,label in [('lease_addendum','Addendum'),('lease_history','Lease Documents & Actions')] %}
+{% for endpoint,label in [('lease_addendum','Addendum'),('lease_history','Email / Print'),('lease_signed_copy','Signed Copy')] %}
 <a class="text-blue-700 underline" href="{{ url_for('billing_bp.' ~ endpoint,property_id=property.id,draft_id=lease_draft.id) if property and lease_draft else url_for('billing_bp.lease_certificate_edit',property_id=property.id) if property else url_for('billing_bp.pm_lease_management') ~ '#select-property' }}">{{ label }}</a>
 {% endfor %}
 </nav>

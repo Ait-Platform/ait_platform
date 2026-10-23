@@ -167,6 +167,18 @@ def addendum_bytes(master,original,wording,number):
 @billing_bp.route('/billing/leases/property/<int:property_id>/history',methods=['GET','POST'],endpoint='lease_history')
 @snapshot.endpoint
 def history(property_id):
+    prop,draft=context(property_id)
+    if request.method=='POST':
+        # Preserve old upload-form submissions without duplicating the upload handler.
+        return redirect(url_for('billing_bp.lease_signed_copy',property_id=property_id,draft_id=draft['id']),code=307)
+    from .lease_kit import action_documents
+    return render_pm_template('program_billing/lease_history.html',title='Email / Print',property=prop,lease_draft=draft,
+        action_documents=action_documents(property_id,draft['id']),unavailable=None)
+
+
+@billing_bp.route('/billing/leases/property/<int:property_id>/signed-copy',methods=['GET','POST'],endpoint='lease_signed_copy')
+@snapshot.endpoint
+def signed_copy(property_id):
     prop,draft=context(property_id,request.method=='POST');errors=[]
     if request.method=='POST':
         from app.program_billing import lease_storage as storage
@@ -188,7 +200,7 @@ def history(property_id):
             filename,ext,mime,payload,hash_value=storage.validate_upload(upload)
             store(draft,kind,filename,mime,payload,metadata)
             flash('Document stored and verified. Signatures and legal validity have not been verified.','success')
-            return redirect(url_for('billing_bp.lease_history',property_id=property_id,draft_id=draft['id']))
+            return redirect(url_for('billing_bp.lease_signed_copy',property_id=property_id,draft_id=draft['id']))
         except ValueError as error:errors.append(str(error))
     entries=ledger(draft)['documents']
     known={e['id'] for e in entries}
@@ -197,9 +209,7 @@ def history(property_id):
     entries=sorted(entries,key=lambda e:(e['uploaded_at'],e['id']))
     for entry in entries:
         if entry['state']=='available':entry['email_token']=signer().dumps({'kind':'document','document_id':entry['id'],'draft_id':str(draft['id']),'property_id':property_id,'version':draft['version'],'sha256':entry['sha256'],'nonce':str(uuid.uuid4())})
-    from .lease_kit import action_documents
-    return render_pm_template('program_billing/lease_history.html',title='Lease Documents & Actions',property=prop,lease_draft=draft,
-        action_documents=action_documents(property_id,draft['id']),
+    return render_pm_template('program_billing/lease_signed_copy.html',title='Signed Copy',property=prop,lease_draft=draft,
         entries=entries,kinds=KINDS,originals=originals(draft),errors=errors,unavailable=None),400 if errors else 200
 
 
@@ -269,7 +279,7 @@ def view_document(property_id,document_id):
     token=view_token(draft,'document',payload,document_id=str(document_id))
     return render_pm_template('program_billing/lease_live_view.html',title='View '+meta['filename'],property=prop,lease_draft=draft,
         lease_blocks=blocks,logical_pages=preview.logical_pages(blocks,blocks),viewer_only=True,document_token=token,
-        back_url=url_for('billing_bp.lease_history',property_id=property_id,draft_id=draft['id']))
+        back_url=url_for('billing_bp.lease_signed_copy',property_id=property_id,draft_id=draft['id']))
 
 
 @billing_bp.get('/billing/leases/property/<int:property_id>/history/<uuid:document_id>/download',endpoint='lease_history_download')
@@ -340,7 +350,7 @@ def email_document(property_id):
 
 @billing_bp.after_request
 def private_history(response):
-    if request.endpoint in {'billing_bp.lease_history','billing_bp.lease_addendum','billing_bp.lease_history_document',
+    if request.endpoint in {'billing_bp.lease_history','billing_bp.lease_signed_copy','billing_bp.lease_addendum','billing_bp.lease_history_document',
         'billing_bp.lease_history_download','billing_bp.lease_document_email'}:
         response.headers['Cache-Control']='private, no-store';response.headers['X-Content-Type-Options']='nosniff'
         response.headers['Referrer-Policy']='same-origin'

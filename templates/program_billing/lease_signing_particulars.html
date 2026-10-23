@@ -1,0 +1,4 @@
+<section class="certificate-section certificate-signing" aria-label="Signing Particulars"><h3>Signing Particulars</h3>
+<table><thead><tr><th>Contracting party</th><th>Place of signing</th><th>Date of signing</th></tr></thead><tbody>
+{% for party in signing_rows %}<tr><th scope="row">{{ party.role }}: {{ party.name or party.identity_number }}</th><td>{{ party.place or '—' }}</td><td>{{ party.date or '—' }}</td></tr>{% endfor %}
+</tbody></table></section>

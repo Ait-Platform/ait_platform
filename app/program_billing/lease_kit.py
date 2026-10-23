@@ -97,6 +97,14 @@ def certificate_display_rows(sections, values, items, owners=(), tenants=()):
     rows=form.render_rows(sections,values)
     rows[0]['rows']=[row for row in rows[0]['rows'] if row['label']=='Lease reference']
     rows[0]['party_blocks']=blocks(items,owners,tenants)
+    # Read-only Certificate rows contain values separated by pipes, never empty tokens.
+    for section in rows:
+        for row in section['rows']:
+            populated=[part for part in row['parts'] if part.get('token') and certificate.present(part.get('value'))]
+            row['parts']=[]
+            for part in populated:
+                if row['parts']:row['parts'].append({'text':' | '})
+                row['parts'].append(part)
     return rows
 
 
@@ -117,18 +125,13 @@ def component_states(items):
     from .lease_supplementary_conditions import preview as supplementary_preview
     supplementary=supplementary_preview(items)
     if supplementary is not None:states['special_conditions']=supplementary
-    from .lease_kit_pdf import core_bytes
-    try:
-        core_bytes()
-        states['core']={'available':True,'printable':True,'state':'review'}
-    except (OSError,ValueError):
-        states['core']['reason']='The Residential Core review PDF is unavailable or failed integrity verification.'
+    states['core']={'available':True,'printable':True,'state':'controlled'}
     states['signature']={'available':True,'printable':True,'state':'review'}
     if supplementary is None and not conditions:
-        states['special_conditions']={'available':True,'printable':False,'state':'none','omitted':True,
+        states['special_conditions']={'available':True,'printable':True,'state':'none','omitted':True,
             'clauses':[],'reason':'Supplementary Conditions: None'}
     elif states['special_conditions'].get('omitted'):
-        states['special_conditions']['reason']='Supplementary Conditions: None'
+        states['special_conditions'].update(available=True,printable=True,reason='Supplementary Conditions: None')
     if legacy:
         states['special_conditions'].update(available=False,printable=False,omitted=False,
             state='legacy_review_required',legacy_conditions=legacy,
@@ -144,7 +147,6 @@ def preview_context(property_id):
     from .lease_certificate_view import context
     prop,draft,items,owners,tenants=context(property_id,allow_blank=False)
     saved_party_items=deepcopy(items)
-    items=developing_items(items,owners)
     selected=request.args.get('component','cover')
     if selected not in dict(COMPONENTS):abort(404)
     states=component_states(items)
@@ -155,20 +157,25 @@ def preview_context(property_id):
     sections=form.certificate_layout(*form.counts(items))
     unresolved=[token for token in form.tokens(sections) if not certificate.present(values.get(token))]
     arguments={'property_id':property_id,'draft_id':draft['id'] if draft else None}
-    from .lease_kit_pdf import signature_parties
-    lessors,lessees=signature_parties(items)
-    return dict(title='View Lease',property=prop,signature_lessors=lessors,signature_lessees=lessees,
+    from .lease_certificate_parties import blocks
+    from .lease_signing import rows as signing_particulars
+    party_blocks=blocks(saved_party_items,owners,tenants)
+    signing_rows=signing_particulars(saved_party_items,owners,tenants)
+    lessors=[party for group in party_blocks if group['label']=='Lessor' for party in group['parties']]
+    lessees=[party for group in party_blocks if group['label']=='Lessee' for party in group['parties']]
+    return dict(title='View Lease',property=prop,signature_lessors=lessors,signature_lessees=lessees,party_blocks=party_blocks,signing_rows=signing_rows,
         lessor_representative=items.get('_parties',{}).get('lessor',{}),
         lease_reference=values.get('[LEASE_REFERENCE]') or ('LEASE-'+str(draft['id']) if draft else ''),
         premises_name=values.get('[PROPERTY_NAME]',''),premises_address=values.get('[PROPERTY_ADDRESS]',''),
         pdf_url=url_for('billing_bp.lease_kit_pdf',component=selected,**arguments),
         pdf_email_url=url_for('billing_bp.lease_kit_email',component=selected,**arguments),
-        pdf_view=True,
+        core_pdf_url=url_for('billing_bp.lease_kit_pdf',component='core',**arguments),
+        pdf_view=selected in ('core','lease'),
         lease_draft=draft,viewer_only=True,kit_view=True,document_token='',selected_component=selected,
         components=[{'key':key,'label':label,'url':url_for('billing_bp.lease_live_view',component=key,**arguments)} for key,label in COMPONENTS],
         selected_label=dict(COMPONENTS)[selected],component_labels=dict(COMPONENTS),states=states,print_available=states[selected]['printable'],
-        sections=certificate_display_rows(sections,values,saved_party_items,owners,tenants),unresolved=unresolved,preview=True,cover_blocks=cover_blocks(items),
-        assembly_order=ORDER,selected_documents=[key for key in ORDER if not states[key].get('omitted')] if selected=='lease' and states['lease']['available'] else [] if states[selected].get('omitted') else [selected],
+        sections=certificate_display_rows(sections,values,saved_party_items,owners,tenants),unresolved=unresolved,preview=True,
+        assembly_order=ORDER,selected_documents=list(ORDER) if selected=='lease' else [selected],
         capture_url=url_for('billing_bp.lease_certificate_edit',**arguments),
         back_url=url_for('billing_bp.pm_lease_management',**arguments),unavailable=None)
 

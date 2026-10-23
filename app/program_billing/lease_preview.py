@@ -236,7 +236,7 @@ def kit_pdf(property_id):
     from .lease_kit_pdf import build_pdf
     context=preview_context(property_id)
     component=context['selected_component']
-    if not context['states'][component]['available'] or context['states'][component].get('omitted'):
+    if not context['states'][component]['available']:
         abort(409,description=context['states'][component].get('reason','Document unavailable.'))
     try:
         payload=build_pdf(component,context)
@@ -278,7 +278,7 @@ def kit_email(property_id):
     from .lease_kit_pdf import build_pdf
     context=preview_context(property_id)
     component=context['selected_component']
-    if not context['states'][component]['available'] or context['states'][component].get('omitted'):
+    if not context['states'][component]['available']:
         abort(409,description='The selected review PDF is unavailable.')
     if not context['lease_draft']:abort(409,description='Select a saved lease draft before emailing.')
     try:selection=kit_email_signer().loads(request.form.get('document_token',''),max_age=900)

@@ -15,14 +15,20 @@ module.exports=async function run(rootPath){
   group.rep=generic();group.rep.querySelectorAll=()=>group.inputs.filter(input=>input.name.includes('_SIGNATORY_'));
   const labels={LEGAL_NAME:generic(),IDENTITY_NUMBER:generic()},legend=generic();
   group.querySelector=selector=>selector==='.register-choice'?group.register:selector==='[data-lessee-type]'?group.type:selector==='.lessee-representative'?group.rep:selector==='legend'?legend:selector==='textarea'?group.inputs[0]:labels[/data-lessee-label="([^"]+)"/.exec(selector)?.[1]];
-  group.querySelectorAll=()=>group.inputs;
+  group.querySelectorAll=selector=>selector==='textarea'?group.inputs:[group.register,group.type,...group.inputs];
+  group.remove=()=>{groups.children.splice(groups.children.indexOf(group),1);};
+  for(const input of [group.register,group.type,...group.inputs]){
+   input.getAttribute=name=>input[name]||null;
+   input.setAttribute=(name,value)=>{if(name==='id')ids.delete(input.id);input[name]=value;if(name==='id')ids.set(value,input);};
+  }
+  for(const input of group.inputs)input.id='field_'+input.name;
   return group;
  }
  const natural={id:11,party_type:'natural_person',legal_name:'Natural Lessee',identity_number:'NAT-11'};
  const entity={id:22,party_type:'juristic_person',legal_name:'Entity Lessee',identity_number:'REG-22',signatory_name:'Entity Representative',signatory_identity_number:'REP-33'};
  groups.children.push(makeGroup(1));ids.set('certificate-form',form);ids.set('lessee-count',{value:'1'});ids.set('capture-lessees',groups);
  ids.set('capture-lessee-template',{innerHTML:'<fieldset>LESSEE_1_LEGAL_NAME tenant_register_id_1</fieldset>'});ids.set('capture-tenants',{textContent:JSON.stringify([natural,entity])});
- for(const id of ['capture-save-back','capture-discard-back','party-tenant-choice','show-lessors','select-tenant','add-lessee','party-initial-message','party-lessors','party-tenant-selection','party-selected-details','party-tenant-status'])ids.set(id,generic());
+ for(const id of ['capture-save-back','capture-discard-back','party-tenant-choice','show-lessors','select-tenant','add-lessee','party-initial-message','party-lessors','party-tenant-selection','party-selected-details','party-tenant-status','party-current-lessees'])ids.set(id,generic());
  const document={getElementById:id=>ids.get(id)||null,querySelector:()=>null,querySelectorAll:()=>[],createElement(tag){if(tag!=='template')return generic();const holder={content:{}};Object.defineProperty(holder,'innerHTML',{set(value){holder.content.firstElementChild=makeGroup(Number(/LESSEE_(\d+)_/.exec(value)[1]));}});return holder;}};
  const sandbox={document,window:{addEventListener(){}},console,Event:class {},JSON,Array,Set,String,Object};
  vm.runInNewContext(fs.readFileSync(rootPath+'/app/static/js/lease_capture.js','utf8'),sandbox);
@@ -35,5 +41,17 @@ module.exports=async function run(rootPath){
  choice.value='11';choice.change();choice.value='22';choice.change();assert.equal(groups.children.length,2,'Repeated selections must reuse their own existing slot');
  const posted=Object.fromEntries(form.querySelectorAll().map(input=>[input.name,input.value]));
  assert.equal(posted.tenant_register_id_1,'11');assert.equal(posted.tenant_register_id_2,'22');
+ const selected=ids.get('party-current-lessees');
+ assert.equal(selected.children.length,2);
+ selected.children[0].children[2].click();
+ assert.equal(groups.children.length,1);assert.equal(groups.children[0].register.name,'tenant_register_id_1');
+ assert.equal(groups.children[0].register.value,'22');assert.equal(groups.children[0].inputs[0].name,'LESSEE_1_LEGAL_NAME');
+ assert.equal(ids.get('field_LESSEE_1_LEGAL_NAME').value,'Entity Lessee');
+ choice.value='11';choice.change();assert.equal(groups.children.length,2);
+ selected.children[0].children[2].click();
+ assert.equal(groups.children[0].register.value,'11');
+ selected.children[0].children[2].click();
+ assert.equal(groups.children.length,1);assert.equal(groups.children[0].register.value,'');
+ assert.equal(ids.get('lessee-count').value,'1');
  console.log('Tenant selection regression passed: separate natural/juristic slots, correct form payload, no duplicate re-selection, conditional representatives.');
 };

@@ -72,38 +72,12 @@ def present(value):
 
 
 def selected_tenants(items):
-
-    """Array wins; missing legacy fields may fill only the same unambiguous tenant."""
-
-    parties=items.get('_parties',{});legacy=deepcopy(parties.get('lessee') or {})
-
-    tenants=deepcopy(parties.get('lessees') or [])
-
-    if not tenants:return [legacy] if legacy else []
-
-    if legacy:
-
-        matches=[p for p in tenants if legacy.get('tenant_id') is not None and p.get('tenant_id')==legacy['tenant_id']]
-
-        if not matches and len(tenants)==1:
-
-            p=tenants[0]
-
-            conflict=any(present(p.get(k)) and present(legacy.get(k)) and str(p[k]).strip()!=str(legacy[k]).strip()
-
-                         for k in ('tenant_id','legal_name','identity_number'))
-
-            if not conflict:matches=[p]
-
-        if len(matches)==1:
-
-            for key,value in legacy.items():
-
-                if not present(matches[0].get(key)) and present(value):matches[0][key]=value
-
-    return tenants
-
-
+    """The selected array is authoritative, including an explicitly empty selection."""
+    parties=items.get('_parties',{})
+    if 'lessees' in parties:
+        return deepcopy(parties['lessees']) if isinstance(parties['lessees'],list) else []
+    legacy=parties.get('lessee')
+    return [deepcopy(legacy)] if isinstance(legacy,dict) and legacy else []
 
 
 

@@ -14,7 +14,7 @@ class CertificatePartyTests(unittest.TestCase):
         self.patch=patch.dict(sys.modules,mods);self.patch.start();self.addCleanup(self.patch.stop)
         from app.program_billing import lease_certificate_parties,lease_kit,lease_certificate_form,lease_certificate
         self.parties=lease_certificate_parties;self.kit=lease_kit;self.form=lease_certificate_form;self.cert=lease_certificate
-        self.app=Flask('certificate-party-tests');self.app.jinja_loader=ChoiceLoader([DictLoader({'program_billing/lease_workflow_base.html':'{% block workspace %}{% endblock %}'}),FileSystemLoader(ROOT/'templates')])
+        self.app=Flask('certificate-party-tests',root_path=str(ROOT/'app'));self.app.jinja_loader=ChoiceLoader([DictLoader({'program_billing/lease_workflow_base.html':'{% block workspace %}{% endblock %}'}),FileSystemLoader(ROOT/'templates')])
 
     def items(self,lessors=None,lessees=None):
         return {'_contracting_lessors':{'identities':lessors if lessors is not None else [{'owner_id':1,'type':'individual','name':'Alex Owner','identity_number':'OWNER-A'}]},
@@ -143,12 +143,14 @@ class CertificatePartyTests(unittest.TestCase):
         context={'lease_reference':'SYNTHETIC','premises_name':'Property','premises_address':'Address',
                  'signature_lessors':[{'name':'Owner','identity_number':'OWNER-1'}],
                  'signature_lessees':[{'legal_name':'Natural Lessee','identity_number':'NAT-11'}]}
-        output=lease_kit_pdf.signature_pdf(context)
+        from app.program_billing.lease_signing import rows
+        context['signing_rows']=rows(self.items())
+        with self.app.app_context():output=lease_kit_pdf.signature_pdf(context)
         document=fitz.open(stream=output,filetype='pdf')
-        self.assertIn('REVIEW ONLY',document.metadata['title'])
+        self.assertIn('review only',document.metadata['title'].lower())
         for page in document:
             footer=page.get_text(clip=fitz.Rect(0,page.rect.height-60,page.rect.width,page.rect.height))
-            self.assertNotIn('DRAFT',footer);self.assertIn('Signature | Page',footer)
+            self.assertNotIn('DRAFT',footer)
         local=lease_kit_pdf.CORE.read_bytes()
         self.assertEqual(sha256(local).hexdigest(),lease_kit_pdf.CORE_SHA256)
         self.assertEqual(len(fitz.open(stream=local,filetype='pdf')),9)

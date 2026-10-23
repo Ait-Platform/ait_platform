@@ -3,7 +3,7 @@
 <link rel="stylesheet" href="{{ url_for('static',filename='css/lease_capture.css') }}">
 <p class="mt-4">Choose one section to enter or correct the particulars of this lease. Owner records are maintained in Property Management, Menu 1.</p>
 <table class="capture-selector" aria-label="Data Capture sections"><thead><tr><th>Section</th><th>Data Capture form</th></tr></thead><tbody>
-{% set descriptions=['Lessors, Lessee, representatives and identities','Property, leased areas, extent and units','Commencement, occupation, duration, expiry and renewal','Rental, deposit, adjustments and charges','Select a property-linked account for this particular lease','Payment terms, VAT, rates, insurance and other particulars'] %}
+{% set descriptions=['Lessors, Lessee, representatives and identities','Property, leased areas, extent and units','Commencement, occupation, duration, expiry and renewal','Rental, deposit, adjustments and charges','Select a property-linked account for this particular lease','Payment terms, VAT, rates, insurance and other particulars','Place and date of signing for each contracting party'] %}
 {% for section in capture_sections %}<tr><td><a href="{{ section.url }}" data-capture-section="{{ section.key }}">{{ section.label }}</a></td><td>{{ descriptions[loop.index0] }}</td></tr>{% endfor %}
 </tbody></table>
 {% if lease_draft %}<p class="mt-3 text-sm">{{ property.name }} &middot; Draft {{ lease_draft.id }} &middot; Revision {{ lease_draft.version }}</p>{% else %}<p class="mt-3 text-sm">The first successful section save creates a draft. Later sections update that same draft.</p>{% endif %}

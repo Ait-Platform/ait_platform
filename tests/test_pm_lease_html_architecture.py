@@ -1,0 +1,116 @@
+"""HTML-first Lease Kit and on-demand PDFs, using synthetic particulars and offline Core bytes."""
+import copy,hashlib,sys,types,unittest
+from pathlib import Path
+from unittest.mock import patch
+from flask import Flask,abort,request,render_template
+from jinja2 import ChoiceLoader,DictLoader,FileSystemLoader
+from lxml import html
+import fitz
+ROOT=Path(__file__).resolve().parents[1]
+
+class HtmlLeaseKitTests(unittest.TestCase):
+    def setUp(self):
+        mods={}
+        for name,path in (('app',ROOT/'app'),('app.program_billing',ROOT/'app/program_billing'),('app.utils',ROOT/'app/utils')):
+            module=types.ModuleType(name);module.__path__=[str(path)];mods[name]=module
+        context=types.ModuleType('app.program_billing.lease_certificate_view')
+        management=types.ModuleType('app.program_billing.lease_management');management.render_pm_template=render_template
+        mods[context.__name__]=context;mods[management.__name__]=management
+        self.modules=patch.dict(sys.modules,mods);self.modules.start();self.addCleanup(self.modules.stop)
+        from app.program_billing import lease_kit,lease_kit_pdf,lease_signing
+        self.kit=lease_kit;self.pdf=lease_kit_pdf;self.signing=lease_signing
+        self.items={'s1-01':{'value':'SYNTHETIC-LEASE'},'_contracting_lessors':{'identities':[{'type':'individual','name':'Owner Person','identity_number':'OWNER-1'}]},
+            '_parties':{'lessees':[{'party_type':'natural_person','tenant_id':11,'legal_name':'Natural Person','identity_number':'NAT-11'},
+                {'party_type':'juristic_person','tenant_id':22,'legal_name':'Entity Company','identity_number':'REG-22','signatory_name':'Entity Director','signatory_identity_number':'REP-33'}]},
+            '_supplementary_conditions':{'mode':'add','clauses':[{'heading':'Saved special clause','text':'The exact saved condition wording.'}]}}
+        for index,party in enumerate(lease_signing.rows(self.items)):
+            self.items.setdefault(lease_signing.KEY,{})[party['key']]={'place':'Signing City '+str(index),'date':'2026-11-'+str(10+index)}
+        self.original=copy.deepcopy(self.items)
+        def selected(property_id,allow_blank=False):
+            if request.headers.get('X-Test-Owner')!='yes':abort(403)
+            if property_id!=26 or request.args.get('draft_id')!='draft-one':abort(404)
+            return {'id':26,'name':'Synthetic Property','address':'Synthetic Address'}, {'id':'draft-one','version':1,'items':self.items},copy.deepcopy(self.items),[],[]
+        context.context=selected
+        app=Flask('html-first-lease-kit',root_path=str(ROOT/'app'));app.secret_key='synthetic-only'
+        app.jinja_loader=ChoiceLoader([DictLoader({'program_billing/lease_workflow_base.html':'{% block workspace %}{% endblock %}'}),FileSystemLoader(ROOT/'templates')])
+        for name in ('lease_kit_pdf','lease_kit_email','lease_live_view','lease_certificate_edit','pm_lease_management'):
+            app.add_url_rule('/'+name+'/<int:property_id>',endpoint='billing_bp.'+name,view_func=lambda **kw:'')
+        app.add_url_rule('/view/<int:property_id>',view_func=lease_kit.view)
+        self.app=app;self.client=app.test_client();self.headers={'X-Test-Owner':'yes'}
+
+    def context(self,component):
+        return self.app.test_request_context('/?draft_id=draft-one&component='+component,headers=self.headers)
+
+    def test_all_views_use_saved_html_and_only_core_uses_pdf_viewer(self):
+        with patch.object(self.pdf,'core_bytes',side_effect=AssertionError('View fetched private PDF')),patch.object(self.pdf,'build_pdf',side_effect=AssertionError('View generated PDF')):
+            for component,_ in self.kit.COMPONENTS:
+                response=self.client.get('/view/26?draft_id=draft-one&component='+component,headers=self.headers)
+                self.assertEqual(response.status_code,200)
+                tree=html.fromstring(response.data)
+                self.assertEqual(tree.xpath('//*[@data-lease-component]/@data-lease-component'),list(self.kit.ORDER) if component=='lease' else [component])
+                self.assertEqual(len(tree.xpath('//*[@id="lease-kit-canvas"]')),int(component in ('core','lease')))
+                self.assertNotIn('target="_blank"',response.text);self.assertNotIn('<iframe',response.text)
+                if component in ('core','lease'):
+                    self.assertIn('component=core',tree.xpath('//*[@id="lease-kit-document"]/@data-pdf-url')[0])
+                if component in ('certificate','signature','lease'):
+                    for value in ('Signing City 0','Signing City 1','Signing City 2','2026-11-10','2026-11-11','2026-11-12'):
+                        self.assertIn(value,response.text)
+                    self.assertNotIn('certificate-party-warning',response.text)
+                    self.assertNotRegex(response.text,r'\[LESSEE_\d+_')
+        self.assertEqual(self.items,self.original)
+        for url in ('/view/26?draft_id=draft-one','/view/27?draft_id=draft-one','/view/26?draft_id=wrong'):
+            self.assertIn(self.client.get(url,headers=self.headers if '/27' in url or 'wrong' in url else {}).status_code,(403,404))
+
+    def test_six_on_demand_pdfs_match_shared_html_and_full_lease_page_order(self):
+        payloads={};texts={};core=self.pdf.CORE.read_bytes()
+        with patch.object(self.pdf,'core_bytes',return_value=core):
+            for component,_ in self.kit.COMPONENTS:
+                with self.context(component):
+                    context=self.kit.preview_context(26)
+                    payload=self.pdf.build_pdf(component,context)
+                    self.assertEqual(hashlib.sha256(payload).digest(),hashlib.sha256(self.pdf.build_pdf(component,context)).digest(),'Email token must address reproducible PDF bytes')
+                payloads[component]=payload
+                document=fitz.open(stream=payload,filetype='pdf');texts[component]=[page.get_text() for page in document]
+                self.assertTrue(all(text.strip() for text in texts[component]))
+                if component!='core':
+                    for index,page in enumerate(document):
+                        # Full Lease contains the immutable Core, whose own content is unchanged.
+                        if component=='lease' and len(texts['cover'])+len(texts['certificate'])<=index<len(texts['cover'])+len(texts['certificate'])+9:continue
+                        footer=page.get_text(clip=fitz.Rect(0,page.rect.height-40,page.rect.width,page.rect.height))
+                        self.assertNotIn('DRAFT',footer)
+                        self.assertNotIn('Required representative details are missing',page.get_text())
+            self.assertEqual(payloads['core'],core);self.assertEqual(len(texts['core']),9)
+            self.assertEqual(texts['lease'],sum((texts[key] for key in self.kit.ORDER),[]))
+            for component in ('certificate','signature'):
+                text=''.join(texts[component])
+                for value in ('Signing City 0','Signing City 1','Signing City 2','2026-11-10','2026-11-11','2026-11-12','Natural Person','Entity Company','Entity Director'):
+                    self.assertIn(value,text)
+            self.assertIn('The exact saved condition wording.',''.join(texts['special_conditions']))
+        self.assertEqual(self.items,self.original)
+
+    def test_legacy_and_editor_conditions_remain_visible_without_bypassing_pdf_review(self):
+        self.items['sc-01']={'value':'Preserved legacy condition.'}
+        before=copy.deepcopy(self.items)
+        for component in ('special_conditions','lease'):
+            response=self.client.get('/view/26?draft_id=draft-one&component='+component,headers=self.headers)
+            self.assertEqual(response.status_code,200)
+            self.assertIn('Preserved legacy condition.',response.text)
+            self.assertIn('The exact saved condition wording.',response.text)
+            with self.context(component):
+                with self.assertRaises(ValueError):self.pdf.build_pdf(component,self.kit.preview_context(26))
+        self.assertEqual(self.items,before)
+
+    def test_empty_selection_stays_empty_and_none_conditions_remain_printable(self):
+        self.items['_parties']['lessees']=[]
+        self.items['_parties']['lessee']={'legal_name':'Removed Legacy Party','identity_number':'OLD-1'}
+        self.items['_supplementary_conditions']={'mode':'none','clauses':[]}
+        with self.context('certificate'):
+            context=self.kit.preview_context(26)
+            self.assertEqual(context['party_blocks'][1]['parties'],[])
+            self.assertTrue(context['states']['special_conditions']['printable'])
+            page=render_template('program_billing/lease_kit_view.html',**context)
+            self.assertNotIn('Removed Legacy Party',page)
+            document=fitz.open(stream=self.pdf.build_pdf('special_conditions',context),filetype='pdf')
+            self.assertIn('None.',''.join(p.get_text() for p in document))
+
+if __name__=='__main__':unittest.main()

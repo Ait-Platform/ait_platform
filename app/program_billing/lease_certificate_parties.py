@@ -78,8 +78,6 @@ def unique_parties(entries):
 def blocks(items, owners=(), tenants=()):
     """Group display duplicates by identity; never rewrite records or infer type from an agent."""
     saved_lessors = items.get('_contracting_lessors', {}).get('identities', [])
-    if not saved_lessors:
-        saved_lessors = [deepcopy(owner) for owner in owners]
     saved_lessees = selected_tenants(items)
     groups = []
     global_lessor = items.get('_parties', {}).get('lessor', {})

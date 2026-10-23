@@ -1,0 +1,5 @@
+{% for party in signing_rows %}<fieldset class="mt-4 rounded border border-slate-300 p-4"><legend>{{ party.role }}: {{ party.name or party.identity_number }}</legend>
+{% if party.key %}<label class="capture-field"><span>Place of signing</span><input type="text" name="signing_place_{{ party.key }}" value="{{ party.place }}" maxlength="200" {% if frozen %}readonly{% endif %} class="w-full rounded border border-slate-300 p-2" {% if loop.first %}autofocus{% endif %}></label>
+<label class="capture-field"><span>Date of signing</span><input type="date" name="signing_date_{{ party.key }}" value="{{ party.date }}" {% if frozen %}readonly{% endif %} class="w-full rounded border border-slate-300 p-2"></label>
+{% else %}<p>Complete this party's identity in Parties before entering signing particulars.</p>{% endif %}
+</fieldset>{% else %}<p>Select and save the contracting parties before entering signing particulars.</p>{% endfor %}

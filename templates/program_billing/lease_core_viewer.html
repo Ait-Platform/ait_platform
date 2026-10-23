@@ -1,0 +1,17 @@
+<section id="lease-kit-document" data-pdf-url="{{ core_pdf_url|default(pdf_url) }}" aria-label="Core Lease PDF viewer">
+<div id="lease-kit-toolbar" role="toolbar" aria-label="PDF controls" class="kit-controls">
+<div class="kit-viewer-group" role="group" aria-label="Document zoom">
+<button type="button" id="lease-kit-zoom-out" disabled>Zoom Out</button>
+<button type="button" id="lease-kit-zoom-in" disabled>Zoom In</button>
+</div>
+<div class="kit-viewer-group" role="group" aria-label="Page navigation">
+<button type="button" id="lease-kit-previous" disabled>Previous</button>
+<label>Page <input id="lease-kit-page" type="number" min="1" value="1" disabled aria-label="Page number"></label>
+<span id="lease-kit-page-count">of 0</span>
+<button type="button" id="lease-kit-next" disabled>Next</button>
+</div>
+</div>
+<p id="lease-kit-status" role="status" aria-live="polite">Loading PDF...</p>
+<div id="lease-kit-viewport" tabindex="0" aria-label="PDF page"><canvas id="lease-kit-canvas" aria-label="Core Lease page"></canvas></div>
+
+</section>

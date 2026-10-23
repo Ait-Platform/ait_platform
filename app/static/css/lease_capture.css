@@ -83,3 +83,8 @@ div:has(> #lease-header-actions > .lease-main-navigation) { display:flex; justif
 @media (max-width:640px) {
   .lease-main-navigation,#lease-management-actions .lease-main-navigation { flex-wrap:wrap; overflow-x:visible; }
 }
+
+.party-selected-row { display:flex; align-items:center; gap:8px; margin:8px 0; flex-wrap:wrap; }
+.party-selected-row span { flex:1; min-width:160px; }
+.party-selected-row button { padding:6px 12px; border:1px solid #cbd5e1; border-radius:6px; background:#f1f5f9; }
+.party-selected-row button:disabled { opacity:.45; cursor:not-allowed; }

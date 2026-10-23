@@ -105,7 +105,7 @@ def edit(property_id,section_key):
             if request.form.get('action','save')!='save':abort(400)
             if section_key=='parties':
                 _,lessee_count=form.form_counts(request.form)
-            sections=[] if section_key=='additional' else form.capture_layout(section_key,lessor_count,lessee_count)
+            sections=[] if section_key in ('additional','signing') else form.capture_layout(section_key,lessor_count,lessee_count)
             submitted_form=request.form.copy()
             for key in ('EXPIRY_DATE','RENEWAL_NOTICE_DATE'):
                 if section_key=='period':submitted_form.pop(key,None)
@@ -129,11 +129,28 @@ def edit(property_id,section_key):
                     if str(old.get('tenant_id',''))!=str(registered['id']):
                         for key in ('legal_name','identity_number','signatory_name','signatory_identity_number'):
                             edits['[LESSEE_'+str(index)+'_'+key.upper()+']']=registered.get(key) or ''
-            if section_key=='additional':
+            if section_key=='signing':
+                from .lease_signing import update
+                pending=update(saved,request.form,owners,tenants)
+            elif section_key=='additional':
                 pending=deepcopy(saved)
                 sc_data=supplementary.submitted(request.form,saved)
                 if sc_data is not None:pending[supplementary.KEY]=sc_data
-            else:pending=form.merge_section(saved,items,edits,lessor_count,lessee_count,section_key)
+            else:
+                displayed=items
+                if section_key=='parties':
+                    # Carry private metadata with the selected identity, never with its old slot.
+                    displayed=deepcopy(items);aligned=[]
+                    for index in range(1,lessee_count+1):
+                        registered=selected_register.get(index)
+                        if registered:
+                            original=next((row for row in original_tenants if str(row.get('tenant_id'))==str(registered['id'])),{})
+                        else:
+                            identity=request.form.get('LESSEE_'+str(index)+'_IDENTITY_NUMBER','')
+                            original=next((row for row in original_tenants if identity and row.get('identity_number')==identity and not row.get('tenant_id')), {})
+                        aligned.append(deepcopy(original))
+                    displayed.setdefault('_parties',{})['lessees']=aligned
+                pending=form.merge_section(saved,displayed,edits,lessor_count,lessee_count,section_key)
             if section_key=='parties':
                 for index in range(1,lessee_count+1):
                     party_type=request.form.get('LESSEE_'+str(index)+'_PARTY_TYPE','')
@@ -144,12 +161,14 @@ def edit(property_id,section_key):
                     row=pending['_parties']['lessees'][index-1]
                     if all(str(row.get(key) or '')==str(registered.get(key) or '') for key in ('legal_name','identity_number')):
                         row['tenant_id']=registered['id']
-                        if not request.form.get('LESSEE_'+str(index)+'_PARTY_TYPE'):
-                            row['party_type']=registered.get('party_type') or ''
+                        row['party_type']=registered.get('party_type') or ''
                         for key in ('address','email','phone'):
                             if '[LESSEE_'+str(index)+'_'+key.upper()+']' not in edits:row[key]=registered.get(key) or ''
-                if pending.get('_parties',{}).get('lessees'):
-                    pending['_parties']['lessee']=deepcopy(pending['_parties']['lessees'][0])
+                selected_rows=pending.get('_parties',{}).get('lessees',[])
+                selected_rows=[row for row in selected_rows if row.get('tenant_id') is not None or any(certificate.present(row.get(key)) for key in ('legal_name','identity_number'))]
+                pending.setdefault('_parties',{})['lessees']=selected_rows
+                if selected_rows:pending['_parties']['lessee']=deepcopy(selected_rows[0])
+                else:pending['_parties'].pop('lessee',None)
                 original_rep=items.get('_parties',{}).get('lessor',{})
                 proposed_rep=pending.get('_parties',{}).get('lessor',{})
                 if any(original_rep.get(key,'')!=proposed_rep.get(key,'') for key in
@@ -274,9 +293,16 @@ def edit(property_id,section_key):
         for group in blocks(saved,owners,tenants):
             for party in group['parties']:
                 party_validation.extend(group['label']+' '+(party['name'] or party['identity_number'])+': '+warning for warning in party['warnings'])
+    from .lease_signing import rows as signing_rows
+    signing_entries=signing_rows(saved,owners,tenants) if section_key=='signing' else []
+    if errors and section_key=='signing':
+        for row in signing_entries:
+            for key in ('place','date'):
+                row[key]=request.form.get('signing_'+key+'_'+str(row['key']),row[key])
     arguments={'property_id':property_id,'draft_id':draft['id'] if draft else None}
     return render_pm_template('program_billing/lease_capture_section.html',title=definition[1],property=prop,
         lease_draft=draft,section_key=section_key,section=section,errors=errors,frozen=frozen,
+        signing_rows=signing_entries,
         party_rows=party_rows,lessee_groups=lessee_groups,lessee_template=lessee_template,party_validation=party_validation,
         lessee_types=lessee_types,
         lessee_details=lessee_details,sc_headings=supplementary.HEADINGS,legacy_additional=legacy_additional,

@@ -5,31 +5,16 @@
 <nav id="lease-kit-selectors" aria-label="View Lease documents" class="mt-5">
 {% for component in components %}<a href="{{ component.url }}" data-component="{{ component.key }}" {% if selected_component==component.key %}aria-current="page"{% endif %} class="kit-document-choice">{{ component.label }}</a>{% endfor %}
 </nav>
-{% if states[selected_component]['available'] and not states[selected_component].get('omitted') %}
-<section id="lease-kit-document" data-pdf-url="{{ pdf_url }}" aria-label="{{ selected_label }} PDF viewer">
-<div id="lease-kit-toolbar" role="toolbar" aria-label="PDF controls" class="kit-controls">
-<div class="kit-viewer-group" role="group" aria-label="Document zoom">
-<button type="button" id="lease-kit-zoom-out" disabled>Zoom Out</button>
-<button type="button" id="lease-kit-zoom-in" disabled>Zoom In</button>
-</div>
-<div class="kit-viewer-group" role="group" aria-label="Page navigation">
-<button type="button" id="lease-kit-previous" disabled>Previous</button>
-<label>Page <input id="lease-kit-page" type="number" min="1" value="1" disabled aria-label="Page number"></label>
-<span id="lease-kit-page-count">of 0</span>
-<button type="button" id="lease-kit-next" disabled>Next</button>
-</div>
-</div>
-<p id="lease-kit-status" role="status" aria-live="polite">Loading PDF...</p>
-<div id="lease-kit-viewport" tabindex="0" aria-label="PDF page"><canvas id="lease-kit-canvas" aria-label="{{ selected_label }} page"></canvas></div>
-
+<div id="lease-kit-content" class="lease-kit-html">
+{% for component_key in selected_documents|default([selected_component]) %}
+<section data-lease-component="{{ component_key }}" class="lease-component-section" aria-label="{{ component_labels[component_key] if component_labels is defined else component_key }}">
+{% if component_key=='core' %}{% include 'program_billing/lease_core_viewer.html' %}
+{% else %}{% include 'program_billing/lease_kit_component.html' %}{% endif %}
 </section>
+{% endfor %}
+</div>
+{% if selected_component in ['core','lease'] %}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
-{% elif states[selected_component].get('omitted') %}<p class="kit-controls mt-4">{{ states[selected_component].reason }}</p>
-{% else %}<p role="status" class="kit-unavailable">{{ states[selected_component].reason }}</p>{% endif %}
-{% if states['special_conditions'].get('legacy_conditions') and selected_component in ['special_conditions','lease'] %}
-<aside class="kit-controls" role="alert"><h2>Supplementary Conditions review required</h2><p>Lease reference: {{ lease_reference }}</p><p>{{ states['special_conditions'].reason }}</p>
-{% for entry in states['special_conditions'].legacy_conditions %}<h3>{{ entry.source }}</h3><pre style="white-space:pre-wrap;overflow-wrap:anywhere">{{ entry.text }}</pre>{% endfor %}
-{% if states['special_conditions'].get('clauses') %}<h3>Saved editor clauses (not assembled)</h3>{% for clause in states['special_conditions'].clauses %}<h4>SC-{{ '%02d' % loop.index }} &mdash; {{ clause.heading }}</h4><div style="white-space:pre-wrap">{{ clause.text }}</div>{% endfor %}{% endif %}
-</aside>{% endif %}
 <script src="{{ url_for('static',filename='js/lease_kit.js') }}" defer></script>
+{% endif %}
 {% endblock %}

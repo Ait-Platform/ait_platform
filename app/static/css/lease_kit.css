@@ -64,3 +64,11 @@ div:has(> #lease-header-actions) { display:flex; justify-content:space-between; 
   #lease-kit-selectors,#lease-kit-toolbar { flex-wrap:wrap; }
   .kit-viewer-group { gap:4px; flex-wrap:wrap; }
 }
+/* Read-only HTML particulars share their fragments with generated PDFs. */
+.lease-component-section { margin:24px 0; }
+.lease-kit-html .certificate-page,.lease-kit-html .kit-text-page,.lease-kit-html .kit-cover-page { width:100%; max-width:210mm; box-sizing:border-box; }
+.signature-document .signature-party { margin:20px 0; padding:12px 0; border-bottom:1px solid #cbd5e1; break-inside:avoid; }
+.signature-document h3 { font-weight:600; margin:8px 0; }
+.signature-document p { margin:8px 0; overflow-wrap:anywhere; }
+.handwritten-signature { padding-top:20px; }
+.certificate-signing th { width:auto; }

@@ -24,7 +24,7 @@ class LeaseDocumentsActionsTests(unittest.TestCase):
         action=next(n for n in kit_tree.body if isinstance(n,ast.FunctionDef) and n.name=='action_documents')
         kit=types.ModuleType('app.program_billing.lease_kit')
         kit.url_for=url_for
-        exec(compile(ast.Module(body=[constants,action],type_ignores=[]),'actual-actions','exec'),kit.__dict__)
+        exec(compile(ast.Module(body=[constants,next(n for n in kit_tree.body if isinstance(n,ast.Assign) and any(isinstance(t,ast.Name) and t.id=='ORDER' for t in n.targets)),action],type_ignores=[]),'actual-actions','exec'),kit.__dict__)
         self.kit=kit
         mods={name:types.ModuleType(name) for name in ('app','app.program_billing')}
         for m in mods.values():m.__path__=[]
@@ -110,9 +110,14 @@ class LeaseDocumentsActionsTests(unittest.TestCase):
             with self.app.test_request_context('/'):
                 html=render_template('program_billing/lease_kit_view.html',selected_component=key,selected_label=label,
                     components=[{'key':k,'label':v,'url':'/inspect?component='+k} for k,v in self.kit.COMPONENTS],
-                    states={k:{'available':True} for k,_ in self.kit.COMPONENTS},pdf_url='/kit.pdf?component='+key)
-            self.assertIn('lease-kit-canvas',html);self.assertIn('lease-kit-page-count',html)
-            for action in ('zoom-in','zoom-out','previous','next'):self.assertIn('id="lease-kit-'+action+'"',html)
+                    states={k:{'available':True,'omitted':True} for k,_ in self.kit.COMPONENTS},pdf_url='/kit.pdf?component=core',selected_documents=self.kit.ORDER if key=='lease' else [key])
+            if key in ('core','lease'):
+                self.assertIn('lease-kit-canvas',html);self.assertIn('lease-kit-page-count',html)
+                for action in ('zoom-in','zoom-out','previous','next'):self.assertIn('id="lease-kit-'+action+'"',html)
+            else:self.assertNotIn('lease-kit-canvas',html)
+            from lxml import html as parser
+            keys=parser.fromstring(html).xpath('//*[@data-lease-component]/@data-lease-component')
+            self.assertEqual(keys,list(self.kit.ORDER) if key=='lease' else [key])
             for action in ('play','pause','print','download','email'):self.assertNotIn('id="lease-kit-'+action+'"',html)
             self.assertNotIn('<iframe',html);self.assertNotIn('target="_blank"',html)
 

@@ -1,0 +1,15 @@
+{% if component_key=='cover' %}
+<article class="kit-cover-page certificate-cover" aria-label="Cover"><div class="kit-cover-particulars">
+<h2>AGREEMENT OF LEASE</h2><p>{{ lease_reference }}</p>
+{% if premises_name %}<p><strong>{{ premises_name }}</strong></p>{% endif %}{% if premises_address %}<p>{{ premises_address }}</p>{% endif %}
+{% for group in party_blocks|default([]) %}{% if group.parties %}<h3>{{ group.title }}</h3>{% for party in group.parties %}<p>{{ party.name }}{% if party.identity_number %} | {{ party.identity_number }}{% endif %}</p>{% endfor %}{% endif %}{% endfor %}
+</div><footer class="kit-cover-footer">Powered by AIT Standard Lease</footer></article>
+{% elif component_key=='certificate' %}
+{% include 'program_billing/lease_certificate_document.html' %}
+{% elif component_key=='special_conditions' %}
+{% if states['special_conditions'].get('omitted') %}<article class="kit-text-page"><h2>SPECIAL CONDITIONS</h2><p>None.</p></article>
+{% elif states['special_conditions'].get('legacy_conditions') %}<article class="kit-text-page"><h2>SPECIAL CONDITIONS</h2>{% for entry in states['special_conditions'].legacy_conditions %}<div style="white-space:pre-wrap">{{ entry.text }}</div>{% endfor %}{% for clause in states['special_conditions'].get('clauses',[]) %}<h3>{{ clause.heading }}</h3><div style="white-space:pre-wrap">{{ clause.text }}</div>{% endfor %}</article>
+{% else %}{% set key='special_conditions' %}{% include 'program_billing/lease_supplementary_conditions.html' %}{% endif %}
+{% elif component_key=='signature' %}
+{% include 'program_billing/lease_signature_document.html' %}
+{% endif %}

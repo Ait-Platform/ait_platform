@@ -35,11 +35,12 @@
 {% endif %}
 <textarea id="field_{{ part.name }}" name="{{ part.name }}" rows="1" maxlength="4000" placeholder="{{ part.token }}" {% if part.name.endswith('_DATE') %}data-date-field="true"{% endif %}>{{ part.value }}</textarea>
 </label>
-{% else %}<span class="{{ 'certificate-incomplete' if not part.value else 'certificate-value' }}">{{ part.value or part.token }}</span>{% endif %}
+{% else %}<span class="{{ 'certificate-incomplete' if not part.value else 'certificate-value' }}">{{ part.value or ('' if preview else part.token) }}</span>{% endif %}
 {% else %}<span class="certificate-literal">{{ part.text }}</span>{% endif %}{% endfor %}
 </td></tr>{% endfor %}</tbody></table>
 {% if section.party_blocks is defined %}{% include 'program_billing/lease_certificate_party_blocks.html' %}{% endif %}
 </section>{% endif %}
 {% endfor %}
+{% if signing_rows|default([]) %}{% include 'program_billing/lease_signing_particulars.html' %}{% endif %}
 <footer>Powered by AIT | PROPERTY MANAGEMENT</footer></article>
 </div>

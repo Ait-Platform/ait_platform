@@ -233,7 +233,41 @@
     group.querySelector('[data-lessee-label="LEGAL_NAME"]').textContent = juristic ? 'Registered Entity Name' : 'Full Name';
     group.querySelector('[data-lessee-label="IDENTITY_NUMBER"]').textContent = juristic ? 'Registration Number' : 'ID Number';
   }
+  const current = document.getElementById('party-current-lessees');
+  function refreshSelected() {
+    if (!current) return;
+    current.replaceChildren();
+    Array.from(groups.children).forEach(group => {
+      if (!hasParticulars(group) && !group.querySelector('.register-choice')?.value) return;
+      const row = document.createElement('div');row.className = 'party-selected-row';
+      const label = document.createElement('span');label.textContent = group.querySelector('textarea')?.value || 'Lessee';
+      const edit = document.createElement('button');edit.type = 'button';edit.textContent = 'Edit';
+      edit.addEventListener('click',() => {show('add');group.hidden = false;group.querySelector('textarea')?.focus();});
+      const remove = document.createElement('button');remove.type = 'button';remove.textContent = 'Remove';remove.disabled = form.dataset.frozen === '1';
+      remove.addEventListener('click',() => {
+        if (form.dataset.frozen === '1') return;
+        group.remove();newGroup = null;
+        Array.from(groups.children).forEach((item,offset) => {
+          const index = offset + 1;item.dataset.lesseeIndex = String(index);
+          item.querySelectorAll('[name],[id],[for],[data-field]').forEach(input => {
+            for (const attribute of ['name','id','for']) {
+              const value = input.getAttribute(attribute);
+              if (value) input.setAttribute(attribute,value.replace(/LESSEE_\d+_/g,'LESSEE_'+index+'_').replace(/tenant_register_id_\d+/g,'tenant_register_id_'+index));
+            }
+            if (input.dataset.field) input.dataset.field = input.dataset.field.replace(/LESSEE_\d+_/g,'LESSEE_'+index+'_');
+          });
+        });
+        count.value = String(groups.children.length);
+        if (!groups.children.length) availableGroup();
+        refreshSelected();
+        document.getElementById('party-tenant-status').textContent = 'Selection changed. Save to keep it on this lease.';
+      });
+      row.append(label,edit,remove);current.appendChild(row);
+    });
+  }
   Array.from(groups.children).forEach(lesseeTypeLabels);
+  refreshSelected();
+  groups.addEventListener('input',refreshSelected);
   groups.addEventListener('change',function (event) {
     if (event.target.matches('[data-lessee-type]')) lesseeTypeLabels(event.target.closest('fieldset'));
   });
@@ -301,6 +335,6 @@
       const input = document.getElementById('field_' + prefix + suffix);
       if (input) input.value = tenant[fields[suffix]] || '';
     });
-    lesseeTypeLabels(group);
+    lesseeTypeLabels(group);refreshSelected();
   });
 }());

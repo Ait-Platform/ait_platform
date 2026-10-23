@@ -180,6 +180,7 @@ CAPTURE_SECTIONS = (
     ('financial','4. Financial Particulars',3,('_amounts','_banking_utilities','s1-30','s1-31')),
     ('banking','5. Banking',4,('_certificate_banking',)),
     ('additional','6. Additional Particulars',5,('s1-25','s1-37','s1-34','s1-35','s1-29','_amounts')),
+    ('signing','7. Signing Particulars',6,('_signing_particulars',)),
 )
 
 
@@ -204,6 +205,7 @@ def merge_section(saved, displayed, edits, lessor_count, lessee_count, key):
 
 def capture_layout(key, lessors, lessees):
     """Capture-only fields; approved document tables and historical keys stay intact."""
+    if key=='signing':return [{'title':'Signing Particulars','rows':[]}]
     section=deepcopy(layout(lessors,lessees)[capture_section(key)[2]])
     if key=='financial':
         section['rows']=[['Monthly rental','[MONTHLY_RENT]'],['Security deposit','[DEPOSIT_AMOUNT]']]

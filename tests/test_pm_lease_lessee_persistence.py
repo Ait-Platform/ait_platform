@@ -115,7 +115,8 @@ class LesseePersistenceTests(unittest.TestCase):
         for name in ('Natural Lessee','Entity Lessee','Entity Representative'):self.assertIn(name,certificate_html)
         self.assertNotIn('certificate-party-warning',certificate_html)
 
-        self.assertEqual(self.save_both().status_code,302);self.assertEqual(len(self.stored()['items']['_parties']['lessees']),2)
+        self.assertEqual(self.save_both(LESSEE_2_PARTY_TYPE='natural_person').status_code,302);self.assertEqual(len(self.stored()['items']['_parties']['lessees']),2)
+        self.assertEqual(self.stored()['items']['_parties']['lessees'][1]['party_type'],'juristic_person')
 
     def test_missing_juristic_representative_and_stale_save_are_rejected(self):
         self.session.execute(text('DELETE FROM bil_tenant_identity'));self.session.commit()
@@ -123,6 +124,62 @@ class LesseePersistenceTests(unittest.TestCase):
         self.assertEqual(self.stored()['items'],self.initial)
         self.assertEqual(self.save_both(version='0').status_code,409)
         self.assertEqual(self.stored()['items'],self.initial)
+
+
+    def test_selection_replacement_removes_previously_selected_parties(self):
+        self.assertEqual(self.save_both().status_code,302)
+        for identifier,kind,name in (('22','juristic_person','Entity Lessee'),('11','natural_person','Natural Lessee')):
+            self.assertEqual(self.save_both(lessee_count='1',tenant_register_id_1=identifier,LESSEE_1_PARTY_TYPE=kind).status_code,302)
+            saved=self.stored()['items'];rows=self.cert.selected_tenants(saved)
+            self.assertEqual([str(row['tenant_id']) for row in rows],[identifier])
+            from app.program_billing.lease_certificate_parties import blocks
+            self.assertEqual([row['name'] for row in blocks(saved)[1]['parties']],[name])
+            page=self.client.get(self.url,headers={'X-Test-Owner':'yes'})
+            self.assertEqual(html.fromstring(page.data).xpath('//*[@id="field_LESSEE_1_LEGAL_NAME"]/text()'),[name])
+        self.assertEqual(self.save_both(lessee_count='1',tenant_register_id_1='',LESSEE_1_PARTY_TYPE='',LESSEE_1_LEGAL_NAME='',LESSEE_1_IDENTITY_NUMBER='').status_code,302)
+        self.assertEqual(self.cert.selected_tenants(self.stored()['items']),[])
+        self.assertNotIn('lessee',self.stored()['items']['_parties'])
+
+    def test_signing_particulars_save_reopen_amend_and_remain_identity_bound(self):
+        self.assertEqual(self.save_both().status_code,302)
+        from app.program_billing import lease_signing as signing
+        parties=signing.rows(self.stored()['items']);self.assertEqual(len(parties),3)
+        url=self.url.replace('/parties?','/signing?')
+        data={'csrf_token':self.csrf,'version':str(self.stored()['version'])}
+        for index,party in enumerate(parties):
+            data['signing_place_'+party['key']]='Place '+str(index)
+            data['signing_date_'+party['key']]='2026-11-'+str(index+10)
+        self.assertEqual(self.client.post(url,headers={'X-Test-Owner':'yes'},data=data).status_code,302)
+        self.session.close();self.session=Session(self.conn);self.db.session=self.session
+        saved=self.stored()['items'];rows=signing.rows(saved)
+        self.assertEqual([row['place'] for row in rows],['Place 0','Place 1','Place 2'])
+        self.assertEqual([row['date'] for row in rows],['2026-11-10','2026-11-11','2026-11-12'])
+        self.assertEqual(self.session.execute(text('SELECT status FROM bil_lease_draft')).scalar(),'draft')
+        page=self.client.get(url,headers={'X-Test-Owner':'yes'});self.assertEqual(page.status_code,200)
+        self.assertIn('value="Place 1"',page.text)
+        data={'csrf_token':self.csrf,'version':str(self.stored()['version']),'signing_place_'+rows[1]['key']:'Amended place','signing_date_'+rows[1]['key']:'2026-12-01'}
+        self.assertEqual(self.client.post(url,headers={'X-Test-Owner':'yes'},data=data).status_code,302)
+        saved=self.stored()['items'];rows=signing.rows(saved)
+        self.assertEqual((rows[1]['place'],rows[1]['date']),('Amended place','2026-12-01'))
+        with self.app.app_context():
+            certificate=render_template('program_billing/lease_signing_particulars.html',signing_rows=rows)
+            signature=render_template('program_billing/lease_signature_document.html',signing_rows=rows)
+        for text_value in ('Amended place','2026-12-01','Place 2','2026-11-12'):
+            self.assertIn(text_value,certificate);self.assertIn(text_value,signature)
+        self.assertEqual(self.save_both(lessee_count='1',tenant_register_id_1='22',LESSEE_1_PARTY_TYPE='juristic_person').status_code,302)
+        retained=signing.rows(self.stored()['items']);self.assertEqual(retained[1]['place'],'Place 2')
+        removed_key=rows[1]['key']
+        data={'csrf_token':self.csrf,'version':str(self.stored()['version']),'signing_place_'+removed_key:'Wrong party'}
+        self.assertEqual(self.client.post(url,headers={'X-Test-Owner':'yes'},data=data).status_code,400)
+        current=signing.rows(self.stored()['items'])[1]
+        data={'csrf_token':self.csrf,'version':str(self.stored()['version']),'signing_date_'+current['key']:'2026-02-30'}
+        self.assertEqual(self.client.post(url,headers={'X-Test-Owner':'yes'},data=data).status_code,400)
+        self.assertEqual(self.client.get(url).status_code,403)
+        frozen=copy.deepcopy(self.stored()['items']);frozen['_lease_history']={'documents':[{'kind':'signed_original'}]}
+        self.session.execute(text('UPDATE bil_lease_draft SET items=CAST(:i AS jsonb)'),{'i':json.dumps(frozen)});self.session.commit()
+        data={'csrf_token':self.csrf,'version':str(self.stored()['version']),'signing_place_'+current['key']:'Blocked'}
+        self.assertEqual(self.client.post(url,headers={'X-Test-Owner':'yes'},data=data).status_code,409)
+        self.assertEqual(self.stored()['items'],frozen)
 
     def test_signed_draft_edit_is_still_rejected(self):
         frozen=copy.deepcopy(self.initial);frozen['_lease_history']={'documents':[{'kind':'signed_original'}]}

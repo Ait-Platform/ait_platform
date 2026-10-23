@@ -42,3 +42,8 @@ div:has(> #lease-header-actions) { display:flex; justify-content:space-between; 
 #lease-kit-canvas { display:block; margin:0 auto; background:white; max-width:none; }
 #lease-kit-status:empty { display:none; }
 #lease-kit-email-form[hidden] { display:none; }
+#lease-document-actions th,#lease-document-actions td { padding:12px; border:1px solid #cbd5e1; }
+#lease-document-actions thead { background:#f1f5f9; }
+#lease-document-actions button { padding:8px 12px; border:1px solid #cbd5e1; border-radius:6px; background:#eff6ff; color:#172c3e; }
+#lease-document-actions button:disabled { opacity:.45; cursor:not-allowed; }
+#lease-actions-email-form[hidden] { display:none; }

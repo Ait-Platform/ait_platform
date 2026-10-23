@@ -197,7 +197,9 @@ def history(property_id):
     entries=sorted(entries,key=lambda e:(e['uploaded_at'],e['id']))
     for entry in entries:
         if entry['state']=='available':entry['email_token']=signer().dumps({'kind':'document','document_id':entry['id'],'draft_id':str(draft['id']),'property_id':property_id,'version':draft['version'],'sha256':entry['sha256'],'nonce':str(uuid.uuid4())})
-    return render_pm_template('program_billing/lease_history.html',title='Lease History',property=prop,lease_draft=draft,
+    from .lease_kit import action_documents
+    return render_pm_template('program_billing/lease_history.html',title='Lease Documents & Actions',property=prop,lease_draft=draft,
+        action_documents=action_documents(property_id,draft['id']),
         entries=entries,kinds=KINDS,originals=originals(draft),errors=errors,unavailable=None),400 if errors else 200
 
 

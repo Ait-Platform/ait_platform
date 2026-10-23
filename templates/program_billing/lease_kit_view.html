@@ -6,29 +6,18 @@
 {% for component in components %}<a href="{{ component.url }}" data-component="{{ component.key }}" {% if selected_component==component.key %}aria-current="page"{% endif %} class="rounded border px-4 py-2 {{ 'bg-blue-100 font-semibold' if selected_component==component.key else 'bg-slate-50' }}">{{ component.label }}</a>{% endfor %}
 </nav>
 {% if states[selected_component]['available'] and not states[selected_component].get('omitted') %}
-<section id="lease-kit-document" data-pdf-url="{{ pdf_url }}" data-email-url="{{ pdf_email_url }}" data-filename="AIT-Lease-{{ selected_component }}-REVIEW.pdf" aria-label="{{ selected_label }} PDF viewer">
+<section id="lease-kit-document" data-pdf-url="{{ pdf_url }}" aria-label="{{ selected_label }} PDF viewer">
 <div id="lease-kit-toolbar" role="toolbar" aria-label="PDF controls" class="kit-controls">
-<button type="button" id="lease-kit-play" disabled title="Advance pages automatically">Play</button>
-<button type="button" id="lease-kit-pause" disabled>Pause</button>
 <button type="button" id="lease-kit-zoom-out" disabled>Zoom Out</button>
 <button type="button" id="lease-kit-zoom-in" disabled>Zoom In</button>
 <button type="button" id="lease-kit-previous" disabled>Previous</button>
 <label>Page <input id="lease-kit-page" type="number" min="1" value="1" disabled aria-label="Page number"></label>
 <span id="lease-kit-page-count">of 0</span>
 <button type="button" id="lease-kit-next" disabled>Next</button>
-<button type="button" id="lease-kit-print" disabled>Print</button>
-<button type="button" id="lease-kit-download" disabled>Download PDF</button>
-<button type="button" id="lease-kit-email" disabled>Email PDF</button>
 </div>
 <p id="lease-kit-status" role="status" aria-live="polite">Loading PDF...</p>
 <div id="lease-kit-viewport" tabindex="0" aria-label="PDF page"><canvas id="lease-kit-canvas" aria-label="{{ selected_label }} page"></canvas></div>
-<form id="lease-kit-email-form" hidden class="kit-controls mt-4">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-<label class="block">Recipient Email Address<input name="recipient" type="email" required maxlength="254" class="block w-full rounded border border-slate-300 p-2"></label>
-<label class="mt-3 block">Optional message<textarea name="message" maxlength="5000" class="block w-full rounded border border-slate-300 p-2"></textarea></label>
-<div class="mt-3 flex justify-end gap-2"><button type="button" id="lease-kit-email-cancel">Cancel</button><button type="submit" id="lease-kit-email-send">Send Email</button></div>
-<p id="lease-kit-email-status" role="status" aria-live="polite"></p>
-</form>
+
 </section>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
 {% elif states[selected_component].get('omitted') %}<p class="kit-controls mt-4">{{ states[selected_component].reason }}</p>

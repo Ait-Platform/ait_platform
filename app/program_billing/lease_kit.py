@@ -4,9 +4,17 @@ import re
 from flask import abort,request,url_for
 from . import lease_certificate as certificate,lease_certificate_form as form
 
-COMPONENTS=(('cover','Cover'),('certificate','Certificate'),('core','Core'),
-            ('special_conditions','Supplementary Conditions'),('signature','Signature'),('lease','Lease'))
+COMPONENTS=(('cover','Cover'),('certificate','Certificate'),('core','Residential Core'),
+            ('special_conditions','Supplementary Conditions'),('signature','Signature Page'),('lease','Full Lease'))
 ORDER=('cover','certificate','core','special_conditions','signature')
+
+
+def action_documents(property_id, draft_id):
+    """Fixed row order; each action addresses its own protected PDF, never viewer state."""
+    return [{'key': key, 'label': 'Full Lease Agreement' if key == 'lease' else label,
+             'pdf_url': url_for('billing_bp.lease_kit_pdf', property_id=property_id, draft_id=draft_id, component=key),
+             'email_url': url_for('billing_bp.lease_kit_email', property_id=property_id, draft_id=draft_id, component=key)}
+            for key, label in COMPONENTS]
 
 
 def developing_items(items,owners):

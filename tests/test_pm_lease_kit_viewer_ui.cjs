@@ -1,4 +1,4 @@
-﻿const assert = require('node:assert/strict');
+const assert = require('node:assert/strict');
 const vm = require('node:vm');
 const fs = require('node:fs');
 module.exports = async function run(rootPath) {
@@ -42,16 +42,10 @@ module.exports = async function run(rootPath) {
   get('previous').onclick();await settle();assert.equal(get('page').value,1);
   const initialWidth=get('canvas').width;get('zoom-in').onclick();await settle();assert.ok(get('canvas').width>initialWidth);
   get('zoom-out').onclick();await settle();assert.equal(get('canvas').width,initialWidth);
-  get('play').onclick();assert.equal(timers.size,1);[...timers.values()][0]();await settle();assert.equal(get('page').value,2);
-  get('pause').onclick();assert.equal(timers.size,0);
   get('page').value='9';get('page').onchange();await settle();assert.equal(get('next').disabled,true);
-  get('download').onclick();assert.equal(downloaded,1);assert.equal(added.at(-1).href,'blob:private-pdf');assert.equal(added.at(-1).download,'AIT-Core-REVIEW.pdf');
-  assert.deepEqual(new Uint8Array(await blob.arrayBuffer()),new Uint8Array(bytes));
-  get('print').onclick();assert.equal(printed,1);assert.equal(added.at(-1).src,'blob:private-pdf');
-  get('email').onclick();assert.equal(get('email-form').hidden,false);
-  await get('email-form').onsubmit({preventDefault(){}});assert.equal(requests.at(-1).url,'/protected/kit/email');
-  assert.equal(requests.at(-1).options.body.document_token,'signed-selection');assert.equal(get('email-status').textContent,'PDF submitted');
-  assert.equal(requests[0].url,'/protected/kit.pdf');assert.equal(requests[0].options.credentials,'same-origin');
-  events.pagehide();assert.equal(revoked,1);assert.equal(timers.size,0);
-  console.log('Viewer controls passed: nine-page canvas, Play/Pause, zoom, navigation, exact PDF print/download, explicit email, cleanup.');
+  assert.equal(requests.length,1);assert.equal(requests[0].url,'/protected/kit.pdf');
+  assert.equal(requests[0].options.credentials,'same-origin');
+  assert.equal(added.length,0,'Inspection must not create external/print/download frames');
+  for (const name of ['play','pause','print','download','email']) assert.equal(get(name).onclick,undefined);
+  console.log('Inspection viewer passed: nine-page canvas, zoom, navigation, no document actions or external frames.');
 };

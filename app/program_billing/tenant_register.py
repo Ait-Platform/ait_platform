@@ -99,10 +99,10 @@ def save(data):
     statement='INSERT INTO bil_tenant ('+', '.join(params)+') VALUES ('+', '.join(':'+k for k in params)+") ON CONFLICT (manager_id,party_type,lower(replace(identity_number,' ',''))) DO NOTHING RETURNING id"
     tenant_id=db.session.execute(text(statement),params).scalar_one_or_none()
     if tenant_id is None:
-        return db.session.execute(text("SELECT id FROM bil_tenant WHERE manager_id=:manager_id AND party_type=:party_type AND lower(replace(identity_number,' ',''))=lower(replace(:identity_number,' ',''))"),params).scalar_one()
+        tenant_id=db.session.execute(text("SELECT id FROM bil_tenant WHERE manager_id=:manager_id AND party_type=:party_type AND lower(replace(identity_number,' ',''))=lower(replace(:identity_number,' ','')) FOR UPDATE"),params).scalar_one()
     if data['party_type']=='juristic_person':
         db.session.execute(text("""INSERT INTO bil_tenant_identity (tenant_id,manager_id,legal_name,identity_number,phone,email)
-            VALUES (:t,:u,:n,:i,:p,:e)"""),{'t':tenant_id,'u':current_user.id,'n':data['representative_name'],
+            SELECT :t,:u,:n,:i,:p,:e WHERE NOT EXISTS (SELECT 1 FROM bil_tenant_identity WHERE tenant_id=:t AND manager_id=:u)"""),{'t':tenant_id,'u':current_user.id,'n':data['representative_name'],
                 'i':data['representative_identity_number'],'p':data['representative_phone'],'e':data['representative_email']})
     return tenant_id
 

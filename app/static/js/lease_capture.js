@@ -307,20 +307,65 @@
     });
     card.appendChild(details);host.appendChild(card);
   }
-  choice.addEventListener('change',function () {
-    if (form.dataset.frozen === '1' || !choice.value) return;
-    const tenant = tenants.find(row => String(row.id) === choice.value);
-    if (!tenant) return;
-    // An explicit dropdown choice replaces the current selection; it never appends.
-    Array.from(groups.children).forEach(group => group.remove());
-    newGroup = null;count.value = '0';
-    const target = availableGroup();
-    const register = target.querySelector('.register-choice');
-    register.value = choice.value;
-    register.dispatchEvent(new Event('change',{bubbles:true}));
-    selectionChanged.value = '1';
-    showTenantDetails(tenant);refreshSelected();
-    document.getElementById('party-tenant-status').textContent = 'Tenant selected. Save to keep this selection on the lease.';
+  let selectionSaving = false;
+  let savedChoice = choice.value;
+  const selectionStatus = document.getElementById('party-tenant-status');
+  function markTenantSaved() {
+    const tenantField = name => /^(LESSEE_|tenant_register_id_|selected_tenant_id$|tenant_selection_changed$)/.test(name);
+    const before = JSON.parse(originalState).filter(entry => !tenantField(entry[0]));
+    const currentState = JSON.parse(state());
+    const names = new Set(currentState.map(entry => entry[0]));
+    originalState = JSON.stringify(currentState.flatMap(entry => {
+      if (tenantField(entry[0])) return [entry];
+      const original = before.find(row => row[0] === entry[0]);
+      return original ? [original] : [];
+    }).concat(before.filter(entry => !names.has(entry[0]))));
+  }
+  form.addEventListener('submit',function (event) {
+    if (selectionSaving) { event.preventDefault();submitting = false;selectionStatus.textContent = 'Wait for the tenant selection to finish saving.'; }
+  });
+  choice.addEventListener('change',async function () {
+    if (form.dataset.frozen === '1' || !choice.value || selectionSaving) return;
+    const identifier = choice.value;
+    selectionSaving = true;choice.disabled = true;
+    selectionStatus.textContent = 'Saving…';
+    const saveButton = document.getElementById('capture-save');
+    if (saveButton) saveButton.disabled = true;
+    try {
+      const body = new URLSearchParams({action:'save_tenant_selection',selected_tenant_id:identifier});
+      for (const name of ['csrf_token','version','registration_token']) {
+        const input = form.querySelector('[name="'+name+'"]');
+        if (input) body.set(name,input.value);
+      }
+      const response = await fetch(form.getAttribute('action'),{method:'POST',credentials:'same-origin',headers:{Accept:'application/json'},body});
+      if (!response.ok) throw new Error('Selection not saved');
+      const result = await response.json();
+      if (result.saved !== true || String(result.tenant.tenant_id) !== identifier) throw new Error('Invalid save confirmation');
+      const tenant = tenants.find(row => String(row.id) === identifier);
+      if (tenant) Object.assign(tenant,result.tenant);
+      Array.from(groups.children).forEach(group => group.remove());
+      newGroup = null;count.value = '0';
+      const target = availableGroup();
+      const register = target.querySelector('.register-choice');
+      register.value = identifier;
+      register.dispatchEvent(new Event('change',{bubbles:true}));
+      selectionChanged.value = '0';savedChoice = identifier;
+      form.querySelector('[name="version"]').value = String(result.version);
+      form.querySelector('[name="draft_id"]').value = result.draft_id;
+      form.setAttribute('action',result.capture_url);
+      document.querySelectorAll('[data-capture-back],[data-capture-section]').forEach(link => {
+        const url = new URL(link.href,window.location.href);url.searchParams.set('draft_id',result.draft_id);link.href = url.href;
+      });
+      window.history?.replaceState(null,'',result.capture_url);
+      showTenantDetails(result.tenant);refreshSelected();markTenantSaved();
+      selectionStatus.textContent = 'Saved';
+    } catch (error) {
+      choice.value = savedChoice;
+      selectionStatus.textContent = 'Could not save the tenant selection. The previous selection is still shown. Reload before retrying if the lease changed.';
+    } finally {
+      selectionSaving = false;choice.disabled = false;
+      if (saveButton) saveButton.disabled = false;
+    }
   });
   if (form.dataset.hasErrors === '1') {
     newGroup = Array.from(groups.children).filter(hasParticulars).pop() || groups.firstElementChild;

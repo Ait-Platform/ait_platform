@@ -82,6 +82,28 @@ def edit(property_id,section_key):
                 values['[LESSEE_'+str(index)+'_'+key.upper()+']']=party.get(key,registered.get(key)) or ''
     lessor_count,lessee_count=form.counts(items)
     errors=[];date_differences=[];calculated_dates={}
+    if request.method=='POST' and request.form.get('action')=='save_tenant_selection':
+        if section_key!='parties':abort(400)
+        snapshot.require_particulars_schema()
+        if frozen:abort(409,description='Issued or signed lease particulars are preserved.')
+        if draft and str(draft['version'])!=request.form.get('version'):abort(409,description='Reload the changed lease before selecting a tenant.')
+        registered=tenant_register.selected(request.form.get('selected_tenant_id'))
+        pending=deepcopy(saved)
+        original=next((row for row in certificate.selected_tenants(saved) if str(row.get('tenant_id'))==str(registered['id'])),{})
+        party=deepcopy(original)
+        for key in ('party_type','legal_name','identity_number','address','email','phone','signatory_name','signatory_identity_number','signatory_capacity','representative_id','representative_phone','representative_email'):
+            party[key]=registered.get(key) or ''
+        party.update(tenant_id=registered['id'],identity_source='bil_tenant')
+        pending.setdefault('_parties',{}).update(lessees=[party],lessee=deepcopy(party))
+        if draft:
+            workflow.save_items(draft,pending)
+            version=int(draft['version'])+1
+        else:
+            draft=workflow.create_parties_draft(property_id,pending,automatic_reference=True)
+            version=draft['version']
+        arguments={'property_id':property_id,'draft_id':draft['id']}
+        return jsonify(saved=True,tenant=party,version=version,draft_id=str(draft['id']),
+            capture_url=url_for('billing_bp.lease_capture_section',section_key='parties',**arguments))
     if section_key=='period' and not frozen:
         start=request.values.get('COMMENCEMENT_DATE',values.get('[COMMENCEMENT_DATE]',''))
         duration=request.values.get('DURATION_MONTHS',values.get('[DURATION_MONTHS]',''))
@@ -302,12 +324,6 @@ def edit(property_id,section_key):
     representative_owner=matches[0] if len(matches)==1 else None
     saved_lessees=certificate.selected_tenants(items)
     lessee_types=[request.form.get('LESSEE_'+str(index+1)+'_PARTY_TYPE',saved_lessees[index].get('party_type','') if index<len(saved_lessees) else '') for index in range(lessee_count)]
-    party_validation=[]
-    if section_key=='parties':
-        from .lease_certificate_parties import blocks
-        for group in blocks(saved,owners,tenants):
-            for party in group['parties']:
-                party_validation.extend(group['label']+' '+(party['name'] or party['identity_number'])+': '+warning for warning in party['warnings'])
     from .lease_signing import rows as signing_rows
     signing_entries=signing_rows(saved,owners,tenants) if section_key=='signing' else []
     if errors and section_key=='signing':
@@ -318,7 +334,7 @@ def edit(property_id,section_key):
     return render_pm_template('program_billing/lease_capture_section.html',title=definition[1],property=prop,
         lease_draft=draft,section_key=section_key,section=section,errors=errors,frozen=frozen,
         signing_rows=signing_entries,
-        party_rows=party_rows,lessee_groups=lessee_groups,lessee_template=lessee_template,party_validation=party_validation,
+        party_rows=party_rows,lessee_groups=lessee_groups,lessee_template=lessee_template,
         lessee_types=lessee_types,
         lessee_details=lessee_details,sc_headings=supplementary.HEADINGS,legacy_additional=legacy_additional,
         sc_editor=supplementary.editor(saved,request.form if errors and section_key=='additional' else None),legacy_sc=legacy_sc,

@@ -24,7 +24,8 @@
     if (!form.reportValidity()) return;
     document.getElementById('capture-return').value = destination.dataset.captureReturn || (destination.dataset.captureSection ? 'section' : 'back');
     document.getElementById('capture-return-section').value = destination.dataset.captureSection || '';
-    form.requestSubmit(document.getElementById('capture-save'));
+    const clauseSave = document.getElementById('sc-save-clause');
+    if (clauseSave) clauseSave.click();else form.requestSubmit(document.getElementById('capture-save'));
   });
   document.getElementById('capture-discard-back').addEventListener('click', function () {
     submitting = true;window.location.assign(destination.href);
@@ -104,8 +105,9 @@
       clauses.forEach((clause,index) => {
         const row = rows.insertRow();
         row.insertCell().textContent = 'SC-' + String(index + 1).padStart(2,'0');
-        row.insertCell().textContent = clause.heading_type === 'Custom' ? clause.heading : clause.heading_type;
-        const button = document.createElement('button');button.type = 'button';button.textContent = 'Edit';button.disabled = readOnly;
+        const titleCell = row.insertCell();titleCell.className = 'sc-clause-heading';
+        titleCell.textContent = (clause.heading || clause.heading_type).toUpperCase();
+        const button = document.createElement('button');button.type = 'button';button.textContent = 'Edit';button.className = 'sc-edit';button.disabled = readOnly;
         button.addEventListener('click',() => openEntry(index));row.insertCell().append(button);
       });
       add.disabled = readOnly || clauses.length >= 50;
@@ -136,8 +138,7 @@
     document.getElementById('sc-save-clause').addEventListener('click',function () {
       if (readOnly) return;
       if (!heading.value) {
-        if (!clauses.length) mode.value = 'none';
-        closeEntry();return;
+        status.textContent = 'Choose a clause heading.';return;
       }
       const title = heading.value === 'Custom' ? custom.value.trim() : heading.value;
       const text = body.value.trim();
@@ -150,7 +151,7 @@
       }
       clauses.splice(0,clauses.length,...proposed);mode.value = 'add';
       stageClauses();renderTable();closeEntry();
-      document.getElementById('sc-table-status').textContent = 'Clause added to the table. Click Save to keep these changes on the lease.';
+      form.requestSubmit();
     });
     form.addEventListener('submit',function (event) {
       if (scEntryDirty()) {

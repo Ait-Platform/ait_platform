@@ -86,6 +86,13 @@ class HtmlLeaseKitTests(unittest.TestCase):
                 for value in ('Signing City 0','Signing City 1','Signing City 2','2026-11-10','2026-11-11','2026-11-12','Natural Person','Entity Company','Entity Director'):
                     self.assertIn(value,text)
             self.assertIn('The exact saved condition wording.',''.join(texts['special_conditions']))
+            self.assertIn('SAVED SPECIAL CLAUSE',''.join(texts['special_conditions']))
+            self.assertIn('SAVED SPECIAL CLAUSE',''.join(texts['lease']))
+            for component in ('special_conditions','lease'):
+                page=self.client.get('/view/26?draft_id=draft-one&component='+component,headers=self.headers)
+                tree=html.fromstring(page.data)
+                self.assertTrue(tree.xpath('//h3[contains(.,"SAVED SPECIAL CLAUSE")]'))
+                self.assertIn('The exact saved condition wording.',page.text)
         self.assertEqual(self.items,self.original)
 
     def test_legacy_and_editor_conditions_remain_visible_without_bypassing_pdf_review(self):

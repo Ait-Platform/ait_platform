@@ -8,7 +8,7 @@
 {% include 'program_billing/lease_certificate_document.html' %}
 {% elif component_key=='special_conditions' %}
 {% if states['special_conditions'].get('omitted') %}<article class="kit-text-page"><h2>SPECIAL CONDITIONS</h2><p>None.</p></article>
-{% elif states['special_conditions'].get('legacy_conditions') %}<article class="kit-text-page"><h2>SPECIAL CONDITIONS</h2>{% for entry in states['special_conditions'].legacy_conditions %}<div style="white-space:pre-wrap">{{ entry.text }}</div>{% endfor %}{% for clause in states['special_conditions'].get('clauses',[]) %}<h3>{{ clause.heading }}</h3><div style="white-space:pre-wrap">{{ clause.text }}</div>{% endfor %}</article>
+{% elif states['special_conditions'].get('legacy_conditions') %}<article class="kit-text-page"><h2>SPECIAL CONDITIONS</h2>{% for entry in states['special_conditions'].legacy_conditions %}<div style="white-space:pre-wrap">{{ entry.text }}</div>{% endfor %}{% for clause in states['special_conditions'].get('clauses',[]) %}<h3>{{ clause.heading|upper }}</h3><div style="white-space:pre-wrap">{{ clause.text }}</div>{% endfor %}</article>
 {% else %}{% set key='special_conditions' %}{% include 'program_billing/lease_supplementary_conditions.html' %}{% endif %}
 {% elif component_key=='signature' %}
 {% include 'program_billing/lease_signature_document.html' %}

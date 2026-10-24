@@ -1,4 +1,4 @@
 <article class="kit-text-page" data-document="supplementary_conditions">
 <h2>SUPPLEMENTARY CONDITIONS</h2>
-{% for clause in states[key].clauses %}<section class="sc-preview-clause"><h3 style="font-weight:bold;margin:18px 0 8px">SC-{{ '%02d' % loop.index }} &mdash; {{ clause.heading }}</h3><div style="white-space:pre-wrap;overflow-wrap:anywhere">{{ clause.text }}</div></section>{% endfor %}
+{% for clause in states[key].clauses %}<section class="sc-preview-clause"><h3 style="font-weight:bold;margin:18px 0 8px">SC-{{ '%02d' % loop.index }} &mdash; {{ clause.heading|upper }}</h3><div style="white-space:pre-wrap;overflow-wrap:anywhere">{{ clause.text }}</div></section>{% endfor %}
 </article>

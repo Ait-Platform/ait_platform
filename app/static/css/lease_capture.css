@@ -96,3 +96,13 @@ div:has(> #lease-header-actions > .lease-main-navigation) { display:flex; justif
 @media (max-width:480px) { .capture-header { flex-wrap:wrap; } }
 
 .lease-document-header { display:flex; justify-content:space-between; align-items:center; gap:16px; }
+
+/* Special Conditions uses one clause-level save workflow. */
+#sc-entry[hidden]{display:none}
+.sc-entry-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+#sc-add,.sc-edit,#sc-save-clause,#sc-cancel{min-height:38px;padding:8px 14px;border:1px solid #cbd5e1;border-radius:6px;color:#1e293b;font-weight:600}
+.capture-actions #sc-add{background:#dbeafe;color:#1e293b}
+.sc-edit{background:#fef9c3}
+#sc-save-clause{background:#dcfce7}
+#sc-cancel{background:#fee2e2}
+#sc-heading,#sc-custom,.sc-clause-heading{text-transform:uppercase;font-weight:700}

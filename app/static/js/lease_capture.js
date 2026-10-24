@@ -198,8 +198,8 @@
   const tenants = data ? JSON.parse(data.textContent) : [];
   let operation = '';
   let newGroup = null;
-  const choices = Array.from(document.querySelectorAll('[data-lease-tenant-selection]'));
-  const selection = identifier => choices.find(input => input.value === identifier);
+  const choice = document.getElementById('party-tenant-choice');
+  const selectionChanged = document.getElementById('tenant-selection-changed');
   function show(operationName) {
     document.getElementById('party-initial-message').hidden = true;
     document.getElementById('party-lessors').hidden = operationName !== 'lessors';
@@ -237,7 +237,7 @@
   const current = document.getElementById('party-current-lessees');
   function removeGroup(group) {
         const registered = group.querySelector('.register-choice')?.value;
-        if (selection(registered)) selection(registered).checked = false;
+        if (choice.value === registered) { choice.value = '';selectionChanged.value = '0'; }
         group.remove();newGroup = null;
         Array.from(groups.children).forEach((item,offset) => {
           const index = offset + 1;item.dataset.lesseeIndex = String(index);
@@ -279,7 +279,7 @@
   });
   document.getElementById('show-lessors').addEventListener('click', () => show('lessors'));
   document.getElementById('select-tenant').addEventListener('click', function () {
-    show('select');choices[0]?.focus();
+    show('select');choice.focus();
   });
   document.getElementById('add-lessee').addEventListener('click', function () {
     if (!newGroup || (operation === 'add' && hasParticulars(newGroup))) newGroup = availableGroup();
@@ -298,6 +298,7 @@
     const details = document.createElement('dl');
     const labels = {legal_name:'Name',party_type:'Party Type',entity_type:'Entity Type',identity_number:'Registration / ID Number',address:'Address',physical_address:'Physical Address',service_address:'Service Address',email:'Email',phone:'Phone',signatory_name:'Representative',signatory_identity_number:'Representative ID Number',signatory_capacity:'Representative Capacity (as recorded)',representative_email:'Representative Email',representative_phone:'Representative Phone'};
     Object.entries(labels).forEach(function (entry) {
+      if (tenant.party_type === 'natural_person' && /^(signatory_|representative_)/.test(entry[0])) return;
       const value = tenant[entry[0]];
       if (value == null || String(value).trim() === '') return;
       const label = document.createElement('dt');label.textContent = entry[1];
@@ -306,24 +307,21 @@
     });
     card.appendChild(details);host.appendChild(card);
   }
-  function selectTenant(identifier) {
-    showTenantDetails(tenants.find(tenant => String(tenant.id) === identifier));
-    const existing = Array.from(groups.children).find(group => group.querySelector('.register-choice')?.value === identifier);
-    const target = existing || availableGroup();
-    if (!target) { document.getElementById('party-tenant-status').textContent = 'The lease already has 50 Lessees.';return; }
+  choice.addEventListener('change',function () {
+    if (form.dataset.frozen === '1' || !choice.value) return;
+    const tenant = tenants.find(row => String(row.id) === choice.value);
+    if (!tenant) return;
+    // An explicit dropdown choice replaces the current selection; it never appends.
+    Array.from(groups.children).forEach(group => group.remove());
+    newGroup = null;count.value = '0';
+    const target = availableGroup();
     const register = target.querySelector('.register-choice');
-    if (!register) return;
-    if (existing) { document.getElementById('party-tenant-status').textContent = '';return; }
-    register.value = identifier;
-    register.dispatchEvent(new Event('change', {bubbles:true}));
-    document.getElementById('party-tenant-status').textContent = 'Selection changed. Save to keep it on this lease.';
-  }
-  choices.forEach(input => input.addEventListener('change',function () {
-    if (form.dataset.frozen === '1') return;
-    if (input.checked) selectTenant(input.value);
-    else Array.from(groups.children).filter(group => group.querySelector('.register-choice')?.value === input.value).forEach(removeGroup);
-    refreshSelected();
-  }));
+    register.value = choice.value;
+    register.dispatchEvent(new Event('change',{bubbles:true}));
+    selectionChanged.value = '1';
+    showTenantDetails(tenant);refreshSelected();
+    document.getElementById('party-tenant-status').textContent = 'Tenant selected. Save to keep this selection on the lease.';
+  });
   if (form.dataset.hasErrors === '1') {
     newGroup = Array.from(groups.children).filter(hasParticulars).pop() || groups.firstElementChild;
     if (newGroup) {
@@ -344,7 +342,7 @@
     const fields = {LEGAL_NAME:'legal_name',IDENTITY_NUMBER:'identity_number',SIGNATORY_NAME:'signatory_name',SIGNATORY_IDENTITY_NUMBER:'signatory_identity_number',ADDRESS:'address',EMAIL:'email',PHONE:'phone'};
     Object.keys(fields).forEach(function (suffix) {
       const input = document.getElementById('field_' + prefix + suffix);
-      if (input) input.value = tenant[fields[suffix]] || '';
+      if (input) input.value = tenant.party_type === 'natural_person' && suffix.startsWith('SIGNATORY_') ? '' : (tenant[fields[suffix]] || '');
     });
     lesseeTypeLabels(group);refreshSelected();
   });

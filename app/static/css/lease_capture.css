@@ -89,8 +89,6 @@ div:has(> #lease-header-actions > .lease-main-navigation) { display:flex; justif
 .party-selected-row button { padding:6px 12px; border:1px solid #cbd5e1; border-radius:6px; background:#f1f5f9; }
 .party-selected-row button:disabled { opacity:.45; cursor:not-allowed; }
 
-.party-tenant-option { display:flex; align-items:center; gap:10px; padding:8px 0; }
-.party-tenant-option input { width:20px; height:20px; flex-shrink:0; }
 .capture-header .lease-view-link { background:#dbeafe; }
 #lease-header-actions.lease-cross-actions { display:flex; flex-direction:row; flex-wrap:nowrap; align-items:center; gap:8px; flex-shrink:0; }
 #lease-header-actions > .lease-capture-link { display:inline-block; padding:8px 16px; border-radius:8px; background:#dcfce7; color:#172c3e; text-decoration:none; white-space:nowrap; }

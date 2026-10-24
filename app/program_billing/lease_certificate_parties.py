@@ -97,6 +97,9 @@ def blocks(items, owners=(), tenants=()):
             if not (name or identity or source.get(identifier) is not None):
                 continue  # Empty capture slots are not contracting parties.
             kind = first_text(source, 'party_type', 'type', 'identity_type', 'entity_type') or first_text(merged, 'party_type', 'type', 'identity_type', 'entity_type')
+            if kind in NATURAL and any(key in source for key in REP_FIELDS) and not any(present(source.get(key)) for key in REP_FIELDS):
+                # A saved personal signature must not inherit a stale register representative.
+                for key in REP_FIELDS:merged[key]=''
             party = {'name': name, 'identity_number': identity, 'type': kind,
                      'representative': representative(merged), 'warnings': [], 'source_index': source_index, 'register_id': source.get(identifier)}
             if not name or not identity:

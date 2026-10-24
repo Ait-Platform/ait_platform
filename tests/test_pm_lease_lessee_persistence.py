@@ -96,8 +96,6 @@ class LesseePersistenceTests(unittest.TestCase):
         data={'csrf_token':self.csrf,'version':str(version),'lessor_count':'1','lessee_count':'2','action':'save',
               'tenant_register_id_1':'11','LESSEE_1_PARTY_TYPE':'natural_person','tenant_register_id_2':'22','LESSEE_2_PARTY_TYPE':'juristic_person'}
         data.update(changes)
-        data.setdefault('lease_selection_version','1')
-        data.setdefault('lease_selected_tenant_id',[data['tenant_register_id_'+str(index)] for index in range(1,int(data['lessee_count'])+1) if data.get('tenant_register_id_'+str(index))])
         return self.client.post(self.url,headers={'X-Test-Owner':'yes'},data=data)
 
     def test_both_types_persist_and_reopen_as_real_distinct_lessees(self):
@@ -191,69 +189,60 @@ class LesseePersistenceTests(unittest.TestCase):
         self.assertEqual(self.stored()['items'],frozen)
 
 
-    def test_rendered_form_deselection_persists_and_matches_certificate_pdf(self):
-        from urllib.parse import urlsplit,parse_qs
+    def test_existing_tenant_dropdown_replaces_selection_and_reopens_exact_outputs(self):
         import fitz
-        self.session.execute(text("UPDATE bil_tenant SET name=CASE id WHEN 11 THEN 'Marelise van der Merwe' ELSE 'WBH NPC' END"));self.session.commit()
+        from app.program_billing.lease_certificate_parties import blocks
+        self.session.execute(text("UPDATE bil_tenant SET name=CASE id WHEN 11 THEN 'Marelise van der Merwe' ELSE 'WBH NPC' END"))
+        # Residual register representative data must not override a saved personal signature.
+        self.session.execute(text("INSERT INTO bil_tenant_identity VALUES (44,11,7,'Stale Natural Agent','OLD-44','','')"));self.session.commit()
         self.assertEqual(self.save_both().status_code,302)
-        for selected_ids,expected in ((['11'],['Marelise van der Merwe']),(['22'],['WBH NPC']),(['11','22'],['Marelise van der Merwe','WBH NPC']),([],[])):
-            # Start with both saved; submit real rendered controls, leaving stale hidden
-            # party fields in place while the visible checkbox selection changes.
-            self.assertEqual(self.save_both().status_code,302)
+        for identifier,expected,absent in (('11','Marelise van der Merwe','WBH NPC'),('22','WBH NPC','Marelise van der Merwe')):
             page=self.client.get(self.url,headers={'X-Test-Owner':'yes'});tree=html.fromstring(page.data)
-            self.assertEqual(tree.xpath('//input[@data-lease-tenant-selection and @checked]/@value'),['11','22'])
+            self.assertEqual(len(tree.xpath('//*[@id="party-tenant-choice"]')),1)
+            self.assertFalse(tree.xpath('//input[@data-lease-tenant-selection]'))
             data={}
-            form_node=tree.get_element_by_id('certificate-form')
-            for element in form_node.xpath('.//input[@name and not(ancestor::template)] | .//textarea[@name and not(ancestor::template)] | .//select[@name and not(ancestor::template)]'):
+            for element in tree.get_element_by_id('certificate-form').xpath('.//input[@name and not(ancestor::template)] | .//textarea[@name and not(ancestor::template)] | .//select[@name and not(ancestor::template)]'):
                 name=element.get('name')
                 if element.get('type')=='checkbox':continue
                 if element.tag=='textarea':value=element.text or ''
                 elif element.tag=='select':value=(element.xpath('./option[@selected]/@value') or element.xpath('./option/@value') or [''])[0]
                 else:value=element.get('value','')
                 data[name]=value
-            data['lease_selected_tenant_id']=selected_ids
+            data.update(selected_tenant_id=identifier,tenant_selection_changed='1')
             self.assertEqual(self.client.post(self.url,headers={'X-Test-Owner':'yes'},data=data).status_code,302)
             self.session.close();self.session=Session(self.conn);self.db.session=self.session
-            saved=self.stored()['items']
-            self.assertEqual([row['legal_name'] for row in self.cert.selected_tenants(saved)],expected)
+            saved=self.stored()['items'];selected=self.cert.selected_tenants(saved)
+            self.assertEqual([str(row['tenant_id']) for row in selected],[identifier])
             reopened=html.fromstring(self.client.get(self.url,headers={'X-Test-Owner':'yes'}).data)
-            self.assertEqual(reopened.xpath('//input[@data-lease-tenant-selection and @checked]/@value'),selected_ids)
-            view_link=reopened.xpath('//a[normalize-space()="View Lease"]')[0]
-            self.assertEqual(view_link.getnext().text_content(),'Back')
-            self.assertFalse(view_link.xpath('ancestor-or-self::*[@hidden]'))
-            target=view_link.get('href');query=parse_qs(urlsplit(target).query)
-            self.assertEqual(query['draft_id'],[str(self.identifier)]);self.assertIn('/26',target)
-            view=self.client.get(target+'&component=certificate',headers={'X-Test-Owner':'yes'})
-            self.assertEqual(view.status_code,200);certificate=html.fromstring(view.data)
-            party_rows=certificate.xpath('//tr[@class="certificate-party"][th="Lessee"]')
-            self.assertEqual(len(party_rows),len(expected))
+            self.assertEqual(reopened.xpath('//*[@id="party-tenant-choice"]/option[@selected]/@value'),[identifier])
+            self.assertEqual(reopened.xpath('//textarea[@id="field_LESSEE_1_LEGAL_NAME"]/text()'),[expected])
+            certificate_link=reopened.xpath('//a[normalize-space()="View Lease"]')[0].get('href')
+            view=self.client.get(certificate_link+'&component=certificate',headers={'X-Test-Owner':'yes'})
+            self.assertEqual(view.status_code,200);document=html.fromstring(view.data)
+            self.assertEqual(len(document.xpath('//tr[@class="certificate-party"][th="Lessee"]')),1)
+            self.assertIn(expected,document.text_content());self.assertNotIn(absent,document.text_content())
             pdf=self.client.get('/billing/leases/property/26/kit.pdf?draft_id='+str(self.identifier)+'&component=certificate',headers={'X-Test-Owner':'yes'})
             self.assertEqual(pdf.status_code,200)
             pdf_text=''.join(page.get_text() for page in fitz.open(stream=pdf.data,filetype='pdf'))
-            for name in ('Marelise van der Merwe','WBH NPC'):
-                self.assertEqual(name in certificate.text_content(),name in expected)
-                self.assertEqual(name in pdf_text,name in expected)
-            capture_link=certificate.xpath('//*[@id="lease-header-actions"]/a[normalize-space()="Data Capture"]')[0]
-            self.assertEqual(capture_link.getnext().text_content(),'Back')
-            self.assertFalse(capture_link.xpath('ancestor-or-self::*[@hidden]'))
-            capture_target=capture_link.get('href');self.assertIn('/26',capture_target)
-            self.assertEqual(parse_qs(urlsplit(capture_target).query)['draft_id'],[str(self.identifier)])
-            returned=self.client.get(capture_target,headers={'X-Test-Owner':'yes'})
-            self.assertEqual(returned.status_code,200);self.assertIn('View Lease',returned.text)
-            self.assertEqual(self.session.execute(text('SELECT count(*) FROM bil_tenant')).scalar(),2)
-            self.assertEqual(saved['_certificate_authorities'],self.initial['_certificate_authorities'])
+            self.assertIn(expected,pdf_text);self.assertNotIn(absent,pdf_text)
+            for component in ('signature','lease'):
+                output=self.client.get(certificate_link+'&component='+component,headers={'X-Test-Owner':'yes'})
+                self.assertEqual(output.status_code,200);self.assertIn(expected,output.text);self.assertNotIn(absent,output.text)
+            if identifier=='11':
+                for text_value in ('WBH NPC','Stale Natural Agent','Representative signing authority','Required representative'):
+                    self.assertNotIn(text_value,view.text);self.assertNotIn(text_value,pdf_text)
+                lessee=blocks(saved,(),[dict(row) for row in self.session.execute(text("SELECT t.id,t.party_type,r.legal_name AS signatory_name,r.identity_number AS signatory_identity_number FROM bil_tenant t LEFT JOIN bil_tenant_identity r ON r.tenant_id=t.id")).mappings().all()])[1]['parties'][0]
+                self.assertEqual(lessee['warnings'],[]);self.assertEqual(lessee['representatives'],[])
+                self.assertFalse(selected[0].get('signatory_capacity'))
+            else:self.assertIn('Entity Representative',pdf_text)
             self.assertEqual(saved['_lease_history'],self.initial['_lease_history'])
-        for asset,selector in (('lease_capture.css','.capture-header .lease-view-link'),('lease_kit.css','#lease-header-actions > .lease-capture-link')):
-            css=self.client.get('/static/css/'+asset)
-            self.assertEqual(css.status_code,200);self.assertIn(selector,css.text);css.close()
-        self.assertIn('lease-cross-actions',view.text)
-        saved_view=self.save_both(lease_selected_tenant_id=[],capture_return='view')
-        self.assertEqual(saved_view.status_code,302);self.assertIn('/view/26?',saved_view.location)
-        self.assertEqual(self.client.get(saved_view.location,headers={'X-Test-Owner':'yes'}).status_code,200)
-        stale=self.save_both(lease_selection_version='')
-        self.assertEqual(stale.status_code,400)
-        self.assertEqual(self.cert.selected_tenants(self.stored()['items']),[])
-        self.assertEqual(self.save_both(lease_selected_tenant_id=['999']).status_code,400)
+            self.assertEqual(self.session.execute(text('SELECT count(*) FROM bil_tenant')).scalar(),2)
+        # Simply opening/saving without changing the dropdown preserves intentional multi-party selections.
+        self.assertEqual(self.save_both().status_code,302)
+        self.assertEqual(len(self.cert.selected_tenants(self.stored()['items'])),2)
+        bad=self.save_both(tenant_selection_changed='1',selected_tenant_id='999')
+        self.assertEqual(bad.status_code,404)
+        self.assertEqual(len(self.cert.selected_tenants(self.stored()['items'])),2)
 
     def test_signed_draft_edit_is_still_rejected(self):
         frozen=copy.deepcopy(self.initial);frozen['_lease_history']={'documents':[{'kind':'signed_original'}]}

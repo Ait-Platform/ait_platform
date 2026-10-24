@@ -81,7 +81,7 @@ def edit(property_id,section_key):
             for key in ('address','email','phone'):
                 values['[LESSEE_'+str(index)+'_'+key.upper()+']']=party.get(key,registered.get(key)) or ''
     lessor_count,lessee_count=form.counts(items)
-    errors=[];date_differences=[];calculated_dates={};explicit_selection=False
+    errors=[];date_differences=[];calculated_dates={}
     if section_key=='period' and not frozen:
         start=request.values.get('COMMENCEMENT_DATE',values.get('[COMMENCEMENT_DATE]',''))
         duration=request.values.get('DURATION_MONTHS',values.get('[DURATION_MONTHS]',''))
@@ -117,26 +117,28 @@ def edit(property_id,section_key):
                 for key in ('expiry_date','renewal_notice_date'):
                     if key in calculated_dates:edits['['+key.upper()+']']=calculated_dates[key]
             edits={token:value for token,value in edits.items() if token!='[LEASE_REFERENCE]' and not token.endswith('_AUTHORITY_EVIDENCE]') and not re.fullmatch(r'\[LESSOR_\d+_(?:NAME|IDENTITY_NUMBER)\]',token)}
-            selected_register={};deselected_indexes=set()
-            explicit_selection=request.form.get('lease_selection_version')=='1'
-            selected_ids=set(request.form.getlist('lease_selected_tenant_id')) if explicit_selection else None
-            if section_key=='parties' and not explicit_selection:
-                raise ValueError('Reload Parties before saving the current lessee selection.')
+            selected_register={}
             if section_key=='parties':
+                if request.form.get('lease_selection_version'):
+                    raise ValueError('Reload Parties to use Select Existing Tenant before saving.')
                 original_tenants=certificate.selected_tenants(items)
-                for index in range(1,lessee_count+1):
-                    identifier=request.form.get('tenant_register_id_'+str(index),'')
-                    if not identifier:continue
-                    if explicit_selection and identifier not in selected_ids:
-                        deselected_indexes.add(index);continue
-                    registered=tenant_register.selected(identifier)
-                    selected_register[index]=registered
-                    old=original_tenants[index-1] if index<=len(original_tenants) else {}
-                    if str(old.get('tenant_id',''))!=str(registered['id']):
-                        for key in ('legal_name','identity_number','signatory_name','signatory_identity_number'):
-                            edits['[LESSEE_'+str(index)+'_'+key.upper()+']']=registered.get(key) or ''
-                if explicit_selection and selected_ids!={str(row['id']) for row in selected_register.values()}:
-                    raise ValueError('Reload Parties and select the lessees again before saving.')
+                replacement=request.form.get('tenant_selection_changed')=='1'
+                if replacement:
+                    registered=tenant_register.selected(request.form.get('selected_tenant_id'))
+                    selected_register[1]=registered;lessee_count=1
+                    edits={key:value for key,value in edits.items() if not key.startswith('[LESSEE_')}
+                    for key in ('legal_name','identity_number','address','email','phone','signatory_name','signatory_identity_number'):
+                        edits['[LESSEE_1_'+key.upper()+']']=registered.get(key) or ''
+                else:
+                    for index in range(1,lessee_count+1):
+                        identifier=request.form.get('tenant_register_id_'+str(index),'')
+                        if not identifier:continue
+                        registered=tenant_register.selected(identifier)
+                        selected_register[index]=registered
+                        old=original_tenants[index-1] if index<=len(original_tenants) else {}
+                        if str(old.get('tenant_id',''))!=str(registered['id']):
+                            for key in ('legal_name','identity_number','signatory_name','signatory_identity_number'):
+                                edits['[LESSEE_'+str(index)+'_'+key.upper()+']']=registered.get(key) or ''
             if section_key=='signing':
                 from .lease_signing import update
                 pending=update(saved,request.form,owners,tenants)
@@ -170,10 +172,13 @@ def edit(property_id,section_key):
                     if all(str(row.get(key) or '')==str(registered.get(key) or '') for key in ('legal_name','identity_number')):
                         row['tenant_id']=registered['id']
                         row['party_type']=registered.get('party_type') or ''
+                        if row['party_type']=='natural_person':
+                            for key in ('signatory_name','signatory_identity_number','signatory_capacity','representative_phone','representative_email'):
+                                row[key]=''
                         for key in ('address','email','phone'):
                             if '[LESSEE_'+str(index)+'_'+key.upper()+']' not in edits:row[key]=registered.get(key) or ''
                 selected_rows=pending.get('_parties',{}).get('lessees',[])
-                selected_rows=[row for index,row in enumerate(selected_rows,1) if index not in deselected_indexes and (row.get('tenant_id') is not None or any(certificate.present(row.get(key)) for key in ('legal_name','identity_number')))]
+                selected_rows=[row for index,row in enumerate(selected_rows,1) if row.get('tenant_id') is not None or any(certificate.present(row.get(key)) for key in ('legal_name','identity_number'))]
                 pending.setdefault('_parties',{})['lessees']=selected_rows
                 if selected_rows:pending['_parties']['lessee']=deepcopy(selected_rows[0])
                 else:pending['_parties'].pop('lessee',None)
@@ -325,7 +330,7 @@ def edit(property_id,section_key):
         owner_information=owners,owner_representative=representative_owner,
         missing_bank_fields=[part['name'].replace('_',' ').title() for row in section['rows'] for part in row['parts']
             if section_key=='banking' and part.get('name') and not part.get('value')],
-        selected_tenant_ids=request.form.getlist('lease_selected_tenant_id') if errors and explicit_selection else [str(row.get('tenant_id') or '') for row in certificate.selected_tenants(items)],
+        selected_tenant_ids=[str(row.get('tenant_id') or '') for row in certificate.selected_tenants(items)],
         bank_choices=[{key:account.get(key) for key in ('bank_detail_id',*certificate.BANK_FIELDS)} for account in linked],
         registration_token=request.form.get('registration_token') or str(uuid.uuid4()),
         capture_sections=[{'key':key,'label':label.split('. ',1)[-1],

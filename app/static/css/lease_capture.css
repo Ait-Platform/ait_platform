@@ -99,7 +99,10 @@ div:has(> #lease-header-actions > .lease-main-navigation) { display:flex; justif
 
 /* Special Conditions uses one clause-level save workflow. */
 #sc-entry[hidden]{display:none}
-.sc-entry-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.sc-text-header{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+.sc-text-header>label{flex-shrink:0}
+.sc-entry-actions{display:flex;gap:8px;flex-wrap:nowrap}
+@media(max-width:480px){.sc-text-header{gap:6px}.sc-entry-actions{gap:4px}#sc-entry .sc-entry-actions button{padding:8px;white-space:nowrap}}
 #sc-add,.sc-edit,#sc-save-clause,#sc-cancel{min-height:38px;padding:8px 14px;border:1px solid #cbd5e1;border-radius:6px;color:#1e293b;font-weight:600}
 .capture-actions #sc-add{background:#dbeafe;color:#1e293b}
 .sc-edit{background:#fef9c3}

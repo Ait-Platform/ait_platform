@@ -3,8 +3,6 @@ from copy import deepcopy
 
 KEY = '_supplementary_conditions'
 HEADINGS = ('Deposit Refund \u2014 Lessee Banking Details', 'Rental Adjustments', 'Parking / Other Charges', 'Utilities / Allocation', 'Custom')
-MAX_CLAUSES = 50
-MAX_TEXT = 20000
 
 
 def editor(items, posted=None):
@@ -20,7 +18,7 @@ def editor(items, posted=None):
             {'heading_type': posted.get('sc_heading_type_' + str(index), ''),
              'heading': posted.get('sc_custom_heading_' + str(index), ''),
              'text': posted.get('sc_text_' + str(index), '')}
-            for index in range(1, min(MAX_CLAUSES, max(0, count)) + 1)]
+            for index in range(1, min(len(posted) // 3, max(0, count)) + 1)]
     return result
 
 
@@ -34,21 +32,20 @@ def submitted(posted, items):
         return deepcopy(items.get(KEY))
     try: count = int(posted.get('sc_count', '0'))
     except ValueError: raise ValueError('Reload the Supplementary Conditions editor.') from None
-    if not 0 <= count <= MAX_CLAUSES or (mode == 'add' and count == 0):
-        raise ValueError('Use between 1 and 50 supplementary clauses, or choose None.')
+    # Bound iteration by supplied fields, not an arbitrary clause limit.
+    if count < 0 or count > len(posted) // 3 or (mode == 'add' and count == 0):
+        raise ValueError('Supply complete supplementary clauses, or choose None.')
     clauses = []
     for index in range(1, count + 1):
         kind = posted.get('sc_heading_type_' + str(index), '').strip()
         custom = posted.get('sc_custom_heading_' + str(index), '').strip()
         body = posted.get('sc_text_' + str(index), '').strip()
-        if kind not in HEADINGS or len(custom) > 200 or len(body) > MAX_TEXT or '\x00' in custom + body:
+        if kind not in HEADINGS or len(custom) > 200 or '\x00' in custom + body:
             raise ValueError('SC-%02d: enter a valid heading and clause text.' % index)
         heading = custom if kind == 'Custom' else kind
         if mode == 'add' and (not heading or not body):
             raise ValueError('SC-%02d: supply a clause heading and clause text, or remove the clause.' % index)
         clauses.append({'heading_type': kind, 'heading': heading, 'text': body})
-    if sum(len(row['text']) + len(row['heading']) for row in clauses) > MAX_TEXT:
-        raise ValueError('Keep supplementary conditions within 20000 characters in total.')
     # None omits output while retaining clauses so toggling does not discard saved work.
     return {'schema_version': 1, 'mode': mode, 'clauses': clauses}
 

@@ -110,7 +110,7 @@
         const button = document.createElement('button');button.type = 'button';button.textContent = 'Edit';button.className = 'sc-edit';button.disabled = readOnly;
         button.addEventListener('click',() => openEntry(index));row.insertCell().append(button);
       });
-      add.disabled = readOnly || clauses.length >= 50;
+      add.disabled = readOnly;
     }
     function stageClauses() {
       list.replaceChildren();count.value = String(clauses.length);
@@ -146,9 +146,6 @@
       const clause = {heading_type:heading.value,heading:title,text:text};
       const proposed = clauses.slice();
       if (editing < 0) proposed.push(clause);else proposed[editing] = clause;
-      if (proposed.length > 50 || proposed.reduce((sum,item) => sum + item.heading.length + item.text.length,0) > 20000) {
-        status.textContent = 'Use at most 50 clauses and 20000 characters in total.';return;
-      }
       clauses.splice(0,clauses.length,...proposed);mode.value = 'add';
       stageClauses();renderTable();closeEntry();
       form.requestSubmit();

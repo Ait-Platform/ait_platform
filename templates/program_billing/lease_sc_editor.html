@@ -6,8 +6,7 @@
 <fieldset id="sc-entry" hidden disabled><legend id="sc-entry-number">New clause</legend>
 <label class="capture-field"><span>Clause Heading</span><select id="sc-heading"><option value="">None</option>{% for heading in sc_headings %}<option value="{{ heading }}">{{ heading|upper }}</option>{% endfor %}</select></label>
 <label class="capture-field" id="sc-custom-wrap" hidden><span>Custom Heading</span><input id="sc-custom" maxlength="200"></label>
-<label class="capture-field"><span>Clause Text</span><textarea id="sc-text" rows="10" maxlength="20000"></textarea></label>
-<div class="sc-entry-actions"><button type="button" id="sc-save-clause">Save Clause</button><button type="button" id="sc-cancel">Cancel</button></div>
+<div class="capture-field"><div class="sc-text-header"><label for="sc-text">Clause Text</label><div class="sc-entry-actions"><button type="button" id="sc-save-clause">Save Clause</button><button type="button" id="sc-cancel">Cancel</button></div></div><textarea id="sc-text" rows="10"></textarea></div>
 <p id="sc-entry-status" role="alert"></p></fieldset>
 <p id="sc-table-status" role="status"></p>
 <script type="application/json" id="sc-saved-clauses">{{ sc_editor.clauses|tojson }}</script>

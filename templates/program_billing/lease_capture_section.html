@@ -36,6 +36,7 @@
 {% if section_key=='parties' %}
 <input id="lessee-count" name="lessee_count" type="hidden" value="{{ lessee_count }}">
 <div class="party-controls"><button type="button" id="show-lessors">Show Lessors</button><button type="button" id="select-tenant">Select Existing Tenant</button><button type="button" id="add-lessee" {% if frozen %}disabled{% endif %}>Add Lessee</button></div>
+<div id="tenant-payment-reference" class="mt-3 text-sm" aria-label="Tenant Reference">{% for tenant in tenant_references %}<p>Tenant Reference: {{ tenant.reference or 'Assigned when the tenant is selected' }}</p>{% endfor %}</div>
 <div id="party-current-lessees" class="mt-3" aria-label="Selected lessees"></div>
 <section id="party-work-area" aria-label="Parties work area">
 <p id="party-initial-message">View existing Lessors, select a tenant or add a new Lessee.</p>

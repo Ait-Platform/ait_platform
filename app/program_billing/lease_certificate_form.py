@@ -104,6 +104,9 @@ def submitted(form, sections):
             except ValueError: raise ValueError(name.replace('_',' ').title()+' must use YYYY-MM-DD.') from None
         if value and (name in ('MONTHLY_RENT','DEPOSIT_AMOUNT','PARKING_RENT_PER_BAY') or re.fullmatch(r'ADJUSTMENT_[123]_AMOUNT',name)):
             certificate.money_amount(value)
+        if name.endswith('SIGNATORY_NAME'):
+            from .lease_text import human
+            value=human(value)
         result[token] = value
     return result
 
@@ -177,10 +180,10 @@ CAPTURE_SECTIONS = (
     ('parties','1. Parties',0,('_contracting_lessors','_parties','_certificate_authorities','s1-01')),
     ('premises','2. Premises',1,('_premises',)),
     ('period','3. Lease Period',2,('_period','s1-18','s1-17','s1-20','s1-19','s1-26')),
-    ('financial','4. Financial Particulars',3,('_amounts','_banking_utilities','s1-30','s1-31')),
+    ('financial','4. Financial',3,('_amounts','_banking_utilities','s1-30','s1-31')),
     ('banking','5. Banking',4,('_certificate_banking',)),
-    ('additional','6. Additional Particulars',5,('s1-25','s1-37','s1-34','s1-35','s1-29','_amounts')),
-    ('signing','7. Signing Particulars',6,('_signing_particulars',)),
+    ('additional','6. Special Conditions',5,('s1-25','s1-37','s1-34','s1-35','s1-29','_amounts')),
+    ('signing','7. Signing',6,('_signing_particulars',)),
 )
 
 

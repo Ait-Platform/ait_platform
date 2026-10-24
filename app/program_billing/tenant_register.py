@@ -16,35 +16,48 @@ LEASE_FIELDS = ('party_type','legal_name','identity_number','address','email','p
 
 def readiness():
     inspector=inspect(db.session.connection())
-    required={'bil_tenant':{'id','manager_id','property_id','sectional_unit_id','party_type','name','identity_number','address','email','phone'},
+    required={'bil_tenant':{'id','manager_id','property_id','sectional_unit_id','party_type','name','identity_number','address','email','phone','notes'},
               'bil_tenant_identity':{'id','tenant_id','manager_id','legal_name','identity_number','email','phone'}}
     for table,columns in required.items():
         if not inspector.has_table(table) or not columns <= {c['name'] for c in inspector.get_columns(table)}:
             return 'Tenant register requires the pm_tenant_002 compatibility migration. No database changes were run automatically.'
     return None
 
-SELECT = """SELECT t.id,t.manager_id,t.property_id,t.sectional_unit_id,t.party_type,t.name AS legal_name,t.identity_number,t.address,t.email,t.phone,
+SELECT = """SELECT t.id,t.manager_id,t.property_id,t.sectional_unit_id,t.party_type,t.name AS legal_name,t.identity_number,t.address,t.email,t.phone,t.notes,
     r.id AS representative_id,r.legal_name AS signatory_name,r.identity_number AS signatory_identity_number,
     '' AS signatory_capacity,r.phone AS representative_phone,r.email AS representative_email
     FROM bil_tenant t LEFT JOIN bil_tenant_identity r ON r.tenant_id=t.id AND r.manager_id=t.manager_id"""
 
 def rows():
     if readiness():return []
-    return db.session.execute(text(SELECT+' WHERE t.manager_id=:u ORDER BY t.name,t.id'),{'u':current_user.id}).mappings().all()
+    from .lease_text import party
+    from .tenant_reference import read
+    result=[]
+    for row in db.session.execute(text(SELECT+' WHERE t.manager_id=:u ORDER BY t.name,t.id'),{'u':current_user.id}).mappings():
+        entry=party(dict(row));entry['tenant_reference']=read(entry.pop('notes',None));result.append(entry)
+    return result
 
-def selected(identifier):
+def selected(identifier,assign_reference=False):
     problem=readiness()
     if problem:abort(503,description=problem)
     try:identifier=int(identifier)
     except (ValueError,TypeError):abort(400,description='Select a saved tenant.')
-    row=db.session.execute(text(SELECT+' WHERE t.id=:id AND t.manager_id=:u FOR SHARE OF t'),{'id':identifier,'u':current_user.id}).mappings().first()
+    if assign_reference:
+        from .tenant_reference import ensure_for_manager
+        ensure_for_manager(db.session,current_user.id)
+    row=db.session.execute(text(SELECT+' WHERE t.id=:id AND t.manager_id=:u'+(' FOR UPDATE OF t' if assign_reference else ' FOR SHARE OF t')),{'id':identifier,'u':current_user.id}).mappings().first()
     if row is None:abort(404)
-    result=dict(row)
+    from .lease_text import party
+    from .tenant_reference import read
+    result=party(dict(row));result['tenant_reference']=read(result.pop('notes',None))
     if result['party_type']=='juristic_person' and not result['representative_id']:
         abort(409,description='The selected juristic tenant has no saved representative.')
     if result['party_type']=='natural_person':
         for key in ('signatory_name','signatory_identity_number','signatory_capacity','representative_phone','representative_email'):result[key]=''
         result['representative_id']=None
+    if assign_reference:
+        from .tenant_reference import ensure
+        result['tenant_reference']=ensure(db.session,result['id'],current_user.id)
     return result
 
 def validate(form):
@@ -62,6 +75,8 @@ def validate(form):
         if re.search(r'\[[^\[\]]+\]',data[key]):errors.append('Enter actual particulars rather than merge placeholders.')
     for key in ('email','representative_email'):
         if data[key] and not re.fullmatch(r'[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+',data[key]):errors.append('Enter a valid '+key.replace('_',' ')+'.')
+    from .lease_text import party
+    data=party(data)
     return data,errors
 
 def assignment(form, context_property_id):
@@ -89,6 +104,8 @@ def units(property_id):
     return db.session.execute(text('SELECT u.id,u.name FROM bil_sectional_unit u JOIN bil_property p ON p.id=u.property_id WHERE p.id=:p AND p.manager_id=:u AND p.is_archived=false ORDER BY u.name,u.id'),{'p':property_id,'u':current_user.id}).mappings().all()
 
 def save(data):
+    from .tenant_reference import lock_allocation,ensure_for_manager
+    lock_allocation(db.session)
     params={k:data[k] for k in ('party_type','identity_number','address','email','phone')}
     params.update(name=data['legal_name'],manager_id=current_user.id,property_id=None,sectional_unit_id=None)
     # Explicit operational defaults only when those legacy columns exist. No units,
@@ -104,6 +121,9 @@ def save(data):
         db.session.execute(text("""INSERT INTO bil_tenant_identity (tenant_id,manager_id,legal_name,identity_number,phone,email)
             SELECT :t,:u,:n,:i,:p,:e WHERE NOT EXISTS (SELECT 1 FROM bil_tenant_identity WHERE tenant_id=:t AND manager_id=:u)"""),{'t':tenant_id,'u':current_user.id,'n':data['representative_name'],
                 'i':data['representative_identity_number'],'p':data['representative_phone'],'e':data['representative_email']})
+    from .tenant_reference import ensure
+    ensure(db.session,tenant_id,current_user.id)
+    ensure_for_manager(db.session,current_user.id)
     return tenant_id
 
 @billing_bp.route('/billing/leases/property/<int:property_id>/tenants/select',methods=['GET','POST'],endpoint='lease_select_tenants')

@@ -4,6 +4,7 @@ from datetime import date
 from hashlib import sha256
 import json,re
 from .lease_certificate_parties import blocks,NATURAL,ENTITIES,identity_key
+from .lease_text import human
 KEY='_signing_particulars'
 
 
@@ -25,7 +26,7 @@ def rows(items,owners=(),tenants=()):
             key=party_key(group['label'].lower(),party)
             values=saved.get(key,{}) if key else {}
             if not isinstance(values,dict):values={}
-            result.append(dict(party,key=key,role=group['label'],place=values.get('place',''),date=values.get('date','')))
+            result.append(dict(party,key=key,role=group['label'],place=human(values.get('place','')),date=values.get('date','')))
     return result
 
 
@@ -47,7 +48,30 @@ def update(items,posted,owners=(),tenants=()):
                     if not re.fullmatch(r'\d{4}-\d{2}-\d{2}',value):raise ValueError()
                     date.fromisoformat(value)
                 except ValueError:raise ValueError('Signing dates must use YYYY-MM-DD.') from None
+            if field=='place':value=human(value)
             entry[field]=value
         saved[key]=entry
     result[KEY]=saved
     return result
+
+
+def projection(items,owners=(),tenants=()):
+    keys=sorted(row['key'] for row in rows(items,owners,tenants) if row['key'])
+    saved=items.get(KEY,{})
+    return {'parties':keys,'values':{key:{field:saved.get(key,{}).get(field,'') for field in ('place','date')} for key in keys}}
+
+def baseline(items,property_id,draft_id,owners=(),tenants=(),confirm=False):
+    from flask import current_app
+    from flask_login import current_user
+    from itsdangerous import URLSafeTimedSerializer
+    return URLSafeTimedSerializer(current_app.secret_key,salt='ait-lease-signing-baseline').dumps({'property':property_id,'draft':str(draft_id),'user':str(current_user.id),'signing':projection(items,owners,tenants),'confirm':confirm})
+
+def check_baseline(token,items,property_id,draft_id,owners=(),tenants=(),confirmed=False):
+    from flask import current_app
+    from flask_login import current_user
+    from itsdangerous import URLSafeTimedSerializer,BadSignature
+    try:
+        data=URLSafeTimedSerializer(current_app.secret_key,salt='ait-lease-signing-baseline').loads(token,max_age=28800)
+    except BadSignature:return False
+    return (data.get('property')==property_id and data.get('draft')==str(draft_id) and data.get('user')==str(current_user.id)
+        and data.get('signing')==projection(items,owners,tenants) and (not data.get('confirm') or confirmed))

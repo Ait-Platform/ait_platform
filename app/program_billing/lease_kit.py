@@ -95,7 +95,11 @@ def certificate_display_rows(sections, values, items, owners=(), tenants=()):
     """Share the same read-only party blocks between Certificate and assembled PDFs."""
     from .lease_certificate_parties import blocks
     rows=form.render_rows(sections,values)
-    rows[0]['rows']=[row for row in rows[0]['rows'] if row['label']=='Lease reference']
+    selected=certificate.selected_tenants(items)
+    for party in selected:
+        if not party.get('tenant_reference'):
+            party['tenant_reference']=next((row.get('tenant_reference','') for row in tenants if str(row['id'])==str(party.get('tenant_id'))),'')
+    rows[0]['rows']=[{'label':'Tenant Reference','parts':[{'token':'[TENANT_REFERENCE]','value':' | '.join(row.get('tenant_reference','') for row in selected if row.get('tenant_reference'))}]}]
     rows[0]['party_blocks']=blocks(items,owners,tenants)
     # Read-only Certificate rows contain values separated by pipes, never empty tokens.
     for section in rows:
@@ -166,6 +170,7 @@ def preview_context(property_id):
     return dict(title='View Lease',property=prop,signature_lessors=lessors,signature_lessees=lessees,party_blocks=party_blocks,signing_rows=signing_rows,
         lessor_representative=items.get('_parties',{}).get('lessor',{}),
         lease_reference=values.get('[LEASE_REFERENCE]') or ('LEASE-'+str(draft['id']) if draft else ''),
+        tenant_reference=' | '.join(row.get('tenant_reference') or next((t.get('tenant_reference','') for t in tenants if str(t['id'])==str(row.get('tenant_id'))),'') for row in certificate.selected_tenants(items)),
         premises_name=values.get('[PROPERTY_NAME]',''),premises_address=values.get('[PROPERTY_ADDRESS]',''),
         pdf_url=url_for('billing_bp.lease_kit_pdf',component=selected,**arguments),
         pdf_email_url=url_for('billing_bp.lease_kit_email',component=selected,**arguments),

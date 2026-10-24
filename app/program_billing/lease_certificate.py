@@ -75,9 +75,11 @@ def selected_tenants(items):
     """The selected array is authoritative, including an explicitly empty selection."""
     parties=items.get('_parties',{})
     if 'lessees' in parties:
-        return deepcopy(parties['lessees']) if isinstance(parties['lessees'],list) else []
+        from .lease_text import party
+        return [party(row) for row in deepcopy(parties['lessees'])] if isinstance(parties['lessees'],list) else []
     legacy=parties.get('lessee')
-    return [deepcopy(legacy)] if isinstance(legacy,dict) and legacy else []
+    from .lease_text import party
+    return [party(deepcopy(legacy))] if isinstance(legacy,dict) and legacy else []
 
 
 

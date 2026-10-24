@@ -358,6 +358,8 @@
       });
       window.history?.replaceState(null,'',result.capture_url);
       showTenantDetails(result.tenant);refreshSelected();markTenantSaved();
+      const paymentReference = document.getElementById('tenant-payment-reference');
+      if (paymentReference) paymentReference.textContent = 'Tenant Reference: '+(result.tenant.tenant_reference || '');
       selectionStatus.textContent = 'Saved';
     } catch (error) {
       choice.value = savedChoice;

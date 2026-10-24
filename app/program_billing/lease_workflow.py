@@ -48,8 +48,8 @@ def selected_context(property_id, lock=False):
     return prop, reason, draft
 
 
-def save_items(draft, items):
-    try: version = int(request.form.get('version', ''))
+def save_items(draft, items, expected_version=None):
+    try: version = int(request.form.get('version', '') if expected_version is None else expected_version)
     except ValueError: abort(400, description='Reload the draft before saving.')
     updated = db.session.execute(text('''UPDATE bil_lease_draft
         SET items=CAST(:items AS jsonb),version=version+1,updated_at=now()
@@ -601,7 +601,7 @@ def set_selected_tenants(items, records):
 
 def tenant_snapshot_details(party, record):
     result=deepcopy(party)
-    result.update(tenant_id=record['id'],identity_source='bil_tenant')
+    result.update(tenant_id=record['id'],identity_source='bil_tenant',tenant_reference=record.get('tenant_reference',''))
     for key in ('representative_id','representative_phone','representative_email'):result[key]=record[key]
     return result
 

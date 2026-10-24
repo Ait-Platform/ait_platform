@@ -297,6 +297,11 @@ class BilTenant(db.Model):
         order_by="BilLease.lease_start.desc()",
     )
 
+    @python_property
+    def tenant_reference(self):
+        from app.program_billing.tenant_reference import read
+        return read(self.notes)
+
     def __repr__(self):
         return f"<BilTenant id={self.id} name={self.name!r}>"
 

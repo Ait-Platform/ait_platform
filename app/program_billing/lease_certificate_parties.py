@@ -1,5 +1,6 @@
 """Read-only Certificate party blocks from saved lease particulars and selected identities."""
 from copy import deepcopy
+from .lease_text import human
 from .lease_certificate import present, selected_tenants, authority_status
 
 NATURAL = {'individual', 'natural_person'}
@@ -16,7 +17,9 @@ def first_text(party, *keys):
 
 
 def representative(party):
-    return {name: text(party.get(key)) for name, key in zip(('name', 'identity_number', 'capacity', 'phone', 'email'), REP_FIELDS)}
+    result={name: text(party.get(key)) for name, key in zip(('name', 'identity_number', 'capacity', 'phone', 'email'), REP_FIELDS)}
+    result['name']=human(result['name'])
+    return result
 
 
 def has_representative(rep):
@@ -97,6 +100,7 @@ def blocks(items, owners=(), tenants=()):
             if not (name or identity or source.get(identifier) is not None):
                 continue  # Empty capture slots are not contracting parties.
             kind = first_text(source, 'party_type', 'type', 'identity_type', 'entity_type') or first_text(merged, 'party_type', 'type', 'identity_type', 'entity_type')
+            if kind in NATURAL:name=human(name)
             if kind in NATURAL and any(key in source for key in REP_FIELDS) and not any(present(source.get(key)) for key in REP_FIELDS):
                 # A saved personal signature must not inherit a stale register representative.
                 for key in REP_FIELDS:merged[key]=''

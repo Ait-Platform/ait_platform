@@ -3967,8 +3967,10 @@ def tenant_ledger(debtor_id):
     # For statement generation shortcut
     bank_account = BusinessBankAccount.query.filter_by(user_id=current_user.id, is_default=True).first()
 
+    tenant_record=BilTenant.query.filter_by(id=debtor.reference_id,manager_id=current_user.id).first()
+    tenant_reference=tenant_record.tenant_reference if tenant_record else ''
     return render_template("program_billing/tenant_ledger.html", 
-                           debtor=debtor, 
+                           debtor=debtor,tenant_reference=tenant_reference,
                            ledgers=reversed(filtered_ledgers),
                            bank_account=bank_account,
                            start_date=start_date_str,

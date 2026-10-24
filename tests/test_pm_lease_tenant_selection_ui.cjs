@@ -31,7 +31,7 @@ module.exports=async function run(rootPath){
  const entity={id:22,party_type:'juristic_person',legal_name:'Entity Lessee',identity_number:'REG-22',signatory_name:'Entity Representative',signatory_identity_number:'REP-33'};
  groups.children.push(makeGroup(1));ids.set('certificate-form',form);ids.set('lessee-count',{value:'1'});ids.set('capture-lessees',groups);
  ids.set('capture-lessee-template',{innerHTML:'<fieldset>LESSEE_1_LEGAL_NAME tenant_register_id_1</fieldset>'});ids.set('capture-tenants',{textContent:JSON.stringify([natural,entity])});
- for(const id of ['capture-save-back','capture-discard-back','party-tenant-choice','show-lessors','select-tenant','add-lessee','party-initial-message','party-lessors','party-tenant-selection','party-selected-details','party-tenant-status','party-current-lessees','capture-save'])ids.set(id,generic());
+ for(const id of ['capture-save-back','capture-discard-back','party-tenant-choice','show-lessors','select-tenant','add-lessee','party-initial-message','party-lessors','party-tenant-selection','party-selected-details','party-tenant-status','party-current-lessees','capture-save','tenant-payment-reference'])ids.set(id,generic());
  ids.set('tenant-selection-changed',generic());
  const document={getElementById:id=>ids.get(id)||null,querySelector:()=>null,querySelectorAll:()=>[],createElement(tag){if(tag!=='template')return generic();const holder={content:{}};Object.defineProperty(holder,'innerHTML',{set(value){holder.content.firstElementChild=makeGroup(Number(/LESSEE_(\d+)_/.exec(value)[1]));}});return holder;}};
  let mode='success',version=4,finish;
@@ -42,7 +42,7 @@ module.exports=async function run(rootPath){
   if(mode==='pending')await new Promise(resolve=>{finish=resolve;});
   if(mode==='failure')return {ok:false};
   const id=options.body.get('selected_tenant_id');const tenant=id==='11'?natural:entity;
-  return {ok:true,json:async()=>({saved:true,tenant:{...tenant,tenant_id:Number(id)},version:++version,draft_id:'draft-one',capture_url:'/capture/26/parties?draft_id=draft-one'})};
+  return {ok:true,json:async()=>({saved:true,tenant:{...tenant,tenant_id:Number(id),tenant_reference:id==='11'?'TR-AAAAAAAAAAAAAAAA':'TR-BBBBBBBBBBBBBBBB'},version:++version,draft_id:'draft-one',capture_url:'/capture/26/parties?draft_id=draft-one'})};
  };
  const windowListeners={};
  const sandbox={document,fetch,URL,URLSearchParams,window:{location:{href:'https://ait.test/capture/26/parties?draft_id=draft-one'},history:{replaceState(){}},addEventListener(name,fn){windowListeners[name]=fn;}},console,Event:class {},JSON,Array,Set,String,Object};
@@ -54,6 +54,7 @@ module.exports=async function run(rootPath){
  assert.equal(groups.children[0].inputs[0].value,'Natural Lessee');assert.equal(groups.children[0].rep.hidden,true);
  assert.equal(ids.get('tenant-selection-changed').value,'0');
  assert.equal(ids.get('party-tenant-status').textContent,'Saved');assert.equal(meta.version.value,'5');
+ assert.equal(ids.get('tenant-payment-reference').textContent,'Tenant Reference: TR-AAAAAAAAAAAAAAAA');
  let initialWarning=false;windowListeners.beforeunload({preventDefault(){initialWarning=true;}});
  assert.equal(initialWarning,false,'Successfully autosaved selection needs no separate Save');
  mode='pending';const pending=choose('22');

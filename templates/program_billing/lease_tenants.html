@@ -10,4 +10,5 @@
 </fieldset>
 <div class="mt-4 flex justify-end"><button type="submit" {% if not write_enabled %}disabled{% endif %} class="rounded-lg bg-blue-700 px-4 py-2 text-white disabled:opacity-50">Save Tenant</button></div></form>
 <script src="{{ url_for('static',filename='js/pm_tenant_register.js') }}" defer></script>
+<h2 class="mt-6 font-semibold">Tenant Register</h2><table class="capture-selector"><thead><tr><th>Tenant</th><th>Tenant Reference</th></tr></thead><tbody>{% for tenant in tenants %}<tr><td>{{ tenant.legal_name }}</td><td>{{ tenant.tenant_reference or 'Assigned when selected' }}</td></tr>{% endfor %}</tbody></table>
 {% endblock %}

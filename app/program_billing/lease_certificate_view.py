@@ -81,17 +81,19 @@ def edit(property_id,section_key):
             for key in ('address','email','phone'):
                 values['[LESSEE_'+str(index)+'_'+key.upper()+']']=party.get(key,registered.get(key)) or ''
     lessor_count,lessee_count=form.counts(items)
-    errors=[];date_differences=[];calculated_dates={}
+    errors=[];date_differences=[];calculated_dates={};signing_conflict=False;response_status=200
+    from . import lease_signing
+    class SigningConflict(ValueError):pass
     if request.method=='POST' and request.form.get('action')=='save_tenant_selection':
         if section_key!='parties':abort(400)
         snapshot.require_particulars_schema()
         if frozen:abort(409,description='Issued or signed lease particulars are preserved.')
         if draft and str(draft['version'])!=request.form.get('version'):abort(409,description='Reload the changed lease before selecting a tenant.')
-        registered=tenant_register.selected(request.form.get('selected_tenant_id'))
+        registered=tenant_register.selected(request.form.get('selected_tenant_id'),assign_reference=True)
         pending=deepcopy(saved)
         original=next((row for row in certificate.selected_tenants(saved) if str(row.get('tenant_id'))==str(registered['id'])),{})
         party=deepcopy(original)
-        for key in ('party_type','legal_name','identity_number','address','email','phone','signatory_name','signatory_identity_number','signatory_capacity','representative_id','representative_phone','representative_email'):
+        for key in ('party_type','legal_name','identity_number','address','email','phone','signatory_name','signatory_identity_number','signatory_capacity','representative_id','representative_phone','representative_email','tenant_reference'):
             party[key]=registered.get(key) or ''
         party.update(tenant_id=registered['id'],identity_source='bil_tenant')
         pending.setdefault('_parties',{}).update(lessees=[party],lessee=deepcopy(party))
@@ -122,7 +124,12 @@ def edit(property_id,section_key):
         snapshot.require_particulars_schema()
         if frozen:abort(409,description='Issued or signed lease particulars are preserved. Use Addendum for changes.')
         try:
-            if draft and str(draft['version'])!=request.form.get('version'):
+            if draft and section_key=='signing':
+                stale=str(draft['version'])!=request.form.get('version')
+                token=request.form.get('signing_baseline','')
+                if (stale or token) and not lease_signing.check_baseline(token,saved,property_id,draft['id'],owners,tenants,request.form.get('confirm_signing_overwrite')=='1'):
+                    raise SigningConflict('Signing or contracting parties changed elsewhere. Your entries are preserved. Review the latest saved information before confirming a replacement.')
+            elif draft and str(draft['version'])!=request.form.get('version'):
                 abort(409,description='The draft changed. Reload before saving.')
             if request.form.get('action','save')!='save':abort(400)
             if section_key=='parties':
@@ -204,6 +211,9 @@ def edit(property_id,section_key):
                 pending.setdefault('_parties',{})['lessees']=selected_rows
                 if selected_rows:pending['_parties']['lessee']=deepcopy(selected_rows[0])
                 else:pending['_parties'].pop('lessee',None)
+                from .lease_text import party as format_party
+                pending['_parties']['lessees']=[format_party(row) for row in selected_rows]
+                if selected_rows:pending['_parties']['lessee']=deepcopy(pending['_parties']['lessees'][0])
                 original_rep=items.get('_parties',{}).get('lessor',{})
                 proposed_rep=pending.get('_parties',{}).get('lessor',{})
                 if any(original_rep.get(key,'')!=proposed_rep.get(key,'') for key in
@@ -231,7 +241,8 @@ def edit(property_id,section_key):
                 if section_key=='parties' and not saved.get('s1-01',{}).get('value'):
                     pending['s1-01']={'value':'LEASE-'+str(draft['id'])}
                 elif section_key=='parties':pending['s1-01']=deepcopy(saved['s1-01'])
-                workflow.save_items(draft,pending)
+                if section_key=='signing':workflow.save_items(draft,pending,expected_version=draft['version'])
+                else:workflow.save_items(draft,pending)
             else:draft=workflow.create_parties_draft(property_id,pending,automatic_reference=True)
             flash(definition[1]+' saved.','success')
             if request.form.get('capture_return')=='section' and form.capture_section(request.form.get('capture_return_section')):
@@ -245,6 +256,7 @@ def edit(property_id,section_key):
             db.session.rollback();payments.log_banking_integrity(error,'apply' if section_key=='banking' else 'add_account')
             errors.append('Bank account could not be saved. Its details and existing lease selections were not changed.')
         except ValueError as error:
+            if isinstance(error,SigningConflict):signing_conflict=True;response_status=409
             if section_key=='banking':
                 db.session.rollback()
             errors.append(str(error))
@@ -293,7 +305,7 @@ def edit(property_id,section_key):
         for row in lessee_template:
             if row['label']=='Capacity / authority':row['label']='Representative capacity'
     tenant_choices=[] if frozen or section_key!='parties' else [
-        {key:row.get(key) for key in ('id','party_type','legal_name','identity_number','address','email','phone','signatory_name','signatory_identity_number','signatory_capacity','representative_phone','representative_email')}
+        {key:row.get(key) for key in ('id','party_type','legal_name','identity_number','address','email','phone','signatory_name','signatory_identity_number','signatory_capacity','representative_phone','representative_email','tenant_reference')}
         for row in tenant_register.rows()]
     saved_bank=str(certificate.bank_snapshot(saved).get('bank_detail_id') or '')
     requested_bank=request.form.get('bank_detail_id',saved_bank)
@@ -330,10 +342,17 @@ def edit(property_id,section_key):
         for row in signing_entries:
             for key in ('place','date'):
                 row[key]=request.form.get('signing_'+key+'_'+str(row['key']),row[key])
+    unmatched_signing=[]
+    if errors and section_key=='signing':
+        active={row['key'] for row in signing_entries}
+        submitted_keys={name.split('_',2)[2] for name in request.form if name.startswith(('signing_place_','signing_date_'))}
+        for key in submitted_keys-active:
+            unmatched_signing.append({'place':request.form.get('signing_place_'+key,''),'date':request.form.get('signing_date_'+key,'')})
     arguments={'property_id':property_id,'draft_id':draft['id'] if draft else None}
     return render_pm_template('program_billing/lease_capture_section.html',title=definition[1],property=prop,
         lease_draft=draft,section_key=section_key,section=section,errors=errors,frozen=frozen,
-        signing_rows=signing_entries,
+        signing_rows=signing_entries,unmatched_signing_entries=unmatched_signing,signing_conflict=signing_conflict,latest_signing_rows=lease_signing.rows(saved,owners,tenants) if signing_conflict else [],
+        signing_baseline=lease_signing.baseline(saved,property_id,draft['id'] if draft else None,owners,tenants,confirm=signing_conflict) if section_key=='signing' else '',
         party_rows=party_rows,lessee_groups=lessee_groups,lessee_template=lessee_template,
         lessee_types=lessee_types,
         lessee_details=lessee_details,sc_headings=supplementary.HEADINGS,legacy_additional=legacy_additional,
@@ -351,6 +370,6 @@ def edit(property_id,section_key):
         registration_token=request.form.get('registration_token') or str(uuid.uuid4()),
         capture_sections=[{'key':key,'label':label.split('. ',1)[-1],
             'url':url_for('billing_bp.lease_capture_section',section_key=key,**arguments)} for key,label,_,_ in form.CAPTURE_SECTIONS],
-        lease_reference=saved.get('s1-01',{}).get('value') or ('LEASE-'+str(draft['id']) if draft else 'Generated on first save'),
+        tenant_references=[{'name':row.get('legal_name',''),'reference':row.get('tenant_reference') or next((t.get('tenant_reference','') for t in tenants if str(t['id'])==str(row.get('tenant_id'))),'')} for row in certificate.selected_tenants(saved)],
         capture_view=url_for('billing_bp.lease_live_view',**arguments),
-        capture_back=url_for('billing_bp.pm_lease_management',**arguments)),400 if errors else 200
+        capture_back=url_for('billing_bp.pm_lease_management',**arguments)),response_status if response_status!=200 else 400 if errors else 200

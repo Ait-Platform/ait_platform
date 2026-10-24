@@ -1,6 +1,6 @@
 {% if component_key=='cover' %}
 <article class="kit-cover-page certificate-cover" aria-label="Cover"><div class="kit-cover-particulars">
-<h2>AGREEMENT OF LEASE</h2><p>{{ lease_reference }}</p>
+<h2>AGREEMENT OF LEASE</h2>{% if tenant_reference %}<p>Tenant Reference: {{ tenant_reference }}</p>{% endif %}
 {% if premises_name %}<p><strong>{{ premises_name }}</strong></p>{% endif %}{% if premises_address %}<p>{{ premises_address }}</p>{% endif %}
 {% for group in party_blocks|default([]) %}{% if group.parties %}<h3>{{ group.title }}</h3>{% for party in group.parties %}<p>{{ party.name }}{% if party.identity_number %} | {{ party.identity_number }}{% endif %}</p>{% endfor %}{% endif %}{% endfor %}
 </div><footer class="kit-cover-footer">Powered by AIT Standard Lease</footer></article>

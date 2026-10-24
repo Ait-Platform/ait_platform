@@ -1,5 +1,5 @@
 <article class="kit-text-page signature-document" aria-label="Signatures"><h2>SIGNATURES</h2>
-<p>Lease reference: {{ lease_reference }}</p><p>{{ premises_name }} {{ premises_address }}</p>
+{% if tenant_reference %}<p>Tenant Reference: {{ tenant_reference }}</p>{% endif %}<p>{{ premises_name }} {{ premises_address }}</p>
 {% for party in signing_rows|default([]) %}<section class="signature-party"><h3>{{ party.role }}</h3>
 <p><strong>{{ party.name or party.identity_number }}</strong>{% if party.identity_number %} | {{ party.identity_number }}{% endif %}</p>
 {% for representative in party.representatives %}{% if representative.name %}<p>Authorised representative: {{ representative.name }}{% if representative.identity_number %} | {{ representative.identity_number }}{% endif %}</p>{% endif %}{% endfor %}

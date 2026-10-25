@@ -1,6 +1,7 @@
 <section id="sc-editor" data-frozen="{{ '1' if frozen else '0' }}">
 <h2 class="capture-section-title">SUPPLEMENTARY CONDITIONS</h2>
 <input type="hidden" name="sc_editor_version" value="1"><input type="hidden" id="sc-mode" name="sc_mode" value="{{ sc_editor.mode }}"><input type="hidden" id="sc-count" name="sc_count" value="{{ sc_editor.clauses|length }}">
+{% if lease_draft %}<div class="sc-export-actions"><a class="sc-export-word" href="{{ url_for('billing_bp.lease_sc_word',property_id=property.id,draft_id=lease_draft.id) }}">Export to Word</a></div>{% endif %}
 <div style="overflow-x:auto"><table class="capture-selector"><thead><tr><th>SC Number</th><th>Clause Heading</th><th>Edit</th></tr></thead><tbody id="sc-table-rows"></tbody></table></div>
 <div id="sc-clauses">{% for clause in sc_editor.clauses %}<div><input type="hidden" name="sc_heading_type_{{ loop.index }}" value="{{ clause.heading_type }}"><input type="hidden" name="sc_custom_heading_{{ loop.index }}" value="{{ clause.heading if clause.heading_type=='Custom' else '' }}"><input type="hidden" name="sc_text_{{ loop.index }}" value="{{ clause.text }}"></div>{% endfor %}</div>
 <fieldset id="sc-entry" hidden disabled><legend id="sc-entry-number">New clause</legend>

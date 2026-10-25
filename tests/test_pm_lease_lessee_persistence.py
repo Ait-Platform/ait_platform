@@ -84,7 +84,7 @@ class LesseePersistenceTests(unittest.TestCase):
         bp.add_url_rule('/certificate/<int:property_id>',endpoint='lease_certificate_edit',view_func=snap.endpoint(lambda property_id:env['edit'](property_id,'parties')))
         bp.add_url_rule('/kit-email/<int:property_id>',endpoint='lease_kit_email',view_func=lambda **kw:'')
         pdf_env={'__name__':'app.program_billing.lease_preview','__package__':'app.program_billing','billing_bp':bp,'snapshot':snap,'BytesIO':__import__('io').BytesIO,'abort':abort}
-        functions('app/program_billing/lease_preview.py',{'kit_pdf','kit_email_signer','kit_email_selection'},pdf_env)
+        functions('app/program_billing/lease_preview.py',{'kit_pdf','kit_email_signer','kit_email_selection','sc_word'},pdf_env)
         bp.add_url_rule('/particulars/<int:property_id>/<group>',endpoint='lease_particular_group',view_func=lambda **kw:'')
         for endpoint in ('pm_lease_management','lease_property_banking','lease_addendum','lease_history','lease_signed_copy'):
             bp.add_url_rule('/stub/'+endpoint+'/<int:property_id>',endpoint=endpoint,view_func=lambda **kw:'')

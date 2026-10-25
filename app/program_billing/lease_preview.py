@@ -303,3 +303,10 @@ def kit_email(property_id):
         abort(503,description='Email submission was not confirmed. Check before retrying.')
     if not accepted:abort(503,description='Email submission was not confirmed. Check before retrying.')
     return jsonify(message='PDF submitted by email. Delivery is not guaranteed.')
+
+
+@billing_bp.get('/billing/leases/property/<int:property_id>/special-conditions.docx',endpoint='lease_sc_word')
+@snapshot.endpoint
+def sc_word(property_id):
+    from .lease_sc_export import word
+    return word(property_id)

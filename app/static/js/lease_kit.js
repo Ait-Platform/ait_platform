@@ -1,8 +1,8 @@
 (function () {
   'use strict';
-  const root = document.getElementById('lease-kit-document');
+  document.querySelectorAll('[data-lease-pdf-viewer]').forEach(function (root) {
   if (!root || !root.dataset.pdfUrl) return;
-  const byId = name => document.getElementById('lease-kit-' + name);
+  const byId = name => document.getElementById((root.dataset.viewerPrefix || 'lease-kit') + '-' + name);
   const status = byId('status'), viewport = byId('viewport'), canvas = byId('canvas');
   const pageInput = byId('page');
   const buttons = {};
@@ -62,4 +62,5 @@
       await show();
     } catch (error) { failed = true; status.textContent = 'The PDF is unavailable. Reload to retry.'; update(); }
   })();
+  });
 }());

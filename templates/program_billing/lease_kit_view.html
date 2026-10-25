@@ -13,7 +13,7 @@
 </section>
 {% endfor %}
 </div>
-{% if selected_component in ['core','lease'] %}
+{% if selected_component in ['core','lease'] or (selected_component=='special_conditions' and states['special_conditions'].get('state')=='filed_pdf') %}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
 <script src="{{ url_for('static',filename='js/lease_kit.js') }}" defer></script>
 {% endif %}

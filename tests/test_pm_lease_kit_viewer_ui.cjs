@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict');
 const vm = require('node:vm');
 const fs = require('node:fs');
-module.exports = async function run(rootPath) {
+module.exports = async function run(rootPath, prefix="lease-kit", pageCount=9, companion=false) {
   const elements = new Map(), added = [], requests = [], timers = new Map(), events = {};
   const bytes = new TextEncoder().encode('%PDF-actual protected bytes').buffer;
   let printed = 0, revoked = 0, downloaded = 0, rendered = [], nextTimer = 1, blob;
@@ -10,16 +10,20 @@ module.exports = async function run(rootPath) {
       setAttribute() {}, getContext() { return {}; }, focus() {}, reportValidity() { return true; }, remove() {}, click() { downloaded++; } };
   }
   ['document','status','viewport','canvas','page','page-count','email-form','email-status','email-cancel','email-send',
-    'play','pause','zoom-out','zoom-in','previous','next','print','download','email'].forEach(name => elements.set('lease-kit-'+name, element('lease-kit-'+name)));
-  const get = name => elements.get('lease-kit-'+name);
-  get('document').dataset = { pdfUrl: '/protected/kit.pdf', emailUrl: '/protected/kit/email', filename: 'AIT-Core-REVIEW.pdf' };
+    'play','pause','zoom-out','zoom-in','previous','next','print','download','email'].forEach(name => elements.set(prefix+'-'+name, element(prefix+'-'+name)));
+  const get = name => elements.get(prefix+'-'+name);
+  get('document').dataset = { viewerPrefix:prefix, pdfUrl: '/protected/'+prefix+'.pdf', emailUrl: '/protected/kit/email', filename: 'AIT-Core-REVIEW.pdf' };
+  if(companion){
+    for(const name of ['document','status','viewport','canvas','page','page-count','zoom-out','zoom-in','previous','next'])elements.set('lease-sc-'+name,element('lease-sc-'+name));
+    elements.get('lease-sc-document').dataset={viewerPrefix:'lease-sc',pdfUrl:'/protected/lease-sc.pdf'};
+  }
   get('email-form').elements = { recipient: { focus() {} } }; get('email-send').disabled = false;
-  const document = { getElementById: id => elements.get(id), createElement: tag => {
+  const document = { querySelectorAll:()=>Array.from(elements.values()).filter(item=>item.id.endsWith('-document')), getElementById: id => elements.get(id), createElement: tag => {
     const item = element(tag);
     if (tag === 'iframe') item.contentWindow = { focus() {}, print() { printed++; } };
     return item;
   }, body: { appendChild(item) { added.push(item); if (item.onload) item.onload(); } } };
-  const pdf = { numPages: 9, async getPage(number) { return {
+  const pdf = { numPages: pageCount, async getPage(number) { return {
     getViewport({ scale }) { return { width: 595*scale, height: 842*scale }; },
     render() { rendered.push(number); return { promise: Promise.resolve() }; }
   }; } };
@@ -37,13 +41,13 @@ module.exports = async function run(rootPath) {
   vm.runInNewContext(fs.readFileSync(rootPath+'/app/static/js/lease_kit.js','utf8'),sandbox);
   const settle=async()=>{for(let i=0;i<15;i++)await Promise.resolve();};
   await settle();
-  assert.equal(get('page-count').textContent,'of 9');assert.equal(get('previous').disabled,true);
+  assert.equal(get('page-count').textContent,'of '+pageCount);assert.equal(get('previous').disabled,true);
   get('next').onclick();await settle();assert.equal(get('page').value,2);
   get('previous').onclick();await settle();assert.equal(get('page').value,1);
   const initialWidth=get('canvas').width;get('zoom-in').onclick();await settle();assert.ok(get('canvas').width>initialWidth);
   get('zoom-out').onclick();await settle();assert.equal(get('canvas').width,initialWidth);
-  get('page').value='9';get('page').onchange();await settle();assert.equal(get('next').disabled,true);
-  assert.equal(requests.length,1);assert.equal(requests[0].url,'/protected/kit.pdf');
+  get('page').value=String(pageCount);get('page').onchange();await settle();assert.equal(get('next').disabled,true);
+  assert.equal(requests.length,companion?2:1);if(companion){assert.equal(elements.get('lease-sc-page').value,1);assert.equal(elements.get('lease-sc-previous').disabled,true);assert.equal(elements.get('lease-sc-page-count').textContent,'of '+pageCount);}assert.equal(requests[0].url,'/protected/'+prefix+'.pdf');
   assert.equal(requests[0].options.credentials,'same-origin');
   assert.equal(added.length,0,'Inspection must not create external/print/download frames');
   for (const name of ['play','pause','print','download','email']) assert.equal(get(name).onclick,undefined);

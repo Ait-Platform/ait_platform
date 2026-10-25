@@ -43,6 +43,38 @@ class FiledSpecialConditionsTests(unittest.TestCase):
         with self.app.test_request_context('/view/26?draft_id='+str(self.identifier)+'&component=lease',headers=self.headers),patch.object(lease_kit_pdf,'core_bytes',return_value=lease_kit_pdf.CORE.read_bytes()):
             context=self.kit.preview_context(26);pdf=lease_kit_pdf.build_pdf('lease',context);pages=[p.get_text() for p in fitz.open(stream=pdf,filetype='pdf')];body=''.join(pages)
             self.assertIn('CURRENT OFFICIAL SC WITH MAP',body);self.assertNotIn('Original first.',body);self.assertLess(body.index('CURRENT OFFICIAL SC WITH MAP'),body.index('SIGNATURES'));self.assertGreaterEqual(len(pages),13)
+    def test_uploaded_sc_uses_shared_inline_viewer_in_component_and_full_lease(self):
+        from lxml import html
+        self.file()
+        for component,expected in (('special_conditions',['lease-sc']),('core',['lease-kit']),('lease',['lease-kit','lease-sc'])):
+            response=self.client.get('/view/26?draft_id='+str(self.identifier)+'&component='+component,headers=self.headers)
+            self.assertEqual(response.status_code,200,response.text);tree=html.fromstring(response.data)
+            viewers=tree.xpath('//*[@data-lease-pdf-viewer]')
+            self.assertEqual([viewer.get('data-viewer-prefix') for viewer in viewers],expected)
+            identifiers=[node.get('id') for node in viewers for node in node.xpath('.//*[@id]')]
+            self.assertEqual(len(identifiers),len(set(identifiers)))
+            self.assertEqual(len(tree.xpath('//script[contains(@src,"js/lease_kit.js")]')),1)
+            for viewer in viewers:
+                self.assertEqual(viewer.xpath('.//input[@aria-label="Page number"]/@value'),['1'])
+                self.assertEqual(viewer.xpath('.//button/text()'),['Zoom Out','Zoom In','Previous','Next'])
+                self.assertFalse(viewer.xpath('.//a[@download or @target="_blank"]'))
+                if viewer.get('data-viewer-prefix')=='lease-sc':
+                    url=viewer.get('data-pdf-url');self.assertIn(str(self.identifier),url);self.assertIn('component=special_conditions',url)
+                    pdf=self.client.get(url,headers=self.headers);self.assertEqual(pdf.status_code,200,pdf.data[:200]);self.assertEqual(pdf.data,self.pdf())
+                    self.assertIn('inline',pdf.headers['Content-Disposition']);self.assertIn('no-store',pdf.headers['Cache-Control'])
+
+    def test_success_message_has_scoped_accessible_contrast_and_underlined_link(self):
+        from pathlib import Path
+        css=Path('app/static/css/lease_kit.css').read_text(encoding='utf-8')
+        self.assertIn('#sc-pdf-success:not(:empty)',css);self.assertIn('#sc-pdf-success a{',css)
+        self.assertIn('background:#f0fdf4;color:#14532d',css);self.assertIn('color:#1e40af;text-decoration:underline',css)
+        def luminance(color):
+            channels=[int(color[i:i+2],16)/255 for i in (0,2,4)]
+            linear=[c/12.92 if c<=0.04045 else ((c+0.055)/1.055)**2.4 for c in channels]
+            return sum(c*w for c,w in zip(linear,(0.2126,0.7152,0.0722)))
+        for foreground in ('14532d','1e40af'):
+            self.assertGreater((luminance('f0fdf4')+0.05)/(luminance(foreground)+0.05),4.5)
+
     def test_filing_routes_are_private_scoped_and_word_conversion_uses_current_pdf(self):
         self.file();items=self.stored()['items'];identifier=items['_sc_pdf_current'];url='/billing/leases/property/26/special-conditions/files/'+identifier+'?draft_id='+str(self.identifier)
         result=self.client.get(url,headers=self.headers);self.assertEqual(result.status_code,200);self.assertEqual(result.data,self.pdf());self.assertEqual(result.headers['Cache-Control'],'private, no-store')

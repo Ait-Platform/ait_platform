@@ -34,13 +34,13 @@ div:has(> #lease-header-actions) { display:flex; justify-content:space-between; 
   .kit-controls,#lease-header-actions,#lease-kit-selectors { display:none !important; }
 }
 /* AIT controlled-document canvas viewer; PDF bytes remain behind authorised routes. */
-#lease-kit-toolbar { display:flex; justify-content:space-between; flex-wrap:nowrap; align-items:center; gap:8px; margin:16px 0; }
-#lease-kit-toolbar button,#lease-kit-email-form button { padding:8px 12px; border:1px solid #cbd5e1; border-radius:6px; background:#eff6ff; color:#172c3e; }
-#lease-kit-toolbar button:disabled { opacity:.45; cursor:not-allowed; }
-#lease-kit-page { width:64px; padding:6px; border:1px solid #cbd5e1; border-radius:4px; }
-#lease-kit-viewport { height:75vh; overflow:auto; border:1px solid #cbd5e1; background:#e2e8f0; padding:4px; }
-#lease-kit-canvas { display:block; margin:0 auto; background:white; max-width:none; }
-#lease-kit-status:empty { display:none; }
+:is(#lease-kit-toolbar,.lease-pdf-toolbar) { display:flex; justify-content:space-between; flex-wrap:nowrap; align-items:center; gap:8px; margin:16px 0; }
+:is(#lease-kit-toolbar,.lease-pdf-toolbar) button,#lease-kit-email-form button { padding:8px 12px; border:1px solid #cbd5e1; border-radius:6px; background:#eff6ff; color:#172c3e; }
+:is(#lease-kit-toolbar,.lease-pdf-toolbar) button:disabled { opacity:.45; cursor:not-allowed; }
+:is(#lease-kit-page,.lease-pdf-page) { width:64px; padding:6px; border:1px solid #cbd5e1; border-radius:4px; }
+:is(#lease-kit-viewport,.lease-pdf-viewport) { height:75vh; overflow:auto; border:1px solid #cbd5e1; background:#e2e8f0; padding:4px; }
+:is(#lease-kit-canvas,.lease-pdf-canvas) { display:block; margin:0 auto; background:white; max-width:none; }
+:is(#lease-kit-status,.lease-pdf-status):empty { display:none; }
 #lease-kit-email-form[hidden] { display:none; }
 #lease-document-actions th,#lease-document-actions td { padding:12px; border:1px solid #cbd5e1; }
 #lease-document-actions thead { background:#f1f5f9; }
@@ -55,13 +55,13 @@ div:has(> #lease-header-actions) { display:flex; justify-content:space-between; 
 #lease-kit-selectors [data-component="signature"] { background:#ede9fe; }
 #lease-kit-selectors [data-component="lease"] { background:#ccfbf1; }
 .kit-viewer-group { display:flex; align-items:center; flex-wrap:nowrap; gap:8px; }
-#lease-kit-zoom-out { background:#e0f2fe !important; }
-#lease-kit-zoom-in { background:#dcfce7 !important; }
-#lease-kit-previous { background:#ffedd5 !important; }
-#lease-kit-next { background:#ede9fe !important; }
-#lease-kit-toolbar button:focus-visible,#lease-kit-selectors a:focus-visible { outline:2px solid #1d4ed8; outline-offset:2px; }
+:is(#lease-kit-zoom-out,.lease-pdf-zoom-out) { background:#e0f2fe !important; }
+:is(#lease-kit-zoom-in,.lease-pdf-zoom-in) { background:#dcfce7 !important; }
+:is(#lease-kit-previous,.lease-pdf-previous) { background:#ffedd5 !important; }
+:is(#lease-kit-next,.lease-pdf-next) { background:#ede9fe !important; }
+:is(#lease-kit-toolbar,.lease-pdf-toolbar) button:focus-visible,#lease-kit-selectors a:focus-visible { outline:2px solid #1d4ed8; outline-offset:2px; }
 @media (max-width:640px) {
-  #lease-kit-selectors,#lease-kit-toolbar { flex-wrap:wrap; }
+  #lease-kit-selectors,:is(#lease-kit-toolbar,.lease-pdf-toolbar) { flex-wrap:wrap; }
   .kit-viewer-group { gap:4px; flex-wrap:wrap; }
 }
 /* Read-only HTML particulars share their fragments with generated PDFs. */
@@ -83,3 +83,8 @@ div:has(> #lease-header-actions) { display:flex; justify-content:space-between; 
 
 #sc-word-import{margin:auto;width:min(920px,calc(100vw - 32px));max-height:85vh;overflow:auto;padding:24px;border:1px solid #cbd5e1;border-radius:10px;background:white;color:#172c3e}
 #sc-word-import::backdrop{background:rgba(15,23,42,.55)}#sc-word-import button,#sc-word-import .sc-word-export{display:inline-block;margin:8px 6px 8px 0;padding:8px 12px;border:1px solid #cbd5e1;border-radius:6px;background:#eff6ff}#sc-word-import button:disabled{opacity:.45}#sc-import-status{color:#991b1b}#sc-import-comparison table{width:100%;border-collapse:collapse}#sc-import-comparison td,#sc-import-comparison th{border:1px solid #cbd5e1;padding:6px}
+
+/* Limit success contrast changes to the SC upload result. */
+#sc-pdf-success:not(:empty){margin-top:16px;padding:12px 16px;border:1px solid #86efac;border-radius:6px;background:#f0fdf4;color:#14532d}
+#sc-pdf-success a{color:#1e40af;text-decoration:underline;font-weight:600;text-underline-offset:3px}
+#sc-pdf-success a:focus-visible{outline:2px solid #1e40af;outline-offset:3px}

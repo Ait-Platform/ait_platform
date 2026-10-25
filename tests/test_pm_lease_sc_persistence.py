@@ -99,10 +99,7 @@ class SpecialConditionsPersistenceTests(unittest.TestCase):
         self.assertEqual(paragraphs[start:],expected);self.assertNotIn('UNSAVED',response.data.decode('latin1'))
         self.assertEqual(dict(self.stored()),before)
         page=self.client.get(self.url,headers={'X-Test-Owner':'yes'});tree=html.fromstring(page.data)
-        links=tree.xpath('//a[@class="sc-export-word"]');self.assertEqual(len(links),1)
-        self.assertEqual(links[0].text,'Export to Word');self.assertIn(str(self.identifier),links[0].get('href'))
-        self.assertIn('26/special-conditions.docx',links[0].get('href'))
-        self.assertTrue(links[0].xpath('following::tbody[@id="sc-table-rows"]'))
+        self.assertFalse(tree.xpath('//a[@class="sc-export-word"]'))
     def test_word_export_rejects_wrong_user_property_draft_and_missing_selection(self):
         import uuid,json
         from sqlalchemy import text

@@ -243,7 +243,7 @@ def kit_pdf(property_id):
     except Exception as error:
         current_app.logger.warning('Lease Kit review PDF failed component=%s error=%s',component,type(error).__name__)
         abort(503,description='The review PDF could not be generated. No lease data or issuance status was changed.')
-    response=send_file(BytesIO(payload),mimetype='application/pdf',as_attachment=False,
+    response=send_file(BytesIO(payload),mimetype='application/pdf',as_attachment=request.args.get('download')=='1',
         download_name='AIT-Lease-'+component+'-REVIEW.pdf',conditional=False,etag=False,max_age=0)
     response.headers['Cache-Control']='private, no-store'
     response.headers['X-Content-Type-Options']='nosniff'

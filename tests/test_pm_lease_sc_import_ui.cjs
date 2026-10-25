@@ -1,0 +1,17 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+module.exports=async function(root){
+ const ids=new Map();function node(){return {hidden:true,checked:false,disabled:false,textContent:'',children:[],style:{},append(...values){this.children.push(...values);},replaceChildren(){this.children=[];}};}
+ for(const id of ['sc-word-import','sc-import-open','sc-import-form','sc-import-status','sc-import-comparison','sc-import-approval','sc-import-confirm','sc-import-approved','sc-import-cancel'])ids.set(id,node());
+ const source={name:'Conditions.docx'},form=ids.get('sc-import-form');form.elements={source:{files:[source]}};form.reset=()=>{};ids.get('sc-word-import').dataset={url:'/billing/leases/property/26/history?draft_id=saved-draft'};
+ const requests=[],locations=[];let deny=false;
+ const sandbox={document:{getElementById:id=>ids.get(id),createElement:node},window:{location:{assign:url=>locations.push(url)}},FormData:class{constructor(){this.values=new Map([['source',source],['csrf_token','csrf']]);}set(k,v){this.values.set(k,v);}},fetch:async(url,options)=>{requests.push({url,...options});if(deny)return {ok:false,status:409};return {ok:true,json:async()=>options.body.values.get('action')==='sc_import_preview'?{token:'protected-token',comparison:[{number:'SC-01',existing_heading:'Existing',existing_text:'Original wording',proposed_heading:'Proposed',proposed_text:'<script>Literal wording</script>'}]}:{saved:true,url:'/history?draft_id=new-draft'}};}};
+ vm.runInNewContext(fs.readFileSync(root+'/app/static/js/lease_sc_import.js','utf8'),sandbox);
+ ids.get('sc-import-open').onclick();assert.equal(ids.get('sc-word-import').hidden,false);
+ await form.onsubmit({preventDefault(){}});assert.equal(requests.length,1);assert.equal(requests[0].body.values.get('action'),'sc_import_preview');assert.equal(locations.length,0);assert.equal(ids.get('sc-import-approved').checked,false);
+ const comparison=ids.get('sc-import-comparison');assert.equal(comparison.children.length,1);assert.equal(comparison.children[0].children.at(-1).textContent,'<script>Literal wording</script>');
+ await ids.get('sc-import-confirm').onclick();assert.equal(requests.length,1,'No confirmation request without explicit checkbox');
+ ids.get('sc-import-approved').checked=true;await ids.get('sc-import-confirm').onclick();assert.equal(requests[1].body.values.get('source'),source);assert.equal(requests[1].body.values.get('token'),'protected-token');assert.equal(requests[1].body.values.get('confirmed'),'yes');assert.equal(locations[0],'/history?draft_id=new-draft');
+ await form.onsubmit({preventDefault(){}});ids.get('sc-import-cancel').onclick();assert.equal(ids.get('sc-word-import').hidden,true);assert.equal(comparison.children.length,0);
+ deny=true;await form.onsubmit({preventDefault(){}});assert.equal(ids.get('sc-import-confirm').hidden,true);assert.equal(locations.length,1);
+ console.log('Import UI passed: read-only comparison, literal-safe rendering, explicit confirmation, original file binding, cancel and errors.');
+};

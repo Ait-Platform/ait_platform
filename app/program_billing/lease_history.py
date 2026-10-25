@@ -168,6 +168,9 @@ def addendum_bytes(master,original,wording,number):
 @snapshot.endpoint
 def history(property_id):
     prop,draft=context(property_id)
+    if request.method=='POST' and request.form.get('action') in ('sc_import_preview','sc_import_confirm'):
+        from .lease_sc_import import handle
+        return handle(prop,draft)
     if request.method=='POST':
         # Preserve old upload-form submissions without duplicating the upload handler.
         return redirect(url_for('billing_bp.lease_signed_copy',property_id=property_id,draft_id=draft['id']),code=307)

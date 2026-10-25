@@ -140,4 +140,16 @@ class LeaseKitViewerTests(unittest.TestCase):
         self.assertEqual(document.metadata.title,'Review only')
         self.assertNotIn('/CreationDate',document.metadata)
 
+    def test_download_all_six_uses_exact_same_pdf_and_scoped_access(self):
+        for component in self.components:
+            url='/billing/leases/property/26/kit.pdf?draft_id=draft-one&component='+component
+            # Use this fixture's actual PDF URL and selected draft requirements.
+            routes=[r.rule for r in self.app.url_map.iter_rules() if r.endpoint=='billing_bp.lease_kit_pdf']
+            url=routes[0].replace('<int:property_id>','26')+'?draft_id=draft-one&component='+component
+            inline=self.client.get(url,headers={'X-Test-Owner':'yes'});download=self.client.get(url+'&download=1',headers={'X-Test-Owner':'yes'})
+            self.assertEqual(inline.status_code,200);self.assertEqual(download.status_code,200)
+            self.assertEqual(inline.data,download.data);self.assertEqual(download.data,self.payload)
+            self.assertIn('attachment;',download.headers['Content-Disposition']);self.assertIn('inline;',inline.headers['Content-Disposition'])
+            self.assertEqual(self.client.get(url+'&download=1').status_code,403)
+
 if __name__=='__main__':unittest.main()

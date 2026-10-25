@@ -49,7 +49,7 @@ class LeaseDocumentsActionsTests(unittest.TestCase):
         env={'wraps':wraps,'HTTPException':HTTPException,'SQLAlchemyError':SQLAlchemyError,'abort':abort,'require_pm_user':require_user,'db':self.db}
         exec(compile(ast.Module(body=[wrapper],type_ignores=[]),'actual-wrapper','exec'),env)
         bp=Blueprint('billing_bp',__name__)
-        for endpoint,path in [('lease_certificate_edit','certificate'),('lease_live_view','view'),('pm_lease_management','manage'),('lease_addendum','addendum'),('lease_kit_pdf','kit.pdf'),('lease_kit_email','kit/email'),('lease_history_document','history/<document_id>'),('lease_history_download','history/<document_id>/download'),('lease_document_email','email')]:
+        for endpoint,path in [('lease_sc_word','special-conditions.docx'),('lease_certificate_edit','certificate'),('lease_live_view','view'),('pm_lease_management','manage'),('lease_addendum','addendum'),('lease_kit_pdf','kit.pdf'),('lease_kit_email','kit/email'),('lease_history_document','history/<document_id>'),('lease_history_download','history/<document_id>/download'),('lease_document_email','email')]:
             bp.add_url_rule('/billing/leases/property/<int:property_id>/'+path,endpoint,lambda **kw:'synthetic endpoint')
         def selected(property_id,lock=False):
             if property_id!=26 or request.args.get('draft_id')!='draft-one':abort(404)
@@ -80,7 +80,14 @@ class LeaseDocumentsActionsTests(unittest.TestCase):
         labels=['Cover','Certificate','Core Lease','Special Conditions','Signatures','Full Lease Agreement']
         positions=[html.index('<th scope="row">'+label+'</th>') for label in labels]
         self.assertEqual(positions,sorted(positions))
-        self.assertEqual(html.count('data-action="email"'),6);self.assertEqual(html.count('data-action="print"'),6)
+        self.assertEqual(html.count('data-action="email"'),6)
+        from lxml import html as parser
+        rows=parser.fromstring(html).xpath('//tr[@data-component]')
+        for row in rows:
+            pdf=row.get('data-pdf-url');links=row.xpath('./td/a')
+            self.assertEqual(links[0].get('href'),pdf);self.assertEqual(links[0].get('target'),'_blank')
+            self.assertEqual(links[1].get('href'),pdf+'&download=1')
+        self.assertEqual(html.count('>Export Word</a>'),1);self.assertEqual(html.count('id="sc-import-open"'),1)
         self.assertIn('Email / Print',html)
         for key,_ in self.kit.COMPONENTS:self.assertIn('component='+key,html)
         for text in ('Chronological document history','Email submission history','signed-original.pdf','legacy-upload.pdf','owner@example.com','Upload Signed Copy','No documents have been recorded','No email attempts recorded'):

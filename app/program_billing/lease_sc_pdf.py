@@ -1,19 +1,14 @@
-"""Previewed and explicitly confirmed SC PDFs with immutable private filing history."""
+"""Immediate private SC PDF upload with retained version history."""
 from copy import deepcopy
 from datetime import datetime,timezone
-from hashlib import sha256
 from io import BytesIO
 import json,uuid
 from flask import abort,current_app,jsonify,request,send_file,url_for
 from flask_login import current_user
-from itsdangerous import URLSafeTimedSerializer,BadSignature
 from sqlalchemy import text
 from werkzeug.exceptions import HTTPException
 from app.extensions import db
 from . import lease_snapshot as snapshot,lease_storage as storage
-
-
-def signer():return URLSafeTimedSerializer(current_app.secret_key,salt='lease-sc-filed-pdf')
 
 
 def entries(draft):return draft['items'].get('_sc_pdf_versions',[])
@@ -23,7 +18,7 @@ def current(draft):
     identifier=draft['items'].get('_sc_pdf_current')
     if not identifier:return None
     entry=next((entry for entry in entries(draft) if entry['id']==identifier),None)
-    if entry is None:raise ValueError('Current SC PDF is not present in the Filing Cabinet.')
+    if entry is None:raise ValueError('Current SC PDF version metadata is missing.')
     return entry
 
 
@@ -38,18 +33,36 @@ def retrieve(prop,draft,identifier=None):
     except Exception:abort(503,description='The private SC PDF could not be retrieved and verified. No generated substitute was used.')
 
 
+def failure_reason(error):
+    """Expose actionable codes without credentials, SQL parameters or private URLs."""
+    import re
+    response=getattr(error,'response',{})
+    code=response.get('Error',{}).get('Code','') if isinstance(response,dict) else ''
+    original=getattr(error,'orig',error)
+    code=code or getattr(original,'sqlstate',None) or getattr(original,'pgcode',None)
+    if code and re.fullmatch(r'[A-Za-z0-9_-]{1,80}',str(code)):
+        reasons={'AccessDenied':'private storage access denied','NoSuchBucket':'configured private bucket does not exist',
+            'InvalidAccessKeyId':'storage access key rejected','SignatureDoesNotMatch':'storage authentication signature rejected',
+            '42501':'database permission denied','42P01':'required database table is missing',
+            '42703':'required database column is missing','23503':'property or draft reference does not exist',
+            '23505':'document metadata conflicts with an existing record'}
+        return reasons.get(str(code),'operation rejected')+' ('+str(code)+')'
+    # Configuration validation uses fixed messages; never forward arbitrary provider text.
+    if isinstance(error,ValueError):
+        if str(error) in (
+            'Private Lease R2 storage has not been verified and approved. Uploads and retrieval remain disabled.',
+            'Lease storage must use its dedicated bucket, separate from HOME and public platform storage.',
+            'Configure PM_LEASE_R2_ENDPOINT_URL, PM_LEASE_R2_ACCESS_KEY and PM_LEASE_R2_SECRET_KEY. Shared R2 credentials are not used.',
+            'PM_LEASE_R2_ENDPOINT_URL must be an HTTPS endpoint without embedded credentials, query or fragment.',
+            'Lease R2 bucket scope does not match its dedicated configuration.',
+            'Lease document integrity verification failed.','Lease document storage scope is invalid.'):
+            return str(error).rstrip('.')
+    return type(error).__name__
+
+
 def handle(prop,draft):
     from .lease_sc_import import require_editable
     require_editable(draft)
-    action=request.form['action']
-    if action=='record_signature_review':
-        if request.form.get('review_complete')!='on':abort(400,description='Confirm that you have reviewed the complete Lease Agreement.')
-        if request.form.get('version')!=str(draft['version']):abort(409,description='The draft changed. Review the current agreement before confirming.')
-        from .lease_signature_review import record,requires_pdf
-        if requires_pdf(draft['items']) and not current(draft):abort(409,description='Upload, preview and confirm the complete SC PDF before recording your final review.')
-        from .lease_workflow import save_items
-        items=deepcopy(draft['items']);record(items,current_user.id);save_items(draft,items)
-        return jsonify(saved=True,url=url_for('billing_bp.lease_history',property_id=prop['id'],draft_id=draft['id']))
     upload=request.files.get('source')
     if not upload:abort(400,description='Select the Special Conditions PDF.')
     try:
@@ -65,17 +78,13 @@ def handle(prop,draft):
         names=root.get('/Names')
         if names and names.get_object().get('/JavaScript'):raise ValueError('PDF JavaScript is not supported.')
     except Exception as error:abort(400,description=str(error) if isinstance(error,ValueError) else 'Select a valid unencrypted PDF.')
-    chosen={'user':str(current_user.id),'property':prop['id'],'draft':str(draft['id']),'version':draft['version'],'sha256':digest}
-    if action=='sc_pdf_preview':return jsonify(token=signer().dumps(chosen),pages=len(reader.pages),sha256=digest)
-    if request.form.get('confirmed')!='yes':abort(400,description='Preview the PDF and explicitly confirm it before filing.')
-    try:token=signer().loads(request.form.get('token',''),max_age=900)
-    except BadSignature:abort(409,description='The PDF preview expired or is invalid. Preview it again.')
-    if token!=chosen:abort(409,description='The PDF or lease draft changed. Preview the current file again.')
-    snapshot.authorised_property(prop['id'],True);locked=snapshot.draft_row(prop['id'],draft['id'],True);require_editable(locked)
-    if locked['version']!=draft['version']:abort(409,description='The draft changed. Preview again.')
+    snapshot.authorised_property(prop['id'],True)
+    locked=snapshot.draft_row(prop['id'],draft['id'],True);require_editable(locked)
     identifier=uuid.uuid4();key=storage.key_for(prop['id'],draft['id'],identifier,'.pdf')
     try:storage.upload(key,payload,mime)
-    except Exception:db.session.rollback();abort(503,description='Private PDF storage was not confirmed. The current PDF is unchanged.')
+    except Exception as error:
+        db.session.rollback()
+        abort(503,description=f'Private PDF storage failed: {failure_reason(error)}. The current PDF is unchanged.')
     items=deepcopy(locked['items']);versions=list(items.get('_sc_pdf_versions',[]))
     entry={'id':str(identifier),'draft_id':str(draft['id']),'version':1+max((e['version'] for e in versions),default=0),'filename':filename,'sha256':digest,'uploaded_at':datetime.now(timezone.utc).isoformat(),'uploaded_by':int(current_user.id)}
     versions.append(entry);items['_sc_pdf_versions']=versions;items['_sc_pdf_current']=entry['id']
@@ -84,15 +93,17 @@ def handle(prop,draft):
         db.session.execute(text("""INSERT INTO bil_lease_document(id,draft_id,property_id,manager_id,item_key,storage_key,filename,mime_type,size_bytes,sha256,state,verified_at)
             VALUES (:id,:draft,:p,:u,'special-conditions-pdf',:key,:name,:mime,:size,:digest,'available',now())"""),{'id':identifier,'draft':draft['id'],'p':prop['id'],'u':current_user.id,'key':key,'name':filename,'mime':mime,'size':len(payload),'digest':digest})
         updated=db.session.execute(text("""UPDATE bil_lease_draft SET items=CAST(:items AS jsonb),version=version+1,updated_at=now()
-            WHERE id=:draft AND property_id=:p AND manager_id=:u AND version=:version RETURNING id"""),{'items':json.dumps(items),'draft':draft['id'],'p':prop['id'],'u':current_user.id,'version':draft['version']}).scalar_one_or_none()
+            WHERE id=:draft AND property_id=:p AND manager_id=:u AND version=:version RETURNING id"""),{'items':json.dumps(items),'draft':draft['id'],'p':prop['id'],'u':current_user.id,'version':locked['version']}).scalar_one_or_none()
         if updated is None:abort(409,description='The draft changed. No current PDF was replaced.')
         db.session.commit()
     except HTTPException:
         db.session.rollback();raise
-    except Exception:
+    except Exception as error:
         db.session.rollback();current_app.logger.warning('SC PDF filing failed property=%s draft=%s document=%s; private source retained for reconciliation.',prop['id'],draft['id'],identifier)
-        abort(503,description='Filing was not confirmed. The previous current PDF remains unchanged.')
-    return jsonify(saved=True,url=url_for('billing_bp.lease_history',property_id=prop['id'],draft_id=draft['id']))
+        abort(503,description=f'PDF metadata could not be saved: {failure_reason(error)}. The previous current PDF remains unchanged.')
+    return jsonify(saved=True,message='Special Conditions PDF uploaded and saved.',
+        pdf_url=url_for('billing_bp.lease_sc_filed_pdf',property_id=prop['id'],draft_id=draft['id'],document_id=identifier),
+        word_url=url_for('billing_bp.lease_sc_filed_pdf',property_id=prop['id'],draft_id=draft['id'],document_id=identifier,word=1))
 
 
 def converted_word(payload):

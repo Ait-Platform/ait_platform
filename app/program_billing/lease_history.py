@@ -169,6 +169,9 @@ def addendum_bytes(master,original,wording,number):
 def history(property_id):
     prop,draft=context(property_id)
     if request.method=='POST' and request.form.get('action') in ('sc_pdf_preview','sc_pdf_confirm','record_signature_review'):
+        from flask import jsonify
+        return jsonify(error='This old upload form is no longer used. Select Upload / Replace PDF on Output.'),410
+    if request.method=='POST' and request.form.get('action') in ('sc_pdf_upload',):
         from werkzeug.exceptions import HTTPException
         from flask import jsonify
         try:

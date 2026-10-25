@@ -22,7 +22,6 @@
 <textarea id="authority-{{ representative.key }}" name="authority_{{ representative.key }}" maxlength="2000" rows="2" class="mt-2 w-full rounded border border-slate-300 p-2" {% if loop.first %}autofocus{% endif %}>{{ saved.evidence if saved.party_fingerprint==representative.fingerprint else '' }}</textarea>
 <label class="mt-2 block"><input type="checkbox" name="confirm_{{ representative.key }}" {% if saved.confirmed and saved.party_fingerprint==representative.fingerprint %}checked{% endif %}> I have verified this representative's authority for the identified parties.</label>
 </section>{% endfor %}
-<label class="mt-5 block"><input type="checkbox" name="review_complete"> I confirm that I have reviewed the complete Lease Agreement and am satisfied that it is ready for signature.</label>
 <h2 class="mt-5 font-semibold">Clause Applicability Schedule</h2>
 <p class="mt-2">All source clauses are mandatory. No clause can be excluded until a legally reviewed register identifies exclusions for this exact terms version.</p>
 <div class="mt-5 flex justify-end"><button type="submit" class="rounded bg-orange-600 px-4 py-2 text-white">Acknowledge and Save Working Copy</button></div>

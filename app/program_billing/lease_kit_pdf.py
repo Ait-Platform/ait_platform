@@ -130,18 +130,23 @@ def html_pdf(component, context):
 
 
 def build_pdf(component, context):
-    if component in ('lease','special_conditions') and context['states']['special_conditions'].get('legacy_conditions'):
+    draft=context.get('lease_draft');filed=bool(draft and draft['items'].get('_sc_pdf_current'));sc_pdf=None
+    if filed and component in ('special_conditions','lease'):
+        from .lease_sc_pdf import retrieve
+        sc_pdf,_=retrieve(context['property'],draft)
+    if component in ('lease','special_conditions') and not filed and context['states']['special_conditions'].get('legacy_conditions'):
         raise ValueError('Legacy Supplementary Conditions require review before assembly')
     from pypdf import PdfReader, PdfWriter
     if component == 'core':
         return core_bytes()
+    if component=='special_conditions' and filed:return sc_pdf
     if component != 'lease':
         return html_pdf(component, context)
     writer = PdfWriter()
     for key in ('cover', 'certificate', 'core', 'special_conditions', 'signature'):
-        payload = core_bytes() if key == 'core' else html_pdf(key, context)
+        payload = core_bytes() if key == 'core' else sc_pdf if key=='special_conditions' and filed else html_pdf(key, context)
         writer.append(PdfReader(BytesIO(payload)))
-        if key=='special_conditions' and context.get('lease_draft') and context['lease_draft']['items'].get('_map_annexures'):
+        if key=='special_conditions' and not filed and context.get('lease_draft') and context['lease_draft']['items'].get('_map_annexures'):
             from .lease_map_annexure import compiled
             for annexure in compiled(context):writer.append(PdfReader(BytesIO(annexure)))
     writer.add_metadata({'/Title': 'AIT Lease Kit - REVIEW ONLY', '/Subject': REVIEW})

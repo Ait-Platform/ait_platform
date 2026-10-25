@@ -140,10 +140,11 @@ def component_states(items):
         states['special_conditions'].update(available=False,printable=False,omitted=False,
             state='legacy_review_required',legacy_conditions=legacy,
             reason='Saved legacy Supplementary Conditions require review before PDF assembly. No conditions have been discarded or rewritten. Affected sources: '+', '.join(entry['source'] for entry in legacy))
+    if items.get('_sc_pdf_current'):states['special_conditions']={'available':True,'printable':True,'state':'filed_pdf','reason':'Current confirmed SC PDF'}
     complete=all(states[key]['available'] for key in ORDER)
     states['lease']={'available':complete,'printable':complete,'state':'draft' if complete else 'unavailable',
                      'reason':'The complete lease is unavailable until Cover, Certificate, Core, Special Conditions and Signature are all independently available.'}
-    if legacy:states['lease']['reason']=states['special_conditions']['reason']
+    if legacy and not items.get('_sc_pdf_current'):states['lease']['reason']=states['special_conditions']['reason']
     return states
 
 
@@ -180,6 +181,7 @@ def preview_context(property_id):
         premises_name=values.get('[PROPERTY_NAME]',''),premises_address=values.get('[PROPERTY_ADDRESS]',''),
         pdf_url=url_for('billing_bp.lease_kit_pdf',component=selected,**arguments),
         pdf_email_url=url_for('billing_bp.lease_kit_email',component=selected,**arguments),
+        filed_sc_pdf_url=url_for('billing_bp.lease_kit_pdf',component='special_conditions',**arguments),
         core_pdf_url=url_for('billing_bp.lease_kit_pdf',component='core',**arguments),
         pdf_view=selected in ('core','lease'),
         lease_draft=draft,viewer_only=True,kit_view=True,document_token='',selected_component=selected,

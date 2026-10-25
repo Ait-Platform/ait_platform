@@ -168,6 +168,14 @@ def addendum_bytes(master,original,wording,number):
 @snapshot.endpoint
 def history(property_id):
     prop,draft=context(property_id)
+    if request.method=='POST' and request.form.get('action') in ('sc_pdf_preview','sc_pdf_confirm','record_signature_review'):
+        from werkzeug.exceptions import HTTPException
+        from flask import jsonify
+        try:
+            from .lease_sc_pdf import handle
+            return handle(prop,draft)
+        except HTTPException as error:
+            db.session.rollback();return jsonify(error=error.description),error.code
     if request.method=='POST' and request.form.get('action') in ('sc_import_preview','sc_import_confirm','map_upload'):
         from werkzeug.exceptions import HTTPException
         from flask import jsonify
@@ -184,7 +192,7 @@ def history(property_id):
         # Preserve old upload-form submissions without duplicating the upload handler.
         return redirect(url_for('billing_bp.lease_signed_copy',property_id=property_id,draft_id=draft['id']),code=307)
     from .lease_kit import action_documents
-    return render_pm_template('program_billing/lease_history.html',title='Email / Print',property=prop,lease_draft=draft,
+    return render_pm_template('program_billing/lease_history.html',title='Output',property=prop,lease_draft=draft,
         action_documents=action_documents(property_id,draft['id']),unavailable=None)
 
 
@@ -217,7 +225,7 @@ def signed_copy(property_id):
     entries=[entry for entry in ledger(draft)['documents'] if entry.get('kind')!='map_annexure']
     known={e['id'] for e in entries}
     for row in db.session.execute(text('SELECT id,filename,state,created_at,sha256,item_key FROM bil_lease_document WHERE draft_id=:d AND property_id=:p AND manager_id=:u'),{'d':draft['id'],'p':property_id,'u':current_user.id}).mappings():
-        if row.get('item_key')=='map-annexure':continue
+        if row.get('item_key') in ('map-annexure','special-conditions-pdf'):continue
         if str(row['id']) not in known:entries.append({'id':str(row['id']),'filename':row['filename'],'kind':'legacy_attachment','version':None,'uploaded_by':None,'uploaded_at':row['created_at'].isoformat(),'state':row['state'],'signature_status':'not-verified','sha256':row['sha256']})
     entries=sorted(entries,key=lambda e:(e['uploaded_at'],e['id']))
     for entry in entries:

@@ -113,3 +113,5 @@ div:has(> #lease-header-actions > .lease-main-navigation) { display:flex; justif
 .sc-export-actions{display:flex;justify-content:flex-end;margin:12px 0}
 .sc-export-word{display:inline-block;padding:8px 14px;min-height:38px;box-sizing:border-box;border:1px solid #cbd5e1;border-radius:6px;background:#dbeafe;color:#1e293b;text-decoration:none;font-weight:600}
 .sc-export-word:focus-visible{outline:2px solid #0284c7;outline-offset:2px}
+
+.sc-shared-help{margin:auto;width:min(920px,calc(100vw - 32px));max-height:85vh;overflow:auto;padding:24px;border:1px solid #cbd5e1;border-radius:10px;background:white;color:#172c3e}.sc-shared-help::backdrop{background:rgba(15,23,42,.55)}.sc-shared-help h2{font-size:20px;font-weight:700}.sc-shared-help h3{font-size:17px;font-weight:700;margin-top:18px}.sc-shared-help p,.sc-shared-help li{margin:10px 0}.sc-shared-help button,.sc-help-button{padding:8px 12px;border:1px solid #cbd5e1;border-radius:6px;background:#eff6ff;margin:8px 6px 8px 0}.sc-shared-help button:disabled{opacity:.5}

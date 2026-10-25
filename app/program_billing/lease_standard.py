@@ -38,7 +38,7 @@ def digest(value):
 
 
 def particulars_digest(items):
-    return digest({k:v for k,v in items.items() if k not in ('_ait_standard','_generations','_lease_history')})
+    return digest({k:v for k,v in items.items() if k not in ('_ait_standard','_generations','_lease_history','_signature_review','_signature_review_history')})
 
 
 def authority_parties(items):
@@ -179,7 +179,9 @@ def special_conditions(items):
 
 
 def readiness(items,state,source,info,documents=None):
+    from .lease_signature_review import valid
     issues=[]
+    if not valid(items):issues.append('Confirm that you have reviewed the complete Lease Agreement before Ready for Signature.')
     try:exclusions_check(state,source,info)
     except ValueError as error:issues.append(str(error))
     if not acknowledged(state,items):issues.append('Acknowledge the current notice for these particulars and terms.')
@@ -314,6 +316,9 @@ def workspace(property_id):
     source,payload,info=get_source(property_id,state)
     errors=[]
     if request.method=='POST':
+        if request.form.get('review_complete')=='on':
+            from .lease_signature_review import record
+            record(items,current_user.id)
         if request.form.getlist('exclude_clauses'):abort(400,description='All clauses are mandatory; no exclusions are approved.')
         if request.form.get('acknowledge')!='on':errors.append('Acknowledge the important notice before proceeding.')
         if not errors:
@@ -334,6 +339,8 @@ def workspace(property_id):
                 'particulars_sha256':particulars_digest(items),'by':int(current_user.id),'at':datetime.now(timezone.utc).isoformat()}
             history.append(ack);state.update(acknowledgement=ack,acknowledgements=history)
             if request.form.get('request_ready')=='on':
+                from .lease_signature_review import valid
+                if not valid(items):abort(400,description='Confirm that you have reviewed the complete Lease Agreement before Ready for Signature.')
                 if readiness(items,state,source,info,snapshot.documents(draft)):abort(400,description='Ready for Signature remains blocked by the listed pre-signature checks.')
                 state['status']='ready-for-signature'
                 state['ready_particulars_sha256']=particulars_digest(items)

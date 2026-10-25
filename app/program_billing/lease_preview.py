@@ -310,3 +310,13 @@ def kit_email(property_id):
 def sc_word(property_id):
     from .lease_sc_export import word
     return word(property_id)
+
+
+@billing_bp.get('/billing/leases/property/<int:property_id>/special-conditions/files/<uuid:document_id>',endpoint='lease_sc_filed_pdf')
+@snapshot.endpoint
+def sc_filed_pdf(property_id,document_id):
+    prop=snapshot.authorised_property(property_id)
+    if not request.args.get('draft_id'):abort(400,description='Select a saved lease draft.')
+    snapshot.require_particulars_schema();draft=snapshot.draft_row(property_id,request.args['draft_id'])
+    from .lease_sc_pdf import file_response
+    return file_response(prop,draft,document_id)

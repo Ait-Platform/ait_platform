@@ -1,5 +1,6 @@
 <section id="sc-editor" data-frozen="{{ '1' if frozen else '0' }}">
 <h2 class="capture-section-title">SUPPLEMENTARY CONDITIONS</h2>
+{% include 'program_billing/lease_sc_help.html' %}
 <input type="hidden" name="sc_editor_version" value="1"><input type="hidden" id="sc-mode" name="sc_mode" value="{{ sc_editor.mode }}"><input type="hidden" id="sc-count" name="sc_count" value="{{ sc_editor.clauses|length }}">
 <div style="overflow-x:auto"><table class="capture-selector"><thead><tr><th>SC Number</th><th>Clause Heading</th><th>Edit</th></tr></thead><tbody id="sc-table-rows"></tbody></table></div>
 <div id="sc-clauses">{% for clause in sc_editor.clauses %}<div><input type="hidden" name="sc_heading_type_{{ loop.index }}" value="{{ clause.heading_type }}"><input type="hidden" name="sc_custom_heading_{{ loop.index }}" value="{{ clause.heading if clause.heading_type=='Custom' else '' }}"><input type="hidden" name="sc_text_{{ loop.index }}" value="{{ clause.text }}"></div>{% endfor %}</div>

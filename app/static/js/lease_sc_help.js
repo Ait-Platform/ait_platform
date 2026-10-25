@@ -1,0 +1,1 @@
+(function(){const help=document.getElementById('sc-shared-help');if(!help)return;document.querySelectorAll('[data-sc-help-open]').forEach(button=>button.addEventListener('click',()=>help.showModal()));help.querySelector('[data-sc-help-close]').addEventListener('click',()=>help.close());}());

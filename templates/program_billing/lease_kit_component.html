@@ -7,7 +7,8 @@
 {% elif component_key=='certificate' %}
 {% include 'program_billing/lease_certificate_document.html' %}
 {% elif component_key=='special_conditions' %}
-{% if states['special_conditions'].get('omitted') %}<article class="kit-text-page"><h2>SPECIAL CONDITIONS</h2><p>None.</p></article>
+{% if states['special_conditions'].get('state')=='filed_pdf' %}<article class="kit-text-page"><h2>SPECIAL CONDITIONS</h2><p>The current confirmed PDF is the official Special Conditions document.</p><a target="_blank" rel="noopener" href="{{ filed_sc_pdf_url }}">Open current Special Conditions PDF</a></article>
+{% elif states['special_conditions'].get('omitted') %}<article class="kit-text-page"><h2>SPECIAL CONDITIONS</h2><p>None.</p></article>
 {% elif states['special_conditions'].get('legacy_conditions') %}<article class="kit-text-page"><h2>SPECIAL CONDITIONS</h2>{% for entry in states['special_conditions'].legacy_conditions %}<div style="white-space:pre-wrap">{{ legal_text(entry.text) if legal_text is defined else entry.text }}</div>{% endfor %}{% for clause in states['special_conditions'].get('clauses',[]) %}<h3>{{ legal_heading(clause.heading) if legal_heading is defined else clause.heading|upper }}</h3><div style="white-space:pre-wrap">{{ legal_blocks(clause.blocks) if clause.blocks is defined and legal_blocks is defined else (legal_text(clause.text) if legal_text is defined else clause.text) }}</div>{% endfor %}</article>
 {% else %}{% set key='special_conditions' %}{% include 'program_billing/lease_supplementary_conditions.html' %}{% endif %}
 {% elif component_key=='signature' %}

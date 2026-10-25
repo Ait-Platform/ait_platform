@@ -120,4 +120,31 @@ class HtmlLeaseKitTests(unittest.TestCase):
             document=fitz.open(stream=self.pdf.build_pdf('special_conditions',context),filetype='pdf')
             self.assertIn('None.',''.join(p.get_text() for p in document))
 
+    def test_legal_presentation_formats_headings_and_utility_register_without_mutating_items(self):
+        import app.program_billing.lease_certificate_view as context_module
+        original_context=context_module.context
+        def almond(property_id,allow_blank=False):
+            prop,draft,items,owners,tenants=original_context(property_id,allow_blank)
+            return {**prop,'name':'Almond House'},draft,items,owners,tenants
+        context_module.context=almond
+        identifier='11111111-2222-3333-4444-555555555555'
+        self.items['s1-01']={'value':'LEASE-'+identifier}
+        self.items['_supplementary_conditions']['clauses']=[{'heading':'**Municipal Utility Register**','text':'### Municipal Utility Register\n| Service | Meter |\n| --- | --- |\n| Water | W-01 |\n| Electricity | E-02 |\n**1.1** Preserve exact obligations.'}]
+        before=copy.deepcopy(self.items)
+        with self.context('special_conditions'):
+            context=self.kit.preview_context(26)
+            self.assertEqual(context['property']['name'],'Almond');self.assertEqual(context['lease_reference'],'')
+            page=render_template('program_billing/lease_kit_view.html',**context)
+            tree=html.fromstring(page)
+            self.assertEqual(tree.xpath('//table[@class="legal-utility-table"]//th/text()'),['Service','Meter'])
+            self.assertIn('W-01',tree.xpath('//table[@class="legal-utility-table"]')[0].text_content())
+            payload=self.pdf.build_pdf('special_conditions',context);document=fitz.open(stream=payload,filetype='pdf');text=''.join(p.get_text() for p in document)
+            self.assertNotIn('**',text);self.assertNotIn('###',text);self.assertNotIn('| ---',text)
+            for value in ('W-01','E-02','Preserve exact obligations.'):self.assertIn(value,text)
+        for component in ('cover','certificate','signature'):
+            with self.context(component):
+                payload=self.pdf.build_pdf(component,self.kit.preview_context(26));text=''.join(p.get_text() for p in fitz.open(stream=payload,filetype='pdf'))
+                self.assertNotIn(identifier,text);self.assertNotIn('Almond House',text)
+        self.assertEqual(self.items,before)
+
 if __name__=='__main__':unittest.main()

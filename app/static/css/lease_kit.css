@@ -74,3 +74,9 @@ div:has(> #lease-header-actions) { display:flex; justify-content:space-between; 
 .certificate-signing th { width:auto; }
 
 #lease-header-actions > .lease-capture-link { background:#dcfce7; }
+
+.legal-utility-table{width:100%;border-collapse:collapse;white-space:normal;margin:8px 0}.legal-utility-table th,.legal-utility-table td{border:1px solid #888;padding:5px 7px;text-align:left;vertical-align:top}.legal-utility-table thead{display:table-header-group}
+
+#lease-document-actions td a{display:inline-block;padding:8px 12px;border:1px solid #cbd5e1;border-radius:6px;background:#eff6ff;color:#172c3e;text-decoration:none}
+#lease-document-actions>table{min-width:560px}#lease-document-actions{overflow-x:auto}
+#sc-import-comparison section{border-bottom:1px solid #cbd5e1;padding:12px 0}#sc-import-comparison pre{font:inherit;overflow-wrap:anywhere;margin:8px 0 16px}

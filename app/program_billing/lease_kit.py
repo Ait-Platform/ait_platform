@@ -150,6 +150,8 @@ def component_states(items):
 def preview_context(property_id):
     from .lease_certificate_view import context
     prop,draft,items,owners,tenants=context(property_id,allow_blank=False)
+    from .lease_document_format import legal_text,legal_heading,display_name,internal_reference
+    prop=dict(prop);prop['name']=display_name(prop)
     saved_party_items=deepcopy(items)
     selected=request.args.get('component','cover')
     if selected not in dict(COMPONENTS):abort(404)
@@ -158,6 +160,9 @@ def preview_context(property_id):
         generation.get('signature_or_issuance_approved') is True for generation in
         items.get('_generations',[])+items.get('_ait_standard',{}).get('generations',[]))
     values=certificate.document_values(items,None if frozen else dict(prop),owners,tenants)
+    if values.get('[PROPERTY_NAME]','').casefold()=='almond house' and property_id==26:values['[PROPERTY_NAME]']='Almond'
+    for token,value in list(values.items()):
+        if 'REFERENCE' in token and internal_reference(value):values[token]=''
     sections=form.certificate_layout(*form.counts(items))
     unresolved=[token for token in form.tokens(sections) if not certificate.present(values.get(token))]
     arguments={'property_id':property_id,'draft_id':draft['id'] if draft else None}
@@ -167,9 +172,9 @@ def preview_context(property_id):
     signing_rows=signing_particulars(saved_party_items,owners,tenants)
     lessors=[party for group in party_blocks if group['label']=='Lessor' for party in group['parties']]
     lessees=[party for group in party_blocks if group['label']=='Lessee' for party in group['parties']]
-    return dict(title='View Lease',property=prop,signature_lessors=lessors,signature_lessees=lessees,party_blocks=party_blocks,signing_rows=signing_rows,
+    return dict(title='View Lease',property=prop,legal_text=legal_text,legal_heading=legal_heading,signature_lessors=lessors,signature_lessees=lessees,party_blocks=party_blocks,signing_rows=signing_rows,
         lessor_representative=items.get('_parties',{}).get('lessor',{}),
-        lease_reference=values.get('[LEASE_REFERENCE]') or ('LEASE-'+str(draft['id']) if draft else ''),
+        lease_reference=values.get('[LEASE_REFERENCE]',''),
         tenant_reference=' | '.join(row.get('tenant_reference') or next((t.get('tenant_reference','') for t in tenants if str(t['id'])==str(row.get('tenant_id'))),'') for row in certificate.selected_tenants(items)),
         premises_name=values.get('[PROPERTY_NAME]',''),premises_address=values.get('[PROPERTY_ADDRESS]',''),
         pdf_url=url_for('billing_bp.lease_kit_pdf',component=selected,**arguments),

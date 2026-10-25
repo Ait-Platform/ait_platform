@@ -237,6 +237,38 @@ def signed_copy(property_id):
         entries=entries,kinds=KINDS,originals=originals(draft),errors=errors,unavailable=None),400 if errors else 200
 
 
+def addendum_pdf(prop,reference,wording,number):
+    """Render only the entered amendment, identifying its related lease."""
+    from xml.sax.saxutils import escape
+    from reportlab.platypus import SimpleDocTemplate,Paragraph,Spacer
+    from reportlab.lib.styles import getSampleStyleSheet
+    from reportlab.lib.enums import TA_JUSTIFY
+    output=BytesIO();styles=getSampleStyleSheet();styles['BodyText'].alignment=TA_JUSTIFY
+    story=[Paragraph('Addendum No. '+str(number)+' to Agreement of Lease',styles['Title']),
+        Paragraph('Property: '+escape(str(prop['name']))+' (ID '+str(prop['id'])+')',styles['BodyText']),
+        Paragraph('Related lease: '+escape(reference),styles['BodyText']),Spacer(1,16)]
+    for line in wording.splitlines():story.append(Paragraph(escape(line) or '&#160;',styles['BodyText']))
+    story.extend([Spacer(1,24),Paragraph('Signatures',styles['Heading2']),
+        Paragraph('Relevant parties: __________________________________________',styles['BodyText']),
+        Paragraph('Signed at: ____________________ Date: ____________________',styles['BodyText']),
+        Paragraph('Signatures: ______________________________________________',styles['BodyText'])])
+    SimpleDocTemplate(output,rightMargin=48,leftMargin=48,topMargin=48,bottomMargin=48).build(story)
+    return output.getvalue()
+
+
+def addendum_history(draft,property_id):
+    result=[]
+    for entry in ledger(draft)['documents']:
+        if entry.get('kind') not in ('addendum_draft','signed_addendum') or entry.get('state')!='available':continue
+        entry=deepcopy(entry)
+        if entry.get('filename','').lower().endswith('.pdf'):
+            token=signer().dumps(dict(kind='document',draft_id=str(draft['id']),property_id=property_id,
+                version=draft['version'],sha256=entry['sha256'],nonce=str(uuid.uuid4()),document_id=entry['id']))
+            entry['email_url']=url_for('billing_bp.lease_document_email',property_id=property_id,draft_id=draft['id'],document_token=token)
+        result.append(entry)
+    return result
+
+
 @billing_bp.route('/billing/leases/property/<int:property_id>/addendum',methods=['GET','POST'],endpoint='lease_addendum')
 @snapshot.endpoint
 def addendum(property_id):
@@ -247,7 +279,36 @@ def addendum(property_id):
         arrangement=utility_record(property_id,request.args['utility_arrangement_id'])
         arrangement_wording=arrangement['details']['utility_allocation_method']
         if arrangement['details'].get('utility_references'):arrangement_wording+='\n'+arrangement['details']['utility_references']
-    if request.method=='POST':
+    if request.method=='POST' and request.form.get('action') in ('upload_pdf','create_pdf'):
+        from app.program_billing import lease_storage as storage
+        request.max_content_length=storage.MAX_BYTES+1024*1024
+        try:
+            original_id=request.form.get('original_id','')
+            original=None
+            if original_id:
+                original_row,original,_=document(draft,original_id)
+                if original['kind']!='signed_original':raise ValueError('Select the original signed lease to which this Addendum relates.')
+            elif originals(draft):raise ValueError('Select the original signed lease to which this Addendum relates.')
+            reference=original.get('lease_reference','') if original else 'Lease draft '+str(draft['id'])
+            metadata={'original_id':original['id'] if original else None,'lease_reference':reference,
+                'original_sha256':original['sha256'] if original else None,'legal_status':'not-verified'}
+            if request.form['action']=='upload_pdf':
+                upload=request.files.get('addendum_pdf')
+                if not upload:raise ValueError('Select an Addendum PDF.')
+                filename,extension,mime,payload,_=storage.validate_upload(upload)
+                if extension!='.pdf':raise ValueError('Select a valid PDF.')
+                entry=store(draft,'addendum_draft',filename,mime,payload,metadata,continuation=True)
+            else:
+                wording=request.form.get('wording','')
+                if not wording.strip() or len(wording)>30000:raise ValueError('Enter amendment details (maximum 30000 characters).')
+                metadata['wording']=wording
+                entry=store(draft,'addendum_draft','Addendum.pdf','application/pdf',None,metadata,continuation=True,
+                    payload_builder=lambda number:addendum_pdf(prop,reference,wording,number))
+            flash('Addendum PDF saved. Open it below. The original lease is unchanged.','success')
+            return redirect(url_for('billing_bp.lease_addendum',property_id=property_id,draft_id=draft['id']))
+        except ValueError as error:errors.append(str(error))
+        draft=locked(property_id,draft['id'])
+    elif request.method=='POST':
         from app.program_billing import lease_storage as storage,lease_property_master as masters
         request.max_content_length=storage.MAX_BYTES+1024*1024
         try:
@@ -281,7 +342,7 @@ def addendum(property_id):
             return redirect(url_for('billing_bp.lease_history_document',property_id=property_id,document_id=entry['id'],draft_id=draft['id']))
         except ValueError as error:errors.append(str(error))
     return render_pm_template('program_billing/lease_addendum.html',title='Addendum',property=prop,lease_draft=draft,
-        originals=originals(draft),arrangement_wording=arrangement_wording,errors=errors,unavailable=None),400 if errors else 200
+        originals=originals(draft),addendums=addendum_history(draft,property_id),arrangement_wording=arrangement_wording,errors=errors,unavailable=None),400 if errors else 200
 
 
 def signer():return URLSafeTimedSerializer(current_app.config['SECRET_KEY'],salt='lease-view-version-001')
@@ -298,7 +359,7 @@ def view_document(property_id,document_id):
     prop,draft=context(property_id)
     row,meta,payload=document(draft,document_id)
     if row['mime_type']!=MIME:
-        return send_file(BytesIO(payload),mimetype=row['mime_type'],as_attachment=True,download_name=row['filename'],max_age=0)
+        return send_file(BytesIO(payload),mimetype=row['mime_type'],as_attachment=meta.get('kind') not in ('addendum_draft','signed_addendum'),download_name=row['filename'],max_age=0)
     blocks=preview.extract_blocks(payload)
     token=view_token(draft,'document',payload,document_id=str(document_id))
     return render_pm_template('program_billing/lease_live_view.html',title='View '+meta['filename'],property=prop,lease_draft=draft,

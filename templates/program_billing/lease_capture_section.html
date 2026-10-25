@@ -27,6 +27,7 @@
 <div class="capture-page"><div class="capture-accent"></div><div class="capture-content">
 {% include 'partials/flash_messages.html' %}
 <div class="capture-header"><h1>Data Capture</h1><div class="capture-actions"><a class="lease-cross-navigation lease-view-link" href="{{ capture_view }}" data-capture-back data-capture-return="view">View Lease</a><a class="lease-back-link" href="{{ capture_back }}" data-capture-back>Back</a></div></div><p>{{ property.name }}</p>
+<h2 class="mt-4 font-semibold" id="capture-navigation-title">Data Capture sections</h2>
 <nav class="capture-tabs" aria-label="Data Capture sections">{% for tab in capture_sections %}<a href="{{ tab.url }}" data-capture-section="{{ tab.key }}" {% if tab.key==section_key %}aria-current="page"{% endif %}>{{ tab.label }}</a>{% endfor %}</nav>
 <div class="capture-header"><h2 class="capture-section-title">{{ title.split('. ',1)[-1] }}</h2><div class="capture-actions">{% if section_key=='additional' %}<button type="button" id="sc-add" {% if frozen %}disabled{% endif %}>+ Add SC</button>{% else %}<button type="submit" name="action" value="save" form="certificate-form" id="capture-save" {% if frozen %}disabled{% endif %}>Save</button>{% endif %}</div></div>
 {% if errors %}<ul role="alert" class="capture-errors">{% for error in errors %}<li>{{ error }}</li>{% endfor %}</ul>{% endif %}
@@ -58,7 +59,7 @@
 
 {% if section_key=='period' %}<p>Expiry is calculated from commencement and duration. Renewal notice uses the existing three-calendar-month rule.</p><div id="period-conflicts" role="status" class="capture-date-conflicts" {% if not date_differences %}hidden{% endif %}><div id="period-differences"><p>Saved dates differ from the calculation:</p>{% for difference in date_differences %}<p>{{ difference.label }}: saved {{ difference.saved }}; calculated {{ difference.calculated }}.</p>{% endfor %}</div><label><input type="checkbox" name="confirm_period_dates" value="1"> Replace these saved dates with the calculated values</label></div>{% endif %}
 </form>
-<dialog id="capture-unsaved-dialog"><h2>Unsaved changes</h2><p>Save your changes before returning?</p><div class="capture-dialog-actions"><button type="button" id="capture-save-back">Save and Back</button><button type="button" id="capture-discard-back">Discard and Back</button><button type="button" data-close-dialog="capture-unsaved-dialog">Continue editing</button></div></dialog>
+<dialog id="capture-unsaved-dialog"><h2>Unsaved changes</h2><p>Save your changes before leaving this section?</p><div class="capture-dialog-actions"><button type="button" id="capture-save-back">Save and Continue</button><button type="button" id="capture-discard-back">Discard and Continue</button><button type="button" data-close-dialog="capture-unsaved-dialog">Continue editing</button></div></dialog>
 <script type="application/json" id="capture-tenants">{{ tenant_choices|tojson }}</script><script type="application/json" id="capture-banks">{{ bank_choices|tojson }}</script><script src="{{ url_for('static',filename='js/lease_capture.js') }}" defer></script>
 </div></div>
 {% endblock %}

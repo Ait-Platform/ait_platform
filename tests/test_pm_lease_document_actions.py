@@ -86,8 +86,10 @@ class LeaseDocumentsActionsTests(unittest.TestCase):
         for row in rows:
             pdf=row.get('data-pdf-url');links=row.xpath('./td/a')
             self.assertEqual(links[0].get('href'),pdf);self.assertEqual(links[0].get('target'),'_blank')
-            self.assertEqual(links[1].get('href'),pdf+'&download=1')
+            self.assertEqual(len(links),1);self.assertEqual(links[0].text,'Open PDF')
         self.assertEqual(html.count('>Export Word</a>'),1);self.assertEqual(html.count('id="sc-import-open"'),1)
+        self.assertIn('>Export / Import</button>',html);self.assertIn('<dialog id="sc-word-import"',html)
+        self.assertNotIn('>Download</a>',html);self.assertNotIn('>Print</a>',html)
         self.assertIn('Email / Print',html)
         for key,_ in self.kit.COMPONENTS:self.assertIn('component='+key,html)
         for text in ('Chronological document history','Email submission history','signed-original.pdf','legacy-upload.pdf','owner@example.com','Upload Signed Copy','No documents have been recorded','No email attempts recorded'):
@@ -103,6 +105,14 @@ class LeaseDocumentsActionsTests(unittest.TestCase):
         self.assertNotIn('Email submission history',html)
         self.assertEqual(response.headers['Cache-Control'],'private, no-store')
         self.assertEqual(self.draft,self.original);self.db.session.commit.assert_not_called()
+
+    def test_map_sources_are_not_presented_as_signed_copies(self):
+        self.draft['items']['_lease_history']['documents'].append({'id':'33333333-3333-3333-3333-333333333333','kind':'map_annexure','filename':'Almond-map.png','state':'available','sha256':'map-hash'})
+        record={'id':'33333333-3333-3333-3333-333333333333','filename':'Almond-map.png','state':'available','created_at':datetime.now(timezone.utc),'sha256':'map-hash','item_key':'map-annexure'}
+        self.db.session.execute.return_value=types.SimpleNamespace(mappings=lambda:[record])
+        response=self.client.get('/billing/leases/property/26/signed-copy?draft_id=draft-one',headers={'X-Test-Owner':'yes'})
+        self.assertEqual(response.status_code,200);self.assertNotIn('Almond-map.png',response.text);self.assertIn('signed-original.pdf',response.text)
+        self.db.session.commit.assert_not_called()
 
     def test_history_authentication_and_property_draft_scope(self):
         for path in ('history','signed-copy','banking'):

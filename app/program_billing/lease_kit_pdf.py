@@ -141,6 +141,9 @@ def build_pdf(component, context):
     for key in ('cover', 'certificate', 'core', 'special_conditions', 'signature'):
         payload = core_bytes() if key == 'core' else html_pdf(key, context)
         writer.append(PdfReader(BytesIO(payload)))
+        if key=='special_conditions' and context.get('lease_draft') and context['lease_draft']['items'].get('_map_annexures'):
+            from .lease_map_annexure import compiled
+            for annexure in compiled(context):writer.append(PdfReader(BytesIO(annexure)))
     writer.add_metadata({'/Title': 'AIT Lease Kit - REVIEW ONLY', '/Subject': REVIEW})
     output = BytesIO()
     writer.write(output)

@@ -45,7 +45,13 @@ def submitted(posted, items):
         heading = custom if kind == 'Custom' else kind
         if mode == 'add' and (not heading or not body):
             raise ValueError('SC-%02d: supply a clause heading and clause text, or remove the clause.' % index)
-        clauses.append({'heading_type': kind, 'heading': heading, 'text': body})
+        clause={'heading_type': kind, 'heading': heading, 'text': body}
+        originals=items.get(KEY,{}).get('clauses',[])
+        original=originals[index-1] if index<=len(originals) else {}
+        if original.get('blocks') and posted.get('sc_text_'+str(index),'')==original.get('text'):
+            clause.update(text=original['text'],blocks=deepcopy(original['blocks']))
+            if (posted.get('sc_custom_heading_'+str(index),'') if kind=='Custom' else kind)==original.get('heading'):clause['heading']=original['heading']
+        clauses.append(clause)
     # None omits output while retaining clauses so toggling does not discard saved work.
     return {'schema_version': 1, 'mode': mode, 'clauses': clauses}
 

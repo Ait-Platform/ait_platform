@@ -54,8 +54,8 @@ def saved_clauses(items):
 def build_word(prop,draft,exported_at):
     items=draft['items'];rows=saved_clauses(items)
     document=ET.Element('{'+W+'}document');body=ET.SubElement(document,'{'+W+'}body')
-    def paragraph(value,bold=False,size='22'):
-        p=ET.SubElement(body,'{'+W+'}p');pr=ET.SubElement(p,'{'+W+'}pPr')
+    def paragraph(value,bold=False,size='22',parent=None):
+        p=ET.SubElement(body if parent is None else parent,'{'+W+'}p');pr=ET.SubElement(p,'{'+W+'}pPr')
         ET.SubElement(pr,'{'+W+'}spacing',{'{'+W+'}after':'120'})
         r=ET.SubElement(p,'{'+W+'}r');rp=ET.SubElement(r,'{'+W+'}rPr')
         ET.SubElement(rp,'{'+W+'}rFonts',{'{'+W+'}ascii':'Arial','{'+W+'}hAnsi':'Arial'})
@@ -76,10 +76,22 @@ def build_word(prop,draft,exported_at):
     paragraph('Export date: '+exported_at.isoformat(timespec='seconds')+' (Africa/Johannesburg)')
     if items.get('_supplementary_conditions',{}).get('mode')=='none':paragraph('Saved Special Conditions selection: None. Retained saved clauses follow, if present.')
     legacy=False
-    for number,heading,content,older in rows:
+    for row_index,(number,heading,content,older) in enumerate(rows):
         if older and not legacy:paragraph('Other saved condition particulars',True,'26');legacy=True
         paragraph(number+(' — ' if number and heading else '')+heading,True)
-        paragraph(content)
+        blocks=items.get('_supplementary_conditions',{}).get('clauses',[])[row_index].get('blocks') if not older else None
+        if blocks:
+            for block in blocks:
+                if block['kind']=='paragraph':paragraph(block['text'])
+                elif block['kind']=='table':
+                    table=ET.SubElement(body,'{'+W+'}tbl');props=ET.SubElement(table,'{'+W+'}tblPr');borders=ET.SubElement(props,'{'+W+'}tblBorders')
+                    for edge in ('top','left','bottom','right','insideH','insideV'):ET.SubElement(borders,'{'+W+'}'+edge,{'{'+W+'}val':'single','{'+W+'}sz':'4'})
+                    for row_number,values in enumerate(block['rows']):
+                        tr=ET.SubElement(table,'{'+W+'}tr')
+                        if row_number==0:ET.SubElement(ET.SubElement(tr,'{'+W+'}trPr'),'{'+W+'}tblHeader')
+                        for value in values:paragraph(value,bold=row_number==0,parent=ET.SubElement(tr,'{'+W+'}tc'))
+                else:raise ValueError('Unsupported saved clause block.')
+        else:paragraph(content)
     if not rows:paragraph('No saved Special Conditions.')
     sect=ET.SubElement(body,'{'+W+'}sectPr')
     ET.SubElement(sect,'{'+W+'}pgSz',{'{'+W+'}w':'11906','{'+W+'}h':'16838'})

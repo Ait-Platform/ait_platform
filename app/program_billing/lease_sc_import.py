@@ -18,10 +18,15 @@ from .lease_sc_export import W
 def signer():return URLSafeTimedSerializer(current_app.secret_key,salt='lease-sc-word-import')
 
 
-def editable(draft):
+def require_editable(draft):
     items=draft['items']
     if any(e.get('kind','').startswith('signed_') for e in items.get('_lease_history',{}).get('documents',[])) or any(g.get('signature_or_issuance_approved') is True for g in items.get('_generations',[])+items.get('_ait_standard',{}).get('generations',[])):
         abort(409,description='Signed or approved drafts cannot be changed by Word import.')
+
+
+def editable(draft):
+    require_editable(draft)
+    items=draft['items']
     from .lease_supplementary_conditions import legacy_entries
     if legacy_entries(items):abort(409,description='This draft contains legacy condition structures. They cannot be safely matched by SC number for import.')
     saved=items.get('_supplementary_conditions',{})
@@ -48,47 +53,77 @@ def paragraphs(payload):
         root=ET.fromstring(archive.read('word/document.xml'),parser=ET.XMLParser(resolve_entities=False,no_network=True))
     body=root.find('{'+W+'}body');result=[]
     if body is None:raise ValueError('Missing document body.')
-    for p in body:
-        if p.tag=='{'+W+'}sectPr':continue
-        if p.tag!='{'+W+'}p':raise ValueError('Use plain paragraphs, not tables or content controls.')
-        if p.find('.//{'+W+'}numPr') is not None:raise ValueError('Automatic Word numbering is not supported. Keep explicit SC and internal clause numbers.')
+    def read_paragraph(p):
+        if p.find('.//{'+W+'}numPr') is not None:raise ValueError('Use explicit SC and internal numbers; automatic list numbering is ambiguous.')
         parts=[]
         for run in p:
             if run.tag in ('{'+W+'}pPr','{'+W+'}proofErr','{'+W+'}bookmarkStart','{'+W+'}bookmarkEnd'):continue
-            if run.tag!='{'+W+'}r':raise ValueError('Tracked changes, fields and unsupported content must be resolved before import.')
+            if run.tag!='{'+W+'}r':raise ValueError('Resolve tracked changes, fields and unsupported content before importing.')
             for node in run:
                 if node.tag in ('{'+W+'}rPr','{'+W+'}lastRenderedPageBreak'):continue
                 if node.tag=='{'+W+'}t':parts.append(node.text or '')
                 elif node.tag=='{'+W+'}tab':parts.append('\t')
                 elif node.tag in ('{'+W+'}br','{'+W+'}cr') and node.get('{'+W+'}type','textWrapping')=='textWrapping':parts.append('\n')
-                else:raise ValueError('Unsupported Word structure.')
-        result.append(''.join(parts))
+                else:raise ValueError('Unsupported Word run structure.')
+        return ''.join(parts)
+    for node in body:
+        if node.tag=='{'+W+'}sectPr':continue
+        if node.tag=='{'+W+'}p':result.append({'kind':'paragraph','text':read_paragraph(node)})
+        elif node.tag=='{'+W+'}tbl':
+            rows=[]
+            for row in node:
+                if row.tag in ('{'+W+'}tblPr','{'+W+'}tblGrid'):continue
+                if row.tag!='{'+W+'}tr':raise ValueError('Unsupported table row structure.')
+                cells=[]
+                for cell in row:
+                    if cell.tag=='{'+W+'}trPr':continue
+                    if cell.tag!='{'+W+'}tc':raise ValueError('Unsupported table cell structure.')
+                    if cell.find('.//{'+W+'}gridSpan') is not None or cell.find('.//{'+W+'}vMerge') is not None:raise ValueError('Merged table cells are ambiguous; use separate rectangular cells.')
+                    values=[]
+                    for part in cell:
+                        if part.tag=='{'+W+'}tcPr':continue
+                        if part.tag!='{'+W+'}p':raise ValueError('Nested tables and content controls are unsupported.')
+                        values.append(read_paragraph(part))
+                    cells.append('\n'.join(values))
+                rows.append(cells)
+            if not rows or not rows[0] or any(len(row)!=len(rows[0]) for row in rows):raise ValueError('The Word table must contain complete rectangular rows.')
+            result.append({'kind':'table','rows':rows})
+        else:raise ValueError('Use Word paragraphs, headings and rectangular tables only.')
     return result
 
 
 def proposed(payload,clauses,numbers):
-    found=[];active=None;content=[]
+    from .lease_sc_blocks import plain_text
+    found=[];active=None;content=[];await_heading=False
     def finish():
         if active is not None:
-            body='\n'.join(content)
-            if not body.strip():raise ValueError('A clause has no wording.')
-            found.append((active[0],active[1],body))
-    for paragraph in paragraphs(payload):
-        match=re.fullmatch(r'(SC-\d+)(?: [—–-] (.*))?',paragraph)
+            if not active[1].strip():raise ValueError(active[0]+': clause heading is missing.')
+            if not plain_text(content).strip():raise ValueError(active[0]+': clause wording is missing.')
+            found.append((active[0],active[1],deepcopy(content)))
+    for block in paragraphs(payload):
+        paragraph=block.get('text','') if block['kind']=='paragraph' else ''
+        match=re.fullmatch(r'(SC-\d+)(?: [—–-] (.*))?',paragraph) or re.fullmatch(r'\s*(SC-\d+)(?:(?:\s*[—–:]\s*|\s+-\s+|\s+)(.+))?\s*',paragraph)
         if match:
-            finish();active=(match[1],match[2] or '');content=[]
-        elif paragraph.startswith('SC-'):raise ValueError('Ambiguous SC heading or number.')
-        elif active is not None:content.append(paragraph)
+            finish();active=[match[1],match[2] or ''];content=[];await_heading=not active[1]
+        elif block['kind']=='paragraph' and paragraph.lstrip().startswith('SC-'):raise ValueError('Ambiguous clause number or heading: '+paragraph[:100])
+        elif active is not None:
+            if await_heading and block['kind']=='paragraph' and paragraph.strip():active[1]=paragraph;await_heading=False
+            else:content.append(block)
+        elif block['kind']=='table':raise ValueError('A table must belong to an identified SC clause.')
         elif paragraph and paragraph!='Special Conditions' and not paragraph.startswith(('Property: ','Tenant: ','Lease draft ID: ','Draft version: ','Export date: ','Saved Special Conditions selection: ')):
-            raise ValueError('Unnumbered content before the first SC clause.')
+            raise ValueError('Unnumbered wording appears before the first SC clause.')
     finish()
-    if [r[0] for r in found]!=numbers:raise ValueError('SC numbers must match every saved clause exactly once and in the same order. Missing, duplicate, extra or reordered clauses are not accepted.')
-    if len({(heading,body) for _,heading,body in found})!=len(found):raise ValueError('Duplicate clauses are not accepted.')
+    actual=[r[0] for r in found]
+    duplicate=next((n for n in actual if actual.count(n)>1),None)
+    if duplicate:raise ValueError('Duplicate clause number: '+duplicate)
+    missing=[n for n in numbers if n not in actual]
+    if missing:raise ValueError('Missing clause numbers: '+', '.join(missing))
+    if actual!=numbers:raise ValueError('SC numbers must match the saved clause order exactly; unexpected or reordered numbers were found.')
+    if len({(heading,plain_text(blocks)) for _,heading,blocks in found})!=len(found):raise ValueError('Duplicate clauses are not accepted.')
     result=deepcopy(clauses)
-    for target,(_,heading,body) in zip(result,found):
-        if not heading.strip():raise ValueError('A clause heading is missing.')
+    for target,(_,heading,blocks) in zip(result,found):
         if heading!=target.get('heading'):target['heading_type']='Custom'
-        target.update(heading=heading,text=body)
+        target.update(heading=heading,text=plain_text(blocks),blocks=blocks)
     return result
 
 
@@ -106,7 +141,7 @@ def handle(prop,draft):
     except ValueError as error:abort(400,description=str(error))
     chosen=selection(draft,digest,changes)
     if request.form['action']=='sc_import_preview':
-        return jsonify(token=signer().dumps(chosen),version=draft['version'],comparison=[{'number':n,'existing_heading':old['heading'],'existing_text':old['text'],'proposed_heading':new['heading'],'proposed_text':new['text']} for n,old,new in zip(numbers,clauses,changes)])
+        return jsonify(token=signer().dumps(chosen),version=draft['version'],comparison=[{'number':n,'existing_heading':old['heading'],'existing_text':old['text'],'proposed_heading':new['heading'],'proposed_text':new['text'],'existing_blocks':old.get('blocks'),'proposed_blocks':new.get('blocks')} for n,old,new in zip(numbers,clauses,changes)])
     if request.form.get('confirmed')!='yes':abort(400,description='Explicit confirmation is required.')
     try:verified=signer().loads(request.form.get('token',''),max_age=900)
     except BadSignature:abort(409,description='Import comparison expired or is invalid. Compare the document again.')

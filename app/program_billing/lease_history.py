@@ -168,9 +168,18 @@ def addendum_bytes(master,original,wording,number):
 @snapshot.endpoint
 def history(property_id):
     prop,draft=context(property_id)
-    if request.method=='POST' and request.form.get('action') in ('sc_import_preview','sc_import_confirm'):
-        from .lease_sc_import import handle
-        return handle(prop,draft)
+    if request.method=='POST' and request.form.get('action') in ('sc_import_preview','sc_import_confirm','map_upload'):
+        from werkzeug.exceptions import HTTPException
+        from flask import jsonify
+        try:
+            if request.form['action']=='map_upload':
+                from .lease_map_annexure import upload
+                return upload(prop,draft)
+            from .lease_sc_import import handle
+            return handle(prop,draft)
+        except HTTPException as error:
+            db.session.rollback()
+            return jsonify(error=error.description),error.code
     if request.method=='POST':
         # Preserve old upload-form submissions without duplicating the upload handler.
         return redirect(url_for('billing_bp.lease_signed_copy',property_id=property_id,draft_id=draft['id']),code=307)
@@ -205,9 +214,10 @@ def signed_copy(property_id):
             flash('Document stored and verified. Signatures and legal validity have not been verified.','success')
             return redirect(url_for('billing_bp.lease_signed_copy',property_id=property_id,draft_id=draft['id']))
         except ValueError as error:errors.append(str(error))
-    entries=ledger(draft)['documents']
+    entries=[entry for entry in ledger(draft)['documents'] if entry.get('kind')!='map_annexure']
     known={e['id'] for e in entries}
-    for row in db.session.execute(text('SELECT id,filename,state,created_at,sha256 FROM bil_lease_document WHERE draft_id=:d AND property_id=:p AND manager_id=:u'),{'d':draft['id'],'p':property_id,'u':current_user.id}).mappings():
+    for row in db.session.execute(text('SELECT id,filename,state,created_at,sha256,item_key FROM bil_lease_document WHERE draft_id=:d AND property_id=:p AND manager_id=:u'),{'d':draft['id'],'p':property_id,'u':current_user.id}).mappings():
+        if row.get('item_key')=='map-annexure':continue
         if str(row['id']) not in known:entries.append({'id':str(row['id']),'filename':row['filename'],'kind':'legacy_attachment','version':None,'uploaded_by':None,'uploaded_at':row['created_at'].isoformat(),'state':row['state'],'signature_status':'not-verified','sha256':row['sha256']})
     entries=sorted(entries,key=lambda e:(e['uploaded_at'],e['id']))
     for entry in entries:

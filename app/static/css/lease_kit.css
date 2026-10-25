@@ -80,3 +80,6 @@ div:has(> #lease-header-actions) { display:flex; justify-content:space-between; 
 #lease-document-actions td a{display:inline-block;padding:8px 12px;border:1px solid #cbd5e1;border-radius:6px;background:#eff6ff;color:#172c3e;text-decoration:none}
 #lease-document-actions>table{min-width:560px}#lease-document-actions{overflow-x:auto}
 #sc-import-comparison section{border-bottom:1px solid #cbd5e1;padding:12px 0}#sc-import-comparison pre{font:inherit;overflow-wrap:anywhere;margin:8px 0 16px}
+
+#sc-word-import{margin:auto;width:min(920px,calc(100vw - 32px));max-height:85vh;overflow:auto;padding:24px;border:1px solid #cbd5e1;border-radius:10px;background:white;color:#172c3e}
+#sc-word-import::backdrop{background:rgba(15,23,42,.55)}#sc-word-import button,#sc-word-import .sc-word-export{display:inline-block;margin:8px 6px 8px 0;padding:8px 12px;border:1px solid #cbd5e1;border-radius:6px;background:#eff6ff}#sc-word-import button:disabled{opacity:.45}#sc-import-status{color:#991b1b}#sc-import-comparison table{width:100%;border-collapse:collapse}#sc-import-comparison td,#sc-import-comparison th{border:1px solid #cbd5e1;padding:6px}

@@ -1,13 +1,13 @@
 const assert = require('node:assert/strict');
 const vm = require('node:vm');
 const fs = require('node:fs');
-module.exports = async function run(rootPath, prefix="lease-kit", pageCount=9, companion=false) {
+module.exports = async function run(rootPath, prefix="lease-kit", pageCount=9, companion=false, lazy=false) {
   const elements = new Map(), added = [], requests = [], timers = new Map(), events = {};
   const bytes = new TextEncoder().encode('%PDF-actual protected bytes').buffer;
   let printed = 0, revoked = 0, downloaded = 0, rendered = [], nextTimer = 1, blob;
   function element(id) {
     return { id, disabled: true, hidden: true, textContent: '', value: '1', style: {}, dataset: {}, clientWidth: 800, clientHeight: 900,
-      setAttribute() {}, getContext() { return {}; }, focus() {}, reportValidity() { return true; }, remove() {}, click() { downloaded++; } };
+      addEventListener(name,fn){(this.events??={})[name]=fn;}, setAttribute() {}, getContext() { return {}; }, focus() {}, reportValidity() { return true; }, remove() {}, click() { downloaded++; } };
   }
   ['document','status','viewport','canvas','page','page-count','email-form','email-status','email-cancel','email-send',
     'play','pause','zoom-out','zoom-in','previous','next','print','download','email'].forEach(name => elements.set(prefix+'-'+name, element(prefix+'-'+name)));
@@ -17,6 +17,7 @@ module.exports = async function run(rootPath, prefix="lease-kit", pageCount=9, c
     for(const name of ['document','status','viewport','canvas','page','page-count','zoom-out','zoom-in','previous','next'])elements.set('lease-sc-'+name,element('lease-sc-'+name));
     elements.get('lease-sc-document').dataset={viewerPrefix:'lease-sc',pdfUrl:'/protected/lease-sc.pdf'};
   }
+  if(lazy)get('document').dataset.pdfUrl='';
   get('email-form').elements = { recipient: { focus() {} } }; get('email-send').disabled = false;
   const document = { querySelectorAll:()=>Array.from(elements.values()).filter(item=>item.id.endsWith('-document')), getElementById: id => elements.get(id), createElement: tag => {
     const item = element(tag);
@@ -40,6 +41,7 @@ module.exports = async function run(rootPath, prefix="lease-kit", pageCount=9, c
     return { promise:Promise.resolve(pdf) }; }}, addEventListener(name,fn){events[name]=fn;} };
   vm.runInNewContext(fs.readFileSync(rootPath+'/app/static/js/lease_kit.js','utf8'),sandbox);
   const settle=async()=>{for(let i=0;i<15;i++)await Promise.resolve();};
+  if(lazy){assert.equal(requests.length,0);get('document').events['lease-pdf-load']({detail:{url:'/protected/'+prefix+'.pdf'}});}
   await settle();
   assert.equal(get('page-count').textContent,'of '+pageCount);assert.equal(get('previous').disabled,true);
   get('next').onclick();await settle();assert.equal(get('page').value,2);

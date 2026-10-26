@@ -27,8 +27,8 @@ class SpecialConditionsImportTests(unittest.TestCase):
         snap=sys.modules['app.program_billing.lease_snapshot']
         def context(property_id):return snap.authorised_property(property_id),snap.draft_row(property_id,request.args.get('draft_id'))
         # Execute the actual history action dispatch with its existing endpoint guard.
-        env={'__name__':'app.program_billing.lease_history','__package__':'app.program_billing','billing_bp':types.SimpleNamespace(route=lambda *a,**k:lambda f:f),'snapshot':snap,'context':context,'db':self.db,'request':request,'redirect':__import__('flask').redirect,'url_for':__import__('flask').url_for,'render_pm_template':__import__('flask').render_template}
-        fixtures.fixtures.functions('app/program_billing/lease_history.py',{'history'},env)
+        env={'__name__':'app.program_billing.lease_history','__package__':'app.program_billing','billing_bp':types.SimpleNamespace(route=lambda *a,**k:lambda f:f),'snapshot':snap,'context':context,'deepcopy':copy.deepcopy,'uuid':uuid,'current_app':__import__('flask').current_app,'URLSafeTimedSerializer':__import__('itsdangerous').URLSafeTimedSerializer,'db':self.db,'request':request,'redirect':__import__('flask').redirect,'url_for':__import__('flask').url_for,'render_pm_template':__import__('flask').render_template}
+        fixtures.fixtures.functions('app/program_billing/lease_history.py',{'history','ledger','signer','addendum_history'},env)
         self.app._got_first_request=False  # Isolated fixture route registration, never production setup.
         self.app.add_url_rule('/billing/leases/property/<int:property_id>/history',view_func=env['history'],methods=['GET','POST'])
         self.endpoint='/billing/leases/property/26/history?draft_id='+str(self.identifier)

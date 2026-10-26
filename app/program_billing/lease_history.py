@@ -196,7 +196,7 @@ def history(property_id):
         return redirect(url_for('billing_bp.lease_signed_copy',property_id=property_id,draft_id=draft['id']),code=307)
     from .lease_kit import action_documents
     return render_pm_template('program_billing/lease_history.html',title='Output',property=prop,lease_draft=draft,
-        action_documents=action_documents(property_id,draft['id']),unavailable=None)
+        action_documents=action_documents(property_id,draft['id']),addendum_documents=addendum_history(draft,property_id),unavailable=None)
 
 
 @billing_bp.route('/billing/leases/property/<int:property_id>/signed-copy',methods=['GET','POST'],endpoint='lease_signed_copy')
@@ -379,21 +379,53 @@ def clause_register_save(prop,draft):
     return jsonify(result)
 
 
-def addendum_pdf(prop,reference,wording,number):
-    """Render only the entered amendment, identifying its related lease."""
+def addendum_heading(provisions):
+    groups=[]
+    for source,label in CLAUSE_SOURCES.items():
+        references=list(dict.fromkeys(entry['reference'] for entry in provisions if entry['source']==source))
+        if references:groups.append(label+' — '+', '.join(references))
+    return ('NOTICE REGARDING CHANGES TO CLAUSES:','; '.join(groups)) if groups else ('GENERAL ADDENDUM TO AGREEMENT OF LEASE','')
+
+
+def next_addendum_number(draft,original_id):
+    return 1+max((entry.get('addendum_number',entry['version']) for entry in ledger(draft)['documents']
+        if entry['kind']=='addendum_draft' and entry.get('original_id')==original_id),default=0)
+
+
+def addendum_content(prop,draft):
+    key,items,reference=clause_lease(draft,request.form.get('original_id') or request.form.get('clause_lease'))
+    state=clause_register_state(draft,key)
+    if key=='draft':reference='Lease draft '+str(draft['id'])
+    if any(entry.get('source_status')!='Current source' for entry in state['selected']):raise ValueError('A selected original provision changed or is unavailable. Return to Select Clause to remove it or select its current wording.')
+    subject=request.form.get('subject','').strip();wording=request.form.get('wording','')
+    if len(subject)>300 or '\x00' in subject:raise ValueError('Subject must be no longer than 300 characters.')
+    if not wording.strip() or len(wording)>30000 or '\x00' in wording:raise ValueError('Enter amendment content (maximum 30000 characters).')
+    return key,items or {},reference,subject,wording,state['selected']
+
+
+def addendum_pdf(prop,reference,wording,number,subject='',provisions=(),items=None):
+    """Use one amendment content area; selected references never rewrite the lease."""
     from xml.sax.saxutils import escape
-    from reportlab.platypus import SimpleDocTemplate,Paragraph,Spacer
+    from reportlab.platypus import SimpleDocTemplate,Paragraph,Spacer,PageBreak
     from reportlab.lib.styles import getSampleStyleSheet
-    from reportlab.lib.enums import TA_JUSTIFY
-    output=BytesIO();styles=getSampleStyleSheet();styles['BodyText'].alignment=TA_JUSTIFY
-    story=[Paragraph('Addendum No. '+str(number)+' to Agreement of Lease',styles['Title']),
-        Paragraph('Property: '+escape(str(prop['name']))+' (ID '+str(prop['id'])+')',styles['BodyText']),
-        Paragraph('Related lease: '+escape(reference),styles['BodyText']),Spacer(1,16)]
+    from .lease_signing import rows
+    output=BytesIO();styles=getSampleStyleSheet();heading,references=addendum_heading(provisions)
+    story=[Paragraph('ADDENDUM '+str(number).zfill(2),styles['Title']),
+        Paragraph(escape(heading),styles['Heading2'])]
+    if references:story.append(Paragraph(escape(references),styles['BodyText']))
+    story.extend([Paragraph('Original Lease Agreement: '+escape(reference),styles['BodyText']),
+        Paragraph('Property: '+escape(str(prop['name']))+' (ID '+str(prop['id'])+')',styles['BodyText']),Spacer(1,16)])
+    if subject:story.append(Paragraph('SUBJECT: '+escape(subject),styles['Heading2']))
+    story.append(Paragraph('Amendment Content',styles['Heading2']))
     for line in wording.splitlines():story.append(Paragraph(escape(line) or '&#160;',styles['BodyText']))
-    story.extend([Spacer(1,24),Paragraph('Signatures',styles['Heading2']),
-        Paragraph('Relevant parties: __________________________________________',styles['BodyText']),
-        Paragraph('Signed at: ____________________ Date: ____________________',styles['BodyText']),
-        Paragraph('Signatures: ______________________________________________',styles['BodyText'])])
+    story.extend([PageBreak(),Paragraph('SIGNATURES',styles['Title']),Paragraph('Addendum '+str(number).zfill(2)+' to '+escape(reference),styles['BodyText'])])
+    parties=rows(items or {}) or [{'role':'Relevant parties','name':'________________________________'}]
+    for party in parties:
+        story.extend([Spacer(1,18),Paragraph(escape(party['role']+': '+(party.get('name') or party.get('identity_number') or '')),styles['Heading3'])])
+        for representative in party.get('representatives',[]):
+            if representative.get('name'):story.append(Paragraph('Authorised representative: '+escape(representative['name']),styles['BodyText']))
+        story.extend([Paragraph('Place of signing: ____________________ Date: ____________________',styles['BodyText']),
+            Paragraph('Signature: ______________________________________________',styles['BodyText'])])
     SimpleDocTemplate(output,rightMargin=48,leftMargin=48,topMargin=48,bottomMargin=48).build(story)
     return output.getvalue()
 
@@ -421,6 +453,15 @@ def addendum(property_id):
         try:return clause_register_save(prop,draft)
         except HTTPException as error:
             db.session.rollback();return jsonify(error=error.description),error.code
+    if request.method=='POST' and request.form.get('action')=='addendum_preview':
+        from flask import jsonify
+        try:
+            key,items,reference,subject,wording,provisions=addendum_content(prop,draft)
+            payload=addendum_pdf(prop,reference,wording,next_addendum_number(draft,None if key=='draft' else key),subject,provisions,items)
+        except ValueError as error:return jsonify(error=str(error)),400
+        response=send_file(BytesIO(payload),mimetype='application/pdf',as_attachment=False,download_name='Addendum-preview.pdf',max_age=0)
+        response.headers['Cache-Control']='private, no-store';response.headers['X-Content-Type-Options']='nosniff'
+        return response
     arrangement_wording=''
     if request.method=='GET' and request.args.get('utility_arrangement_id'):
         from app.program_billing.lease_property_payments import utility_record
@@ -447,13 +488,12 @@ def addendum(property_id):
                 if extension!='.pdf':raise ValueError('Select a valid PDF.')
                 entry=store(draft,'addendum_draft',filename,mime,payload,metadata,continuation=True)
             else:
-                wording=request.form.get('wording','')
-                if not wording.strip() or len(wording)>30000:raise ValueError('Enter amendment details (maximum 30000 characters).')
-                metadata['wording']=wording
+                key,source_items,reference,subject,wording,provisions=addendum_content(prop,draft)
+                metadata.update(wording=wording,subject=subject,selected_provisions=deepcopy(provisions))
                 entry=store(draft,'addendum_draft','Addendum.pdf','application/pdf',None,metadata,continuation=True,
-                    payload_builder=lambda number:addendum_pdf(prop,reference,wording,number))
+                    payload_builder=lambda number:addendum_pdf(prop,reference,wording,number,subject,provisions,source_items))
             flash('Addendum PDF saved. Open it below. The original lease is unchanged.','success')
-            return redirect(url_for('billing_bp.lease_addendum',property_id=property_id,draft_id=draft['id']))
+            return redirect(url_for('billing_bp.lease_addendum',property_id=property_id,draft_id=draft['id'],workspace='view',clause_lease=request.form.get('original_id') or request.form.get('clause_lease')))
         except ValueError as error:errors.append(str(error))
         draft=locked(property_id,draft['id'])
     elif request.method=='POST':
@@ -489,8 +529,9 @@ def addendum(property_id):
             flash('Draft addendum generated and stored. The original agreement is unchanged.','success')
             return redirect(url_for('billing_bp.lease_history_document',property_id=property_id,document_id=entry['id'],draft_id=draft['id']))
         except ValueError as error:errors.append(str(error))
+    register=clause_register_state(draft,request.args.get('clause_lease') or request.form.get('original_id'))
     return render_pm_template('program_billing/lease_addendum.html',title='Addendum',property=prop,lease_draft=draft,
-        clause_register=clause_register_state(draft,request.args.get('clause_lease')),originals=originals(draft),addendums=addendum_history(draft,property_id),arrangement_wording=arrangement_wording,errors=errors,unavailable=None),400 if errors else 200
+        clause_register=register,next_number=next_addendum_number(draft,None if register['lease_key']=='draft' else register['lease_key']),originals=originals(draft),addendums=addendum_history(draft,property_id),arrangement_wording=arrangement_wording,errors=errors,unavailable=None),400 if errors else 200
 
 
 def signer():return URLSafeTimedSerializer(current_app.config['SECRET_KEY'],salt='lease-view-version-001')

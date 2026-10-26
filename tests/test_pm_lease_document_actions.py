@@ -55,7 +55,7 @@ class LeaseDocumentsActionsTests(unittest.TestCase):
             if property_id!=26 or request.args.get('draft_id')!='draft-one':abort(404)
             return {'id':26},None,self.draft
         history_tree=ast.parse((ROOT/'app/program_billing/lease_history.py').read_text(encoding='utf-8-sig'))
-        names={'context','ledger','originals','signer','history','signed_copy','private_history'}
+        names={'addendum_history','context','ledger','originals','signer','history','signed_copy','private_history'}
         nodes=[n for n in history_tree.body if isinstance(n,ast.FunctionDef) and n.name in names]
         env.update({'__name__':'app.program_billing.lease_history','__package__':'app.program_billing',
             'billing_bp':bp,'snapshot':types.SimpleNamespace(endpoint=env['endpoint']), 'workflow':types.SimpleNamespace(selected_context=selected),

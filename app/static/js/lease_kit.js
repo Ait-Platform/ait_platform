@@ -1,13 +1,13 @@
 (function () {
   'use strict';
   document.querySelectorAll('[data-lease-pdf-viewer]').forEach(function (root) {
-  if (!root || !root.dataset.pdfUrl) return;
+  if (!root) return;
   const byId = name => document.getElementById((root.dataset.viewerPrefix || 'lease-kit') + '-' + name);
   const status = byId('status'), viewport = byId('viewport'), canvas = byId('canvas');
   const pageInput = byId('page');
   const buttons = {};
   ['zoom-out', 'zoom-in', 'previous', 'next'].forEach(name => { buttons[name] = byId(name); });
-  let pdf, page = 1, zoom = 1, busy = false, failed = false;
+  let pdf, page = 1, zoom = 1, busy = false, failed = false, loadSerial = 0, renderTask;
   function update() {
     const unavailable = !pdf || failed;
     Object.values(buttons).forEach(button => { button.disabled = unavailable; });
@@ -23,7 +23,7 @@
   }
   async function show() {
     if (busy || !pdf) return;
-    busy = true; update();
+    const generation=loadSerial;busy = true; update();
     try {
       const sheet = await pdf.getPage(page), base = sheet.getViewport({ scale: 1 });
       const fit = Math.max(0.1, Math.min((viewport.clientWidth - 8) / base.width, (viewport.clientHeight - 8) / base.height));
@@ -31,12 +31,14 @@
       const ratio = Math.min(window.devicePixelRatio || 1, 2);
       canvas.width = Math.ceil(view.width * ratio); canvas.height = Math.ceil(view.height * ratio);
       canvas.style.width = view.width + 'px'; canvas.style.height = view.height + 'px';
-      await sheet.render({ canvasContext: canvas.getContext('2d'), viewport: view, transform: [ratio, 0, 0, ratio, 0, 0] }).promise;
+      if(generation!==loadSerial)return;
+      renderTask=sheet.render({ canvasContext: canvas.getContext('2d'), viewport: view, transform: [ratio, 0, 0, ratio, 0, 0] });await renderTask.promise;
+      if(generation!==loadSerial)return;
       canvas.setAttribute('aria-label', 'PDF page ' + page + ' of ' + pdf.numPages);
       viewport.scrollTop = viewport.scrollLeft = 0;
       status.textContent = '';
-    } catch (error) { failed = true; status.textContent = 'The PDF could not be displayed. Reload to retry.'; }
-    finally { busy = false; update(); }
+    } catch (error) { if(generation===loadSerial){failed = true; status.textContent = 'The PDF could not be displayed. Reload to retry.';} }
+    finally { if(generation===loadSerial){busy = false; update();} }
   }
   function navigate(value) {
     if (busy || !pdf) return;
@@ -50,17 +52,21 @@
   pageInput.onkeydown = event => { if (event.key === 'Enter') { event.preventDefault(); const value = pageInput.value; navigate(value); } };
   buttons['zoom-out'].onclick = () => { if (!busy) { zoom = Math.max(0.5, zoom - 0.25); show(); } };
   buttons['zoom-in'].onclick = () => { if (!busy) { zoom = Math.min(3, zoom + 0.25); show(); } };
-  (async () => {
+  async function load(url) {
+    const generation=++loadSerial;if(renderTask&&renderTask.cancel)renderTask.cancel();pdf=null;page=1;zoom=1;busy=false;failed=false;canvas.width=canvas.height=0;pageInput.value=1;byId('page-count').textContent='of 0';status.textContent='Loading PDF...';update();
     try {
       if (!window.pdfjsLib) throw new Error('PDF viewer unavailable');
       // Reuse the PDF.js runtime and worker used by AIT's controlled document viewer.
       window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
-      const response = await fetch(root.dataset.pdfUrl, { credentials: 'same-origin', cache: 'no-store', redirect: 'error' });
+      const response = await fetch(url, { credentials: 'same-origin', cache: 'no-store', redirect: 'error' });
       if (!response.ok || !(response.headers.get('Content-Type') || '').includes('application/pdf')) throw new Error('PDF unavailable');
       const bytes = await response.arrayBuffer();
-      pdf = await window.pdfjsLib.getDocument({ data: new Uint8Array(bytes), isEvalSupported: false }).promise;
+      const loaded = await window.pdfjsLib.getDocument({ data: new Uint8Array(bytes), isEvalSupported: false }).promise;
+      if(generation!==loadSerial)return;pdf=loaded;
       await show();
-    } catch (error) { failed = true; status.textContent = 'The PDF is unavailable. Reload to retry.'; update(); }
-  })();
+    } catch (error) { if(generation===loadSerial){failed = true; status.textContent = 'The PDF is unavailable. Reload to retry.'; update();} }
+  }
+  if(root.addEventListener)root.addEventListener('lease-pdf-load',event=>{if(event.detail&&event.detail.url)load(event.detail.url);});
+  if(root.dataset.pdfUrl)load(root.dataset.pdfUrl);else{status.textContent='Select an Addendum to view.';update();}
   });
 }());

@@ -129,6 +129,63 @@ def html_pdf(component, context):
     return stable_review_pdf(HTML(string=html, url_fetcher=no_resources).write_pdf(stylesheets=styles))
 
 
+def compiled_presentation(payload,cover_pages):
+    """Clean only administrative text in an assembled copy, then paginate once.
+
+    Source objects remain untouched. Graphics/images are excluded from redaction;
+    a new footer band keeps pagination clear of uploaded content and maps.
+    """
+    import fitz
+    document=fitz.open(stream=payload,filetype='pdf')
+    for index,page in enumerate(document):
+        if page.rotation:page.remove_rotation()
+        replacements=[]
+        introduction="For the owner's final review. This Core forms part of the AIT Lease Kit and uses the Lease Certificate for the agreed particulars. Read it with the separate final-review decision register. It is not approved for signature or issue."
+        for block in page.get_text('dict')['blocks']:
+            lines=block.get('lines',[])
+            value=' '.join(''.join(span['text'] for span in line['spans']).strip() for line in lines)
+            if ' '.join(value.split())==introduction:
+                box=fitz.Rect(block['bbox']);page.add_redact_annot(box,fill=None,cross_out=False)
+                replacements.append((box,'This Core forms part of the AIT Lease Kit and uses the Lease Certificate for the agreed particulars.',lines[0]['spans'][0]['size']))
+        # Exact non-contractual preface labels in the approved review source.
+        for phrase in ("For the owner's final review.",
+                'Read it with the separate final-review decision register.',
+                'It is not approved for signature or issue.'):
+            for box in page.search_for(phrase):page.add_redact_annot(box,fill=None,cross_out=False)
+        for block in page.get_text('dict')['blocks']:
+            for line in block.get('lines',[]):
+                value=''.join(span['text'] for span in line['spans']).strip()
+                box=fitz.Rect(line['bbox'])
+                margin=box.y1<65 or box.y0>page.rect.height-65
+                administrative=bool(re.fullmatch(r'DRAFT(?:\s*[-—|]\s*FOR REVIEW ONLY(?:\s*[-—|]\s*NOT FOR SIGNATURE OR ISSUANCE)?)?',value,re.I))
+                administrative=administrative or value=='Final review draft'
+                if value=='AIT Residential Core Lease Agreement':
+                    for word in page.get_text('words'):
+                        if word[4]=='AIT' and fitz.Rect(word[:4]).intersects(box):page.add_redact_annot(fitz.Rect(word[:4]),fill=None,cross_out=False)
+                administrative=administrative or bool(re.fullmatch(r'Powered by AIT(?: Standard Lease| \| PROPERTY MANAGEMENT)?',value,re.I))
+                administrative=administrative or bool(re.fullmatch(r'(?:Draft (?:ID|reference|version)|Internal (?:reference|draft ID)|Development label)\s*[:#]\s*.+',value,re.I))
+                administrative=administrative or (margin and bool(re.fullmatch(r'AIT Residential Core \| FINAL REVIEW',value,re.I)))
+                pagination=margin and bool(re.fullmatch(r'(?:(?:Final review\s*\|\s*)?Page\s+\d+(?:\s*(?:of|/)\s*\d+)?|\d+\s*(?:of|/)\s*\d+)',value,re.I))
+                pagination=pagination or (box.y0>page.rect.height-35 and box.x0>page.rect.width*.25 and bool(re.fullmatch(r'\d+',value)))
+                if administrative or pagination:page.add_redact_annot(box,fill=None,cross_out=False)
+        page.apply_redactions(images=0,graphics=0,text=0)
+        for box,value,size in replacements:page.insert_textbox(box,value,fontname='helv',fontsize=size)
+        # Extend below the original media box; original content coordinates stay fixed.
+        crop=page.cropbox;media=page.mediabox
+        page.set_mediabox(fitz.Rect(media.x0,media.y0-28,media.x1,media.y1))
+        if crop.x0 or crop.y0 or crop.width!=media.width or crop.height!=media.height:
+            page.set_cropbox(fitz.Rect(crop.x0,crop.y0,crop.x1,crop.y1+28))
+        if index<cover_pages:
+            if index==0:page.insert_text((36,page.rect.height-11),'Powered by AIT',fontsize=9,fontname='helv',color=(.2,.2,.2))
+        else:
+            label='Page '+str(index-cover_pages+1)
+            width=fitz.get_text_length(label,fontname='helv',fontsize=9)
+            page.insert_text(((page.rect.width-width)/2,page.rect.height-11),label,fontsize=9,fontname='helv',color=(.2,.2,.2))
+    document.set_metadata({'title':'Agreement of Lease'})
+    output=document.tobytes(garbage=4,deflate=True,no_new_id=True);document.close()
+    return output
+
+
 def build_pdf(component, context):
     draft=context.get('lease_draft');filed=bool(draft and draft['items'].get('_sc_pdf_current'));sc_pdf=None
     if filed and component in ('special_conditions','lease'):
@@ -143,13 +200,16 @@ def build_pdf(component, context):
     if component != 'lease':
         return html_pdf(component, context)
     writer = PdfWriter()
+    cover_pages=0
     for key in ('cover', 'certificate', 'core', 'special_conditions', 'signature'):
         payload = core_bytes() if key == 'core' else sc_pdf if key=='special_conditions' and filed else html_pdf(key, context)
-        writer.append(PdfReader(BytesIO(payload)))
+        reader=PdfReader(BytesIO(payload))
+        if key=='cover':cover_pages=len(reader.pages)
+        writer.append(reader)
         if key=='special_conditions' and not filed and context.get('lease_draft') and context['lease_draft']['items'].get('_map_annexures'):
             from .lease_map_annexure import compiled
             for annexure in compiled(context):writer.append(PdfReader(BytesIO(annexure)))
-    writer.add_metadata({'/Title': 'AIT Lease Kit - REVIEW ONLY', '/Subject': REVIEW})
+    writer.add_metadata({'/Title': 'Agreement of Lease'})
     output = BytesIO()
     writer.write(output)
-    return output.getvalue()
+    return compiled_presentation(output.getvalue(),cover_pages)

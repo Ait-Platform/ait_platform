@@ -80,7 +80,10 @@ class HtmlLeaseKitTests(unittest.TestCase):
                         self.assertNotIn('DRAFT',footer)
                         self.assertNotIn('Required representative details are missing',page.get_text())
             self.assertEqual(payloads['core'],core);self.assertEqual(len(texts['core']),9)
-            self.assertEqual(texts['lease'],sum((texts[key] for key in self.kit.ORDER),[]))
+            self.assertEqual(len(texts['lease']),sum(len(texts[key]) for key in self.kit.ORDER))
+            for index,value in enumerate(texts['lease']):
+                if index==0:self.assertNotIn('Page 1',value)
+                else:self.assertTrue(value.rstrip().endswith('Page '+str(index)))
             for component in ('certificate','signature'):
                 text=''.join(texts[component])
                 for value in ('Signing City 0','Signing City 1','Signing City 2','2026-11-10','2026-11-11','2026-11-12','Natural Person','Entity Company','Entity Director'):

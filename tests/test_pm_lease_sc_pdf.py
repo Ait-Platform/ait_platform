@@ -75,6 +75,52 @@ class FiledSpecialConditionsTests(unittest.TestCase):
         for foreground in ('14532d','1e40af'):
             self.assertGreater((luminance('f0fdf4')+0.05)/(luminance(foreground)+0.05),4.5)
 
+    def test_compiled_pagination_preserves_core_sc_map_and_sources(self):
+        import fitz,re,os
+        from pathlib import Path
+        from hashlib import sha256
+        from reportlab.pdfgen import canvas
+        from reportlab.lib.utils import ImageReader
+        from PIL import Image
+        from app.program_billing import lease_kit_pdf
+        output=io.BytesIO();source=canvas.Canvas(output,invariant=1)
+        picture=Image.new('RGB',(100,100),'green')
+        for number in range(2):
+            source.drawString(40,800,'DRAFT')
+            source.drawString(40,740,'SC contractual wording '+str(number+1)+' refers to clause 7.2 and Version 3 of the municipal tariff.')
+            source.drawString(40,710,'Water meter | W-01 | Tenant allocation')
+            source.drawImage(ImageReader(picture),60,250,width=180,height=180)
+            source.rect(60,250,180,180)
+            source.drawString(260,25,'Page '+str(number+1)+' of 2');source.showPage()
+        source.save();sc=output.getvalue();self.file(sc);before=copy.deepcopy(dict(self.stored()))
+        core=lease_kit_pdf.CORE.read_bytes();core_hash=sha256(core).hexdigest()
+        with self.app.test_request_context('/view/26?draft_id='+str(self.identifier)+'&component=lease',headers=self.headers),patch.object(lease_kit_pdf,'core_bytes',return_value=core):
+            context=self.kit.preview_context(26);payload=lease_kit_pdf.build_pdf('lease',context)
+            certificate=fitz.open(stream=lease_kit_pdf.html_pdf('certificate',context),filetype='pdf');core_start=1+len(certificate)
+        document=fitz.open(stream=payload,filetype='pdf');original_core=fitz.open(stream=core,filetype='pdf');original_sc=fitz.open(stream=sc,filetype='pdf')
+        for index,page in enumerate(document):
+            value=page.get_text();numbers=re.findall(r'(?m)^Page \d+(?: of \d+)?$',value)
+            self.assertEqual(numbers,[] if index==0 else ['Page '+str(index)])
+            self.assertNotIn('DRAFT',value);self.assertNotIn('FINAL REVIEW',value);self.assertNotIn('Final review draft',value);self.assertNotIn("For the owner's final review.",value);self.assertNotIn(str(self.identifier),value)
+            self.assertEqual(value.count('Powered by AIT'),1 if index==0 else 0)
+        self.assertIn('LEASE CERTIFICATE',document[1].get_text());self.assertIn('SIGNATURES',document[-1].get_text())
+        for i,page in enumerate(original_core):
+            original=[line.strip() for line in page.get_text(sort=True).splitlines() if line.strip() and line.strip()!='AIT Residential Core | FINAL REVIEW' and not re.fullmatch(r'Final review \| Page \d+',line.strip())]
+            actual=[line.strip() for line in document[core_start+i].get_text(sort=True).splitlines() if line.strip() and not re.fullmatch(r'Page \d+',line.strip())]
+            if i==0:
+                original=original[original.index('1 Agreement components and interpretation'):]
+                actual=actual[actual.index('1 Agreement components and interpretation'):]
+            self.assertEqual(actual,original)
+        for i,page in enumerate(original_sc):
+            compiled=document[core_start+9+i];self.assertIn('SC contractual wording '+str(i+1),compiled.get_text());self.assertIn('Version 3 of the municipal tariff.',compiled.get_text());self.assertIn('Water meter | W-01',compiled.get_text())
+            clip=fitz.Rect(50,400,250,610)
+            self.assertEqual(page.get_pixmap(clip=clip).samples,compiled.get_pixmap(clip=clip).samples,'Map pixels must remain unchanged')
+            self.assertEqual(len(page.get_images()),len(compiled.get_images()))
+        self.assertEqual(sha256(lease_kit_pdf.CORE.read_bytes()).hexdigest(),core_hash);self.assertEqual(dict(self.stored()),before)
+        if os.getenv('AIT_PDF_SAMPLE')=='1':
+            folder=Path('output/pdf');folder.mkdir(parents=True,exist_ok=True);(folder/'Full_Lease_Pagination_Sample.pdf').write_bytes(payload)
+            for index in (0,1,core_start,core_start+9,len(document)-1):document[index].get_pixmap(matrix=fitz.Matrix(.9,.9)).save(str(folder/('pagination-page-'+str(index+1)+'.png')))
+
     def test_filing_routes_are_private_scoped_and_word_conversion_uses_current_pdf(self):
         self.file();items=self.stored()['items'];identifier=items['_sc_pdf_current'];url='/billing/leases/property/26/special-conditions/files/'+identifier+'?draft_id='+str(self.identifier)
         result=self.client.get(url,headers=self.headers);self.assertEqual(result.status_code,200);self.assertEqual(result.data,self.pdf());self.assertEqual(result.headers['Cache-Control'],'private, no-store')

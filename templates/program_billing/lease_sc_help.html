@@ -1,4 +1,4 @@
-<button type="button" class="sc-help-button" data-sc-help-open>Help</button>
+{% if not sc_help_hide_button|default(false) %}<button type="button" class="sc-help-button" data-sc-help-open>Help</button>{% endif %}
 <dialog id="sc-shared-help" class="sc-shared-help" aria-labelledby="sc-help-title">
 <h2 id="sc-help-title">Special Conditions — Preparing, Updating and Filing Your Document</h2>
 <p>Choose either preparation method: enter and save clauses in Data Capture, then use Export Word; or prepare a complete Special Conditions document directly in Word. A PDF upload does not require any saved database clauses.</p>
@@ -14,7 +14,7 @@
 <p>The user must verify that names, dates, amounts, contractual terms and supporting documents are accurate, complete and satisfactory.</p>
 <p>AIT Lease Kit provides document preparation and management facilities. It does not certify the legal accuracy, completeness or suitability of the agreement.</p>
 <h3>Special Conditions and Addendums</h3>
-<p>Prepare Special Conditions before signing. An Addendum records agreed corrections or changes to an existing lease, including after signing. On the existing Addendum page, select the related original lease, enter amendment details to create a PDF or upload a completed PDF. Use Open PDF to view, print or download, and Email to send the selected Addendum. Addendum History retains earlier documents and their dates.</p>
+<p>Prepare Special Conditions before signing. An Addendum records agreed corrections or changes to an existing lease, including after signing. On the Addendum page, Select Clause opens a search of the current Full Lease PDF, under the agreed assumption that it represents the signed lease. Search by keyword, phrase or clause number, select results and use Finish Selection to return. Image-only content without extractable text is not searchable. Create Addendum provides one Subject and one Amendment Content area; a general Addendum is possible without selecting a clause. View Addendum shows the assembled PDF and signature page. Save the completed PDF, then use Output to print, download or email it. Addendum History retains earlier documents and their dates.</p>
 <p>Each Addendum should identify the original lease and be signed by the relevant parties where required. AIT provides document management tools, not legal approval. Saving an Addendum does not amend the original signed agreement.</p>
 <h3>Corrections After Signing</h3>
 <p>If an error or omission is discovered after signing, the original signed agreement must remain unchanged.</p>

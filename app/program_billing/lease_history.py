@@ -237,7 +237,7 @@ def signed_copy(property_id):
         entries=entries,kinds=KINDS,originals=originals(draft),errors=errors,unavailable=None),400 if errors else 200
 
 
-CLAUSE_SOURCES={'certificate':'Certificate','core':'Core Lease','special_conditions':'Special Conditions','signature':'Signatures'}
+CLAUSE_SOURCES={'full_lease':'Full Lease','certificate':'Certificate','core':'Core Lease','special_conditions':'Special Conditions','signature':'Signatures'}
 
 
 def clause_lease(draft,identifier):
@@ -379,10 +379,130 @@ def clause_register_save(prop,draft):
     return jsonify(result)
 
 
+def full_lease_identity(draft):
+    available=originals(draft)
+    original=available[-1] if available else None
+    return (original['id'],original['lease_reference'],original) if original else ('draft','Lease draft '+str(draft['id']),None)
+
+
+def full_lease_selection_state(draft):
+    key,label,_=full_lease_identity(draft)
+    saved=deepcopy(draft['items'].get('_lease_history',{}).get('full_lease_selections',{}).get(key,{}))
+    selected=saved.get('selected',[])
+    for entry in selected:entry['source_status']='Selected from Full Lease PDF'
+    return dict(lease_key=key,lease_label=label,selected=selected,version=draft['version'],catalog=[],relationships=[],notices=[],pdf_id=None,selection_mode='full_pdf')
+
+
+def full_lease_source(prop,draft):
+    from .lease_kit import preview_context
+    from .lease_kit_pdf import build_pdf
+    from werkzeug.exceptions import HTTPException
+    try:
+        context=preview_context(prop['id'])
+        if str(context['lease_draft']['id'])!=str(draft['id']):abort(404)
+        payload=build_pdf('lease',context)
+        return payload,sha256(payload).hexdigest()
+    except HTTPException:raise
+    except Exception as error:
+        current_app.logger.warning('Addendum Full Lease source unavailable error=%s',type(error).__name__)
+        abort(503,description='The current Full Lease PDF is unavailable. No older SC records or other document have been substituted.')
+
+
+def full_lease_provisions(payload):
+    """Index actual PDF text; only explicit headings/field labels become references."""
+    import fitz
+    document=fitz.open(stream=payload,filetype='pdf');pages=[];notices=[]
+    for index,page in enumerate(document):
+        lines=[]
+        try:blocks=page.get_text('dict')['blocks']
+        except (RuntimeError,ValueError,UnicodeError):
+            notices.append('PDF page '+str(index+1)+' text could not be extracted and is not searchable.');pages.append([]);continue
+        for block in blocks:
+            for line in block.get('lines',[]):
+                value=''.join(span['text'] for span in line['spans']).strip()
+                if value and not re.fullmatch(r'Page \d+',value) and value!='Powered by AIT':lines.append((line['bbox'][1],line['bbox'][0],value,any('bold' in span.get('font','').lower() for span in line['spans'])))
+        lines.sort(key=lambda entry:(round(entry[0]/3),entry[1]))
+        rows=[]
+        for y,x,value,bold in lines:
+            if rows and abs(rows[-1][0]-y)<3:rows[-1]=(rows[-1][0],rows[-1][1]+' '+value,rows[-1][2] or bold)
+            else:rows.append((y,value,bold))
+        if not rows:notices.append('PDF page '+str(index+1)+' has no extractable text and is not searchable. Images and scanned content are not interpreted by OCR.')
+        pages.append(rows)
+    core_start=next((i for i,rows in enumerate(pages) if any(re.fullmatch(r'(?:AIT )?Residential Core Lease Agreement',row[1]) for row in rows)),None)
+    signature_start=max((i for i,rows in enumerate(pages) if core_start is not None and i>=core_start+9 and any(row[1]=='SIGNATURES' for row in rows)),default=None)
+    units=[];active=None
+    labels=('Tenant Reference','Monthly rental','Security deposit','Commencement','Duration / expiry','Renewal notice','Property / address','Unit','Selected account','Bank / branch','Account holder','Account number','Contracting party','Place of signing','Date of signing')
+    def begin(source,reference,text,page):
+        nonlocal active
+        active={'position_y':round(y,2),'source':source,'source_label':CLAUSE_SOURCES.get(source,'Full Lease'),'reference':reference,'page':page,'fragments':[]}
+        units.append(active);append(text,page)
+    def append(value,page):
+        if active['fragments'] and active['fragments'][-1]['page']==page:active['fragments'][-1]['text']+='\n'+value
+        else:active['fragments'].append({'page':page,'text':value})
+    for index,rows in enumerate(pages):
+        page=index+1
+        source='core' if core_start is not None and core_start<=index<core_start+9 else 'signature' if signature_start is not None and index>=signature_start else 'special_conditions' if core_start is not None and index>=core_start+9 else 'certificate' if index>0 else 'full_lease'
+        if active and active['source']!=source:active=None
+        for y,value,bold in rows:
+            match=re.match(r'^(\d+\.\d+(?:\.\d+)*)\s+',value) if source=='core' else re.match(r'^(SC[-– ]\d{1,3})(?=\s|[—:.-]|$)',value,re.I) if source=='special_conditions' else None
+            parent=re.match(r'^(\d+)\s+',value) if source=='core' and bold else None
+            field=next((label for label in labels if value.casefold().startswith(label.casefold()) and (len(value)==len(label) or value[len(label)] in ': |')),None) if source in ('certificate','signature') else None
+            if match or parent:begin(source,(match or parent)[1],value,page)
+            elif field:begin(source,field,value,page)
+            elif active and active['source']==source and (source=='core' or (source=='special_conditions' and active['reference'] and (not bold or active['fragments'][-1]['text'].strip()==active['reference'])) or (source in ('certificate','signature') and active['reference'] and not bold)):
+                append(value,page)
+            else:begin(source,'',value,page)
+    for unit in units:
+        unit['original']='\n'.join(fragment['text'] for fragment in unit['fragments'])
+        unit['description']=unit['reference'] or 'PDF page '+str(unit['page'])+' — text excerpt'
+        unit['source_hash']=sha256(unit['original'].encode()).hexdigest();unit['id']='pdf:'+sha256((str(unit['page'])+'|'+str(unit['position_y'])+'|'+unit['source']+'|'+unit['reference']+'|'+unit['original']).encode()).hexdigest()[:32];unit['provenance']='Text extracted from the current Full Lease PDF'
+    document.close();return units,notices
+
+
+def full_lease_search(prop,draft):
+    from flask import jsonify
+    query=request.args.get('q','').strip()
+    if len(query)>200:abort(400,description='Search text must be no longer than 200 characters.')
+    payload,digest=full_lease_source(prop,draft);units,notices=full_lease_provisions(payload)
+    needle=' '.join(query.casefold().split());pattern=re.compile(r'(?<![\w.])'+re.escape(needle)+r'(?![\w.])') if re.fullmatch(r'(?:sc[-– ]\d+|\d+(?:\.\d+)+)',needle) else None
+    matches=[]
+    for unit in units:
+        text=' '.join(unit['original'].casefold().split())
+        if not needle or not (pattern.search(text) if pattern else needle in text):continue
+        position=pattern.search(text).start() if pattern else text.find(needle)
+        offset=0;fragment=unit['fragments'][0]
+        for part in unit['fragments']:
+            length=len(' '.join(part['text'].casefold().split()))
+            if position<offset+length:fragment=part;break
+            offset+=length+1
+        excerpt=' '.join(unit['original'].split());start=max(0,position-80)
+        matches.append(dict(id=unit['id'],source=unit['source'],source_label=unit['source_label'],reference=unit['reference'],page=fragment['page'],excerpt=excerpt[start:start+350]))
+    return jsonify(results=matches,notices=notices,source_sha256=digest,state=full_lease_selection_state(draft))
+
+
+def full_lease_select(prop,draft):
+    from flask import jsonify
+    key,_,_=full_lease_identity(draft);items=deepcopy(draft['items']);registers=items.setdefault('_lease_history',{'documents':[],'emails':[]}).setdefault('full_lease_selections',{})
+    saved=deepcopy(registers.get(key,{'selected':[]}));selected={entry['id']:entry for entry in saved['selected']}
+    if request.form.get('register_version')!=str(draft['version']):abort(409,description='The saved selections changed. Search again; your saved selections are unchanged.')
+    checked=request.form.get('selected');identifier=request.form.get('provision_id','')
+    if checked=='yes':
+        payload,digest=full_lease_source(prop,draft)
+        if request.form.get('source_sha256')!=digest:abort(409,description='The Full Lease PDF changed. Search its current text again before selecting.')
+        units,_=full_lease_provisions(payload);entry=next((unit for unit in units if unit['id']==identifier),None)
+        if entry is None:abort(404)
+        entry=deepcopy(entry);entry['pdf_sha256']=digest;entry['location_page']=entry['page'];entry['id']=digest+':'+identifier
+        selected[entry['id']]=entry
+    elif checked=='no':selected.pop(identifier,None)
+    else:abort(400)
+    saved.update(schema_version=1,selected=list(selected.values()),updated_at=now(),updated_by=int(current_user.id));registers[key]=saved;update_locked(draft,items)
+    return jsonify(state=full_lease_selection_state(locked(prop['id'],draft['id'])))
+
+
 def addendum_heading(provisions):
     groups=[]
     for source,label in CLAUSE_SOURCES.items():
-        references=list(dict.fromkeys(entry['reference'] for entry in provisions if entry['source']==source))
+        references=list(dict.fromkeys(entry['reference'] or 'PDF page '+str(entry['page'])+' (text excerpt)' for entry in provisions if entry['source']==source))
         if references:groups.append(label+' — '+', '.join(references))
     return ('NOTICE REGARDING CHANGES TO CLAUSES:','; '.join(groups)) if groups else ('GENERAL ADDENDUM TO AGREEMENT OF LEASE','')
 
@@ -393,10 +513,11 @@ def next_addendum_number(draft,original_id):
 
 
 def addendum_content(prop,draft):
-    key,items,reference=clause_lease(draft,request.form.get('original_id') or request.form.get('clause_lease'))
-    state=clause_register_state(draft,key)
-    if key=='draft':reference='Lease draft '+str(draft['id'])
-    if any(entry.get('source_status')!='Current source' for entry in state['selected']):raise ValueError('A selected original provision changed or is unavailable. Return to Select Clause to remove it or select its current wording.')
+    key,reference,_=full_lease_identity(draft);items=draft['items'];state=full_lease_selection_state(draft)
+    if state['selected']:
+        _,digest=full_lease_source(prop,draft)
+        if any(entry.get('pdf_sha256')!=digest for entry in state['selected']):raise ValueError('The Full Lease changed since selection. Return to Select Clause and select its current provisions; your entered amendment is retained.')
+    for entry in state['selected']:entry['source_status']='Current source'
     subject=request.form.get('subject','').strip();wording=request.form.get('wording','')
     if len(subject)>300 or '\x00' in subject:raise ValueError('Subject must be no longer than 300 characters.')
     if not wording.strip() or len(wording)>30000 or '\x00' in wording:raise ValueError('Enter amendment content (maximum 30000 characters).')
@@ -447,6 +568,23 @@ def addendum_history(draft,property_id):
 @snapshot.endpoint
 def addendum(property_id):
     prop,draft=context(property_id,request.method=='POST');errors=[]
+    if request.method=='GET' and request.args.get('action')=='search_lease':
+        from flask import jsonify
+        from werkzeug.exceptions import HTTPException
+        try:return full_lease_search(prop,draft)
+        except HTTPException as error:return jsonify(error=error.description),error.code
+    if request.method=='GET' and request.args.get('action')=='lease_pdf':
+        payload,digest=full_lease_source(prop,draft)
+        if request.args.get('source_sha256') and request.args['source_sha256']!=digest:abort(409,description='The Full Lease changed. Search again to load its current pages.')
+        response=send_file(BytesIO(payload),mimetype='application/pdf',as_attachment=False,download_name='Full-Lease.pdf',max_age=0)
+        response.headers['Cache-Control']='private, no-store';response.headers['X-Content-Type-Options']='nosniff';return response
+    if request.method=='GET' and request.args.get('workspace')=='selection':
+        return render_pm_template('program_billing/lease_addendum_select_pdf.html',title='Select Clause',property=prop,lease_draft=draft,clause_register=full_lease_selection_state(draft),unavailable=None)
+    if request.method=='POST' and request.form.get('action')=='select_lease_pdf':
+        from flask import jsonify
+        from werkzeug.exceptions import HTTPException
+        try:return full_lease_select(prop,draft)
+        except HTTPException as error:db.session.rollback();return jsonify(error=error.description),error.code
     if request.method=='POST' and request.form.get('action') in ('addendum_clause_selection','addendum_manual_clause'):
         from flask import jsonify
         from werkzeug.exceptions import HTTPException
@@ -474,7 +612,9 @@ def addendum(property_id):
         try:
             original_id=request.form.get('original_id','')
             original=None
-            if original_id:
+            if request.form.get('selection_mode')=='full_pdf':
+                _,_,original=full_lease_identity(draft)
+            elif original_id:
                 original_row,original,_=document(draft,original_id)
                 if original['kind']!='signed_original':raise ValueError('Select the original signed lease to which this Addendum relates.')
             elif originals(draft):raise ValueError('Select the original signed lease to which this Addendum relates.')
@@ -493,7 +633,7 @@ def addendum(property_id):
                 entry=store(draft,'addendum_draft','Addendum.pdf','application/pdf',None,metadata,continuation=True,
                     payload_builder=lambda number:addendum_pdf(prop,reference,wording,number,subject,provisions,source_items))
             flash('Addendum PDF saved. Open it below. The original lease is unchanged.','success')
-            return redirect(url_for('billing_bp.lease_addendum',property_id=property_id,draft_id=draft['id'],workspace='view',clause_lease=request.form.get('original_id') or request.form.get('clause_lease')))
+            return redirect(url_for('billing_bp.lease_addendum',property_id=property_id,draft_id=draft['id'],workspace='view',saved_addendum=entry['id'],clause_lease=request.form.get('original_id') or request.form.get('clause_lease')))
         except ValueError as error:errors.append(str(error))
         draft=locked(property_id,draft['id'])
     elif request.method=='POST':
@@ -529,9 +669,9 @@ def addendum(property_id):
             flash('Draft addendum generated and stored. The original agreement is unchanged.','success')
             return redirect(url_for('billing_bp.lease_history_document',property_id=property_id,document_id=entry['id'],draft_id=draft['id']))
         except ValueError as error:errors.append(str(error))
-    register=clause_register_state(draft,request.args.get('clause_lease') or request.form.get('original_id'))
+    register=full_lease_selection_state(draft)
     return render_pm_template('program_billing/lease_addendum.html',title='Addendum',property=prop,lease_draft=draft,
-        clause_register=register,next_number=next_addendum_number(draft,None if register['lease_key']=='draft' else register['lease_key']),originals=originals(draft),addendums=addendum_history(draft,property_id),arrangement_wording=arrangement_wording,errors=errors,unavailable=None),400 if errors else 200
+        clause_register=register,workspace_storage_key='lease-addendum:'+str(current_user.id)+':'+str(prop['id'])+':'+str(draft['id'])+':'+register['lease_key'],next_number=next_addendum_number(draft,None if register['lease_key']=='draft' else register['lease_key']),originals=originals(draft),addendums=addendum_history(draft,property_id),arrangement_wording=arrangement_wording,errors=errors,unavailable=None),400 if errors else 200
 
 
 def signer():return URLSafeTimedSerializer(current_app.config['SECRET_KEY'],salt='lease-view-version-001')

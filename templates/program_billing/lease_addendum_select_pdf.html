@@ -1,0 +1,16 @@
+{% extends 'program_billing/lease_workflow_base.html' %}
+{% block workspace %}
+<link rel="stylesheet" href="{{ url_for('static',filename='css/lease_kit.css') }}">
+<style>#addendum-pdf-selection td,#addendum-pdf-selection th{padding:6px 8px;border-bottom:1px solid #e2e8f0;vertical-align:top}#addendum-pdf-selection a{color:#1e40af;text-decoration:underline}#lease-pdf-search-results tr:focus-visible{outline:2px solid #2563eb}</style>
+<section id="addendum-pdf-selection" data-url="{{ url_for('billing_bp.lease_addendum',property_id=property.id,draft_id=lease_draft.id) }}" data-page="{{ request.args.get('page','1') }}">
+<h2 class="mt-5 font-semibold">SEARCH LEASE AGREEMENT</h2>
+<form id="lease-pdf-search" class="mt-3 flex flex-wrap gap-2"><label class="flex-1">Search by keyword, phrase or clause number<input name="q" maxlength="200" autofocus required placeholder="Search by keyword, phrase or clause number" class="block w-full rounded border border-slate-300 p-2"></label><button class="rounded bg-blue-100 px-3 py-2">Search</button></form>
+<p class="mt-2">Search uses only the Full Lease PDF. Page numbers below refer to the viewer: the Cover is PDF page 1. Scanned images without text are not searchable.</p>
+<p id="lease-pdf-search-status" role="status" aria-live="polite"></p><div id="lease-pdf-search-notices"></div>
+<div class="overflow-x-auto"><table class="mt-3 w-full text-left"><thead><tr><th>Select</th><th>Page</th><th>Clause / Field</th><th>Matching Text</th></tr></thead><tbody id="lease-pdf-search-results"></tbody></table></div>
+<p id="lease-pdf-selected-count" class="mt-3"></p><ul id="lease-pdf-selected"></ul>
+{% with viewer_prefix='lease-selection',viewer_pdf_url=url_for('billing_bp.lease_addendum',property_id=property.id,draft_id=lease_draft.id,action='lease_pdf'),viewer_label='Full Lease' %}{% include 'program_billing/lease_core_viewer.html' %}{% endwith %}
+<a id="lease-pdf-finish" class="mt-4 inline-block rounded bg-green-100 px-4 py-2" href="{{ url_for('billing_bp.lease_addendum',property_id=property.id,draft_id=lease_draft.id) }}">Finish Selection</a>
+<input id="lease-pdf-csrf" type="hidden" value="{{ csrf_token() }}"><script id="lease-pdf-state" type="application/json">{{ clause_register|tojson }}</script>
+</section><script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script><script src="{{ url_for('static',filename='js/lease_kit.js') }}" defer></script><script src="{{ url_for('static',filename='js/lease_addendum_pdf_search.js') }}" defer></script>
+{% endblock %}

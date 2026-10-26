@@ -26,9 +26,9 @@ class AddendumSelectionTests(unittest.TestCase):
         result=self.choose(chosen[0]);self.assertEqual(len(result.json['selected']),4)
         for original,saved in zip(chosen,result.json['selected']):self.assertEqual(saved['original'],original['original'])
         page=self.client.get(self.register_url());self.assertEqual(page.status_code,200,page.text)
-        tree=html.fromstring(page.data);saved=json.loads(tree.xpath('//*[@id="addendum-clause-data"]/text()')[0]);self.assertEqual(len(saved['selected']),4)
-        self.assertEqual(tree.xpath('//button[@data-clause-source]/text()'),['Certificate','Core Lease','Special Conditions','Signatures'])
-        self.assertIn('SELECTED CLAUSES REGISTER',page.text);self.assertIn('CLAUSE RELATIONSHIP REGISTER',page.text)
+        tree=html.fromstring(page.data);saved=json.loads(tree.xpath('//*[@id="addendum-clause-data"]/text()')[0]);self.assertEqual(len(self.state()['selected']),4)
+        self.assertFalse(tree.xpath('//button[@data-clause-source]'))
+        self.assertNotIn('SELECTED CLAUSES REGISTER',page.text);self.assertNotIn('CLAUSE RELATIONSHIP REGISTER',page.text)
         result=self.choose(chosen[1],False);self.assertEqual(len(result.json['selected']),3);self.assertNotIn(chosen[1]['id'],[entry['id'] for entry in self.state()['selected']])
         after=self.stored()['items'];self.assertEqual({k:v for k,v in after.items() if k!='_addendum_clause_registers'},before['items'])
         self.assertEqual(self.session.execute(text('SELECT count(*) FROM bil_lease_document')).scalar(),0)
@@ -50,8 +50,7 @@ class AddendumSelectionTests(unittest.TestCase):
         upload=self.client.post(self.endpoint,data={'csrf_token':self.csrf,'action':'sc_pdf_upload','source':(io.BytesIO(self.pdf()),'Conditions.pdf')},content_type='multipart/form-data')
         self.assertEqual(upload.status_code,200,upload.text)
         page=self.client.get(self.register_url());tree=html.fromstring(page.data)
-        source_url=tree.xpath('//*[@id="addendum-manual-sc"]//a/@href')[0]
-        self.assertEqual(self.client.get(source_url).data,self.pdf())
+        self.assertFalse(tree.xpath('//*[@id="addendum-manual-sc"]'))
         state=self.state();self.assertFalse(any(e['source']=='special_conditions' for e in state['catalog']))
         wording='SC-A.7 Exact original wording.\n(a) Keep internal numbering and spaces.  '
         data={'csrf_token':self.csrf,'action':'addendum_manual_clause','clause_lease':'draft','register_version':str(self.stored()['version']),'reference':'SC-A.7','description':'Exact map provision','original':wording}
@@ -78,7 +77,7 @@ class AddendumSelectionTests(unittest.TestCase):
         self.session.execute(text('INSERT INTO bil_lease_draft(id,property_id,manager_id,source_version,items,version,status,registration_token) SELECT :other,property_id,manager_id,source_version,CAST(:items AS jsonb),version,status,:token FROM bil_lease_draft WHERE id=:id'),{'other':other,'items':json.dumps(other_items),'token':uuid.uuid4(),'id':self.draft});self.session.commit()
         page=self.client.get(self.register_url(other));self.assertEqual(page.status_code,200)
         state=json.loads(html.fromstring(page.data).xpath('//*[@id="addendum-clause-data"]/text()')[0]);self.assertEqual(state['selected'],[])
-        entry=state['catalog'][0];data={'csrf_token':self.csrf,'action':'addendum_clause_selection','clause_lease':key,'register_version':str(state['version']),'provision_id':entry['id'],'selected':'yes'}
+        entry=original['catalog'][0];data={'csrf_token':self.csrf,'action':'addendum_clause_selection','clause_lease':key,'register_version':str(state['version']),'provision_id':entry['id'],'selected':'yes'}
         self.assertEqual(self.client.post(self.register_url(other),data=data).status_code,404)
         self.assertEqual(self.client.get(self.register_url().replace('/26/','/27/')).status_code,404)
 

@@ -90,6 +90,7 @@ class AddendumPDFTests(unittest.TestCase):
             response=self.client.get('/capture/26/'+key+'?draft_id='+str(self.draft));self.assertEqual(response.status_code,200,response.text)
             tree=html.fromstring(response.data);links=tree.xpath('//nav[@aria-label="Data Capture sections"]/a')
             self.assertEqual([link.get('data-capture-section') for link in links],keys)
+            self.assertEqual([link.text_content() for link in links],['Parties','Premises','Lease Period','Financial','Banking','Special Conditions','Signing'])
             self.assertEqual([link.get('data-capture-section') for link in links if link.get('aria-current')=='page'],[key])
             for link in links:self.assertIn(str(self.draft),link.get('href'))
         response=self.client.get('/capture/26/premises?draft_id='+str(self.draft));tree=html.fromstring(response.data)

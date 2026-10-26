@@ -143,5 +143,3 @@ def update_draft(property_id,identifier,expected_version):
     previous=pinned(draft);items['_core_master']=master
     items.setdefault('_lease_history',{'documents':[],'emails':[]}).setdefault('core_master_updates',[]).append(dict(previous=previous,new_version=master['version'],updated_by=int(actor.id),updated_at=datetime.now(timezone.utc).isoformat()))
     db.session.execute(text('UPDATE bil_lease_draft SET items=CAST(:items AS jsonb),version=version+1,updated_at=now() WHERE id=:d AND version=:v'),{'items':json.dumps(items),'d':identifier,'v':expected_version});db.session.commit()
-
-

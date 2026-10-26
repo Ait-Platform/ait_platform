@@ -8,6 +8,16 @@ from .lease_text import human
 KEY='_signing_particulars'
 
 
+def signing_statement(place='',value=''):
+    """Format saved particulars only; missing data remains a handwriting space."""
+    place=str(place or '').strip().upper() or '____________________'
+    try:day=date.fromisoformat(str(value))
+    except (ValueError,TypeError):return 'SIGNED at '+place+' on this the ____ day of ____________________ ______'
+    suffix='th' if 11<=day.day%100<=13 else {1:'st',2:'nd',3:'rd'}.get(day.day%10,'th')
+    months=('JANUARY','FEBRUARY','MARCH','APRIL','MAY','JUNE','JULY','AUGUST','SEPTEMBER','OCTOBER','NOVEMBER','DECEMBER')
+    return 'SIGNED at '+place+' on this the '+str(day.day)+suffix+' day of '+months[day.month-1]+' '+str(day.year)
+
+
 def party_key(role,party):
     kind=party.get('type','')
     kind='natural' if kind in NATURAL else 'entity' if kind in ENTITIES else kind
@@ -26,7 +36,9 @@ def rows(items,owners=(),tenants=()):
             key=party_key(group['label'].lower(),party)
             values=saved.get(key,{}) if key else {}
             if not isinstance(values,dict):values={}
-            result.append(dict(party,key=key,role=group['label'],place=human(values.get('place','')),date=values.get('date','')))
+            result.append(dict(party,key=key,role=group['label'],place=human(values.get('place','')),date=values.get('date',''),
+                statement=signing_statement(values.get('place',''),values.get('date','')),
+                printed_name=', '.join(rep['name'] for rep in party.get('representatives',[]) if rep.get('name')) or party.get('name','')))
     return result
 
 
@@ -75,3 +87,9 @@ def check_baseline(token,items,property_id,draft_id,owners=(),tenants=(),confirm
     except BadSignature:return False
     return (data.get('property')==property_id and data.get('draft')==str(draft_id) and data.get('user')==str(current_user.id)
         and data.get('signing')==projection(items,owners,tenants) and (not data.get('confirm') or confirmed))
+
+
+def signature_sections(parties):
+    """Retain each actual party; provide signing spaces for an unfilled role."""
+    return [party for role in ('Lessor','Lessee') for party in
+        ([row for row in parties if row['role']==role] or [dict(role=role,name='',identity_number='',representatives=[],printed_name='',statement=signing_statement())])]

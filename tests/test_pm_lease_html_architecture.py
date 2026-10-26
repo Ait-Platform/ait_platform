@@ -53,7 +53,7 @@ class HtmlLeaseKitTests(unittest.TestCase):
                 if component in ('core','lease'):
                     self.assertIn('component=core',tree.xpath('//*[@id="lease-kit-document"]/@data-pdf-url')[0])
                 if component in ('certificate','signature','lease'):
-                    for value in ('Signing City 0','Signing City 1','Signing City 2','2026-11-10','2026-11-11','2026-11-12'):
+                    for value in (('SIGNING CITY 0','SIGNING CITY 1','SIGNING CITY 2','10th day of NOVEMBER 2026','11th day of NOVEMBER 2026','12th day of NOVEMBER 2026') if component=='signature' else ('Signing City 0','Signing City 1','Signing City 2','2026-11-10','2026-11-11','2026-11-12')):
                         self.assertIn(value,response.text)
                     self.assertNotIn('certificate-party-warning',response.text)
                     self.assertNotRegex(response.text,r'\[LESSEE_\d+_')
@@ -86,7 +86,7 @@ class HtmlLeaseKitTests(unittest.TestCase):
                 else:self.assertTrue(value.rstrip().endswith('Page '+str(index)))
             for component in ('certificate','signature'):
                 text=''.join(texts[component])
-                for value in ('Signing City 0','Signing City 1','Signing City 2','2026-11-10','2026-11-11','2026-11-12','Natural Person','Entity Company','Entity Director'):
+                for value in ((('SIGNING CITY 0','SIGNING CITY 1','SIGNING CITY 2','10th day of NOVEMBER 2026','11th day of NOVEMBER 2026','12th day of NOVEMBER 2026') if component=='signature' else ('Signing City 0','Signing City 1','Signing City 2','2026-11-10','2026-11-11','2026-11-12'))+('Natural Person','Entity Company','Entity Director')):
                     self.assertIn(value,text)
             self.assertIn('The exact saved condition wording.',''.join(texts['special_conditions']))
             self.assertIn('SAVED SPECIAL CLAUSE',''.join(texts['special_conditions']))
@@ -149,5 +149,28 @@ class HtmlLeaseKitTests(unittest.TestCase):
                 payload=self.pdf.build_pdf(component,self.kit.preview_context(26));text=''.join(p.get_text() for p in fitz.open(stream=payload,filetype='pdf'))
                 self.assertNotIn(identifier,text);self.assertNotIn('Almond House',text)
         self.assertEqual(self.items,before)
+
+
+    def test_financial_heading_and_formal_signature_statements(self):
+        self.items['_parties']['lessees']=self.items['_parties']['lessees'][:1]
+        self.items['_signing_particulars']={party['key']:{'place':'Warner Beach, Durban','date':'2026-10-24'} for party in self.signing.rows(self.items)}
+        with self.context('signature'):
+            context=self.kit.preview_context(26);page=render_template('program_billing/lease_signature_document.html',**context);payload=self.pdf.build_pdf('signature',context)
+        tree=html.fromstring(page);parties=tree.xpath('//*[@class="signature-party"]');self.assertEqual(len(parties),2)
+        statement='SIGNED at WARNER BEACH, DURBAN on this the 24th day of OCTOBER 2026'
+        for party in parties:
+            self.assertEqual(party.text_content().count(statement),1);self.assertEqual(party.text_content().count('Witness 1 - name:'),1);self.assertEqual(party.text_content().count('Witness 2 - signature:'),1);self.assertNotIn('Place of signing:',party.text_content());self.assertNotIn('Date of signing:',party.text_content())
+        self.assertEqual([p.xpath('./h3/text()')[0] for p in parties],['LESSOR','LESSEE'])
+        text=' '.join(' '.join(p.get_text() for p in fitz.open(stream=payload,filetype='pdf')).split());self.assertEqual(text.count(statement),2);self.assertEqual(text.count('Witness 1 - name:'),2);self.assertEqual(text.count('Witness 2 - signature:'),2)
+        with self.context('certificate'):
+            certificate=render_template('program_billing/lease_kit_component.html',component_key='certificate',**self.kit.preview_context(26))
+        self.assertIn('04 FINANCIAL',certificate);self.assertNotIn('FINANCIAL PARTICULARS',certificate)
+        for value,day in (('2026-01-01','1st'),('2026-02-02','2nd'),('2026-03-03','3rd'),('2026-04-11','11th'),('2026-05-12','12th'),('2026-06-13','13th'),('2026-10-21','21st'),('2026-11-22','22nd'),('2026-12-23','23rd')):
+            self.assertIn('the '+day+' day',self.signing.signing_statement('Actual Place',value))
+        self.assertNotIn('2026',self.signing.signing_statement('',''))
+        import os
+        if os.getenv('AIT_ADDENDUM_FINAL_SAMPLE')=='1':
+            folder=ROOT/'tmp/pdfs/addendum-final';folder.mkdir(parents=True,exist_ok=True);(folder/'lease-signatures.pdf').write_bytes(payload)
+            for index,p in enumerate(fitz.open(stream=payload,filetype='pdf')):p.get_pixmap(matrix=fitz.Matrix(1.2,1.2)).save(str(folder/('lease-signatures-'+str(index+1)+'.png')))
 
 if __name__=='__main__':unittest.main()

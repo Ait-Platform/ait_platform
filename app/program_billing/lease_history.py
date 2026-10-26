@@ -502,6 +502,15 @@ def addendum_heading(provisions):
     return ('NOTICE REGARDING CHANGES TO CLAUSES:','; '.join(groups)) if groups else ('GENERAL ADDENDUM TO AGREEMENT OF LEASE','')
 
 
+def addendum_subject(provisions):
+    titles=list(dict.fromkeys((entry.get('title') or entry.get('original','').split('\n')[0] or entry.get('reference') or 'PDF page '+str(entry['page'])).strip() for entry in provisions))
+    return ('; '.join(titles)[:300] if titles else 'GENERAL AMENDMENT')
+
+
+def addendum_precedence():
+    return 'In the event of any inconsistency between this Addendum and the Lease Agreement, this Addendum shall prevail to the extent of that inconsistency. All other terms and conditions of the Lease Agreement remain unchanged and in full force and effect.'
+
+
 def next_addendum_number(draft,original_id):
     return 1+max((entry.get('addendum_number',entry['version']) for entry in ledger(draft)['documents']
         if entry['kind']=='addendum_draft' and entry.get('original_id')==original_id),default=0)
@@ -513,8 +522,7 @@ def addendum_content(prop,draft):
         index,_=full_lease_index(prop,draft);digest=index['source_sha256']
         if any(entry.get('pdf_sha256')!=digest for entry in state['selected']):raise ValueError('The Full Lease changed since selection. Return to Select Clause and select its current provisions; your entered amendment is retained.')
     for entry in state['selected']:entry['source_status']='Current source'
-    subject=request.form.get('subject','').strip();wording=request.form.get('wording','')
-    if len(subject)>300 or '\x00' in subject:raise ValueError('Subject must be no longer than 300 characters.')
+    subject=addendum_subject(state['selected']);wording=request.form.get('wording','')
     if not wording.strip() or len(wording)>30000 or '\x00' in wording:raise ValueError('Enter amendment content (maximum 30000 characters).')
     return key,items or {},reference,subject,wording,state['selected']
 
@@ -522,9 +530,9 @@ def addendum_content(prop,draft):
 def addendum_pdf(prop,reference,wording,number,subject='',provisions=(),items=None):
     """Use one amendment content area; selected references never rewrite the lease."""
     from xml.sax.saxutils import escape
-    from reportlab.platypus import SimpleDocTemplate,Paragraph,Spacer,PageBreak
+    from reportlab.platypus import SimpleDocTemplate,Paragraph,Spacer,PageBreak,KeepTogether
     from reportlab.lib.styles import getSampleStyleSheet
-    from .lease_signing import rows
+    from .lease_signing import rows,signature_sections
     output=BytesIO();styles=getSampleStyleSheet();heading,references=addendum_heading(provisions)
     story=[Paragraph('ADDENDUM '+str(number).zfill(2),styles['Title']),
         Paragraph(escape(heading),styles['Heading2'])]
@@ -534,14 +542,16 @@ def addendum_pdf(prop,reference,wording,number,subject='',provisions=(),items=No
     if subject:story.append(Paragraph('SUBJECT: '+escape(subject),styles['Heading2']))
     story.append(Paragraph('Amendment Content',styles['Heading2']))
     for line in wording.splitlines():story.append(Paragraph(escape(line) or '&#160;',styles['BodyText']))
-    story.extend([PageBreak(),Paragraph('SIGNATURES',styles['Title']),Paragraph('Addendum '+str(number).zfill(2)+' to '+escape(reference),styles['BodyText'])])
-    parties=rows(items or {}) or [{'role':'Relevant parties','name':'________________________________'}]
+    story.extend([Spacer(1,16),Paragraph(escape(addendum_precedence()),styles['BodyText']),PageBreak(),Paragraph('SIGNATURES',styles['Title']),Paragraph('Addendum '+str(number).zfill(2)+' to '+escape(reference),styles['BodyText'])])
+    parties=signature_sections(rows(items or {}))
     for party in parties:
-        story.extend([Spacer(1,18),Paragraph(escape(party['role']+': '+(party.get('name') or party.get('identity_number') or '')),styles['Heading3'])])
+        section=[Spacer(1,14),Paragraph(escape(party['statement']),styles['Heading3']),Paragraph(escape(party['role'].upper()),styles['Heading2'])]
+        if party.get('name') or party.get('identity_number'):section.append(Paragraph(escape(party.get('name','')+' | '+party.get('identity_number','')),styles['BodyText']))
         for representative in party.get('representatives',[]):
-            if representative.get('name'):story.append(Paragraph('Authorised representative: '+escape(representative['name']),styles['BodyText']))
-        story.extend([Paragraph('Place of signing: ____________________ Date: ____________________',styles['BodyText']),
-            Paragraph('Signature: ______________________________________________',styles['BodyText'])])
+            if representative.get('name'):section.append(Paragraph('Authorised representative: '+escape(representative['name']),styles['BodyText']))
+        section.extend([Paragraph(escape(party['role'])+' signature: __________________________________',styles['BodyText']),Paragraph('Printed name: '+escape(party.get('printed_name') or party.get('name') or '__________________________________'),styles['BodyText'])])
+        for number in (1,2):section.extend([Spacer(1,8),Paragraph('Witness '+str(number)+' - name: __________________________________',styles['BodyText']),Paragraph('Witness '+str(number)+' - signature: _________________________________',styles['BodyText'])])
+        story.append(KeepTogether(section))
     SimpleDocTemplate(output,rightMargin=48,leftMargin=48,topMargin=48,bottomMargin=48).build(story)
     return output.getvalue()
 
@@ -666,7 +676,7 @@ def addendum(property_id):
         except ValueError as error:errors.append(str(error))
     register=full_lease_selection_state(draft)
     return render_pm_template('program_billing/lease_addendum.html',title='Addendum',property=prop,lease_draft=draft,
-        clause_register=register,workspace_storage_key='lease-addendum:'+str(current_user.id)+':'+str(prop['id'])+':'+str(draft['id'])+':'+register['lease_key'],next_number=next_addendum_number(draft,None if register['lease_key']=='draft' else register['lease_key']),originals=originals(draft),addendums=addendum_history(draft,property_id),arrangement_wording=arrangement_wording,errors=errors,unavailable=None),400 if errors else 200
+        clause_register=register,auto_subject=addendum_subject(full_lease_selection_state(draft)['selected']),precedence=addendum_precedence(),workspace_storage_key='lease-addendum:'+str(current_user.id)+':'+str(prop['id'])+':'+str(draft['id'])+':'+register['lease_key'],next_number=next_addendum_number(draft,None if register['lease_key']=='draft' else register['lease_key']),originals=originals(draft),addendums=addendum_history(draft,property_id),arrangement_wording=arrangement_wording,errors=errors,unavailable=None),400 if errors else 200
 
 
 def signer():return URLSafeTimedSerializer(current_app.config['SECRET_KEY'],salt='lease-view-version-001')
@@ -759,6 +769,13 @@ def email_document(property_id):
 
 @billing_bp.after_request
 def private_history(response):
+    if request.endpoint=='billing_bp.lease_addendum' and request.method=='POST' and (request.args.get('action')=='select_lease_pdf' or request.form.get('action')=='select_lease_pdf') and not response.is_json:
+        from flask import jsonify
+        code=response.status_code
+        if 300<=code<400:code=401
+        elif code<400:code=500
+        messages={400:'The request or security token is invalid or expired. Reopen Select Clause before retrying.',401:'Your session has expired. Sign in again before retrying.',403:'You are not authorised to save selections for this lease.',404:'The selected property, draft or clause is unavailable.',409:'The lease changed. Reopen Select Clause before retrying.',413:'The selection request is too large.',503:'The lease database or document service is unavailable. Please retry.'}
+        response=current_app.make_response((jsonify(error=messages.get(code,'The selection could not be saved because of a server error. Please retry.')),code))
     if request.endpoint in {'billing_bp.lease_history','billing_bp.lease_signed_copy','billing_bp.lease_addendum','billing_bp.lease_history_document',
         'billing_bp.lease_history_download','billing_bp.lease_document_email'}:
         response.headers['Cache-Control']='private, no-store';response.headers['X-Content-Type-Options']='nosniff'

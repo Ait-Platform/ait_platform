@@ -1,9 +1,11 @@
 <article class="kit-text-page signature-document" aria-label="Signatures"><h2>SIGNATURES</h2>
 {% if tenant_reference %}<p>Tenant Reference: {{ tenant_reference }}</p>{% endif %}<p>{{ premises_name }} {{ premises_address }}</p>
-{% for party in signing_rows|default([]) %}<section class="signature-party"><h3>{{ party.role }}</h3>
+{% for party in signature_rows|default(signing_rows|default([])) %}<section class="signature-party">
+<p class="signing-statement"><strong>{{ party.statement }}</strong></p><h3>{{ party.role|upper }}</h3>
 <p><strong>{{ party.name or party.identity_number }}</strong>{% if party.identity_number %} | {{ party.identity_number }}{% endif %}</p>
 {% for representative in party.representatives %}{% if representative.name %}<p>Authorised representative: {{ representative.name }}{% if representative.identity_number %} | {{ representative.identity_number }}{% endif %}</p>{% endif %}{% endfor %}
-<p>Place of signing: {{ party.place or '—' }}</p><p>Date of signing: {{ party.date or '—' }}</p>
-<p class="handwritten-signature">Signature: <span>________________________________</span></p>
+<p class="handwritten-signature">{{ party.role }} signature: ________________________________</p>
+<p>Printed name: {{ party.printed_name or '________________________________' }}</p>
+{% for number in [1,2] %}<p>Witness {{ number }} - name: ________________________________</p><p>Witness {{ number }} - signature: ________________________________</p>{% endfor %}
 </section>{% endfor %}
 </article>

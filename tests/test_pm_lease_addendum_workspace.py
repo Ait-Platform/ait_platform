@@ -22,7 +22,7 @@ class AddendumWorkspaceTests(unittest.TestCase):
         self.assertEqual(tree.xpath('//*[@id="addendum-workflow"]/button/text()'),['Select Clause','Create Addendum','View Addendum','Help'])
         panels=tree.xpath('//*[@data-addendum-panel]');self.assertEqual([p.get('data-addendum-panel') for p in panels if p.get('hidden') is None],['select'])
         self.assertFalse(tree.xpath('//*[@id="addendum-clause-catalog"]'))
-        self.assertEqual(len(tree.xpath('//*[@id="addendum-create-form"]//input[@name="subject"]')),1);self.assertEqual(len(tree.xpath('//*[@id="addendum-create-form"]//textarea[@name="wording"]')),1)
+        self.assertEqual(len(tree.xpath('//*[@id="addendum-create-form"]//input[@name="subject"]')),0);self.assertEqual(len(tree.xpath('//*[@id="addendum-create-form"]//textarea[@name="wording"]')),1)
         self.assertIn('Are you not amending a clause found in the Lease Agreement?',page.text);self.assertIn('Continue Without Selecting a Clause',page.text)
         self.assertTrue(tree.xpath('//*[@id="addendum-pdf-document" and @data-lease-pdf-viewer]'));self.assertEqual(tree.xpath('//*[@id="addendum-pdf-document"]//button/text()'),['Zoom Out','Zoom In','Previous','Next'])
         self.assertIn('To print, download or email your completed Addendum, go to',page.text)
@@ -32,7 +32,7 @@ class AddendumWorkspaceTests(unittest.TestCase):
         self.assertEqual(self.choose(core).status_code,200);self.assertEqual(self.choose(sc).status_code,200);before=copy.deepcopy(dict(self.stored()))
         result=self.preview();self.assertEqual(result.status_code,200,result.data[:200]);self.assertIn('inline',result.headers['Content-Disposition']);self.assertIn('no-store',result.headers['Cache-Control'])
         doc=PdfReader(io.BytesIO(result.data));body=''.join(p.extract_text() for p in doc.pages)
-        for value in ('ADDENDUM 01','GENERAL ADDENDUM TO AGREEMENT OF LEASE',original['lease_reference'],'SUBJECT: Rental Adjustment','One amendment covers multiple provisions.','Keep this exact second paragraph.'):
+        for value in ('ADDENDUM 01','GENERAL ADDENDUM TO AGREEMENT OF LEASE',original['lease_reference'],'SUBJECT: GENERAL AMENDMENT','One amendment covers multiple provisions.','Keep this exact second paragraph.'):
             self.assertIn(value,body)
         self.assertIn('SIGNATURES',doc.pages[-1].extract_text());self.assertNotIn('SIGNATURES',doc.pages[0].extract_text());self.assertEqual(dict(self.stored()),before)
         import os
@@ -43,7 +43,7 @@ class AddendumWorkspaceTests(unittest.TestCase):
             sample=fitz.open(stream=result.data,filetype='pdf')
             for index,page in enumerate(sample):page.get_pixmap().save(str(folder/('addendum-workspace-page-'+str(index+1)+'.png')))
         result=self.preview(action='create_pdf');self.assertEqual(result.status_code,302,result.text);saved=self.stored()['items']['_lease_history']['documents'][-1]
-        self.assertEqual(saved['addendum_number'],1);self.assertEqual(saved['subject'],'Rental Adjustment');self.assertEqual(saved['selected_provisions'],[]);self.assertEqual(self.stored()['items']['_lease_history']['documents'][0],original)
+        self.assertEqual(saved['addendum_number'],1);self.assertEqual(saved['subject'],'GENERAL AMENDMENT');self.assertEqual(saved['selected_provisions'],[]);self.assertEqual(self.stored()['items']['_lease_history']['documents'][0],original)
         output=self.client.get(self.endpoint);self.assertEqual(output.status_code,200,output.text);self.assertIn('Saved Addendums',output.text);self.assertIn(saved['id'],output.text)
         second=self.preview();self.assertIn('ADDENDUM 02',''.join(p.extract_text() for p in PdfReader(io.BytesIO(second.data)).pages))
     def test_general_preview_has_no_invented_clauses_and_invalid_access_does_not_save(self):

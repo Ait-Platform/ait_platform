@@ -1,6 +1,7 @@
 {% extends 'program_billing/lease_workflow_base.html' %}
 {% block workspace %}
 {% include 'program_billing/lease_sc_help.html' %}
+{% include 'program_billing/lease_addendum_clauses.html' %}
 <h2 class="mt-5 font-semibold">Create Addendum</h2><p>An Addendum records agreed changes to the selected lease. The original lease remains unchanged.</p>
 <form method="post" enctype="multipart/form-data" class="mt-4">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="draft_id" value="{{ lease_draft.id }}">

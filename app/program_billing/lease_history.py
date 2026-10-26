@@ -237,6 +237,148 @@ def signed_copy(property_id):
         entries=entries,kinds=KINDS,originals=originals(draft),errors=errors,unavailable=None),400 if errors else 200
 
 
+CLAUSE_SOURCES={'certificate':'Certificate','core':'Core Lease','special_conditions':'Special Conditions','signature':'Signatures'}
+
+
+def clause_lease(draft,identifier):
+    """Only a signed original in this draft, or this draft when none is uploaded."""
+    choices=originals(draft)
+    identifier=identifier or (choices[0]['id'] if choices else 'draft')
+    if identifier=='draft' and not choices:return identifier,draft['items'],'Current saved lease draft'
+    original=next((entry for entry in choices if entry['id']==identifier),None)
+    if original is None:abort(404)
+    if not isinstance(original.get('particulars'),dict):return identifier,None,original['lease_reference']
+    return identifier,original['particulars'],original['lease_reference']
+
+
+def clause_catalog(items):
+    """Actual fixed templates + saved particulars. No keyword-invented SC clauses."""
+    from . import lease_certificate as certificate,lease_certificate_form as form,lease_kit_pdf,lease_signing
+    from .lease_certificate_parties import blocks
+    from .lease_supplementary_conditions import legacy_entries
+    import fitz
+    catalog=[];notices=[]
+    def add(source,reference,description,wording,provenance):
+        identifier=source+':'+sha256(str(reference).encode()).hexdigest()[:24]
+        catalog.append(dict(id=identifier,source=source,source_label=CLAUSE_SOURCES[source],reference=str(reference),description=description,original=wording,source_hash=sha256(wording.encode()).hexdigest(),provenance=provenance))
+    sections=form.render_rows(form.certificate_layout(*form.counts(items)),certificate.document_values(items))
+    for section in sections:
+        if section['title'].startswith('01'):continue
+        for row in section['rows']:
+            wording=''.join(str(part.get('value','')) if 'token' in part else part.get('text','') for part in row['parts'])
+            add('certificate',row['label'],section['title'],wording,'Saved particulars / fixed Certificate field')
+    for group in blocks(items):
+        for party in group['parties']:
+            reference=group['label']+' — '+(party.get('name') or party.get('identity_number') or '')
+            wording=' | '.join(str(party.get(key) or '') for key in ('name','identity_number'))
+            for representative in party.get('representatives',[]):wording+='\nRepresentative: '+' | '.join(str(representative.get(key) or '') for key in ('name','identity_number','capacity'))
+            add('certificate',reference,'Contracting party',wording,'Saved contracting-party particulars')
+    for party in lease_signing.rows(items):
+        party_name=' | '.join(str(party.get(key) or '') for key in ('name','identity_number')).strip(' |') or party['role']
+        for field,label in (('name','Signing party'),('place','Place of signing'),('date','Date of signing')):
+            add('signature',party['role']+' — '+party_name+' — '+label,label,str(party.get(field) or ''),'Saved particulars / fixed Signatures field')
+        for representative in party.get('representatives',[]):
+            if representative.get('name'):add('signature',party['role']+' — '+party_name+' — Authorised representative','Authorised representative',' | '.join(str(representative.get(key) or '') for key in ('name','identity_number')),'Saved particulars / fixed Signatures field')
+        add('signature',party['role']+' — '+party_name+' — Signature','Signature','________________________________','Fixed Signatures template')
+    try:
+        core=lease_kit_pdf.CORE.read_bytes()
+        if sha256(core).hexdigest()!=lease_kit_pdf.CORE_SHA256:raise ValueError('Approved Core hash mismatch')
+        parsed=fitz.open(stream=core,filetype='pdf');entries=[];active=None
+        for page in parsed:
+            for block in page.get_text('dict')['blocks']:
+                for line in block.get('lines',[]):
+                    value=''.join(span['text'] for span in line['spans'])
+                    if value.strip()=='AIT Residential Core | FINAL REVIEW' or re.fullmatch(r'Final review \| Page \d+',value.strip()):continue
+                    match=re.match(r'^(\d+\.\d+(?:\.\d+)*)\s+(.+)',value)
+                    heading=re.match(r'^(\d+)\s+(.+)',value) if any('bold' in span.get('font','').lower() for span in line['spans']) else None
+                    if match or heading:
+                        found=match or heading;active=[found[1],found[2].strip(),value];entries.append(active)
+                    elif active:active[2]+='\n'+value
+        parsed.close()
+        for reference,description,wording in entries:add('core',reference,description,wording,'Approved nine-page Core / SHA-256 '+lease_kit_pdf.CORE_SHA256)
+    except (OSError,ValueError):notices.append('Approved Core clauses are unavailable; no substitute has been used.')
+    if items.get('_sc_pdf_current'):
+        notices.append('Current SC is an uploaded PDF. Automatic clause extraction is not assumed reliable. Open the current PDF, then supply the exact provision reference and original wording below; these entries are labelled user-supplied.')
+    else:
+        state=items.get('_supplementary_conditions',{})
+        if state.get('mode')!='none':
+            for index,entry in enumerate(state.get('clauses',[]),1):
+                add('special_conditions',entry.get('number') or 'SC-%02d'%index,entry.get('heading',''),entry.get('text',''),'Saved Special Conditions clause')
+            for entry in legacy_entries(items):
+                add('special_conditions',entry['source'],entry.get('label','Saved Special Condition'),entry['text'],'Saved legacy Special Condition')
+    return catalog,notices
+
+
+def clause_relationships(catalog):
+    """Only explicit references; no assumed SC numbering or semantic matching."""
+    relationships=[];by_core={entry['reference']:entry for entry in catalog if entry['source']=='core'}
+    certificate={entry['reference'].casefold():entry for entry in catalog if entry['source']=='certificate'}
+    for entry in catalog:
+        if entry.get('manual'):continue
+        wording=entry['original']
+        for match in re.finditer(r'\b(?:Core(?: Lease)?(?: clause)?|clause)\s+(\d+\.\d+(?:\.\d+)*)\b',wording,re.I):
+            if entry['source']!='core' and not re.match(r'Core',match[0],re.I):continue
+            target=by_core.get(match[1])
+            if target and target['id']!=entry['id']:relationships.append(dict(left=entry['id'],right=target['id'],evidence='Explicit reference: '+match[0]))
+        if entry['source']=='core' and re.search(r'\bCertificate\b',wording):
+            for phrase in ('monthly rental','security deposit','commencement','renewal notice'):
+                target=certificate.get(phrase)
+                if target and re.search(r'\b'+re.escape(phrase)+r'\b',wording,re.I):relationships.append(dict(left=entry['id'],right=target['id'],evidence='Core '+entry['reference']+' expressly refers to the Certificate and '+phrase))
+    distinct=[];seen=set()
+    for relationship in relationships:
+        pair=tuple(sorted((relationship['left'],relationship['right'])))
+        if pair not in seen:distinct.append(relationship);seen.add(pair)
+    return distinct
+
+
+def clause_register_state(draft,identifier=None):
+    key,source_items,label=clause_lease(draft,identifier)
+    catalog,notices=clause_catalog(source_items) if source_items is not None else ([],['The selected original has no saved particulars snapshot. No later draft provisions have been substituted. Existing documents and history remain available.'])
+    saved=deepcopy(draft['items'].get('_addendum_clause_registers',{}).get(key,{'schema_version':1,'selected':[],'manual':[]}))
+    pdf_id=(source_items or {}).get('_sc_pdf_current')
+    for entry in saved.get('manual',[]):
+        if entry.get('pdf_id')==pdf_id:catalog.append(entry)
+    by_id={entry['id']:entry for entry in catalog}
+    selected=saved.get('selected',[])
+    for entry in selected:
+        current=by_id.get(entry['id'])
+        entry['source_status']='Current source' if current and current['source_hash']==entry['source_hash'] else 'Source changed or unavailable; saved wording retained'
+    return dict(lease_key=key,lease_label=label,catalog=catalog,notices=notices,selected=selected,relationships=clause_relationships(catalog),pdf_id=pdf_id)
+
+
+def clause_register_save(prop,draft):
+    from flask import jsonify
+    state=clause_register_state(draft,request.form.get('clause_lease'))
+    if request.form.get('register_version')!=str(draft['version']):abort(409,description='The lease or clause register changed. Reload this page before changing the selection; the saved register is unchanged.')
+    items=deepcopy(draft['items']);registers=items.setdefault('_addendum_clause_registers',{})
+    saved=deepcopy(registers.get(state['lease_key'],{'schema_version':1,'selected':[],'manual':[]}))
+    selected={entry['id']:entry for entry in saved['selected']}
+    if request.form['action']=='addendum_manual_clause':
+        if not state['pdf_id']:abort(400,description='Manual transcription is available only for the selected lease’s uploaded SC PDF.')
+        reference=request.form.get('reference','').strip();wording=request.form.get('original','');description=request.form.get('description','').strip()
+        if not reference or len(reference)>200 or not wording.strip() or len(wording)>100000 or len(description)>500 or '\x00' in reference+wording+description:abort(400,description='Supply an exact reference (up to 200 characters) and original wording (up to 100000 characters).')
+        identifier='manual-sc:'+sha256((str(state['pdf_id'])+'|'+reference).encode()).hexdigest()[:24]
+        entry=dict(id=identifier,source='special_conditions',source_label='Special Conditions',reference=reference,description=description or reference,original=wording,source_hash=sha256(wording.encode()).hexdigest(),provenance='User-supplied transcription from uploaded SC PDF; not automatically verified',manual=True,pdf_id=state['pdf_id'])
+        existing=next((old for old in saved['manual'] if old['id']==identifier),None)
+        if existing and existing['original']!=wording:abort(409,description='That provision already has different original wording in the working register. The existing wording was preserved.')
+        if not existing:saved['manual'].append(entry)
+        selected[identifier]=existing or entry
+    else:
+        identifier=request.form.get('provision_id');checked=request.form.get('selected')
+        if checked not in ('yes','no'):abort(400)
+        if checked=='yes':
+            entry=next((entry for entry in state['catalog'] if entry['id']==identifier),None)
+            if entry is None:abort(404)
+            existing=selected.get(identifier)
+            if existing and existing['source_hash']!=entry['source_hash']:abort(409,description='The original provision changed. The existing selection was preserved; remove it explicitly before selecting the new wording.')
+            selected[identifier]=deepcopy(entry)
+        else:selected.pop(identifier,None)
+    saved.update(selected=list(selected.values()),updated_at=now(),updated_by=int(current_user.id),lease_key=state['lease_key'])
+    registers[state['lease_key']]=saved;update_locked(draft,items)
+    fresh=locked(prop['id'],draft['id']);result=clause_register_state(fresh,state['lease_key']);result['version']=fresh['version']
+    return jsonify(result)
+
+
 def addendum_pdf(prop,reference,wording,number):
     """Render only the entered amendment, identifying its related lease."""
     from xml.sax.saxutils import escape
@@ -273,6 +415,12 @@ def addendum_history(draft,property_id):
 @snapshot.endpoint
 def addendum(property_id):
     prop,draft=context(property_id,request.method=='POST');errors=[]
+    if request.method=='POST' and request.form.get('action') in ('addendum_clause_selection','addendum_manual_clause'):
+        from flask import jsonify
+        from werkzeug.exceptions import HTTPException
+        try:return clause_register_save(prop,draft)
+        except HTTPException as error:
+            db.session.rollback();return jsonify(error=error.description),error.code
     arrangement_wording=''
     if request.method=='GET' and request.args.get('utility_arrangement_id'):
         from app.program_billing.lease_property_payments import utility_record
@@ -342,7 +490,7 @@ def addendum(property_id):
             return redirect(url_for('billing_bp.lease_history_document',property_id=property_id,document_id=entry['id'],draft_id=draft['id']))
         except ValueError as error:errors.append(str(error))
     return render_pm_template('program_billing/lease_addendum.html',title='Addendum',property=prop,lease_draft=draft,
-        originals=originals(draft),addendums=addendum_history(draft,property_id),arrangement_wording=arrangement_wording,errors=errors,unavailable=None),400 if errors else 200
+        clause_register=clause_register_state(draft,request.args.get('clause_lease')),originals=originals(draft),addendums=addendum_history(draft,property_id),arrangement_wording=arrangement_wording,errors=errors,unavailable=None),400 if errors else 200
 
 
 def signer():return URLSafeTimedSerializer(current_app.config['SECRET_KEY'],salt='lease-view-version-001')

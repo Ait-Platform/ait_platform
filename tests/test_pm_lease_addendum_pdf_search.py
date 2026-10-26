@@ -37,7 +37,9 @@ class FullLeaseSelectionTests(unittest.TestCase):
         current=self.search('CURRENT_UPLOADED_PHRASE');self.assertEqual(len(current['results']),1);entry=current['results'][0];self.assertEqual(entry['source'],'special_conditions');self.assertEqual(entry['reference'],'SC-42');self.assertIn('CURRENT_UPLOADED_PHRASE',entry['excerpt'])
         source=self.client.get(self.register_url().split('?')[0],query_string={'action':'lease_pdf','draft_id':str(self.draft),'source_sha256':current['source_sha256']});self.assertEqual(source.status_code,200);self.assertIn('inline',source.headers['Content-Disposition']);self.assertIn('no-store',source.headers['Cache-Control'])
         pdf=PdfReader(io.BytesIO(source.data));self.assertIn('CURRENT_UPLOADED_PHRASE',pdf.pages[entry['page']-1].extract_text())
-        self.assertEqual(self.search('Original first')['results'],[]);self.assertTrue(any('no extractable text' in n for n in current['notices']));self.assertEqual(dict(self.stored()),before)
+        for section,reference in ((certificate,'Security deposit'),(core,'5.1'),(current,'SC-42')):
+            indexed=next(e for e in section['results'] if e['reference']==reference);self.assertIn(reference,pdf.pages[indexed['page']-1].extract_text());self.assertTrue(indexed['title']);self.assertEqual(indexed['source_version'],current['source_sha256'])
+        self.assertEqual(self.search('Original first')['results'],[]);self.assertTrue(any('no extractable text' in n for n in current['notices']));after=copy.deepcopy(dict(self.stored()));index=after['items']['_lease_history'].pop('full_lease_clause_index');self.assertEqual(after,before);self.assertEqual(index['source_sha256'],current['source_sha256']);self.assertTrue(all(e['source_version']==current['source_sha256'] for e in index['entries']))
     def test_multiple_selections_survive_searches_duplicate_checks_removal_and_clean_finish(self):
         before=copy.deepcopy(self.stored()['items']);core=self.search('5.1');entry=next(e for e in core['results'] if e['source']=='core' and e['reference']=='5.1');result=self.select(core,entry);self.assertEqual(result.status_code,200,result.text)
         after=self.stored()['items'];self.assertEqual({k:v for k,v in after.items() if k!='_lease_history'},{k:v for k,v in before.items() if k!='_lease_history'});self.assertEqual(after['_lease_history']['documents'],before['_lease_history']['documents'])
@@ -75,3 +77,51 @@ class FullLeaseSelectionTests(unittest.TestCase):
         match=self.search('CURRENT_UPLOADED_PHRASE');entry=match['results'][0];before=copy.deepcopy(dict(self.stored()))
         self.assertEqual(self.select(match,entry,source_sha256='wrong').status_code,409);self.assertEqual(self.select(match,entry,csrf_token='').status_code,400);self.assertEqual(self.client.get(self.register_url().split('?')[0].replace('/26/','/27/'),query_string={'action':'search_lease','q':'5.1','draft_id':str(self.draft)}).status_code,404);self.assertEqual(dict(self.stored()),before)
         self.client.environ_base.pop('HTTP_X_TEST_OWNER');self.assertEqual(self.select(match,entry).status_code,403)
+
+    def test_index_reused_across_queries_selections_pdf_and_worker_restart(self):
+        extractor=self.history_env['full_lease_provisions']
+        from app.program_billing import lease_kit_pdf
+        with patch.dict(self.history_env,full_lease_provisions=__import__('unittest.mock',fromlist=['Mock']).Mock(wraps=extractor)):
+            with patch.object(lease_kit_pdf,'build_pdf',wraps=lease_kit_pdf.build_pdf) as build:
+                first=self.search('');self.assertGreater(len(first['results']),10)
+                self.assertTrue(any(e['source']=='certificate' for e in first['results']));self.assertTrue(any(e['source']=='core' for e in first['results']));self.assertTrue(any(e['reference']=='SC-42' for e in first['results']))
+                version=self.stored()['version'];indexed=copy.deepcopy(self.stored()['items']['_lease_history']['full_lease_clause_index'])
+                self.search('rent');self.search('SC-42');self.assertEqual(build.call_count,1)
+                entry=next(e for e in first['results'] if e['reference']=='SC-42');self.assertEqual(self.select(first,entry).status_code,200)
+                again=self.search('');self.assertEqual(again['source_sha256'],first['source_sha256']);self.assertEqual(build.call_count,1)
+                self.app.extensions.pop('lease_clause_pdf_cache',None)
+                self.search('deposit');self.assertEqual(build.call_count,1)
+                pdf=self.client.get(self.register_url().split('?')[0],query_string={'action':'lease_pdf','draft_id':str(self.draft)});self.assertEqual(pdf.status_code,200);self.assertEqual(build.call_count,2)
+                self.assertEqual(self.history_env['full_lease_provisions'].call_count,1)
+                self.assertEqual(self.stored()['items']['_lease_history']['full_lease_clause_index'],indexed)
+                self.assertEqual(self.stored()['version'],version+1) # selection only, never indexing
+
+    def test_index_rebuilt_after_current_uploaded_pdf_changes_and_old_selection_not_reused(self):
+        first=self.search('CURRENT_UPLOADED_PHRASE');self.assertEqual(self.select(first,first['results'][0]).status_code,200)
+        from reportlab.pdfgen import canvas
+        output=io.BytesIO();page=canvas.Canvas(output,invariant=1);page.drawString(40,780,'SC-77 Replacement current provision');page.drawString(40,750,'REPLACEMENT_CURRENT_TEXT');page.save()
+        response=self.client.post(self.endpoint,data={'csrf_token':self.csrf,'action':'sc_pdf_upload','source':(io.BytesIO(output.getvalue()),'Replacement-SC.pdf')},content_type='multipart/form-data');self.assertEqual(response.status_code,200,response.text)
+        new=self.search('');self.assertNotEqual(new['source_sha256'],first['source_sha256']);self.assertTrue(any(e['reference']=='SC-77' for e in new['results']));self.assertFalse(any(e['reference']=='SC-42' for e in new['results']))
+        self.assertEqual(self.search('CURRENT_UPLOADED_PHRASE')['results'],[])
+        preview=self.client.post(self.register_url(),data={'csrf_token':self.csrf,'action':'addendum_preview','subject':'Changed source','wording':'Do not reuse stale references.'});self.assertEqual(preview.status_code,400);self.assertIn('Full Lease changed',preview.json['error'])
+        self.assertEqual(self.select(first,first['results'][0]).status_code,409)
+
+    def test_index_failure_is_explicit_without_fallback_or_partial_cache(self):
+        from app.program_billing import lease_kit_pdf
+        before=copy.deepcopy(dict(self.stored()))
+        with patch.object(lease_kit_pdf,'build_pdf',side_effect=RuntimeError('Synthetic renderer failure')):
+            response=self.client.get(self.register_url().split('?')[0],query_string={'action':'clause_index','draft_id':str(self.draft)})
+        self.assertEqual(response.status_code,503);self.assertIn('Clause Index could not be generated',response.json['error']);self.assertEqual(dict(self.stored()),before)
+
+    def test_same_pdf_digest_reuses_extraction_even_when_inputs_need_revalidation(self):
+        from app.program_billing import lease_clause_index,lease_kit_pdf
+        from unittest.mock import Mock
+        extractor=Mock(wraps=self.history_env['full_lease_provisions'])
+        with patch.dict(self.history_env,full_lease_provisions=extractor):
+            first=self.search('');version=self.stored()['version'];inputs=lease_clause_index.inputs
+            def changed_inputs(*args):
+                context,fingerprint=inputs(*args)
+                return context,'revalidated-'+fingerprint
+            with patch.object(lease_clause_index,'inputs',side_effect=changed_inputs),patch.object(lease_kit_pdf,'build_pdf',wraps=lease_kit_pdf.build_pdf) as build:
+                second=self.search('');self.assertEqual(build.call_count,1)
+            self.assertEqual(second['source_sha256'],first['source_sha256']);self.assertEqual(extractor.call_count,1);self.assertEqual(self.stored()['version'],version)

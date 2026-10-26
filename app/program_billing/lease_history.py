@@ -393,19 +393,16 @@ def full_lease_selection_state(draft):
     return dict(lease_key=key,lease_label=label,selected=selected,version=draft['version'],catalog=[],relationships=[],notices=[],pdf_id=None,selection_mode='full_pdf')
 
 
+def full_lease_index(prop,draft,with_pdf=False):
+    from .lease_clause_index import load
+    index,payload=load(prop,draft,full_lease_provisions,with_pdf=with_pdf)
+    draft['items'].setdefault('_lease_history',{}).update(full_lease_clause_index=index)
+    return index,payload
+
+
 def full_lease_source(prop,draft):
-    from .lease_kit import preview_context
-    from .lease_kit_pdf import build_pdf
-    from werkzeug.exceptions import HTTPException
-    try:
-        context=preview_context(prop['id'])
-        if str(context['lease_draft']['id'])!=str(draft['id']):abort(404)
-        payload=build_pdf('lease',context)
-        return payload,sha256(payload).hexdigest()
-    except HTTPException:raise
-    except Exception as error:
-        current_app.logger.warning('Addendum Full Lease source unavailable error=%s',type(error).__name__)
-        abort(503,description='The current Full Lease PDF is unavailable. No older SC records or other document have been substituted.')
+    index,payload=full_lease_index(prop,draft,with_pdf=True)
+    return payload,index['source_sha256']
 
 
 def full_lease_provisions(payload):
@@ -463,33 +460,31 @@ def full_lease_search(prop,draft):
     from flask import jsonify
     query=request.args.get('q','').strip()
     if len(query)>200:abort(400,description='Search text must be no longer than 200 characters.')
-    payload,digest=full_lease_source(prop,draft);units,notices=full_lease_provisions(payload)
+    index,_=full_lease_index(prop,draft);digest=index['source_sha256'];units=index['entries'];notices=index['notices']
     needle=' '.join(query.casefold().split());pattern=re.compile(r'(?<![\w.])'+re.escape(needle)+r'(?![\w.])') if re.fullmatch(r'(?:sc[-– ]\d+|\d+(?:\.\d+)+)',needle) else None
     matches=[]
     for unit in units:
         text=' '.join(unit['original'].casefold().split())
-        if not needle or not (pattern.search(text) if pattern else needle in text):continue
-        position=pattern.search(text).start() if pattern else text.find(needle)
-        offset=0;fragment=unit['fragments'][0]
-        for part in unit['fragments']:
-            length=len(' '.join(part['text'].casefold().split()))
-            if position<offset+length:fragment=part;break
-            offset+=length+1
+        if needle and not (pattern.search(text) if pattern else needle in text):continue
+        position=pattern.search(text).start() if pattern else text.find(needle) if needle else 0
         excerpt=' '.join(unit['original'].split());start=max(0,position-80)
-        matches.append(dict(id=unit['id'],source=unit['source'],source_label=unit['source_label'],reference=unit['reference'],page=fragment['page'],excerpt=excerpt[start:start+350]))
+        matches.append(dict(id=unit['id'],source=unit['source'],source_label=unit['source_label'],reference=unit['reference'],page=unit['page'],title=unit.get('title',unit['original'].splitlines()[0]),source_version=digest,search_text=unit['original'],excerpt=excerpt[start:start+350]))
     return jsonify(results=matches,notices=notices,source_sha256=digest,state=full_lease_selection_state(draft))
 
 
 def full_lease_select(prop,draft):
     from flask import jsonify
-    key,_,_=full_lease_identity(draft);items=deepcopy(draft['items']);registers=items.setdefault('_lease_history',{'documents':[],'emails':[]}).setdefault('full_lease_selections',{})
+    key,_,_=full_lease_identity(draft)
+    index=None
+    if request.form.get('selected')=='yes':index,_=full_lease_index(prop,draft)
+    items=deepcopy(draft['items']);registers=items.setdefault('_lease_history',{'documents':[],'emails':[]}).setdefault('full_lease_selections',{})
     saved=deepcopy(registers.get(key,{'selected':[]}));selected={entry['id']:entry for entry in saved['selected']}
     if request.form.get('register_version')!=str(draft['version']):abort(409,description='The saved selections changed. Search again; your saved selections are unchanged.')
     checked=request.form.get('selected');identifier=request.form.get('provision_id','')
     if checked=='yes':
-        payload,digest=full_lease_source(prop,draft)
+        digest=index['source_sha256']
         if request.form.get('source_sha256')!=digest:abort(409,description='The Full Lease PDF changed. Search its current text again before selecting.')
-        units,_=full_lease_provisions(payload);entry=next((unit for unit in units if unit['id']==identifier),None)
+        entry=next((unit for unit in index['entries'] if unit['id']==identifier),None)
         if entry is None:abort(404)
         entry=deepcopy(entry);entry['pdf_sha256']=digest;entry['location_page']=entry['page'];entry['id']=digest+':'+identifier
         selected[entry['id']]=entry
@@ -515,7 +510,7 @@ def next_addendum_number(draft,original_id):
 def addendum_content(prop,draft):
     key,reference,_=full_lease_identity(draft);items=draft['items'];state=full_lease_selection_state(draft)
     if state['selected']:
-        _,digest=full_lease_source(prop,draft)
+        index,_=full_lease_index(prop,draft);digest=index['source_sha256']
         if any(entry.get('pdf_sha256')!=digest for entry in state['selected']):raise ValueError('The Full Lease changed since selection. Return to Select Clause and select its current provisions; your entered amendment is retained.')
     for entry in state['selected']:entry['source_status']='Current source'
     subject=request.form.get('subject','').strip();wording=request.form.get('wording','')
@@ -568,7 +563,7 @@ def addendum_history(draft,property_id):
 @snapshot.endpoint
 def addendum(property_id):
     prop,draft=context(property_id,request.method=='POST');errors=[]
-    if request.method=='GET' and request.args.get('action')=='search_lease':
+    if request.method=='GET' and request.args.get('action') in ('search_lease','clause_index'):
         from flask import jsonify
         from werkzeug.exceptions import HTTPException
         try:return full_lease_search(prop,draft)

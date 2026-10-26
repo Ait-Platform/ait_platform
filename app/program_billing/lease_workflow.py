@@ -64,6 +64,8 @@ def create_parties_draft(property_id, items, automatic_reference=False):
     """First valid Part A save: one insert/commit with existing token uniqueness."""
     try:token=uuid.UUID(request.form.get('registration_token',''))
     except (ValueError,TypeError):abort(400,description='Reload Part A before starting a draft.')
+    from .lease_core_master import pin_new
+    items=pin_new(items)
     identifier=uuid.uuid4()
     if automatic_reference:
         items=deepcopy(items)
@@ -80,6 +82,7 @@ def create_parties_draft(property_id, items, automatic_reference=False):
         if existing_id is None:abort(409,description='This registration token belongs to another draft context. Reload Part A.')
         draft=snapshot.draft_row(property_id,existing_id,True)
         if automatic_reference:items['s1-01']={'value':'LEASE-'+str(draft['id'])}
+        if '_core_master' in draft['items']:items['_core_master']=draft['items']['_core_master']
         if draft['items']!=items:
             abort(409,description='This draft was already saved. Reopen it before making further changes.')
     db.session.commit()

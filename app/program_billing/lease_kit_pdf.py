@@ -141,7 +141,7 @@ def compiled_presentation(payload,cover_pages):
         if page.rotation:page.remove_rotation()
         replacements=[]
         introduction="For the owner's final review. This Core forms part of the AIT Lease Kit and uses the Lease Certificate for the agreed particulars. Read it with the separate final-review decision register. It is not approved for signature or issue."
-        for block in page.get_text('dict')['blocks']:
+        for block in page.get_text('dict',flags=fitz.TEXTFLAGS_DICT & ~fitz.TEXT_PRESERVE_IMAGES)['blocks']:
             lines=block.get('lines',[])
             value=' '.join(''.join(span['text'] for span in line['spans']).strip() for line in lines)
             if ' '.join(value.split())==introduction:
@@ -152,7 +152,7 @@ def compiled_presentation(payload,cover_pages):
                 'Read it with the separate final-review decision register.',
                 'It is not approved for signature or issue.'):
             for box in page.search_for(phrase):page.add_redact_annot(box,fill=None,cross_out=False)
-        for block in page.get_text('dict')['blocks']:
+        for block in page.get_text('dict',flags=fitz.TEXTFLAGS_DICT & ~fitz.TEXT_PRESERVE_IMAGES)['blocks']:
             for line in block.get('lines',[]):
                 value=''.join(span['text'] for span in line['spans']).strip()
                 box=fitz.Rect(line['bbox'])
@@ -187,6 +187,7 @@ def compiled_presentation(payload,cover_pages):
 
 
 def build_pdf(component, context):
+    from .lease_core_master import core_for
     draft=context.get('lease_draft');filed=bool(draft and draft['items'].get('_sc_pdf_current'));sc_pdf=None
     if filed and component in ('special_conditions','lease'):
         from .lease_sc_pdf import retrieve
@@ -195,21 +196,23 @@ def build_pdf(component, context):
         raise ValueError('Legacy Supplementary Conditions require review before assembly')
     from pypdf import PdfReader, PdfWriter
     if component == 'core':
-        return core_bytes()
+        return core_for(draft)
     if component=='special_conditions' and filed:return sc_pdf
     if component != 'lease':
         return html_pdf(component, context)
     writer = PdfWriter()
-    cover_pages=0
+    cover_pages=0;sections=[]
     for key in ('cover', 'certificate', 'core', 'special_conditions', 'signature'):
-        payload = core_bytes() if key == 'core' else sc_pdf if key=='special_conditions' and filed else html_pdf(key, context)
+        payload = core_for(draft) if key == 'core' else sc_pdf if key=='special_conditions' and filed else html_pdf(key, context)
         reader=PdfReader(BytesIO(payload))
         if key=='cover':cover_pages=len(reader.pages)
-        writer.append(reader)
+        start=len(writer.pages)+1;writer.append(reader);sections.append(dict(source=key,start=start,end=len(writer.pages)))
         if key=='special_conditions' and not filed and context.get('lease_draft') and context['lease_draft']['items'].get('_map_annexures'):
             from .lease_map_annexure import compiled
             for annexure in compiled(context):writer.append(PdfReader(BytesIO(annexure)))
+            sections[-1]['end']=len(writer.pages)
     writer.add_metadata({'/Title': 'Agreement of Lease'})
     output = BytesIO()
     writer.write(output)
+    context['_full_lease_sections']=sections
     return compiled_presentation(output.getvalue(),cover_pages)

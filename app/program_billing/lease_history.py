@@ -393,25 +393,30 @@ def full_lease_selection_state(draft):
     return dict(lease_key=key,lease_label=label,selected=selected,version=draft['version'],catalog=[],relationships=[],notices=[],pdf_id=None,selection_mode='full_pdf')
 
 
-def full_lease_index(prop,draft,with_pdf=False):
-    from .lease_clause_index import load
-    index,payload=load(prop,draft,full_lease_provisions,with_pdf=with_pdf)
+def full_lease_index(prop,draft,with_pdf=False,existing_only=False):
+    from .lease_clause_index import load,existing
+    if existing_only:index,payload=existing(prop,draft),None
+    else:index,payload=load(prop,draft,full_lease_provisions,with_pdf=with_pdf)
     draft['items'].setdefault('_lease_history',{}).update(full_lease_clause_index=index)
     return index,payload
 
 
 def full_lease_source(prop,draft):
-    index,payload=full_lease_index(prop,draft,with_pdf=True)
+    from .lease_clause_index import retrieve_pdf,cached_pdf
+    index,_=full_lease_index(prop,draft,existing_only=True)
+    key=(str(current_user.id),str(prop['id']),str(draft['id']),index['input_version'])
+    payload=cached_pdf(key)
+    if payload is None:payload=retrieve_pdf(prop,draft,index);cached_pdf(key,payload)
     return payload,index['source_sha256']
 
 
-def full_lease_provisions(payload):
+def full_lease_provisions(payload,core_pages=9,section_pages=None):
     """Index actual PDF text; only explicit headings/field labels become references."""
     import fitz
     document=fitz.open(stream=payload,filetype='pdf');pages=[];notices=[]
     for index,page in enumerate(document):
         lines=[]
-        try:blocks=page.get_text('dict')['blocks']
+        try:blocks=page.get_text('dict',flags=fitz.TEXTFLAGS_DICT & ~fitz.TEXT_PRESERVE_IMAGES)['blocks']
         except (RuntimeError,ValueError,UnicodeError):
             notices.append('PDF page '+str(index+1)+' text could not be extracted and is not searchable.');pages.append([]);continue
         for block in blocks:
@@ -426,7 +431,11 @@ def full_lease_provisions(payload):
         if not rows:notices.append('PDF page '+str(index+1)+' has no extractable text and is not searchable. Images and scanned content are not interpreted by OCR.')
         pages.append(rows)
     core_start=next((i for i,rows in enumerate(pages) if any(re.fullmatch(r'(?:AIT )?Residential Core Lease Agreement',row[1]) for row in rows)),None)
-    signature_start=max((i for i,rows in enumerate(pages) if core_start is not None and i>=core_start+9 and any(row[1]=='SIGNATURES' for row in rows)),default=None)
+    signature_start=max((i for i,rows in enumerate(pages) if core_start is not None and i>=core_start+core_pages and any(row[1]=='SIGNATURES' for row in rows)),default=None)
+    if section_pages:
+        core=next((part for part in section_pages if part['source']=='core'),None);signature=next((part for part in section_pages if part['source']=='signature'),None)
+        if core:core_start=core['start']-1;core_pages=core['end']-core['start']+1
+        if signature:signature_start=signature['start']-1
     units=[];active=None
     labels=('Tenant Reference','Monthly rental','Security deposit','Commencement','Duration / expiry','Renewal notice','Property / address','Unit','Selected account','Bank / branch','Account holder','Account number','Contracting party','Place of signing','Date of signing')
     def begin(source,reference,text,page):
@@ -438,7 +447,8 @@ def full_lease_provisions(payload):
         else:active['fragments'].append({'page':page,'text':value})
     for index,rows in enumerate(pages):
         page=index+1
-        source='core' if core_start is not None and core_start<=index<core_start+9 else 'signature' if signature_start is not None and index>=signature_start else 'special_conditions' if core_start is not None and index>=core_start+9 else 'certificate' if index>0 else 'full_lease'
+        source='core' if core_start is not None and core_start<=index<core_start+core_pages else 'signature' if signature_start is not None and index>=signature_start else 'special_conditions' if core_start is not None and index>=core_start+core_pages else 'certificate' if index>0 else 'full_lease'
+        if section_pages:source=next((part['source'] if part['source']!='cover' else 'full_lease' for part in section_pages if part['start']<=page<=part['end']),source)
         if active and active['source']!=source:active=None
         for y,value,bold in rows:
             match=re.match(r'^(\d+\.\d+(?:\.\d+)*)\s+',value) if source=='core' else re.match(r'^(SC[-– ]\d{1,3})(?=\s|[—:.-]|$)',value,re.I) if source=='special_conditions' else None
@@ -476,7 +486,7 @@ def full_lease_select(prop,draft):
     from flask import jsonify
     key,_,_=full_lease_identity(draft)
     index=None
-    if request.form.get('selected')=='yes':index,_=full_lease_index(prop,draft)
+    if request.form.get('selected')=='yes':index,_=full_lease_index(prop,draft,existing_only=True)
     items=deepcopy(draft['items']);registers=items.setdefault('_lease_history',{'documents':[],'emails':[]}).setdefault('full_lease_selections',{})
     saved=deepcopy(registers.get(key,{'selected':[]}));selected={entry['id']:entry for entry in saved['selected']}
     if request.form.get('register_version')!=str(draft['version']):abort(409,description='The saved selections changed. Search again; your saved selections are unchanged.')
@@ -519,7 +529,10 @@ def next_addendum_number(draft,original_id):
 def addendum_content(prop,draft):
     key,reference,_=full_lease_identity(draft);items=draft['items'];state=full_lease_selection_state(draft)
     if state['selected']:
-        index,_=full_lease_index(prop,draft);digest=index['source_sha256']
+        from werkzeug.exceptions import HTTPException
+        try:index,_=full_lease_index(prop,draft,existing_only=True)
+        except HTTPException as error:raise ValueError(error.description) from None
+        digest=index['source_sha256']
         if any(entry.get('pdf_sha256')!=digest for entry in state['selected']):raise ValueError('The Full Lease changed since selection. Return to Select Clause and select its current provisions; your entered amendment is retained.')
     for entry in state['selected']:entry['source_status']='Current source'
     subject=addendum_subject(state['selected']);wording=request.form.get('wording','')
@@ -573,11 +586,19 @@ def addendum_history(draft,property_id):
 @snapshot.endpoint
 def addendum(property_id):
     prop,draft=context(property_id,request.method=='POST');errors=[]
-    if request.method=='GET' and request.args.get('action') in ('search_lease','clause_index'):
+    if (request.method=='GET' and request.args.get('action')=='clause_index') or (request.method=='POST' and request.form.get('action')=='retry_clause_index'):
+        from .lease_clause_jobs import response
         from flask import jsonify
         from werkzeug.exceptions import HTTPException
-        try:return full_lease_search(prop,draft)
-        except HTTPException as error:return jsonify(error=error.description),error.code
+        try:return response(prop,draft,full_lease_provisions,full_lease_selection_state(draft),retry=request.method=='POST')
+        except HTTPException as error:return jsonify(error=error.description,retryable=True),error.code
+        except Exception:
+            db.session.rollback();current_app.logger.exception('Clause Index request failed property=%s draft=%s',prop['id'],draft['id'])
+            return jsonify(error='The Clause Index service could not load. Check the service log and use Retry Index.',retryable=True),503
+    if request.method=='GET' and request.args.get('action')=='search_lease':
+        from flask import jsonify
+        from werkzeug.exceptions import HTTPException
+        return jsonify(error='Live PDF search has been retired. Reopen Select Clause to load the persistent Clause Index and filter it in your browser.'),410
     if request.method=='GET' and request.args.get('action')=='lease_pdf':
         payload,digest=full_lease_source(prop,draft)
         if request.args.get('source_sha256') and request.args['source_sha256']!=digest:abort(409,description='The Full Lease changed. Search again to load its current pages.')
@@ -769,7 +790,7 @@ def email_document(property_id):
 
 @billing_bp.after_request
 def private_history(response):
-    if request.endpoint=='billing_bp.lease_addendum' and request.method=='POST' and (request.args.get('action')=='select_lease_pdf' or request.form.get('action')=='select_lease_pdf') and not response.is_json:
+    if request.endpoint=='billing_bp.lease_addendum' and (request.args.get('action') in ('select_lease_pdf','clause_index','retry_clause_index') or (request.method=='POST' and request.form.get('action') in ('select_lease_pdf','retry_clause_index'))) and not response.is_json:
         from flask import jsonify
         code=response.status_code
         if 300<=code<400:code=401

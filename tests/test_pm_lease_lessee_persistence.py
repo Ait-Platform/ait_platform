@@ -52,6 +52,8 @@ class LesseePersistenceTests(unittest.TestCase):
         self.mods=patch.dict(sys.modules,mods);self.mods.start();self.addCleanup(self.mods.stop)
         from app.program_billing import lease_certificate as certificate,lease_certificate_form as form,lease_supplementary_conditions as supplementary,lease_kit as kit
         self.kit=kit;self.cert=certificate;self.form=form
+        from app.program_billing import lease_core_master
+        self.core_registry=patch.object(lease_core_master,'current',side_effect=lease_core_master.legacy);self.core_registry.start();self.addCleanup(self.core_registry.stop)
         app=Flask('real-local-lessee-persistence',root_path=str(ROOT/'app'));app.secret_key='synthetic-local-test';app.config['TESTING']=True
         CSRFProtect(app);app.jinja_env.globals['csrf_token']=generate_csrf
         app.jinja_loader=ChoiceLoader([DictLoader({'layout.html':'{% block content %}{% endblock %}','partials/flash_messages.html':''}),FileSystemLoader(ROOT/'templates')])
@@ -176,7 +178,8 @@ class LesseePersistenceTests(unittest.TestCase):
             certificate=render_template('program_billing/lease_signing_particulars.html',signing_rows=rows)
             signature=render_template('program_billing/lease_signature_document.html',signing_rows=rows)
         for text_value in ('Amended Place','2026-12-01','Place 2','2026-11-12'):
-            self.assertIn(text_value,certificate);self.assertIn(text_value,signature)
+            self.assertIn(text_value,certificate)
+        for party in rows:self.assertIn(party['statement'],signature)
         self.assertEqual(self.save_both(lessee_count='1',tenant_register_id_1='22',LESSEE_1_PARTY_TYPE='juristic_person').status_code,302)
         retained=signing.rows(self.stored()['items']);self.assertEqual(retained[1]['place'],'Place 2')
         removed_key=rows[1]['key']

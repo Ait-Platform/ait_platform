@@ -125,9 +125,11 @@ def create_draft(property_id):
     try:token=uuid.UUID(request.form.get('registration_token',''))
     except ValueError:abort(400,description="Reload the workspace before starting a draft.")
     identifier=uuid.uuid4()
-    row=db.session.execute(text('''INSERT INTO bil_lease_draft(id,property_id,manager_id,registration_token,source_version)
-        VALUES (:d,:p,:u,:t,:v) ON CONFLICT (manager_id,registration_token) DO NOTHING RETURNING id'''),
-        {'d':identifier,'p':property_id,'u':current_user.id,'t':token,'v':CATALOG['version']}).scalar_one_or_none()
+    from .lease_core_master import pin_new
+    core_items=pin_new({})
+    row=db.session.execute(text('''INSERT INTO bil_lease_draft(id,property_id,manager_id,registration_token,source_version,items)
+        VALUES (:d,:p,:u,:t,:v,CAST(:items AS jsonb)) ON CONFLICT (manager_id,registration_token) DO NOTHING RETURNING id'''),
+        {'d':identifier,'p':property_id,'u':current_user.id,'t':token,'v':CATALOG['version'],'items':json.dumps(core_items)}).scalar_one_or_none()
     if row is None:
         row=db.session.execute(text('SELECT id FROM bil_lease_draft WHERE manager_id=:u AND registration_token=:t AND property_id=:p'),
             {'u':current_user.id,'t':token,'p':property_id}).scalar_one_or_none()

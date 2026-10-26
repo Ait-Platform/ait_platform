@@ -26,7 +26,11 @@ class FullLeaseSelectionTests(unittest.TestCase):
         page.setFont('Helvetica-Bold',12);page.drawString(40,780,'UNNUMBERED SUPPORTING MATERIAL');page.setFont('Helvetica',10);page.drawString(40,750,'UNNUMBERED_EXACT_PHRASE remains original PDF wording.');page.showPage();page.save()
         self.sc=output.getvalue();result=self.client.post(self.endpoint,data={'csrf_token':self.csrf,'action':'sc_pdf_upload','source':(io.BytesIO(self.sc),'Current-SC.pdf')},content_type='multipart/form-data');self.assertEqual(result.status_code,200,result.text)
     def search(self,query):
-        response=self.client.get(self.register_url().split('?')[0],query_string={'action':'search_lease','draft_id':str(self.draft),'q':query});self.assertEqual(response.status_code,200,response.text);return response.json
+        # Compatibility helper exercises extraction/cache logic directly; the UI
+        # uses only the separately tested asynchronous clause_index endpoint.
+        with self.app.test_request_context('/?draft_id='+str(self.draft)+'&q='+__import__('urllib.parse',fromlist=['quote']).quote(query),headers=self.headers):
+            prop,draft=self.history_env['context'](26)
+            return self.history_env['full_lease_search'](prop,draft).json
     def select(self,result,entry,checked=True,**changes):
         data={'csrf_token':self.csrf,'action':'select_lease_pdf','register_version':str(self.stored()['version']),'source_sha256':result['source_sha256'],'provision_id':entry['id'] if checked else result['source_sha256']+':'+entry['id'],'selected':'yes' if checked else 'no'};data.update(changes)
         return self.client.post(self.register_url(),data=data)
@@ -67,7 +71,7 @@ class FullLeaseSelectionTests(unittest.TestCase):
     def test_unreadable_text_returns_notice_without_fabricated_matches(self):
         class BrokenText:
             def __iter__(self):return iter([self])
-            def get_text(self,*args):raise RuntimeError('Unreadable font data')
+            def get_text(self,*args,**kwargs):raise RuntimeError('Unreadable font data')
             def close(self):pass
         with patch('fitz.open',return_value=BrokenText()):
             units,notices=self.history_env['full_lease_provisions'](b'ignored fixture')
@@ -91,7 +95,7 @@ class FullLeaseSelectionTests(unittest.TestCase):
                 again=self.search('');self.assertEqual(again['source_sha256'],first['source_sha256']);self.assertEqual(build.call_count,1)
                 self.app.extensions.pop('lease_clause_pdf_cache',None)
                 self.search('deposit');self.assertEqual(build.call_count,1)
-                pdf=self.client.get(self.register_url().split('?')[0],query_string={'action':'lease_pdf','draft_id':str(self.draft)});self.assertEqual(pdf.status_code,200);self.assertEqual(build.call_count,2)
+                pdf=self.client.get(self.register_url().split('?')[0],query_string={'action':'lease_pdf','draft_id':str(self.draft)});self.assertEqual(pdf.status_code,200);self.assertEqual(build.call_count,1)
                 self.assertEqual(self.history_env['full_lease_provisions'].call_count,1)
                 self.assertEqual(self.stored()['items']['_lease_history']['full_lease_clause_index'],indexed)
                 self.assertEqual(self.stored()['version'],version+1) # selection only, never indexing
@@ -110,8 +114,8 @@ class FullLeaseSelectionTests(unittest.TestCase):
         from app.program_billing import lease_kit_pdf
         before=copy.deepcopy(dict(self.stored()))
         with patch.object(lease_kit_pdf,'build_pdf',side_effect=RuntimeError('Synthetic renderer failure')):
-            response=self.client.get(self.register_url().split('?')[0],query_string={'action':'clause_index','draft_id':str(self.draft)})
-        self.assertEqual(response.status_code,503);self.assertIn('Clause Index could not be generated',response.json['error']);self.assertEqual(dict(self.stored()),before)
+            with self.assertRaises(__import__('werkzeug.exceptions',fromlist=['ServiceUnavailable']).ServiceUnavailable) as failed:self.search('')
+        self.assertIn('Clause Index could not be generated',failed.exception.description);self.assertEqual(dict(self.stored()),before)
 
     def test_same_pdf_digest_reuses_extraction_even_when_inputs_need_revalidation(self):
         from app.program_billing import lease_clause_index,lease_kit_pdf

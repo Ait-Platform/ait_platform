@@ -560,7 +560,13 @@ def delete_consumption(consumption_id):
 @billing_bp.route("/dashboard/admin", methods=["GET", "POST"])
 @login_required
 def admin_dashboard():
-    return render_template("program_billing/admin_dashboard.html")
+    from .lease_core_master import require_admin
+    from werkzeug.exceptions import HTTPException
+    from sqlalchemy.exc import SQLAlchemyError
+    core_admin=False
+    try:require_admin();core_admin=True
+    except (HTTPException,SQLAlchemyError):db.session.rollback()
+    return render_template("program_billing/admin_dashboard.html",core_admin=core_admin)
 
 # --- Frontend Recon Statement ---
 @billing_bp.route("/billing/muni/recon_statement", methods=["GET"])
@@ -4127,3 +4133,5 @@ from . import lease_standard as _lease_standard
 from . import lease_history as _lease_history
 
 from . import lease_property_payments as _lease_property_payments
+
+from . import lease_core_admin as _lease_core_admin

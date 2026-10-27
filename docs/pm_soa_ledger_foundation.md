@@ -11,12 +11,14 @@ The existing ledger and compatible BilTenantLedger ORM remain in use. No new led
 - Opening Balance: one per registered tenant across properties and leases. Debit is positive, Credit negative, and Zero records an amount of 0.00. Description is always Opening Balance. An existing row with kind opening_balance or a case-insensitive, trimmed Opening Balance description also blocks a second opening. The button becomes disabled after saving.
 - Post Charge: positive amount and the prescribed debit-description dropdown.
 - Record Payment: negative amount and the prescribed credit-description dropdown. Refund paid is not offered as a credit. Refundable security deposits are outside this workflow.
-- Optional explanatory notes are separate from the fixed/selected description, limited to 2000 characters.
-- All forms use a server-assigned permanent D0001/C0001 reference. The field is read-only. Reference is displayed with the transaction description; the five ledger columns are unchanged.
+- Posting forms contain no notes or reference inputs. Existing stored notes and references are preserved.
+- The posting service assigns permanent D0001/C0001 references at save time. References appear only with posted transactions in the ledger table; the five ledger columns are unchanged.
 
 Authentication, managed-property/registered-tenant association checks (including saved Lease Kit drafts), CSRF, signed scope-bound form keys, strict amount/date validation and retry-safe transactions remain in force. The account is tenant-wide: the existing ledger has no property/lease allocation column. Historical debts are not copied between tenants.
 
 ## Required migration and deployment order
+
+See [the production migration runbook](pm_soa_migration_runbook.md) for the verified command, prerequisites and read-only success checks. Production execution still requires explicit approval.
 
 Migration pm_soa_001 is a narrow independent Alembic branch for the existing ledger. Run the established database migration procedure targeting **pm_soa_001 only**, before enabling the updated posting service. Do not upgrade unrelated heads. No application-startup migration or automatic schema creation is introduced.
 

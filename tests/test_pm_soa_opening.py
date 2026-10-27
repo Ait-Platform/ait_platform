@@ -68,12 +68,29 @@ class OpeningBalanceTests(unittest.TestCase):
             tree=html.fromstring(response.data)
             self.assertEqual(tree.xpath('//select[@name="description"]/option/text()')[1:],list(expected))
             self.assertFalse(tree.xpath('//input[@name="reference"]'))
-            self.assertTrue(tree.xpath('//input[@readonly][@value="Generated automatically when saved"]'))
+            self.assertFalse(tree.xpath('//input[@readonly][@value="Generated automatically when saved"]'))
         for kind,description in [('charge','Refundable Security Deposit'),('payment','Refund Paid'),('payment','Rent Due')]:
             self.assertEqual(self.submit(self.posting_form(kind,description=description)).status_code,400)
         data=self.posting_form(reference='D1234',notes='Receipt ABC-123')
         self.assertEqual(self.submit(data).status_code,302)
         self.assertEqual(self.session.execute(text('SELECT ref FROM bil_tenant_ledger')).scalar(),'D0001')
+
+    def test_all_three_forms_hide_notes_and_references_but_posted_references_display(self):
+        for kind in ('opening_balance','charge','payment'):
+            page=self.client.get(self.path()+'?posting='+kind,headers=self.headers)
+            self.assertEqual(page.status_code,200,page.text)
+            tree=html.fromstring(page.data)
+            self.assertFalse(tree.xpath('//form//textarea[@name="notes"]'))
+            self.assertFalse(tree.xpath('//form//*[contains(@name,"reference")]'))
+            self.assertNotIn('Explanatory notes (optional)',page.text)
+            self.assertNotIn('Generated automatically when saved',page.text)
+            self.assertFalse(tree.xpath('//form//label[contains(.,"Reference")]'))
+        self.assertEqual(self.submit(self.posting_form()).status_code,302)
+        self.assertEqual(self.submit(self.posting_form('payment')).status_code,302)
+        page=self.client.get(self.path(),headers=self.headers)
+        tree=html.fromstring(page.data)
+        self.assertIn('D0001',' '.join(tree.xpath('//tbody//text()')))
+        self.assertIn('C0001',' '.join(tree.xpath('//tbody//text()')))
 
     def test_reference_exhaustion_does_not_wrap_or_write(self):
         self.session.execute(text("SELECT setval('pm_ledger_debit_ref_seq',9999,true)"));self.session.commit()

@@ -197,3 +197,16 @@ class PMTenantLedgerTests(unittest.TestCase):
         self.assertEqual(row.tenant_id,22);self.assertEqual(str(row.amount),'-0.01')
         self.assertEqual(row.ref,'C0001')
         self.assertEqual(self.client.get(self.path(26,22),headers=self.headers).status_code,404)
+
+    def test_missing_migration_blocks_posting_and_preserves_existing_transactions(self):
+        self.session.execute(text("INSERT INTO bil_tenant_ledger(tenant_id,description,kind,amount,ref) VALUES(11,'Historical rent','charge',125,'OLD-1')"))
+        self.session.commit()
+        data=self.posting_form()
+        before=self.session.execute(text('SELECT id,tenant_id,description,kind,amount,ref FROM bil_tenant_ledger')).all()
+        self.session.execute(text('ALTER TABLE bil_tenant_ledger DROP COLUMN posting_key, DROP COLUMN posting_hash, DROP COLUMN posting_notes'))
+        self.session.commit()
+        result=self.submit(data)
+        self.assertEqual(result.status_code,503,result.text)
+        self.assertIn('Apply migration pm_soa_001 before posting.',result.text)
+        self.assertEqual(before,self.session.execute(text('SELECT id,tenant_id,description,kind,amount,ref FROM bil_tenant_ledger')).all())
+        self.assertEqual(self.client.get(self.path(),headers=self.headers).status_code,200)

@@ -23,8 +23,6 @@
 <label>Description<select required name="description" class="block w-full rounded-lg border border-slate-300 p-2"><option value="">Select description</option>{% for description in descriptions %}<option {{ 'selected' if values.get('description')==description else '' }}>{{ description }}</option>{% endfor %}</select></label>
 {% endif %}
 <label>Amount (ZAR)<input required type="number" inputmode="decimal" min="{{ '0' if posting=='opening_balance' else '0.01' }}" max="99999999.99" step="0.01" name="amount" value="{{ values.get('amount','') }}" class="block w-full rounded-lg border border-slate-300 p-2"></label>
-<label>Reference<input readonly value="Generated automatically when saved" class="block w-full rounded-lg border border-slate-300 bg-slate-50 p-2"></label>
-<label class="sm:col-span-2">Explanatory notes (optional)<textarea name="notes" maxlength="2000" class="block w-full rounded-lg border border-slate-300 p-2">{{ values.get('notes','') }}</textarea></label>
 <div class="flex justify-end gap-3 sm:col-span-2"><a class="rounded-lg bg-slate-100 px-4 py-2" href="{{ url_for('billing_bp.pm_soa_ledger',property_id=property.id,tenant_id=tenant.id) }}">Cancel</a><button class="rounded-lg bg-green-100 px-4 py-2" type="submit">{{ 'Opening Balance' if posting=='opening_balance' else 'Post Charge' if posting=='charge' else 'Record Payment' }}</button></div>
 </form>
 {% endif %}

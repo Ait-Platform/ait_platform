@@ -14,6 +14,13 @@ def transactions(tenant_id):
     # Existing PM SOA convention: stored signed rand amounts, not shared debtor cents.
     extras=",ref" if 'ref' in columns else ',NULL AS ref'
     extras+=",posting_notes" if 'posting_notes' in columns else ',NULL AS posting_notes'
+    audit={'correction_of','correction_role','correction_actor','correction_recorded_at','correction_reason'}<=columns
+    if audit:
+        extras+=",correction_of,correction_role,correction_actor,correction_recorded_at,correction_reason"
+        extras+=",EXISTS(SELECT 1 FROM bil_tenant_ledger c WHERE c.correction_of=bil_tenant_ledger.id) AS corrected"
+        extras+=",(SELECT s.ref FROM bil_tenant_ledger s WHERE s.id=bil_tenant_ledger.correction_of AND s.tenant_id=bil_tenant_ledger.tenant_id) AS original_ref"
+    else:
+        extras+=",NULL AS correction_of,NULL AS correction_role,NULL AS correction_actor,NULL AS correction_recorded_at,NULL AS correction_reason,false AS corrected,NULL AS original_ref"
     rows=db.session.execute(text('''SELECT id,txn_date,description,kind,amount'''+extras+'''
         FROM bil_tenant_ledger WHERE tenant_id=:t ORDER BY txn_date ASC NULLS LAST,id ASC'''),dict(t=tenant_id)).mappings()
     balance=Decimal('0.00');result=[]

@@ -37,3 +37,11 @@ Opening creation takes a tenant-wide advisory lock and is enforced by a unique p
 The existing ORM inserts the financial row. Only that just-created row receives posting metadata in the same transaction. Existing ledger rows are not edited. Financial posting, migration row preservation, dropdowns, access restrictions, real multi-connection reference allocation, opening uniqueness and retry constraints are tested locally.
 
 No recurring rent, METSOA transfer, payment allocation, deposit accounting, deletion, historical editing, ProShop synchronisation or unrelated lease changes are included.
+
+## Controlled corrections
+
+Outstanding Balance is shown only in the fourth summary-table column, using the unchanged calculated running balance. Each transaction has an Edit control. A controlled correction saves a reversal and corrected replacement atomically, with new permanent references, a required reason, authenticated actor, recorded timestamp and same-tenant links to the preserved source row. Original amounts and references are never updated.
+
+Migration pm_soa_002 (child of pm_soa_001) adds nullable audit columns, a same-tenant self foreign key, audit checks and unique correction-role/group indexes. It does not update existing records. Corrections fail closed until this migration is approved and applied. No production migration or financial test posting was performed. Targeting pm_soa_002 also applies pm_soa_001 if it is absent, so approval must cover both when appropriate; do not upgrade unrelated heads.
+
+Retry keys and original-row locks prevent duplicate corrections and changes based on stale source data. Edit is disabled on superseded originals and technical reversal rows; the latest replacement can itself be corrected, retaining the full chain. Opening-balance replacements use opening_adjustment, not another opening_balance marker. An opening correction may change debit/credit direction or record zero without lifting the one-opening-per-tenant rule. Both new entries use the selected correction date; recorded timestamps retain the actual audit time. Existing signed lease documents, ProShop and METSOA remain untouched.

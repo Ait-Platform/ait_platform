@@ -95,34 +95,8 @@ def post(property_id, tenant_id, form):
     if len(notes)>2000 or '\x00' in notes:
         raise ValueError('Explanatory notes must contain at most 2000 characters.')
 
-    connection = db.session.connection()
-    if connection.dialect.name != 'postgresql' or connection.get_isolation_level()!='READ COMMITTED':
-        abort(503, description='PM posting requires PostgreSQL READ COMMITTED isolation.')
-    catalog = inspect(connection)
-    columns = {c['name']:c for c in catalog.get_columns('bil_tenant_ledger')}
-    required = {'id','tenant_id','txn_date','month','description','kind','amount','ref',
-                'posting_key','posting_hash','posting_notes'}
-    indexes = {i['name'] for i in catalog.get_indexes('bil_tenant_ledger') if i['unique']}
-    if (not required<=columns.keys() or
-            not {'uq_pm_ledger_posting_key','uq_pm_ledger_opening','uq_pm_ledger_dc_ref'}<=indexes or
-            getattr(columns.get('amount',{}).get('type'),'scale',None)!=2 or
-            (getattr(columns.get('amount',{}).get('type'),'precision',0) or 0)<10 or
-            (getattr(columns.get('ref',{}).get('type'),'length',None) or 255)<5 or
-            not (columns.get('id',{}).get('default') or columns.get('id',{}).get('identity'))):
-        abort(503, description='The PM ledger schema does not support safe posting. Apply migration pm_soa_001 before posting.')
-
-    prop = db.session.execute(text("""SELECT id FROM bil_property
-        WHERE id=:p AND manager_id=:m AND NOT is_archived FOR SHARE"""),
-        dict(p=property_id,m=current_user.id)).first()
-    tenant = db.session.execute(text("""SELECT id FROM bil_tenant
-        WHERE id=:t AND manager_id=:m FOR SHARE"""),
-        dict(t=tenant_id,m=current_user.id)).first()
-    if not prop or not tenant:abort(404)
-    db.session.execute(text("""SELECT id FROM bil_lease_draft
-        WHERE property_id=:p AND manager_id=:m FOR SHARE"""),
-        dict(p=property_id,m=current_user.id)).all()
-    from .lease_soa import tenants_for
-    if not any(row['id']==tenant_id for row in tenants_for(property_id)):abort(404)
+    require_posting_schema()
+    authorise(property_id, tenant_id)
 
     payload = [current_user.id,property_id,tenant_id,kind,raw_date,
                str(amount),description,direction,notes]
@@ -169,3 +143,36 @@ def post(property_id, tenant_id, form):
             abort(409,description='An Opening Balance is already recorded for this tenant.')
         raise
     return True
+
+
+def require_posting_schema():
+    connection = db.session.connection()
+    if connection.dialect.name != 'postgresql' or connection.get_isolation_level()!='READ COMMITTED':
+        abort(503, description='PM posting requires PostgreSQL READ COMMITTED isolation.')
+    catalog = inspect(connection)
+    columns = {c['name']:c for c in catalog.get_columns('bil_tenant_ledger')}
+    required = {'id','tenant_id','txn_date','month','description','kind','amount','ref',
+                'posting_key','posting_hash','posting_notes'}
+    indexes = {i['name'] for i in catalog.get_indexes('bil_tenant_ledger') if i['unique']}
+    if (not required<=columns.keys() or
+            not {'uq_pm_ledger_posting_key','uq_pm_ledger_opening','uq_pm_ledger_dc_ref'}<=indexes or
+            getattr(columns.get('amount',{}).get('type'),'scale',None)!=2 or
+            (getattr(columns.get('amount',{}).get('type'),'precision',0) or 0)<10 or
+            (getattr(columns.get('ref',{}).get('type'),'length',None) or 255)<5 or
+            not (columns.get('id',{}).get('default') or columns.get('id',{}).get('identity'))):
+        abort(503, description='The PM ledger schema does not support safe posting. Apply migration pm_soa_001 before posting.')
+
+
+def authorise(property_id, tenant_id):
+    prop = db.session.execute(text("""SELECT id FROM bil_property
+        WHERE id=:p AND manager_id=:m AND NOT is_archived FOR SHARE"""),
+        dict(p=property_id,m=current_user.id)).first()
+    tenant = db.session.execute(text("""SELECT id FROM bil_tenant
+        WHERE id=:t AND manager_id=:m FOR SHARE"""),
+        dict(t=tenant_id,m=current_user.id)).first()
+    if not prop or not tenant:abort(404)
+    db.session.execute(text("""SELECT id FROM bil_lease_draft
+        WHERE property_id=:p AND manager_id=:m FOR SHARE"""),
+        dict(p=property_id,m=current_user.id)).all()
+    from .lease_soa import tenants_for
+    if not any(row['id']==tenant_id for row in tenants_for(property_id)):abort(404)

@@ -30,7 +30,7 @@ def forbidden_factory(*a,**kw):raise AssertionError('Application startup is forb
 app.create_app=forbidden_factory
 config=Config(str(root/'alembic.ini'))
 script=ScriptDirectory.from_config(config)
-existing=set(script.get_heads())-{'pm_soa_001'}
+existing=set(script.get_heads())-{'pm_soa_001','pm_soa_002'}
 assert script.get_revision('pm_soa_001').down_revision is None
 engine=create_engine(target)
 with engine.connect() as c:
@@ -54,6 +54,14 @@ with engine.connect() as c:
     assert c.execute(text("SELECT last_value FROM pm_ledger_credit_ref_seq")).scalar()==7
     c.commit()
     command.upgrade(config,'pm_soa_001') # Alembic tracking makes a second invocation a no-op.
+    assert c.execute(text('SELECT count(*) FROM bil_tenant_ledger')).scalar()==2
+    c.commit()
+    command.upgrade(config,'pm_soa_002')
+    assert set(c.execute(text('SELECT version_num FROM alembic_version')).scalars())==existing|{'pm_soa_002'}
+    assert before==c.execute(text('SELECT id,tenant_id,txn_date,month,description,kind,amount,ref FROM bil_tenant_ledger ORDER BY id')).all()
+    assert c.execute(text('SELECT count(*) FROM bil_tenant_ledger WHERE correction_of IS NOT NULL')).scalar()==0
+    c.commit()
+    command.upgrade(config,'pm_soa_002')
     assert c.execute(text('SELECT count(*) FROM bil_tenant_ledger')).scalar()==2
 print('Targeted Alembic rehearsal passed; existing heads and financial rows preserved.')
 '''

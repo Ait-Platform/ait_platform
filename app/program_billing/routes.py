@@ -3919,13 +3919,26 @@ def pm_soa_ledger(property_id,tenant_id,error=None,status=200):
     if tenant is None:abort(404)
     from .lease_soa_posting import token,has_opening,DEBIT_DESCRIPTIONS,CREDIT_DESCRIPTIONS
     from datetime import date
+    correction=None
+    edit_id=request.form.get('edit_id',type=int) if request.method=='POST' else request.args.get('edit',type=int)
+    if edit_id is not None:
+        from .lease_soa_corrections import target,form_token
+        correction=target(tenant_id,edit_id)
     kind=request.form.get('kind') if request.method=='POST' else request.args.get('posting')
-    if kind not in ('opening_balance','charge','payment'):kind=None
+    if kind not in ('opening_balance','charge','payment') or correction:kind=None
     values=request.form.to_dict() if request.method=='POST' else {}
     if kind and not values.get('posting_key'):values['posting_key']=token(property_id,tenant_id,kind)
+    if correction:
+        from decimal import Decimal
+        if request.method!='POST':
+            values=dict(txn_date=correction['txn_date'].strftime('%Y-%m-%d') if correction['txn_date'] else date.today().isoformat(),
+                description=correction['description'],amount=str(abs(Decimal(str(correction['amount'])))),
+                direction='credit' if correction['amount']<0 else 'debit' if correction['amount'] else 'zero')
+        if not values.get('posting_key'):values['posting_key']=form_token(property_id,tenant_id,correction)
     values.setdefault('txn_date',date.today().isoformat())
     return render_template('program_billing/pm_soa_ledger.html',property=prop,tenant=tenant,
         entries=transactions(tenant_id),posting=kind,values=values,posting_error=error,
+        correction=correction,correction_opening=bool(correction and (correction['kind'] in ('opening_balance','opening_adjustment') or (correction['description'] or '').strip().lower()=='opening balance')),
         opening_recorded=has_opening(tenant_id),
         descriptions=DEBIT_DESCRIPTIONS if kind=='charge' else CREDIT_DESCRIPTIONS),status
 
@@ -3953,6 +3966,34 @@ def pm_soa_post(property_id,tenant_id):
     flash('Transaction saved.' if created else 'This transaction was already saved; no duplicate was posted.','success')
     return redirect(url_for('billing_bp.pm_soa_ledger',property_id=property_id,tenant_id=tenant_id))
 
+
+
+@billing_bp.route('/manager/tenant_accounts/<int:property_id>/tenant/<int:tenant_id>/ledger/<int:row_id>/correct',methods=['POST'],endpoint='pm_soa_correct')
+@login_required
+def pm_soa_correct(property_id,tenant_id,row_id):
+    from .lease_soa_corrections import correct
+    from werkzeug.exceptions import HTTPException
+    from sqlalchemy.exc import SQLAlchemyError
+    if request.form.get('edit_id',type=int)!=row_id:abort(400)
+    try:
+        created=correct(property_id,tenant_id,row_id,request.form)
+    except ValueError as exc:
+        db.session.rollback()
+        return pm_soa_ledger(property_id,tenant_id,error=str(exc),status=400)
+    except HTTPException as exc:
+        db.session.rollback()
+        if exc.code not in (409,503):raise
+        # Report a schema blocker without attempting to load its missing audit fields.
+        if exc.code==503:abort(503,description=exc.description)
+        return pm_soa_ledger(property_id,tenant_id,error=exc.description,status=exc.code)
+    except SQLAlchemyError:
+        db.session.rollback()
+        current_app.logger.exception('PM controlled correction failed')
+        return pm_soa_ledger(property_id,tenant_id,
+            error='The correction could not be confirmed. Retry this form; duplicate protection prevents a second correction.',status=503)
+    flash('Correction saved: reversal and replacement recorded.' if created else
+        'This correction was already saved; no duplicate entries were posted.','success')
+    return redirect(url_for('billing_bp.pm_soa_ledger',property_id=property_id,tenant_id=tenant_id))
 
 
 @billing_bp.route("/manager/tenant_ledger/<int:debtor_id>")

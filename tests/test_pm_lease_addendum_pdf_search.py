@@ -52,6 +52,10 @@ class FullLeaseSelectionTests(unittest.TestCase):
         tree=html.fromstring(page.data);self.assertEqual(tree.xpath('//thead/tr/th/text()'),['Select','Clause / Field'])
         self.assertEqual(len(tree.xpath('//*[@id="lease-pdf-search-results"]/tr')),len(index['results']))
         self.assertNotIn('Preparing the Clause Index',page.text)
+        self.assertFalse(tree.xpath('//input[@name="q"]'));self.assertNotIn('Search clauses:',page.text)
+        header=tree.xpath('//*[@id="lease-clause-header"]')[0]
+        self.assertIn('justify-between',header.get('class'));self.assertEqual(header.xpath('./h2/text()'),['Select Clause'])
+        self.assertEqual(header.xpath('./a[@id="lease-pdf-finish"]/text()'),['Finish Selection'])
 
     def test_multiple_selections_persist_remove_and_generate_addendum_without_lease_changes(self):
         before=copy.deepcopy(self.stored()['items']);index=self.index().json
@@ -105,5 +109,5 @@ class FullLeaseSelectionTests(unittest.TestCase):
         self.assertIn('SIGNATURES',signature);self.assertEqual(signature.count('SIGNED at WARNER BEACH, DURBAN'),2)
         self.assertEqual(signature.count('24th day of OCTOBER 2026'),2);self.assertNotIn('CHANGE FINANCIAL',signature)
         self.assertEqual(signature.count('FOR AND ON BEHALF OF THE LESSOR'),1);self.assertIn('Mandated Agent',signature)
-        self.assertIn('LESSEE / AUTHORISED REPRESENTATIVE',signature);self.assertEqual(signature.count('Witness 1 - name'),2);self.assertEqual(signature.count('Witness 2 - name'),2)
+        self.assertIn('LESSEE / AUTHORISED REPRESENTATIVE',signature);self.assertEqual(signature.count('Witness 1 - Name'),2);self.assertEqual(signature.count('Witness 2 - Name'),2)
         self.assertEqual(items,before)

@@ -159,9 +159,9 @@ class HtmlLeaseKitTests(unittest.TestCase):
         tree=html.fromstring(page);parties=tree.xpath('//*[@class="signature-party"]');self.assertEqual(len(parties),2)
         statement='SIGNED at WARNER BEACH, DURBAN on this the 24th day of OCTOBER 2026'
         for party in parties:
-            self.assertEqual(party.text_content().count(statement),1);self.assertEqual(party.text_content().count('Witness 1 - name:'),1);self.assertEqual(party.text_content().count('Witness 2 - signature:'),1);self.assertNotIn('Place of signing:',party.text_content());self.assertNotIn('Date of signing:',party.text_content())
-        self.assertEqual([p.xpath('./h3/text()')[0] for p in parties],['LESSOR','LESSEE'])
-        text=' '.join(' '.join(p.get_text() for p in fitz.open(stream=payload,filetype='pdf')).split());self.assertEqual(text.count(statement),2);self.assertEqual(text.count('Witness 1 - name:'),2);self.assertEqual(text.count('Witness 2 - signature:'),2)
+            self.assertEqual(party.text_content().count(statement),1);self.assertEqual(party.text_content().count('Witness 1 - Name:'),1);self.assertEqual(len(party.xpath('.//table[contains(@class,"signature-witnesses")]//tr[2]/td[contains(.,"Signature:")]')),1);self.assertNotIn('Place of signing:',party.text_content());self.assertNotIn('Date of signing:',party.text_content())
+        self.assertEqual([p.xpath('./h3/text()')[0] for p in parties],['FOR AND ON BEHALF OF THE LESSOR','LESSEE / AUTHORISED REPRESENTATIVE'])
+        text=' '.join(' '.join(p.get_text() for p in fitz.open(stream=payload,filetype='pdf')).split());self.assertEqual(text.count(statement),2);self.assertEqual(text.count('Witness 1 - Name:'),2);self.assertEqual(text.count('Witness 2 - Name:'),2)
         with self.context('certificate'):
             certificate=render_template('program_billing/lease_kit_component.html',component_key='certificate',**self.kit.preview_context(26))
         self.assertIn('04 FINANCIAL',certificate);self.assertNotIn('FINANCIAL PARTICULARS',certificate)

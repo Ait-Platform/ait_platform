@@ -544,7 +544,7 @@ def addendum_content(prop,draft):
 def addendum_pdf(prop,reference,wording,number,subject='',provisions=(),items=None):
     """Use one amendment content area; selected references never rewrite the lease."""
     from xml.sax.saxutils import escape
-    from reportlab.platypus import SimpleDocTemplate,Paragraph,Spacer,PageBreak,KeepTogether
+    from reportlab.platypus import SimpleDocTemplate,Paragraph,Spacer,PageBreak,KeepTogether,Table,TableStyle
     from reportlab.lib.styles import getSampleStyleSheet
     from .lease_signing import rows,signature_sections
     output=BytesIO();styles=getSampleStyleSheet();heading,references=addendum_heading(provisions)
@@ -559,16 +559,17 @@ def addendum_pdf(prop,reference,wording,number,subject='',provisions=(),items=No
     story.extend([Spacer(1,16),Paragraph(escape(addendum_precedence()),styles['BodyText']),PageBreak(),Paragraph('SIGNATURES',styles['Title']),Paragraph('Addendum '+str(number).zfill(2)+' to '+escape(reference),styles['BodyText'])])
     parties=signature_sections(rows(items or {}),(items or {}).get('_parties',{}).get('lessor',{}))
     for party in parties:
-        section=[Spacer(1,14),Paragraph(escape(party['statement']),styles['Heading3']),Paragraph(escape(party['role'].upper()),styles['Heading2']),Paragraph(escape(party['heading']),styles['Heading3'])]
-        if party.get('name') or party.get('identity_number'):section.append(Paragraph(escape(' | '.join(value for value in (party.get('name',''),party.get('identity_number','')) if value)),styles['BodyText']))
-        for representative in party.get('representatives',[]):
-            if representative.get('name'):section.append(Paragraph('Authorised representative: '+escape(representative['name']),styles['BodyText']))
+        section=[Spacer(1,14),Paragraph(escape(party['statement']),styles['Heading3']),Paragraph(escape(party['heading']),styles['Heading2'])]
         for signer in party['signers']:
-            if signer.get('name'):section.append(Paragraph(escape(' | '.join(value for value in (signer.get('name',''),signer.get('identity_number','')) if value)),styles['BodyText']))
+            if party['role']=='Lessee' and signer.get('name') and signer.get('name')!=signer.get('printed_name'):section.append(Paragraph('For and on behalf of: '+escape(signer['name']),styles['BodyText']))
             if signer.get('additional_particulars'):section.append(Paragraph('Signing particulars: '+escape(signer['additional_particulars']),styles['BodyText']))
-            section.extend([Paragraph(escape(party['signer_label'])+' - printed name: '+escape(signer.get('printed_name') or '__________________________________'),styles['BodyText']),Paragraph('Signature: __________________________________',styles['BodyText'])])
+            label='Authorised Representative' if party['role']=='Lessor' else 'Name'
+            section.append(Paragraph(label+': '+escape(signer.get('printed_name') or '__________________________________'),styles['BodyText']))
             if party['role']=='Lessor' or signer.get('capacity'):section.append(Paragraph('Capacity: '+escape(signer.get('capacity') or '__________________________________'),styles['BodyText']))
-        for number in (1,2):section.extend([Spacer(1,8),Paragraph('Witness '+str(number)+' - name: __________________________________',styles['BodyText']),Paragraph('Witness '+str(number)+' - signature: _________________________________',styles['BodyText'])])
+            section.append(Paragraph('Signature: ____________________________________________',styles['BodyText']))
+        witnesses=Table([[Paragraph('Witness '+str(number)+' - Name: ______________________',styles['BodyText']),Paragraph('Signature: ________________________',styles['BodyText'])] for number in (1,2)],colWidths=[245,245])
+        witnesses.setStyle(TableStyle([('VALIGN',(0,0),(-1,-1),'TOP'),('LEFTPADDING',(0,0),(-1,-1),0),('RIGHTPADDING',(0,0),(-1,-1),12),('TOPPADDING',(0,0),(-1,-1),12),('BOTTOMPADDING',(0,0),(-1,-1),12)]))
+        section.append(witnesses)
         story.append(KeepTogether(section))
     SimpleDocTemplate(output,rightMargin=48,leftMargin=48,topMargin=48,bottomMargin=48).build(story)
     return output.getvalue()

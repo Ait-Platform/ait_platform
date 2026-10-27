@@ -1,15 +1,16 @@
 <article class="kit-text-page signature-document" aria-label="Signatures"><h2>SIGNATURES</h2>
-{% if tenant_reference %}<p>Tenant Reference: {{ tenant_reference }}</p>{% endif %}<p>{{ premises_name }} {{ premises_address }}</p>
+{% if tenant_reference %}<p>Tenant Reference: {{ tenant_reference }}</p>{% endif %}
 {% for party in signature_rows|default(signing_rows|default([])) %}<section class="signature-party">
-<p class="signing-statement"><strong>{{ party.statement }}</strong></p><h3>{{ party.role|upper }}</h3><p><strong>{{ party.heading }}</strong></p>
-<p><strong>{{ party.name or party.identity_number }}</strong>{% if party.identity_number %} | {{ party.identity_number }}{% endif %}</p>
+<p class="signing-statement"><strong>{{ party.statement }}</strong></p><h3>{{ party.heading }}</h3>
 {% for signer in party.signers %}
-{% if signer.name %}<p><strong>{{ signer.name }}</strong>{% if signer.identity_number %} | {{ signer.identity_number }}{% endif %}</p>{% endif %}
+{% if party.role=='Lessee' and signer.name and signer.name!=signer.printed_name %}<p>For and on behalf of: {{ signer.name }}</p>{% endif %}
 {% if signer.additional_particulars %}<p>Signing particulars: {{ signer.additional_particulars }}</p>{% endif %}
-<p>{{ party.signer_label }} - printed name: {{ signer.printed_name or '________________________________' }}</p>
-<p class="handwritten-signature">Signature: ________________________________</p>
+<p>{{ 'Authorised Representative' if party.role=='Lessor' else 'Name' }}: {{ signer.printed_name or '________________________________' }}</p>
 {% if party.role=='Lessor' or signer.capacity %}<p>Capacity: {{ signer.capacity or '________________________________' }}</p>{% endif %}
+<p class="handwritten-signature">Signature: ____________________________________________</p>
 {% endfor %}
-{% for number in [1,2] %}<p>Witness {{ number }} - name: ________________________________</p><p>Witness {{ number }} - signature: ________________________________</p>{% endfor %}
+<table class="signature-witnesses" style="width:100%;table-layout:fixed;border-collapse:collapse"><tbody>
+{% for number in [1,2] %}<tr><td style="width:50%;padding:12px 8px 12px 0;border:0">Witness {{ number }} - Name: ________________________</td><td style="width:50%;padding:12px 0 12px 8px;border:0">Signature: ____________________________</td></tr>{% endfor %}
+</tbody></table>
 </section>{% endfor %}
 </article>

@@ -30,19 +30,25 @@ class FinalSignatureTests(unittest.TestCase):
         page=self.client.get('/view/26?draft_id=draft-one&component=signature',headers=self.headers)
         self.assertEqual(page.status_code,200);tree=html.fromstring(page.data);sections=tree.xpath('//*[contains(@class,"signature-party")]')
         self.assertEqual(len(sections),2) # one lessor mandate and one lessee section, retaining two genuine signers
-        self.assertEqual(len(sections[0].xpath('./h3[text()="LESSOR"]')),1)
+        self.assertEqual(len(sections[0].xpath('./h3[text()="FOR AND ON BEHALF OF THE LESSOR"]')),1)
         self.assertIn('FOR AND ON BEHALF OF THE LESSOR',sections[0].text_content());self.assertIn('Mandated Agent',sections[0].text_content())
         self.assertIn('Authorised Agent',sections[0].text_content())
         for section in sections:
             self.assertEqual(len(section.xpath('.//*[contains(@class,"signing-statement")]')),1)
-            self.assertEqual(section.text_content().count('Witness 1 - name'),1);self.assertEqual(section.text_content().count('Witness 2 - name'),1)
+            self.assertEqual(section.text_content().count('Witness 1 - Name'),1);self.assertEqual(section.text_content().count('Witness 2 - Name'),1)
             self.assertNotIn('CHANGE FINANCIAL',section.text_content())
         with self.context('signature'):
             payload=self.pdf.build_pdf('signature',self.kit.preview_context(26))
             pdf=fitz.open(stream=payload,filetype='pdf');text=''.join(page.get_text() for page in pdf)
             self.assertEqual(text.count('FOR AND ON BEHALF OF THE LESSOR'),1)
             self.assertEqual(text.count('SIGNED at WARNER BEACH, DURBAN'),2)
-            self.assertEqual(text.count('Witness 1 - name'),2);self.assertEqual(text.count('Witness 2 - name'),2)
+            self.assertEqual(text.count('Witness 1 - Name'),2);self.assertEqual(text.count('Witness 2 - Name'),2)
+        self.assertNotIn('Synthetic Address',page.text);self.assertNotIn('Synthetic Property',page.text)
+        for section in sections:
+            witness_rows=section.xpath('.//table[contains(@class,"signature-witnesses")]//tr')
+            self.assertEqual(len(witness_rows),2)
+            for witness in witness_rows:
+                self.assertEqual(len(witness.xpath('./td')),2);self.assertIn('Name:',witness[0].text_content());self.assertIn('Signature:',witness[1].text_content())
         self.assertEqual(before,self.items)
     def test_heading_instruction_rejected_and_user_can_save_actual_place(self):
         self.particulars();row=self.signing.rows(self.items)[0];before=copy.deepcopy(self.items)
@@ -51,5 +57,14 @@ class FinalSignatureTests(unittest.TestCase):
         updated=self.signing.update(self.items,{'signing_place_'+row['key']:'Warner Beach, Durban','signing_date_'+row['key']:'2026-10-24'})
         self.assertEqual(self.signing.rows(updated)[0]['statement'],'SIGNED at WARNER BEACH, DURBAN on this the 24th day of OCTOBER 2026')
         self.assertEqual(self.items,before)
+        contaminated='Warner Beach, Durban CHANGE FINANCIAL PARTICULARS TO FINANCIAL'
+        self.items[self.signing.KEY][row['key']]['place']=contaminated
+        self.assertEqual(self.signing.rows(self.items)[0]['statement'],'SIGNED at WARNER BEACH, DURBAN on this the 24th day of OCTOBER 2026')
+        self.assertEqual(self.items[self.signing.KEY][row['key']]['place'],contaminated)
+        with self.context('certificate'):
+            certificate_rows=self.kit.preview_context(26)['signing_rows']
+        with self.context('signature'):
+            signature_rows=self.kit.preview_context(26)['signing_rows']
+        self.assertEqual(certificate_rows,signature_rows)
 
 if __name__=='__main__':unittest.main()

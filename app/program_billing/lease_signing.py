@@ -10,7 +10,8 @@ KEY='_signing_particulars'
 
 def signing_statement(place='',value=''):
     """Format saved particulars only; missing data remains a handwriting space."""
-    place=str(place or '').strip().upper() or '____________________'
+    # Presentation guard for the known accidentally pasted instruction; saved data is untouched.
+    place=re.sub(r'\bCHANGE\s+FINANCIAL\s+PARTICULARS\s+TO\s+FINANCIAL\b','',str(place or ''),flags=re.I).strip().upper() or '____________________'
     try:day=date.fromisoformat(str(value))
     except (ValueError,TypeError):return 'SIGNED at '+place+' on this the ____ day of ____________________ ______'
     suffix='th' if 11<=day.day%100<=13 else {1:'st',2:'nd',3:'rd'}.get(day.day%10,'th')

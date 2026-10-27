@@ -27,9 +27,11 @@
     <div class="px-6">{% set pm_menu_active = 'occupier' %}{% include 'program_billing/menu.html' %}</div>
     <div class="px-6 py-4 bg-indigo-50 border-b border-slate-100 flex flex-col md:flex-row justify-between items-center gap-4">
         <form method="GET" action="{{ url_for('billing_bp.tenant_accounts') }}" class="flex items-end gap-3 flex-wrap">
-            <label>Tenant, property or account reference<input type="search" name="q" value="{{ query }}" autofocus class="block rounded-lg border border-slate-300 p-2 text-sm"></label>
-            <button class="rounded-lg bg-blue-100 px-4 py-2 font-semibold">Search Tenant</button>
-            <a href="{{ url_for('billing_bp.tenant_accounts') }}" class="rounded-lg bg-green-100 px-4 py-2 font-semibold">Show Recent</a>
+            <label for="soa-property">Select Property:</label>
+            <select id="soa-property" name="property_id" autofocus class="rounded-lg border border-slate-300 p-2 text-sm">
+                <option value="">Select a property</option>
+                {% for prop in properties %}<option value="{{ prop.id }}" {% if selected_property and selected_property.id==prop.id %}selected{% endif %}>{{ prop.name }}</option>{% endfor %}
+            </select>
         </form>
         <div class="bg-white p-3 rounded-lg border border-indigo-100 shadow-sm text-right">
             <div class="text-xs font-bold text-slate-500 uppercase">Total Outstanding (Shown Accounts)</div>
@@ -42,7 +44,8 @@
     </div>
 
     <div class="p-6">
-      {% if debtors %}
+      {% if not selected_property %}<p class="py-8 text-center text-slate-600">Select a property to display its tenant accounts.</p>
+      {% elif debtors %}
         <div class="border border-slate-200 rounded-xl overflow-x-auto shadow-sm bg-white">
           <table class="min-w-full divide-y divide-slate-200">
             <thead class="bg-slate-50">
@@ -71,7 +74,6 @@
             </tbody>
           </table>
         </div>
-        {% if has_more %}<a href="{{ url_for('billing_bp.tenant_accounts',q=query,limit=limit+10) }}" class="mt-4 inline-block rounded-lg bg-blue-100 px-4 py-2 font-semibold">Show More</a>{% endif %}
       {% else %}
         <div class="text-center py-12">
           <i class="fas fa-users text-4xl text-slate-300 mb-3"></i>
@@ -82,4 +84,5 @@
     </div>
   </div>
 </div>
+<script src="{{ url_for('static',filename='js/pm_soa_property.js') }}" defer></script>
 {% endblock %}

@@ -1,0 +1,2 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+module.exports=function(root){let event,submitted=0;const property={form:{requestSubmit(){submitted++;}},addEventListener(name,fn){assert.equal(name,'change');event=fn;}};vm.runInNewContext(fs.readFileSync(root+'/app/static/js/pm_soa_property.js','utf8'),{document:{getElementById:id=>id==='soa-property'?property:null}});assert.equal(submitted,0);event();event();assert.equal(submitted,2);return 'PASS: property changes automatically submit the existing GET form';};

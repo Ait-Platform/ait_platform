@@ -1,11 +1,11 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 module.exports=async function(rootPath,indexFailure=false,oldSelection=false){
  class Element{constructor(tag){this.tagName=tag;this.children=[];this.dataset={};this.style={};this.textContent='';this.disabled=false;}append(...values){this.children.push(...values);}replaceChildren(...values){this.children=values;}setAttribute(k,v){this[k]=v;}}
- const ids=new Map();for(const name of ['search','search-status','search-notices','search-results','selected-count','selected','finish','retry','retry-index','csrf','state','initial'])ids.set('lease-pdf-'+name,new Element('div'));
+ const ids=new Map();for(const name of ['search-status','search-notices','search-results','selected-count','selected','finish','retry','retry-index','csrf','state','initial'])ids.set('lease-pdf-'+name,new Element('div'));
  const state={version:1,selected:[]},core={id:'core:1',source:'core',source_label:'Core Lease',reference:'5.4',title:'Rental payment tax and interest'},sc={id:'sc:1',source:'special_conditions',source_label:'Special Conditions',reference:'SC-01',title:'PERMITTED USE'};
  const hash='heading-input-version';const index={entries:[core,sc],source_sha256:hash,notices:['Data Capture headings; not PDF verified.']};
  if(oldSelection)state.selected.push({...core,id:'old-pdf:legacy-clause',pdf_sha256:'old-pdf'});
- ids.get('lease-pdf-initial').textContent=JSON.stringify(indexFailure?{error:'Index unavailable'}:{index});ids.get('lease-pdf-state').textContent=JSON.stringify(state);ids.get('lease-pdf-csrf').value='csrf';ids.get('lease-pdf-search').elements={q:{value:''}};
+ ids.get('lease-pdf-initial').textContent=JSON.stringify(indexFailure?{error:'Index unavailable'}:{index});ids.get('lease-pdf-state').textContent=JSON.stringify(state);ids.get('lease-pdf-csrf').value='csrf';
  const root=new Element('section');root.dataset={url:'/property/26/addendum?draft_id=current'};ids.set('addendum-pdf-selection',root);
  const requests=[];let htmlFailure=false,redirectFailure=false,reject=false;
  const response=value=>({ok:true,status:200,headers:{get:()=> 'application/json'},json:async()=>value});
@@ -23,19 +23,18 @@ module.exports=async function(rootPath,indexFailure=false,oldSelection=false){
  if(indexFailure){assert.equal(ids.get('lease-pdf-retry-index').hidden,false);await ids.get('lease-pdf-retry-index').onclick();assert.equal(requests.length,1);assert.equal(requests[0].options.body.values.get('action'),'retry_clause_index');}
  const rows=()=>ids.get('lease-pdf-search-results').children;
  assert.equal(rows().length,2);assert.equal(rows()[0].children.length,2);
- const input=ids.get('lease-pdf-search').elements.q;
- const before=requests.length;for(const q of ['rental','RENTAL','5.4','permitted','SC-01','']){input.value=q;input.oninput();assert.equal(rows().length,q?1:2);}assert.equal(requests.length,before);
+ assert.equal(ids.has('lease-pdf-search'),false);
  if(oldSelection)assert.equal(rows()[0].children[0].children[0].checked,true);
  await rows()[0].children[0].children[0].onchange.call(null); // event uses checkbox state
  // Explicitly check each box as a real change.
  let box=rows()[0].children[0].children[0];box.checked=true;await box.onchange();
- input.value='sc-01';input.oninput();box=rows()[0].children[0].children[0];box.checked=true;await box.onchange();assert.equal(state.selected.length,2);
- input.value='';input.oninput();assert.equal(rows().filter(row=>row.children[0].children[0].checked).length,2);
+ box=rows()[1].children[0].children[0];box.checked=true;await box.onchange();assert.equal(state.selected.length,2);
+ assert.equal(rows().filter(row=>row.children[0].children[0].checked).length,2);
  box=rows()[0].children[0].children[0];box.checked=false;htmlFailure=true;await box.onchange();assert.match(ids.get('lease-pdf-search-status').textContent,/security token/);assert.doesNotMatch(ids.get('lease-pdf-search-status').textContent,/Unexpected token/);assert.equal(box.checked,false);
  let prevented=false;ids.get('lease-pdf-finish').onclick({preventDefault(){prevented=true;}});assert.equal(prevented,true);assert.equal(state.selected.length,2);
  htmlFailure=false;await ids.get('lease-pdf-retry').onclick();assert.equal(state.selected.length,1);
- input.value='sc-01';input.oninput();box=rows()[0].children[0].children[0];box.checked=false;redirectFailure=true;await box.onchange();assert.match(ids.get('lease-pdf-search-status').textContent,/session or access/);redirectFailure=false;await ids.get('lease-pdf-retry').onclick();assert.equal(state.selected.length,0);
+ box=rows()[1].children[0].children[0];box.checked=false;redirectFailure=true;await box.onchange();assert.match(ids.get('lease-pdf-search-status').textContent,/session or access/);redirectFailure=false;await ids.get('lease-pdf-retry').onclick();assert.equal(state.selected.length,0);
  prevented=false;ids.get('lease-pdf-finish').onclick({preventDefault(){prevented=true;}});assert.equal(prevented,false);
  for(const request of requests){assert.equal(request.options.method,'POST');assert.equal(request.options.credentials,'same-origin');assert.equal(request.options.headers['X-CSRFToken'],'csrf');}
- return 'PASS: immediate two-column headings, local filtering, multi-selection, manual retry, safe non-JSON failures and pending-selection retention';
+ return 'PASS: immediate complete headings without search, multi-selection, manual retry, safe non-JSON failures and pending-selection retention';
 };

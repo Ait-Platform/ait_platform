@@ -3907,6 +3907,20 @@ def tenant_accounts():
         properties=properties,selected_property=selected_property)
 
 
+@billing_bp.get('/manager/tenant_accounts/<int:property_id>/tenant/<int:tenant_id>/ledger',endpoint='pm_soa_ledger')
+@login_required
+def pm_soa_ledger(property_id,tenant_id):
+    from .lease_soa import tenants_for
+    from .lease_soa_ledger import transactions
+    prop=db.session.query(BilProperty.id,BilProperty.name).filter(BilProperty.id==property_id,
+        BilProperty.manager_id==current_user.id,BilProperty.is_archived==False).first()
+    if prop is None:abort(404)
+    tenant=next((row for row in tenants_for(property_id) if row['id']==tenant_id),None)
+    if tenant is None:abort(404)
+    return render_template('program_billing/pm_soa_ledger.html',property=prop,tenant=tenant,
+        entries=transactions(tenant_id))
+
+
 @billing_bp.route("/manager/tenant_ledger/<int:debtor_id>")
 @login_required
 def tenant_ledger(debtor_id):

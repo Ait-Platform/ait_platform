@@ -35,12 +35,13 @@ class RecentSOATests(unittest.TestCase):
                 if request.headers.get('X-Test-Owner')!='yes':abort(403)
                 return fn(*args,**kw)
             return wrapped
-        env=dict(__package__='app.program_billing',billing_bp=types.SimpleNamespace(route=lambda *args,**kw:lambda f:f),login_required=authenticated,abort=abort,db=self.db,BilProperty=Property,current_user=self.user,request=request,render_template=render_template)
-        fixture.functions('app/program_billing/routes.py',{'tenant_accounts'},env)
+        env=dict(__package__='app.program_billing',billing_bp=types.SimpleNamespace(route=lambda *args,**kw:lambda f:f,get=lambda *args,**kw:lambda f:f),login_required=authenticated,abort=abort,db=self.db,BilProperty=Property,current_user=self.user,request=request,render_template=render_template)
+        fixture.functions('app/program_billing/routes.py',{'tenant_accounts','pm_soa_ledger'},env)
         self.app._got_first_request=False;self.app.add_url_rule('/manager/tenant_accounts',endpoint='billing_bp.tenant_accounts',view_func=env['tenant_accounts'])
         for endpoint in ('learner_dashboard','utilities_hub','property_portfolio','lease_live_view'):
             if 'billing_bp.'+endpoint not in self.app.view_functions:self.app.add_url_rule('/soa-test/'+endpoint,endpoint='billing_bp.'+endpoint,view_func=lambda:'Existing PM action')
         self.app.add_url_rule('/manager/leases',endpoint='billing_bp.pm_lease_management',defaults={'property_id':None},view_func=self.app.view_functions['billing_bp.pm_lease_management'])
+        self.app.add_url_rule('/manager/tenant_accounts/<int:property_id>/tenant/<int:tenant_id>/ledger',endpoint='billing_bp.pm_soa_ledger',view_func=env['pm_soa_ledger'])
         self.url='/manager/tenant_accounts';self.headers={'X-Test-Owner':'yes'}
     def rows(self,response):return html.fromstring(response.data).xpath('//tbody/tr')
     def test_saved_lease_selection_discovers_tenant_without_property_or_debtor_link(self):
@@ -52,7 +53,7 @@ class RecentSOATests(unittest.TestCase):
         self.assertEqual(len(self.rows(response)),2);self.assertIn('Natural Lessee',response.text);self.assertIn('Unselected Register Tenant',response.text)
         for forbidden in ('Job Card','creditors','materials','View Ledger','ProShop sentinel','Balance Owed'):
             self.assertNotIn(forbidden,response.text)
-        self.assertIn('View Lease',response.text);self.assertIn('draft_id='+str(self.identifier),response.text)
+        self.assertIn('Open Ledger',response.text);self.assertNotIn('View Lease',response.text);self.assertNotIn('Lease Management &rarr;',response.text)
         switched=self.client.get(self.url+'?property_id=27',headers=self.headers);self.assertEqual(len(self.rows(switched)),1);self.assertIn('Entity Lessee',switched.text)
         self.assertEqual(before,list(self.session.execute(text('SELECT * FROM bil_tenant ORDER BY id')).mappings()))
         self.assertEqual(self.session.execute(text('SELECT name FROM debtor')).scalar(),'ProShop sentinel')
@@ -128,7 +129,7 @@ class RecentSOATests(unittest.TestCase):
         before=[dict(row) for row in self.session.execute(text('SELECT * FROM bil_tenant ORDER BY id')).mappings()]
         response=self.client.get(self.url+'?property_id=26',headers=self.headers)
         self.assertEqual(response.status_code,200,response.text);self.assertEqual(len(self.rows(response)),1);self.assertIn('Marelise van der Merwe',response.text)
-        self.assertNotIn('Snapshot name is not the register name',response.text);self.assertIn('draft_id='+str(self.identifier),response.text)
+        self.assertNotIn('Snapshot name is not the register name',response.text);self.assertIn('/manager/tenant_accounts/26/tenant/12/ledger',response.text)
         self.assertEqual(before,[dict(row) for row in self.session.execute(text('SELECT * FROM bil_tenant ORDER BY id')).mappings()])
         self.assertIsNone(self.session.execute(text('SELECT property_id FROM bil_tenant WHERE id=12')).scalar())
     def test_direct_and_duplicate_draft_associations_are_one_row_legacy_json_supported(self):
@@ -136,7 +137,7 @@ class RecentSOATests(unittest.TestCase):
         latest=uuid.uuid4();items={'_parties':{'lessee':{'tenant_id':11}}}
         self.session.execute(text("INSERT INTO bil_lease_draft(id,property_id,manager_id,status,source_version,items,version,updated_at) VALUES(:id,26,7,'draft','test',CAST(:items AS jsonb),1,now()+interval '1 second')"),dict(id=latest,items=json.dumps(items)));self.session.commit()
         response=self.client.get(self.url+'?property_id=26',headers=self.headers)
-        self.assertEqual(response.status_code,200);self.assertEqual(response.text.count('Natural Lessee'),1);self.assertIn('draft_id='+str(latest),response.text)
+        self.assertEqual(response.status_code,200);self.assertEqual(response.text.count('Natural Lessee'),1);self.assertIn('/manager/tenant_accounts/26/tenant/11/ledger',response.text)
         self.assertEqual(len(self.rows(response)),2) # Tenant 44 is a separate direct association.
     def test_foreign_tenant_and_foreign_draft_manager_never_leak(self):
         items={'_parties':{'lessees':[{'tenant_id':33},{'tenant_id':11},{'tenant_id':'invalid'}]}}

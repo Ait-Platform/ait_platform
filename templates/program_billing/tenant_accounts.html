@@ -56,8 +56,7 @@
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">{{ d.email or d.phone or 'N/A' }}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-700">{{ d.tenant_reference or 'Not recorded' }}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                  <a href="{{ url_for('billing_bp.pm_lease_management',property_id=selected_property.id,draft_id=d.draft_id) }}" class="text-white bg-indigo-600 hover:bg-indigo-700 px-3 py-1.5 rounded-md transition shadow-sm font-semibold">Lease Management &rarr;</a>
-                  {% if d.draft_id %}<a href="{{ url_for('billing_bp.lease_live_view',property_id=selected_property.id,draft_id=d.draft_id,component='certificate') }}" class="ml-2 text-blue-800 underline">View Lease</a>{% endif %}
+                  <a href="{{ url_for('billing_bp.pm_soa_ledger',property_id=selected_property.id,tenant_id=d.id) }}" class="text-white bg-indigo-600 hover:bg-indigo-700 px-3 py-1.5 rounded-md transition shadow-sm font-semibold">Open Ledger &rarr;</a>
                 </td>
               </tr>
               {% endfor %}

@@ -74,3 +74,42 @@ class RecentSOATests(unittest.TestCase):
         self.assertTrue(any('bil_lease_draft' in sql for sql in statements))
         self.assertFalse(any('debtor' in sql or 'job_card' in sql or 'invoice' in sql for sql in statements))
         self.assertTrue(all(sql.lstrip().startswith('select') for sql in statements))
+
+    def test_legacy_unit_relationship_without_lease_property_column_returns_200(self):
+        self.session.execute(text('ALTER TABLE bil_lease RENAME COLUMN property_id TO sectional_unit_id'))
+        self.session.execute(text('CREATE TEMP TABLE bil_sectional_unit(id integer PRIMARY KEY,property_id integer)'))
+        self.session.execute(text('INSERT INTO bil_sectional_unit VALUES(27,27),(28,28),(26,26)'))
+        self.session.execute(text('INSERT INTO bil_lease VALUES(3,11,26)'));self.session.commit()
+        from sqlalchemy import inspect
+        self.assertNotIn('property_id',{c['name'] for c in inspect(self.conn).get_columns('bil_lease')})
+        response=self.client.get(self.url+'?property_id=26',headers=self.headers)
+        self.assertEqual(response.status_code,200,response.text);self.assertEqual(len(self.rows(response)),1);self.assertIn('Natural Lessee',response.text)
+        second=self.client.get(self.url+'?property_id=27',headers=self.headers);self.assertIn('Entity Lessee',second.text);self.assertNotIn('Natural Lessee',second.text)
+        self.assertEqual(self.client.get(self.url+'?property_id=28',headers=self.headers).status_code,404)
+    def test_legacy_tenant_relationship_without_lease_property_or_unit_column(self):
+        self.session.execute(text('ALTER TABLE bil_lease DROP COLUMN property_id'))
+        self.session.execute(text('UPDATE bil_tenant SET property_id=27 WHERE id=22'));self.session.commit()
+        response=self.client.get(self.url+'?property_id=27',headers=self.headers)
+        self.assertEqual(response.status_code,200,response.text);self.assertIn('Entity Lessee',response.text)
+    def test_real_local_public_schema_read_only_without_fixture_tables(self):
+        # A second connection has no session-temporary fixture tables: inspect and query
+        # the existing public catalog, never create/migrate/seed application data.
+        from sqlalchemy import inspect
+        from app.program_billing import lease_soa
+        with self.engine.connect() as connection:
+            connection.execute(text('SET TRANSACTION READ ONLY'))
+            self.assertEqual(connection.execute(text('SELECT current_database()')).scalar(),'ait_local_db')
+            catalog=inspect(connection)
+            actual={row['name'] for row in catalog.get_columns('bil_lease',schema='public')}
+            self.assertIn('tenant_id',actual)
+            property_row=connection.execute(text('SELECT id,manager_id FROM public.bil_property WHERE manager_id IS NOT NULL AND is_archived=false ORDER BY id LIMIT 1')).mappings().first()
+            if property_row is None:self.skipTest('Actual local database has no managed property; catalog inspection completed.')
+            previous=self.user.id;self.user.id=property_row['manager_id']
+            try:
+                with patch.object(lease_soa,'db',types.SimpleNamespace(session=types.SimpleNamespace(connection=lambda:connection,execute=connection.execute))):
+                    entries=lease_soa.tenants_for(property_row['id'])
+                for entry in entries:
+                    if 'property_id' in actual:
+                        linked=connection.execute(text('SELECT 1 FROM public.bil_lease WHERE tenant_id=:t AND property_id=:p LIMIT 1'),dict(t=entry['id'],p=property_row['id'])).first()
+                        self.assertIsNotNone(linked)
+            finally:self.user.id=previous;connection.rollback()

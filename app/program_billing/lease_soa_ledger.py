@@ -8,10 +8,13 @@ from app.extensions import db
 def transactions(tenant_id):
     catalog=inspect(db.session.connection())
     required={'id','tenant_id','txn_date','description','kind','amount'}
-    if not catalog.has_table('bil_tenant_ledger') or not required<={row['name'] for row in catalog.get_columns('bil_tenant_ledger')}:
+    columns={row['name'] for row in catalog.get_columns('bil_tenant_ledger')} if catalog.has_table('bil_tenant_ledger') else set()
+    if not required<=columns:
         abort(503,description='The existing PM tenant ledger schema is unavailable. No financial changes were made.')
     # Existing PM SOA convention: stored signed rand amounts, not shared debtor cents.
-    rows=db.session.execute(text('''SELECT id,txn_date,description,kind,amount
+    extras=",ref" if 'ref' in columns else ',NULL AS ref'
+    extras+=",posting_notes" if 'posting_notes' in columns else ',NULL AS posting_notes'
+    rows=db.session.execute(text('''SELECT id,txn_date,description,kind,amount'''+extras+'''
         FROM bil_tenant_ledger WHERE tenant_id=:t ORDER BY txn_date ASC NULLS LAST,id ASC'''),dict(t=tenant_id)).mappings()
     balance=Decimal('0.00');result=[]
     for row in rows:

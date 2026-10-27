@@ -3917,15 +3917,17 @@ def pm_soa_ledger(property_id,tenant_id,error=None,status=200):
     if prop is None:abort(404)
     tenant=next((row for row in tenants_for(property_id) if row['id']==tenant_id),None)
     if tenant is None:abort(404)
-    from .lease_soa_posting import token
+    from .lease_soa_posting import token,has_opening,DEBIT_DESCRIPTIONS,CREDIT_DESCRIPTIONS
     from datetime import date
     kind=request.form.get('kind') if request.method=='POST' else request.args.get('posting')
-    if kind not in ('charge','payment'):kind=None
+    if kind not in ('opening_balance','charge','payment'):kind=None
     values=request.form.to_dict() if request.method=='POST' else {}
     if kind and not values.get('posting_key'):values['posting_key']=token(property_id,tenant_id,kind)
     values.setdefault('txn_date',date.today().isoformat())
     return render_template('program_billing/pm_soa_ledger.html',property=prop,tenant=tenant,
-        entries=transactions(tenant_id),posting=kind,values=values,posting_error=error),status
+        entries=transactions(tenant_id),posting=kind,values=values,posting_error=error,
+        opening_recorded=has_opening(tenant_id),
+        descriptions=DEBIT_DESCRIPTIONS if kind=='charge' else CREDIT_DESCRIPTIONS),status
 
 
 @billing_bp.route('/manager/tenant_accounts/<int:property_id>/tenant/<int:tenant_id>/ledger/post',methods=['POST'],endpoint='pm_soa_post')

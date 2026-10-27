@@ -1,27 +1,37 @@
-# PM SOA manual charges and payments
+# PM SOA opening balances and posting references
 
-The account remains the existing registered bil_tenant ID and Tenant Reference. No new account, ledger, migration or reference is allocated.
+## Scope and inspected schema
 
-## Existing financial foundation
+The actual local PostgreSQL public.bil_tenant_ledger was inspected read-only before implementation. It has id (sequence default), tenant_id, txn_date, month, description varchar(255), kind varchar(50), amount numeric(10,2), ref varchar(255), and a non-unique tenant_id index. No opening-balance or reference uniqueness constraint existed. Production schema was not accessed.
 
-- bil_tenant_ledger is reused for signed rand amounts: positive manual charges and negative payments. Reading remains chronological by txn_date, then ID, with Decimal running balances.
-- Existing ORM BilTenantLedger matches the inspected local PostgreSQL columns: id (sequence default), tenant_id, txn_date, month, description varchar(255), kind varchar(50), amount numeric(10,2), ref varchar(255). The shared posting service uses that ORM mapping for both inserts.
-- bil_lease and saved bil_lease_draft selections supply existing property/tenant associations. Production's verified sectional_unit_id relationship is supported; bil_lease.property_id is not assumed.
-- bil_tenant_recurring, rental helpers and METSOA routines are not invoked. Municipal-account payments, manager/platform statement fees and shared Debtor/ProShop accounting remain separate.
-- Refundable deposits have no verified separate liability workflow in this ledger; no deposit action is provided.
+The existing ledger and compatible BilTenantLedger ORM remain in use. No new ledger or account is created. Balances are calculated exclusively from signed Decimal ledger amounts, in transaction-date/ID order.
 
-## Posting safeguards
+## Actions
 
-The POST-only PM endpoint revalidates manager ownership, the selected property and registered tenant association using the same PM resolver as the property dropdown. Property, tenant and relevant draft rows are locked during the transaction. Existing authentication and CSRF protection apply.
+- Opening Balance: one per registered tenant across properties and leases. Debit is positive, Credit negative, and Zero records an amount of 0.00. Description is always Opening Balance. An existing row with kind opening_balance or a case-insensitive, trimmed Opening Balance description also blocks a second opening. The button becomes disabled after saving.
+- Post Charge: positive amount and the prescribed debit-description dropdown.
+- Record Payment: negative amount and the prescribed credit-description dropdown. Refund paid is not offered as a credit. Refundable security deposits are outside this workflow.
+- Optional explanatory notes are separate from the fixed/selected description, limited to 2000 characters.
+- All forms use a server-assigned permanent D0001/C0001 reference. The field is read-only. Reference is displayed with the transaction description; the five ledger columns are unchanged.
 
-Both actions use one service, Decimal amounts, strict calendar dates, required descriptions and a maximum of R99,999,999.99. Payment references are required; charge references are optional. User references are limited to 100 characters.
+Authentication, managed-property/registered-tenant association checks (including saved Lease Kit drafts), CSRF, signed scope-bound form keys, strict amount/date validation and retry-safe transactions remain in force. The account is tenant-wide: the existing ledger has no property/lease allocation column. Historical debts are not copied between tenants.
 
-A signed form key binds the nonce to the manager, property, tenant and action. The existing ref field stores PMPOST:<nonce>:<payload SHA-256> | <user reference>. PostgreSQL READ COMMITTED isolation is required so a waiting retry sees the preceding commit. A PostgreSQL transaction advisory lock serialises checks and inserts for that nonce across workers. Identical retries return success without another row; changed-payload reuse returns a conflict with input preserved. No session-only duplicate cache or schema change is used.
+## Required migration and deployment order
 
-The live catalog is checked before writing. Missing required columns, inadequate amount/ref capacity, unsupported mandatory columns or a missing automatic ID cause posting to fail closed. Local public schema was inspected read-only; live Render schema and production posting were not exercised.
+Migration pm_soa_001 is a narrow independent Alembic branch for the existing ledger. Run the established database migration procedure targeting **pm_soa_001 only**, before enabling the updated posting service. Do not upgrade unrelated heads. No application-startup migration or automatic schema creation is introduced.
 
-## Boundaries
+It adds three nullable metadata columns (posting_key, posting_hash, posting_notes), three unique indexes (form key, opening per tenant, D/C reference), and separate non-cycling PostgreSQL sequences limited to 1..9999. It initialises each sequence above existing exact D/C four-digit references. Historical rows and references are never updated or renumbered. Duplicate historical opening balances or D/C references block migration for review; it does not resolve them by altering financial records. Migration takes an exclusive ledger lock during preparation.
 
-The ledger is tenant-wide: the existing table has no property/lease allocation column. Selecting a property authorises access to that tenant account; this feature does not attribute historical rows to a tenancy, transfer balances or rewrite history. POST appends rows only.
+Before writes, the service verifies required columns/indexes and READ COMMITTED isolation. If migration is absent, posting fails closed with an explicit migration message; existing read-only ledger viewing remains supported. Migration has been exercised only on disposable local PostgreSQL fixtures, not applied to production or the local public application ledger.
 
-No automatic rent, recurring materialisation, METSOA transfer, allocation, deposit posting, deletion, historical editing or ProShop synchronisation is enabled. Existing financial rows and lease documents remain unchanged.
+Reference numbers may have gaps because PostgreSQL sequences are not rolled back. At 9999, the affected sequence stops with a clear error instead of wrapping or generating a fifth digit. A zero opening marker uses the debit sequence.
+
+## Transaction and history protection
+
+Signed form nonces bind manager, property, tenant and action. A transaction advisory lock serialises retries; a unique posting_key index adds persistent database protection. A payload hash rejects reuse of a form key with changed details. Prior-release PMPOST references retain their duplicate-protection check and are left unchanged.
+
+Opening creation takes a tenant-wide advisory lock and is enforced by a unique partial database index, including concurrent writers that do not cooperate with the advisory lock. Independent D/C sequences are concurrency-safe and exact D/C references are protected by a unique partial index.
+
+The existing ORM inserts the financial row. Only that just-created row receives posting metadata in the same transaction. Existing ledger rows are not edited. Financial posting, migration row preservation, dropdowns, access restrictions, real multi-connection reference allocation, opening uniqueness and retry constraints are tested locally.
+
+No recurring rent, METSOA transfer, payment allocation, deposit accounting, deletion, historical editing, ProShop synchronisation or unrelated lease changes are included.

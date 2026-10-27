@@ -77,7 +77,7 @@ class AddendumPDFTests(unittest.TestCase):
     def test_addendum_pdf_draft_link_and_foreign_draft_original_rejected(self):
         response=self.client.post('/billing/leases/property/26/addendum?draft_id='+str(self.draft),data={'csrf_token':self.csrf,'action':'upload_pdf','addendum_pdf':(io.BytesIO(self.pdf()),'Draft-amendment.pdf')},content_type='multipart/form-data')
         self.assertEqual(response.status_code,302);entry=self.ledger()['documents'][-1]
-        self.assertIsNone(entry['original_id']);self.assertEqual(entry['lease_reference'],'Lease draft '+str(self.draft))
+        self.assertIsNone(entry['original_id']);self.assertEqual(entry['lease_reference'],'')
         self.signed();original=self.ledger()['documents'][-1];other=uuid.uuid4()
         self.session.execute(text('INSERT INTO bil_lease_draft(id,property_id,manager_id,source_version,items,version,status,registration_token) SELECT :other,property_id,manager_id,source_version,items,version,status,:token FROM bil_lease_draft WHERE id=:id'),{'other':other,'token':uuid.uuid4(),'id':self.draft})
         self.session.commit()

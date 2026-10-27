@@ -3895,29 +3895,15 @@ def billing_unlock(month):
 @billing_bp.route("/manager/tenant_accounts")
 @login_required
 def tenant_accounts():
-    from app.models.debtors import Debtor
-    from sqlalchemy.exc import SQLAlchemyError
-    # Existing PM assignment: manager_id identifies the owner-manager or appointed agent.
-    properties=(db.session.query(BilProperty).filter(BilProperty.manager_id==current_user.id,
+    from .lease_soa import tenants_for
+    properties=(db.session.query(BilProperty.id,BilProperty.name).filter(BilProperty.manager_id==current_user.id,
         BilProperty.is_archived==False).order_by(BilProperty.name,BilProperty.id).all())
     selected_id=request.args.get('property_id',type=int)
     if request.args.get('property_id') and selected_id is None:abort(400)
     selected_property=next((prop for prop in properties if prop.id==selected_id),None)
     if selected_id is not None and selected_property is None:abort(404)
-    debtors=[];total_owed=0
-    if selected_property is not None:
-        try:
-            tenants=db.session.query(BilTenant.id).filter(BilTenant.property_id==selected_property.id)
-            debtors=(Debtor.query.filter_by(user_id=current_user.id,slug_reference='billing')
-                .filter(Debtor.reference_id.in_(tenants)).order_by(Debtor.name,Debtor.id).all())
-            for debtor in debtors:
-                entries=list(debtor.ledgers)
-                debtor.current_balance=(sum(row.amount for row in entries if row.kind=='debit')-sum(row.amount for row in entries if row.kind=='credit'))/100.0
-                if debtor.current_balance>0:total_owed+=debtor.current_balance
-        except SQLAlchemyError:
-            db.session.rollback();current_app.logger.exception('SOA property accounts unavailable')
-            abort(503,description='Tenant accounts could not be loaded. Please retry.')
-    return render_template('program_billing/tenant_accounts.html',debtors=debtors,total_owed=total_owed,
+    tenants=tenants_for(selected_id) if selected_property else []
+    return render_template('program_billing/tenant_accounts.html',tenants=tenants,
         properties=properties,selected_property=selected_property)
 
 

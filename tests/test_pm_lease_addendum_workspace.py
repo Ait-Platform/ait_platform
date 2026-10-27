@@ -19,7 +19,7 @@ class AddendumWorkspaceTests(unittest.TestCase):
         return self.client.post(self.register_url(),data=data)
     def test_workspace_layout_compact_sources_one_content_and_output_link(self):
         page=self.client.get(self.register_url());self.assertEqual(page.status_code,200,page.text);tree=html.fromstring(page.data)
-        self.assertEqual(tree.xpath('//*[@id="addendum-workflow"]/button/text()'),['Select Clause','Create Addendum','View Addendum','Help'])
+        self.assertEqual(tree.xpath('//*[@id="addendum-workflow"]/button/text()'),['Select Clause','Create Addendum','Help'])
         panels=tree.xpath('//*[@data-addendum-panel]');self.assertEqual([p.get('data-addendum-panel') for p in panels if p.get('hidden') is None],['select'])
         self.assertFalse(tree.xpath('//*[@id="addendum-clause-catalog"]'))
         self.assertEqual(len(tree.xpath('//*[@id="addendum-create-form"]//input[@name="subject"]')),0);self.assertEqual(len(tree.xpath('//*[@id="addendum-create-form"]//textarea[@name="wording"]')),1)
@@ -48,6 +48,25 @@ class AddendumWorkspaceTests(unittest.TestCase):
         second=self.preview();self.assertIn('ADDENDUM 02',''.join(p.extract_text() for p in PdfReader(io.BytesIO(second.data)).pages))
     def test_general_preview_has_no_invented_clauses_and_invalid_access_does_not_save(self):
         before=copy.deepcopy(dict(self.stored()));result=self.preview();self.assertEqual(result.status_code,200)
-        body=''.join(p.extract_text() for p in PdfReader(io.BytesIO(result.data)).pages);self.assertIn('GENERAL ADDENDUM TO AGREEMENT OF LEASE',body);self.assertNotIn('NOTICE REGARDING CHANGES TO CLAUSES:',body);self.assertNotIn('SC-06',body);self.assertIn(str(self.draft),body)
+        body=''.join(p.extract_text() for p in PdfReader(io.BytesIO(result.data)).pages);self.assertIn('GENERAL ADDENDUM TO AGREEMENT OF LEASE',body);self.assertNotIn('NOTICE REGARDING CHANGES TO CLAUSES:',body);self.assertNotIn('SC-06',body);self.assertNotIn(str(self.draft),body);self.assertNotIn('Original Lease Agreement: Lease draft',body)
         self.assertEqual(dict(self.stored()),before);self.assertEqual(self.preview(wording='').status_code,400);self.assertEqual(self.preview(csrf_token='').status_code,400)
         self.client.environ_base.pop('HTTP_X_TEST_OWNER');self.assertEqual(self.preview().status_code,403)
+
+    def test_saved_pdf_bytes_keep_signatures_last_and_omit_internal_draft_reference(self):
+        from app.program_billing import lease_signing
+        items=copy.deepcopy(self.stored()['items'])
+        for party in lease_signing.rows(items):items.setdefault(lease_signing.KEY,{})[party['key']]={'place':'Cape Town','date':'2027-02-21'}
+        self.sql("UPDATE bil_lease_draft SET items='"+json.dumps(items).replace("'","''")+"'::jsonb");self.session.commit()
+        before=copy.deepcopy(self.stored()['items']);response=self.preview(action='create_pdf');self.assertEqual(response.status_code,302,response.text)
+        saved=self.stored()['items']['_lease_history']['documents'][-1]
+        actual=self.client.get('/billing/leases/property/26/history/'+saved['id']+'?draft_id='+str(self.draft));self.assertEqual(actual.status_code,200)
+        pdf=PdfReader(io.BytesIO(actual.data));body=''.join(page.extract_text() for page in pdf.pages);last=pdf.pages[-1].extract_text()
+        self.assertNotIn(str(self.draft),body);self.assertNotIn('Lease draft ',body)
+        self.assertIn('SIGNATURES',last);self.assertIn('FOR AND ON BEHALF OF THE LESSOR',last);self.assertIn('LESSEE / AUTHORISED REPRESENTATIVE',last)
+        self.assertIn('SIGNED at CAPE TOWN on this the 21st day of FEBRUARY 2027',last)
+        self.assertEqual(last.count('Witness 1 - Name:'),2);self.assertEqual(last.count('Witness 2 - Name:'),2)
+        self.assertEqual(saved['original_id'],None);self.assertEqual(saved['lease_reference'],'')
+        self.assertEqual({k:v for k,v in before.items() if k!='_lease_history'},{k:v for k,v in self.stored()['items'].items() if k!='_lease_history'})
+        page=self.client.get(response.location);tree=html.fromstring(page.data)
+        self.assertEqual(tree.xpath('//*[@id="addendum-workflow"]/button/text()'),['Select Clause','Create Addendum','Help'])
+        self.assertEqual(tree.xpath('//*[@id="addendum-workspace"]/@data-saved-id'),[saved['id']])

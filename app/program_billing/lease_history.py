@@ -382,7 +382,10 @@ def clause_register_save(prop,draft):
 def full_lease_identity(draft):
     available=originals(draft)
     original=available[-1] if available else None
-    return (original['id'],original['lease_reference'],original) if original else ('draft','Lease draft '+str(draft['id']),None)
+    from .lease_document_format import internal_reference
+    reference=original.get('lease_reference','') if original else ''
+    if internal_reference(reference):reference=''
+    return (original['id'],reference,original) if original else ('draft','',None)
 
 
 def full_lease_selection_state(draft):
@@ -547,16 +550,19 @@ def addendum_pdf(prop,reference,wording,number,subject='',provisions=(),items=No
     from reportlab.platypus import SimpleDocTemplate,Paragraph,Spacer,PageBreak,KeepTogether,Table,TableStyle
     from reportlab.lib.styles import getSampleStyleSheet
     from .lease_signing import rows,signature_sections
+    from .lease_document_format import internal_reference
+    reference=str(reference or '').strip()
+    if internal_reference(reference) or reference.lower().startswith('lease draft '):reference=''
     output=BytesIO();styles=getSampleStyleSheet();heading,references=addendum_heading(provisions)
     story=[Paragraph('ADDENDUM '+str(number).zfill(2),styles['Title']),
         Paragraph(escape(heading),styles['Heading2'])]
     if references:story.append(Paragraph(escape(references),styles['BodyText']))
-    story.extend([Paragraph('Original Lease Agreement: '+escape(reference),styles['BodyText']),
-        Paragraph('Property: '+escape(str(prop['name']))+' (ID '+str(prop['id'])+')',styles['BodyText']),Spacer(1,16)])
+    if reference:story.append(Paragraph('Original Lease Agreement: '+escape(reference),styles['BodyText']))
+    story.extend([Paragraph('Property: '+escape(str(prop['name']))+' (ID '+str(prop['id'])+')',styles['BodyText']),Spacer(1,16)])
     if subject:story.append(Paragraph('SUBJECT: '+escape(subject),styles['Heading2']))
     story.append(Paragraph('Amendment Content',styles['Heading2']))
     for line in wording.splitlines():story.append(Paragraph(escape(line) or '&#160;',styles['BodyText']))
-    story.extend([Spacer(1,16),Paragraph(escape(addendum_precedence()),styles['BodyText']),PageBreak(),Paragraph('SIGNATURES',styles['Title']),Paragraph('Addendum '+str(number).zfill(2)+' to '+escape(reference),styles['BodyText'])])
+    story.extend([Spacer(1,16),Paragraph(escape(addendum_precedence()),styles['BodyText']),PageBreak(),Paragraph('SIGNATURES',styles['Title']),Paragraph('Addendum '+str(number).zfill(2)+(' to '+escape(reference) if reference else ''),styles['BodyText'])])
     parties=signature_sections(rows(items or {}),(items or {}).get('_parties',{}).get('lessor',{}))
     for party in parties:
         section=[Spacer(1,14),Paragraph(escape(party['statement']),styles['Heading3']),Paragraph(escape(party['heading']),styles['Heading2'])]
@@ -584,6 +590,8 @@ def addendum_history(draft,property_id):
             token=signer().dumps(dict(kind='document',draft_id=str(draft['id']),property_id=property_id,
                 version=draft['version'],sha256=entry['sha256'],nonce=str(uuid.uuid4()),document_id=entry['id']))
             entry['email_url']=url_for('billing_bp.lease_document_email',property_id=property_id,draft_id=draft['id'],document_token=token)
+        from .lease_document_format import internal_reference
+        if internal_reference(entry.get('lease_reference','')):entry['lease_reference']=''
         result.append(entry)
     return result
 
@@ -652,7 +660,7 @@ def addendum(property_id):
                 original_row,original,_=document(draft,original_id)
                 if original['kind']!='signed_original':raise ValueError('Select the original signed lease to which this Addendum relates.')
             elif originals(draft):raise ValueError('Select the original signed lease to which this Addendum relates.')
-            reference=original.get('lease_reference','') if original else 'Lease draft '+str(draft['id'])
+            reference=original.get('lease_reference','') if original else ''
             metadata={'original_id':original['id'] if original else None,'lease_reference':reference,
                 'original_sha256':original['sha256'] if original else None,'legal_status':'not-verified'}
             if request.form['action']=='upload_pdf':

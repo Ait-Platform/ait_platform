@@ -174,7 +174,7 @@ def preview_context(property_id):
     signing_rows=signing_particulars(saved_party_items,owners,tenants)
     lessors=[party for group in party_blocks if group['label']=='Lessor' for party in group['parties']]
     lessees=[party for group in party_blocks if group['label']=='Lessee' for party in group['parties']]
-    return dict(title='View Lease',property=prop,legal_blocks=legal_blocks,legal_text=legal_text,legal_heading=legal_heading,signature_lessors=lessors,signature_lessees=lessees,party_blocks=party_blocks,signing_rows=signing_rows,signature_rows=signature_sections(signing_rows),
+    return dict(title='View Lease',property=prop,legal_blocks=legal_blocks,legal_text=legal_text,legal_heading=legal_heading,signature_lessors=lessors,signature_lessees=lessees,party_blocks=party_blocks,signing_rows=signing_rows,signature_rows=signature_sections(signing_rows,items.get('_parties',{}).get('lessor',{})),
         lessor_representative=items.get('_parties',{}).get('lessor',{}),
         lease_reference=values.get('[LEASE_REFERENCE]',''),
         tenant_reference=' | '.join(row.get('tenant_reference') or next((t.get('tenant_reference','') for t in tenants if str(t['id'])==str(row.get('tenant_id'))),'') for row in certificate.selected_tenants(items)),

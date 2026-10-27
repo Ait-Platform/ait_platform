@@ -38,7 +38,7 @@ class CoreMasterTests(unittest.TestCase):
             if key in self.objects and self.objects[key]!=data:raise ValueError('Immutable key collision')
             self.objects[key]=data;return key
         self.r2.upload_bytes_to_r2.side_effect=immutable
-        env=dict(__name__='app.program_billing.lease_core_admin',__package__='app.program_billing',billing_bp=types.SimpleNamespace(route=lambda *a,**kw:lambda f:f,get=lambda *a,**kw:lambda f:f,after_request=lambda f:f),require_admin=core.require_admin,publications=core.publications,working_copies=core.working_copies,prepare=core.prepare,publish=core.publish,update_draft=core.update_draft,read_object=core.read_object,DOCX=core.DOCX,storage=storage,db=db,BytesIO=io.BytesIO,abort=abort,request=request,current_app=current_app,send_file=send_file,redirect=redirect,url_for=url_for,flash=flash,render_pm_template=render_template)
+        env=dict(__name__='app.program_billing.lease_core_admin',__package__='app.program_billing',billing_bp=types.SimpleNamespace(route=lambda *a,**kw:lambda f:f,get=lambda *a,**kw:lambda f:f,after_request=lambda f:f),require_admin=core.require_admin,publications=core.publications,working_copies=core.working_copies,prepare=core.prepare,publish=core.publish,update_draft=core.update_draft,read_object=core.read_object,DOCX=core.DOCX,headings=core.headings,save_headings=core.save_headings,parse_headings=core.parse_headings,storage=storage,db=db,BytesIO=io.BytesIO,abort=abort,request=request,current_app=current_app,send_file=send_file,redirect=redirect,url_for=url_for,flash=flash,render_pm_template=render_template)
         functions('app/program_billing/lease_core_admin.py',{'admin','file','private'},env);self.app._got_first_request=False
         self.app.add_url_rule('/billing/admin/core-lease-master',endpoint='billing_bp.lease_core_master',view_func=env['admin'],methods=['GET','POST'])
         self.app.add_url_rule('/billing/admin/core-lease-master/<int:version>/<kind>',endpoint='billing_bp.lease_core_master_file',view_func=env['file'])
@@ -83,7 +83,7 @@ class CoreMasterTests(unittest.TestCase):
         with self.app.test_request_context('/'):
             from werkzeug.datastructures import FileStorage
             work=self.master.prepare(FileStorage(stream=io.BytesIO(self.word()),filename='Working.docx'))
-        response=self.client.post(self.url,data={'csrf_token':self.csrf,'action':'publish','working_id':work['id'],'published_pdf':(io.BytesIO(self.pdf()),'Core.pdf')},content_type='multipart/form-data');self.assertEqual(response.status_code,302,response.text)
+        response=self.client.post(self.url,data={'csrf_token':self.csrf,'action':'publish','headings':'1 | Synthetic heading','working_id':work['id'],'published_pdf':(io.BytesIO(self.pdf()),'Core.pdf')},content_type='multipart/form-data');self.assertEqual(response.status_code,302,response.text)
         race=self.client.post(self.url,data={'csrf_token':self.csrf,'action':'publish','working_id':work['id'],'published_pdf':(io.BytesIO(self.pdf()),'Core.pdf')},content_type='multipart/form-data');self.assertEqual(race.status_code,400);self.assertEqual(self.master.current()['version'],2)
         with self.app.test_request_context('/'):
             from werkzeug.datastructures import FileStorage
@@ -109,3 +109,20 @@ class CoreMasterTests(unittest.TestCase):
         with patch.object(self.master,'list_keys',side_effect=PermissionError('Synthetic R2 listing denied')):
             denied=self.client.get(self.url);self.assertEqual(denied.status_code,503);self.assertIn('read, write and list permissions',denied.text)
         self.assertEqual(self.master.pinned(self.stored())['version'],1)
+
+    def test_versioned_heading_maintenance_is_admin_only_and_never_changes_core_pdf(self):
+        source=self.master.legacy();before=copy.deepcopy(dict(self.stored()))
+        with self.app.test_request_context('/'):
+            initial=self.master.headings(source);self.assertEqual(len(initial['entries']),114)
+            self.assertTrue(any(entry['reference']=='5.4' and entry['title']=='Rental payment tax and interest' for entry in initial['entries']))
+        response=self.client.post(self.url,data={'csrf_token':self.csrf,'action':'headings','core_version':'1','heading_revision':'0','headings':'5.4 | Rental payment tax and interest'})
+        self.assertEqual(response.status_code,302,response.text)
+        record=self.master.headings(source);self.assertEqual(record['revision'],1);self.assertEqual(record['core_sha256'],source['sha256'])
+        self.assertEqual(self.stored(),before)
+        stale=self.client.post(self.url,data={'csrf_token':self.csrf,'action':'headings','core_version':'1','heading_revision':'0','headings':'6.1 | Deposit'})
+        self.assertEqual(stale.status_code,409);self.assertEqual(self.master.headings(source),record)
+        duplicate=self.client.post(self.url,data={'csrf_token':self.csrf,'action':'headings','core_version':'1','heading_revision':'1','headings':'6.1 | Deposit\n6.1 | Duplicate'})
+        self.assertEqual(duplicate.status_code,400);self.assertEqual(self.master.headings(source),record)
+        self.allowed=False
+        denied=self.client.post(self.url,data={'csrf_token':self.csrf,'action':'headings','core_version':'1','heading_revision':'1','headings':'6.1 | Deposit'})
+        self.assertEqual(denied.status_code,403);self.assertEqual(self.master.headings(source),record)

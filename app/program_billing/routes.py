@@ -3896,45 +3896,30 @@ def billing_unlock(month):
 @login_required
 def tenant_accounts():
     from app.models.debtors import Debtor
-    start_date_str = request.args.get('start_date', '')
-    end_date_str = request.args.get('end_date', '')
-    
+    from sqlalchemy import or_, and_
+    query=request.args.get('q','').strip()[:200]
+    try:limit=max(10,min(int(request.args.get('limit','10')),1000))
+    except ValueError:limit=10
     try:
-        start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date() if start_date_str else None
-        end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date() if end_date_str else None
-    except ValueError:
-        start_date = None
-        end_date = None
-
-    try:
-        # Get all tenants (managed by Debtors table with slug_reference='billing')
-        debtors = Debtor.query.filter_by(user_id=current_user.id, slug_reference='billing').all()
-        total_owed = 0
-        
-        for d in debtors:
-            valid_ledgers = d.ledgers
-            if start_date:
-                valid_ledgers = [l for l in valid_ledgers if l.txn_date >= start_date]
-            if end_date:
-                valid_ledgers = [l for l in valid_ledgers if l.txn_date <= end_date]
-                
-            total_debits = sum(l.amount for l in valid_ledgers if l.kind == 'debit')
-            total_credits = sum(l.amount for l in valid_ledgers if l.kind == 'credit')
-            d.current_balance = (total_debits - total_credits) / 100.0
-            
-            if d.current_balance > 0:
-                total_owed += d.current_balance
-                
-    except Exception as e:
-        current_app.logger.error(f"Error loading tenant accounts: {e}")
-        debtors = []
-        total_owed = 0
-        
-    return render_template("program_billing/tenant_accounts.html", 
-                           debtors=debtors, 
-                           total_owed=total_owed,
-                           start_date=start_date_str,
-                           end_date=end_date_str)
+        accounts=Debtor.query.filter_by(user_id=current_user.id,slug_reference='billing')
+        if query:
+            pattern='%'+query.replace('!','!!').replace('%','!%').replace('_','!_')+'%'
+            linked=(db.session.query(BilTenant.id).outerjoin(BilProperty,and_(BilProperty.id==BilTenant.property_id,BilProperty.manager_id==current_user.id))
+                .filter(BilTenant.manager_id==current_user.id,or_(BilTenant.name.ilike(pattern,escape='!'),BilProperty.name.ilike(pattern,escape='!'),
+                    db.func.substring(BilTenant.notes,r'\[AIT Tenant Reference: (TR-[A-F0-9]{16})\]').ilike(pattern,escape='!'))))
+            accounts=accounts.filter(or_(Debtor.name.ilike(pattern,escape='!'),Debtor.reference_id.in_(linked)))
+        debtors=accounts.order_by(Debtor.created_at.desc().nullslast(),Debtor.id.desc()).limit(limit+1).all()
+        has_more=len(debtors)>limit;debtors=debtors[:limit]
+        total_owed=0
+        for debtor in debtors:
+            entries=list(debtor.ledgers)
+            debtor.current_balance=(sum(row.amount for row in entries if row.kind=='debit')-sum(row.amount for row in entries if row.kind=='credit'))/100.0
+            if debtor.current_balance>0:total_owed+=debtor.current_balance
+    except Exception:
+        db.session.rollback();current_app.logger.exception('SOA account list unavailable')
+        debtors=[];total_owed=0;has_more=False
+        flash('Tenant accounts could not be loaded. Please retry.','error')
+    return render_template('program_billing/tenant_accounts.html',debtors=debtors,total_owed=total_owed,query=query,limit=limit,has_more=has_more)
 
 
 @billing_bp.route("/manager/tenant_ledger/<int:debtor_id>")

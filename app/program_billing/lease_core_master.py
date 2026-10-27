@@ -110,7 +110,7 @@ def prepare(upload):
     return record
 
 
-def publish(identifier,upload):
+def publish(identifier,upload,heading_entries=None):
     from . import lease_storage as storage
     actor=require_admin()
     try:identifier=str(uuid.UUID(identifier))
@@ -123,7 +123,7 @@ def publish(identifier,upload):
     if extension!='.pdf':raise ValueError('Publish a PDF rendered from the saved working DOCX.')
     from pypdf import PdfReader
     pages=len(PdfReader(BytesIO(payload)).pages)
-    record=dict(upload_object(payload,mime,'pdf'),version=base['version']+1,pages=pages,published_at=datetime.now(timezone.utc).isoformat(),published_by=int(actor.id),status='published',legacy=False,source_docx=work,previous_version=base['version'])
+    record=dict(upload_object(payload,mime,'pdf'),version=base['version']+1,pages=pages,published_at=datetime.now(timezone.utc).isoformat(),published_by=int(actor.id),status='published',legacy=False,source_docx=work,previous_version=base['version'],headings=heading_entries or [])
     # Unique immutable key makes concurrent publications conflict rather than overwrite.
     storage.upload(manifest_key(record['version']),json.dumps(record,sort_keys=True).encode(),'application/json')
     return record
@@ -143,3 +143,48 @@ def update_draft(property_id,identifier,expected_version):
     previous=pinned(draft);items['_core_master']=master
     items.setdefault('_lease_history',{'documents':[],'emails':[]}).setdefault('core_master_updates',[]).append(dict(previous=previous,new_version=master['version'],updated_by=int(actor.id),updated_at=datetime.now(timezone.utc).isoformat()))
     db.session.execute(text('UPDATE bil_lease_draft SET items=CAST(:items AS jsonb),version=version+1,updated_at=now() WHERE id=:d AND version=:v'),{'items':json.dumps(items),'d':identifier,'v':expected_version});db.session.commit()
+
+
+
+def headings(master):
+    """Immutable heading revisions belong to one precise published Core."""
+    prefix=PREFIX+'headings/'+str(master['version']).zfill(10)+'/'
+    keys=sorted(key for key in list_keys(prefix) if re.fullmatch(re.escape(prefix)+r'\d{10}\.json',key))
+    if keys:record=read_json(keys[-1])
+    elif master.get('legacy'):
+        from pathlib import Path
+        record=json.loads(Path(__file__).with_name('private_templates').joinpath('core_headings_v1.json').read_text(encoding='utf8'))
+        record['revision']=0
+    else:record=dict(core_version=master['version'],core_sha256=master['sha256'],revision=0,entries=master.get('headings',[]))
+    if record.get('core_version')!=master['version'] or record.get('core_sha256')!=master['sha256']:
+        raise ValueError('No heading list is available for this Core Master version.')
+    return record
+
+
+def parse_headings(value):
+    result=[];seen=set()
+    for line in str(value or '').splitlines():
+        if not line.strip():continue
+        parts=line.split('|',1)
+        if len(parts)!=2:raise ValueError('Use one clause number | heading per line.')
+        reference,title=(part.strip() for part in parts)
+        if not re.fullmatch(r'\d+(?:\.\d+)*',reference) or not title or len(title)>500 or '\x00' in title:
+            raise ValueError('Each heading needs a real clause number and a heading up to 500 characters.')
+        if reference in seen:raise ValueError('Duplicate Core heading reference: '+reference)
+        seen.add(reference);result.append(dict(reference=reference,title=title))
+    if not result:raise ValueError('Supply the Core clause heading list.')
+    return result
+
+
+def save_headings(version,value,revision):
+    from . import lease_storage as storage
+    actor=require_admin()
+    master=next((row for row in publications() if str(row['version'])==str(version)),None)
+    if master is None:abort(404)
+    previous=headings(master)
+    if str(previous['revision'])!=str(revision):abort(409,description='The heading list changed. Reopen Core Master.')
+    record=dict(core_version=master['version'],core_sha256=master['sha256'],revision=previous['revision']+1,
+        entries=parse_headings(value),updated_by=int(actor.id),updated_at=datetime.now(timezone.utc).isoformat())
+    key=PREFIX+'headings/'+str(master['version']).zfill(10)+'/'+str(record['revision']).zfill(10)+'.json'
+    storage.upload(key,json.dumps(record,sort_keys=True).encode(),'application/json')
+    return record

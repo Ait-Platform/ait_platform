@@ -4,7 +4,7 @@ from flask import abort,request,current_app,send_file,redirect,url_for,flash
 from app.extensions import db
 from .routes import billing_bp
 from .lease_management import render_pm_template
-from .lease_core_master import require_admin,publications,working_copies,prepare,publish,update_draft,read_object,DOCX
+from .lease_core_master import require_admin,publications,working_copies,prepare,publish,update_draft,read_object,DOCX,headings,save_headings,parse_headings
 from . import lease_storage as storage
 
 
@@ -15,8 +15,9 @@ def admin():
         request.max_content_length=storage.MAX_BYTES+1024*1024
         try:
             action=request.form.get('action')
-            if action=='prepare':prepare(request.files.get('working_docx'))
-            elif action=='publish':publish(request.form.get('working_id'),request.files.get('published_pdf'))
+            if action=='headings':save_headings(request.form.get('core_version'),request.form.get('headings'),request.form.get('heading_revision'))
+            elif action=='prepare':prepare(request.files.get('working_docx'))
+            elif action=='publish':publish(request.form.get('working_id'),request.files.get('published_pdf'),parse_headings(request.form.get('headings')))
             elif action=='update_draft':update_draft(int(request.form.get('property_id','')),request.form.get('draft_id'),request.form.get('version'))
             else:abort(400)
             flash('Core Lease Master action saved. Existing signed documents and other drafts are unchanged.','success')
@@ -27,11 +28,11 @@ def admin():
             import sys
             if isinstance(sys.exc_info()[1],HTTPException):raise
             db.session.rollback();current_app.logger.exception('Core Lease Master action failed');errors.append('Private Core storage action failed. No new publication was confirmed. Check the service log; earlier versions remain available.')
-    try:versions=publications();working=working_copies()
+    try:versions=publications();working=working_copies();heading_rows=[dict(master=row,headings=headings(row)) for row in versions]
     except Exception:
         current_app.logger.exception('Core Lease registry unavailable')
         return render_pm_template('program_billing/lease_core_master.html',title='Core Lease Master',versions=[],working=[],errors=errors+['The private Core registry is unavailable. Verify existing R2 object read, write and list permissions.']),503
-    return render_pm_template('program_billing/lease_core_master.html',title='Core Lease Master',versions=versions,working=working,errors=errors),400 if errors else 200
+    return render_pm_template('program_billing/lease_core_master.html',title='Core Lease Master',versions=versions,working=working,heading_rows=heading_rows,errors=errors),400 if errors else 200
 
 
 @billing_bp.get('/billing/admin/core-lease-master/<int:version>/<kind>',endpoint='lease_core_master_file')

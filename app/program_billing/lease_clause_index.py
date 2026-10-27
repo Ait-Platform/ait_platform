@@ -1,11 +1,4 @@
-"""Derived Full Lease clause indexes in existing draft metadata; no contract edits.
-
-The input fingerprint excludes working Addendum selections and audit/version counters.
-A PostgreSQL row lock serialises first builds across workers. Only the derived cache
-path is updated, without changing the contractual draft version. PDF bytes are a
-bounded, private in-process acceleration; the durable index survives worker restarts.
-"""
-from collections import OrderedDict
+"""Persistent heading-only indexes. Never render or extract a PDF here."""
 from hashlib import sha256
 from pathlib import Path
 from datetime import datetime, timezone
@@ -15,136 +8,105 @@ from flask_login import current_user
 from sqlalchemy import text
 from app.extensions import db
 
-SCHEMA = 2
+SCHEMA = 3
 
 
 def inputs(prop, draft):
-    from .lease_kit import preview_context
-    context = preview_context(prop['id'])
-    if str(context['lease_draft']['id']) != str(draft['id']):
-        abort(404)
-    # Rendered values include live register identities as well as saved particulars.
-    ignored = {'lease_draft', 'components', 'pdf_url', 'pdf_email_url', 'filed_sc_pdf_url',
-        'core_pdf_url', 'capture_url', 'back_url', 'selected_component', 'selected_label',
-        'selected_documents', 'pdf_view', 'print_available', 'document_token'}
-    values = {key: value for key, value in context.items() if key not in ignored and not callable(value)}
-    values['items'] = {key: value for key, value in context['lease_draft']['items'].items()
-        if key != '_lease_history'}
-    # Renderer/template changes invalidate the index even without a particulars edit.
+    from .lease_core_master import pinned, headings
+    core = headings(pinned(draft))
+    items = {key: value for key, value in draft['items'].items() if key != '_lease_history'}
     directory = Path(__file__).parent
-    templates = Path(current_app.template_folder) / 'program_billing'
-    if not templates.is_absolute():
-        templates = Path(current_app.root_path) / templates
-    files = list(templates.glob('lease*.html')) + list(directory.glob('lease_*.py'))
-    files += [Path(current_app.static_folder) / 'css' / 'lease_kit.css']
-    revision = [(path.name, sha256(path.read_bytes()).hexdigest()) for path in sorted(files) if path.is_file()]
-    version = sha256(json.dumps({'schema': SCHEMA, 'values': values, 'renderer': revision},
-        sort_keys=True, default=str, ensure_ascii=False).encode()).hexdigest()
-    return context, version
+    revision = [(name, sha256((directory / name).read_bytes()).hexdigest())
+        for name in ('lease_certificate_form.py', 'lease_certificate_layout.json', 'lease_signing.py', 'lease_clause_index.py', 'lease_kit.py', 'lease_kit_pdf.py')]
+    templates=Path(current_app.root_path).parent/'templates'/'program_billing'
+    revision.extend((path.name,sha256(path.read_bytes()).hexdigest()) for path in sorted(templates.glob('lease_*document.html')))
+    value = dict(property_name=prop.get('name'),property_address=prop.get('address'),schema=SCHEMA, property_id=prop['id'], draft_id=str(draft['id']),
+        items=items, core_headings=core, renderer=revision)
+    version = sha256(json.dumps(value, sort_keys=True, default=str, ensure_ascii=False).encode()).hexdigest()
+    return core, version
 
 
-def cached_pdf(key, payload=None):
-    cache = current_app.extensions.setdefault('lease_clause_pdf_cache', OrderedDict())
-    if payload is not None:
-        cache[key] = payload
-        cache.move_to_end(key)
-        while len(cache) > 3:
-            cache.popitem(last=False)
-    return cache.get(key)
-
-
-def existing(prop,draft):
-    _,version=inputs(prop,draft)
-    saved=draft['items'].get('_lease_history',{}).get('full_lease_clause_index',{})
-    if saved.get('input_version')!=version or saved.get('schema')!=SCHEMA or not saved.get('pdf_parts'):
-        abort(409,description='The Full Lease changed or its Clause Index is not ready. Reopen Select Clause to prepare it in the background. Your saved selections are unchanged.')
+def existing(prop, draft):
+    _, version = inputs(prop, draft)
+    saved = draft['items'].get('_lease_history', {}).get('full_lease_clause_index', {})
+    if saved.get('input_version') != version or saved.get('schema') != SCHEMA:
+        abort(409, description='The saved Clause Heading Index is unavailable or out of date. Use Retry Index. Saved selections are unchanged.')
     return saved
 
 
-def store_pdf(prop,draft,payload,digest):
-    from . import lease_storage as storage
-    parts=[]
-    for offset in range(0,len(payload),storage.MAX_BYTES):
-        part=payload[offset:offset+storage.MAX_BYTES];key='private/leases/property-'+str(prop['id'])+'/draft-'+str(draft['id'])+'/clause-index/'+digest+'-'+str(len(parts))+'.pdfpart'
-        storage.upload(key,part,'application/octet-stream');parts.append(dict(key=key,size=len(part),sha256=sha256(part).hexdigest()))
-    return parts
+def entries(items, core):
+    from . import lease_certificate_form as form
+    from .lease_supplementary_conditions import legacy_entries
+    result = []
+    seen = set()
+    labels = dict(certificate='Certificate', core='Core Lease',
+        special_conditions='Special Conditions', signature='Signatures')
+    def add(source, reference, title, provenance):
+        reference = str(reference or '').strip()
+        title = str(title or '').strip()
+        if not reference or (source, reference) in seen:
+            raise ValueError('Missing or duplicate clause heading reference: '+reference)
+        seen.add((source, reference))
+        result.append(dict(id=source+':'+sha256(reference.encode()).hexdigest()[:24],
+            source=source, source_label=labels[source], reference=reference, title=title,
+            provenance=provenance))
+    for section in form.certificate_layout(*form.counts(items)):
+        for label, _ in section.get('rows', []):
+            add('certificate', label, label, 'Certificate template field')
+    if not core['entries']:raise ValueError('Maintain the Core Master heading list before retrying.')
+    for row in core['entries']:
+        add('core', row['reference'], row['title'], 'Core Master version '+str(core['core_version'])+'; heading revision '+str(core.get('revision', 0)))
+    sc=items.get('_supplementary_conditions', {})
+    clauses=sc.get('clauses', []) if sc.get('mode')!='none' or items.get('_sc_pdf_current') else []
+    for number, row in enumerate(clauses,1):
+        add('special_conditions', row.get('number') or 'SC-%02d'%number, row.get('heading'), 'Data Capture heading; not verified against an uploaded SC PDF')
+    for row in legacy_entries(items):
+        add('special_conditions', row['source'], row.get('label', ''), 'Legacy Data Capture heading; not verified against PDF')
+    for role in ('Lessor', 'Lessee'):
+        for label in ('Signing place', 'Signing date', 'Printed name', 'Signature', 'Capacity', 'Witness 1', 'Witness 2'):
+            add('signature', role+' — '+label, label, 'Signature template field')
+    return result
 
 
-def retrieve_pdf(prop,draft,index):
-    from . import lease_r2 as r2
-    parts=[]
-    for number,record in enumerate(index['pdf_parts']):
-        expected='private/leases/property-'+str(prop['id'])+'/draft-'+str(draft['id'])+'/clause-index/'+index['source_sha256']+'-'+str(number)+'.pdfpart'
-        if record['key']!=expected:raise ValueError('Invalid derived PDF cache scope')
-        payload=r2.read_file_from_r2(expected)
-        if len(payload)!=record['size'] or sha256(payload).hexdigest()!=record['sha256']:raise ValueError('Derived Full Lease cache integrity failure')
-        parts.append(payload)
-    payload=b''.join(parts)
-    if sha256(payload).hexdigest()!=index['source_sha256']:raise ValueError('Full Lease PDF digest mismatch')
-    return payload
-
-
-def load(prop, draft, extractor, *, with_pdf=False, prepared=None, actor_id=None):
-    from .lease_kit_pdf import build_pdf
+def load(prop, draft, extractor=None, *, with_pdf=False, prepared=None, actor_id=None):
+    """Cheap synchronous metadata build; one persisted index per input version."""
     from werkzeug.exceptions import HTTPException
-    stage='loading saved lease inputs'
     try:
-        context, version = prepared or inputs(prop, draft)
-        actor_id = actor_id if actor_id is not None else current_user.id
-        cache_key = (str(actor_id), str(prop['id']), str(draft['id']), version)
+        core, version = inputs(prop, draft)
         saved = draft['items'].get('_lease_history', {}).get('full_lease_clause_index', {})
-        if saved.get('input_version') == version and saved.get('schema') == SCHEMA:
-            if not with_pdf:
-                return saved, None
-            payload = cached_pdf(cache_key)
-            if payload is None and saved.get('pdf_parts'):
-                stage='retrieving the private cached PDF';payload=retrieve_pdf(prop,draft,saved);cached_pdf(cache_key,payload)
-            if payload is not None:
-                return saved, payload
-        # All workers share this lock/cache, and no source or version is overwritten.
-        row = db.session.execute(text("""SELECT items,version FROM bil_lease_draft
-            WHERE id=:d AND property_id=:p AND manager_id=:u FOR UPDATE"""),
-            {'d': draft['id'], 'p': prop['id'], 'u': actor_id}).mappings().first()
-        if row is None:
-            abort(404)
-        if row['version'] != draft['version']:
-            abort(409, description='The lease changed while loading its Clause Index. Reopen Select Clause.')
-        saved = row['items'].get('_lease_history', {}).get('full_lease_clause_index', {})
-        valid = saved.get('input_version') == version and saved.get('schema') == SCHEMA
-        payload = cached_pdf(cache_key)
-        if not valid or (with_pdf and payload is None):
-            db.session.commit() # Never hold a draft row lock during rendering/network I/O.
-            stage='assembling the Full Lease PDF';payload = build_pdf('lease', context)
-            digest = sha256(payload).hexdigest()
-            changed = saved.get('source_sha256') != digest or saved.get('schema') != SCHEMA
-            if changed:
-                stage='extracting PDF clause text';units, notices = extractor(payload,core_pages=context.get('lease_draft',{}).get('items',{}).get('_core_master',{}).get('pages',9),section_pages=context.get('_full_lease_sections'))
-                units = [unit for unit in units if unit['source'] != 'full_lease']
-                for unit in units:
-                    unit['source_version'] = digest
-                    # A title/identifying line must come from the PDF, never a template guess.
-                    lines = [line.strip() for line in unit['original'].splitlines() if line.strip()]
-                    unit['title'] = ' — '.join(lines[:2]) if lines and lines[0] == unit['reference'] else (lines[0] if lines else '')
-                saved = dict(schema=SCHEMA, input_version=version, source_sha256=digest,
-                    entries=units, notices=notices,section_pages=context.get('_full_lease_sections'), built_at=datetime.now(timezone.utc).isoformat())
-            if not valid or changed or not saved.get('pdf_parts'):
-                stage='saving the private PDF cache'
-                saved = dict(saved, input_version=version,pdf_parts=store_pdf(prop,draft,payload,digest))
-                stage='saving the PostgreSQL Clause Index'
-                updated=db.session.execute(text("""UPDATE bil_lease_draft SET items=jsonb_set(items,
-                    '{_lease_history}', COALESCE(items->'_lease_history','{}'::jsonb) ||
-                    jsonb_build_object('full_lease_clause_index',CAST(:index AS jsonb)))
-                    WHERE id=:d AND property_id=:p AND manager_id=:u AND version=:v"""),
-                    {'index': json.dumps(saved), 'd': draft['id'], 'p': prop['id'],
-                     'u': actor_id, 'v': draft['version']})
-                if updated.rowcount!=1:abort(409,description='The lease changed during indexing. Retry using the current lease.')
-            cached_pdf(cache_key, payload)
+        if saved.get('schema') == SCHEMA and saved.get('input_version') == version:
+            return saved, None
+        notices = ['Heading references only; no original contractual wording is stored in this index.']
+        if draft['items'].get('_sc_pdf_current'):
+            notices.append('SC headings come from Data Capture and are not verified against the current uploaded PDF. Correct headings in Special Conditions if necessary.')
+        saved = dict(schema=SCHEMA, input_version=version, source_sha256=version,
+            source_version=version, entries=entries(draft['items'], core), notices=notices,
+            built_at=datetime.now(timezone.utc).isoformat())
+        for entry in saved['entries']:entry['source_version']=version
+        changed = db.session.execute(text("""UPDATE bil_lease_draft SET items=jsonb_set(items,
+            '{_lease_history}', COALESCE(items->'_lease_history','{}'::jsonb) ||
+            jsonb_build_object('full_lease_clause_index',CAST(:index AS jsonb)))
+            WHERE id=:d AND property_id=:p AND manager_id=:u AND version=:v"""),
+            dict(index=json.dumps(saved),d=draft['id'],p=prop['id'],
+                u=actor_id if actor_id is not None else current_user.id,v=draft['version']))
+        if changed.rowcount != 1:
+            abort(409,description='The lease changed. Retry Index using the current draft.')
         db.session.commit()
-        return saved, payload if with_pdf else None
+        draft['items'].setdefault('_lease_history',{})['full_lease_clause_index']=saved
+        return saved, None
     except HTTPException:
         db.session.rollback()
         raise
-    except Exception as error:
+    except Exception:
         db.session.rollback()
-        current_app.logger.exception('Addendum Clause Index failed draft=%s error=%s',draft['id'],type(error).__name__)
-        abort(503, description='The Full Lease Clause Index could not be generated while '+stage+' ('+type(error).__name__+'). No older SC records or invented entries have been substituted. Use Retry Index; the service log contains the backend exception.')
+        current_app.logger.exception('Clause Heading Index unavailable property=%s draft=%s',prop['id'],draft['id'])
+        abort(503,description='The Clause Heading Index is unavailable. Check Core Master headings and Data Capture references, then use Retry Index. No PDF extraction or substitute wording was used.')
+
+
+def assembled(context):
+    """Persist heading metadata on Full Lease output without blocking document access."""
+    if not context.get('lease_draft'):return
+    try:load(context['property'],context['lease_draft'])
+    except Exception:
+        db.session.rollback()
+        current_app.logger.exception('Full Lease assembled; its heading index is unavailable. Manual Retry Index remains available.')

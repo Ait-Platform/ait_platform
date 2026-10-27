@@ -240,6 +240,9 @@ def kit_pdf(property_id):
         abort(409,description=context['states'][component].get('reason','Document unavailable.'))
     try:
         payload=build_pdf(component,context)
+        if component=='lease':
+            from .lease_clause_index import assembled
+            assembled(context)
     except Exception as error:
         current_app.logger.warning('Lease Kit review PDF failed component=%s error=%s',component,type(error).__name__)
         abort(503,description='The review PDF could not be generated. No lease data or issuance status was changed.')
@@ -287,7 +290,11 @@ def kit_email(property_id):
     except EmailNotValidError:abort(400,description='Enter a valid recipient email address.')
     message=request.form.get('message','').strip()
     if len(message)>5000:abort(400,description='Keep the message within 5000 characters.')
-    try:payload=build_pdf(component,context)
+    try:
+        payload=build_pdf(component,context)
+        if component=='lease':
+            from .lease_clause_index import assembled
+            assembled(context)
     except Exception as error:
         current_app.logger.warning('Lease Kit email PDF failed error=%s',type(error).__name__)
         abort(503,description='The review PDF could not be generated. No email was sent.')

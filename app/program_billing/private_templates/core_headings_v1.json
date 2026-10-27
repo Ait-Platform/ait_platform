@@ -1,0 +1,462 @@
+{
+  "core_version": 1,
+  "core_sha256": "3442a3a250ddd7fde1fabd6040409b338d0bbd302b6014a84073c3c0a196441c",
+  "entries": [
+    {
+      "reference": "1",
+      "title": "Agreement components and interpretation"
+    },
+    {
+      "reference": "1.1",
+      "title": "Agreement components and interpretation"
+    },
+    {
+      "reference": "1.2",
+      "title": "Agreement components and interpretation"
+    },
+    {
+      "reference": "1.3",
+      "title": "Agreement components and interpretation"
+    },
+    {
+      "reference": "1.4",
+      "title": "Agreement components and interpretation"
+    },
+    {
+      "reference": "1.5",
+      "title": "Agreement components and interpretation"
+    },
+    {
+      "reference": "1.6",
+      "title": "Agreement components and interpretation"
+    },
+    {
+      "reference": "2",
+      "title": "Grant and identification of premises"
+    },
+    {
+      "reference": "2.1",
+      "title": "Grant and identification of premises"
+    },
+    {
+      "reference": "2.2",
+      "title": "Grant and identification of premises"
+    },
+    {
+      "reference": "2.3",
+      "title": "Grant and identification of premises"
+    },
+    {
+      "reference": "2.4",
+      "title": "Grant and identification of premises"
+    },
+    {
+      "reference": "3",
+      "title": "Commencement term occupation and renewal"
+    },
+    {
+      "reference": "3.1",
+      "title": "Commencement term occupation and renewal"
+    },
+    {
+      "reference": "3.2",
+      "title": "Commencement term occupation and renewal"
+    },
+    {
+      "reference": "3.3",
+      "title": "Commencement term occupation and renewal"
+    },
+    {
+      "reference": "3.4",
+      "title": "Commencement term occupation and renewal"
+    },
+    {
+      "reference": "3.5",
+      "title": "Commencement term occupation and renewal"
+    },
+    {
+      "reference": "4",
+      "title": "Permitted use occupation and property rules"
+    },
+    {
+      "reference": "4.1",
+      "title": "Permitted use occupation and property rules"
+    },
+    {
+      "reference": "4.2",
+      "title": "Permitted use occupation and property rules"
+    },
+    {
+      "reference": "4.3",
+      "title": "Permitted use occupation and property rules"
+    },
+    {
+      "reference": "4.4",
+      "title": "Permitted use occupation and property rules"
+    },
+    {
+      "reference": "5",
+      "title": "Rental payment tax and interest"
+    },
+    {
+      "reference": "5.1",
+      "title": "Rental payment tax and interest"
+    },
+    {
+      "reference": "5.2",
+      "title": "Rental payment tax and interest"
+    },
+    {
+      "reference": "5.3",
+      "title": "Rental payment tax and interest"
+    },
+    {
+      "reference": "5.4",
+      "title": "Rental payment tax and interest"
+    },
+    {
+      "reference": "5.5",
+      "title": "Rental payment tax and interest"
+    },
+    {
+      "reference": "5.6",
+      "title": "Rental payment tax and interest"
+    },
+    {
+      "reference": "6",
+      "title": "Deposit and other approved security"
+    },
+    {
+      "reference": "6.1",
+      "title": "Deposit and other approved security"
+    },
+    {
+      "reference": "6.2",
+      "title": "Deposit and other approved security"
+    },
+    {
+      "reference": "6.3",
+      "title": "Deposit and other approved security"
+    },
+    {
+      "reference": "6.4",
+      "title": "Deposit and other approved security"
+    },
+    {
+      "reference": "6.5",
+      "title": "Deposit and other approved security"
+    },
+    {
+      "reference": "6.6",
+      "title": "Deposit and other approved security"
+    },
+    {
+      "reference": "7",
+      "title": "Utilities rates and other recoverable charges"
+    },
+    {
+      "reference": "7.1",
+      "title": "Utilities rates and other recoverable charges"
+    },
+    {
+      "reference": "7.2",
+      "title": "Utilities rates and other recoverable charges"
+    },
+    {
+      "reference": "7.3",
+      "title": "Utilities rates and other recoverable charges"
+    },
+    {
+      "reference": "7.4",
+      "title": "Utilities rates and other recoverable charges"
+    },
+    {
+      "reference": "8",
+      "title": "Condition defects care and repair"
+    },
+    {
+      "reference": "8.1",
+      "title": "Condition defects care and repair"
+    },
+    {
+      "reference": "8.2",
+      "title": "Condition defects care and repair"
+    },
+    {
+      "reference": "8.3",
+      "title": "Condition defects care and repair"
+    },
+    {
+      "reference": "8.4",
+      "title": "Condition defects care and repair"
+    },
+    {
+      "reference": "8.5",
+      "title": "Condition defects care and repair"
+    },
+    {
+      "reference": "9",
+      "title": "Lessor maintenance access and viewings"
+    },
+    {
+      "reference": "9.1",
+      "title": "Lessor maintenance access and viewings"
+    },
+    {
+      "reference": "9.2",
+      "title": "Lessor maintenance access and viewings"
+    },
+    {
+      "reference": "9.3",
+      "title": "Lessor maintenance access and viewings"
+    },
+    {
+      "reference": "9.4",
+      "title": "Lessor maintenance access and viewings"
+    },
+    {
+      "reference": "10",
+      "title": "Fixtures alterations signs and equipment"
+    },
+    {
+      "reference": "10.1",
+      "title": "Fixtures alterations signs and equipment"
+    },
+    {
+      "reference": "10.2",
+      "title": "Fixtures alterations signs and equipment"
+    },
+    {
+      "reference": "10.3",
+      "title": "Fixtures alterations signs and equipment"
+    },
+    {
+      "reference": "10.4",
+      "title": "Fixtures alterations signs and equipment"
+    },
+    {
+      "reference": "10.5",
+      "title": "Fixtures alterations signs and equipment"
+    },
+    {
+      "reference": "11",
+      "title": "Insurance fire safety and vacancy"
+    },
+    {
+      "reference": "11.1",
+      "title": "Insurance fire safety and vacancy"
+    },
+    {
+      "reference": "11.2",
+      "title": "Insurance fire safety and vacancy"
+    },
+    {
+      "reference": "11.3",
+      "title": "Insurance fire safety and vacancy"
+    },
+    {
+      "reference": "11.4",
+      "title": "Insurance fire safety and vacancy"
+    },
+    {
+      "reference": "12",
+      "title": "Liability indemnities and exclusions"
+    },
+    {
+      "reference": "12.1",
+      "title": "Liability indemnities and exclusions"
+    },
+    {
+      "reference": "12.2",
+      "title": "Liability indemnities and exclusions"
+    },
+    {
+      "reference": "12.3",
+      "title": "Liability indemnities and exclusions"
+    },
+    {
+      "reference": "12.4",
+      "title": "Liability indemnities and exclusions"
+    },
+    {
+      "reference": "13",
+      "title": "Damage destruction and loss of occupation"
+    },
+    {
+      "reference": "13.1",
+      "title": "Damage destruction and loss of occupation"
+    },
+    {
+      "reference": "13.2",
+      "title": "Damage destruction and loss of occupation"
+    },
+    {
+      "reference": "13.3",
+      "title": "Damage destruction and loss of occupation"
+    },
+    {
+      "reference": "13.4",
+      "title": "Damage destruction and loss of occupation"
+    },
+    {
+      "reference": "14",
+      "title": "Transfer cession and permitted dealings"
+    },
+    {
+      "reference": "14.1",
+      "title": "Transfer cession and permitted dealings"
+    },
+    {
+      "reference": "14.2",
+      "title": "Transfer cession and permitted dealings"
+    },
+    {
+      "reference": "14.3",
+      "title": "Transfer cession and permitted dealings"
+    },
+    {
+      "reference": "14.4",
+      "title": "Transfer cession and permitted dealings"
+    },
+    {
+      "reference": "15",
+      "title": "Breach cancellation holding over and recovery"
+    },
+    {
+      "reference": "15.1",
+      "title": "Breach cancellation holding over and recovery"
+    },
+    {
+      "reference": "15.2",
+      "title": "Breach cancellation holding over and recovery"
+    },
+    {
+      "reference": "15.3",
+      "title": "Breach cancellation holding over and recovery"
+    },
+    {
+      "reference": "15.4",
+      "title": "Breach cancellation holding over and recovery"
+    },
+    {
+      "reference": "15.5",
+      "title": "Breach cancellation holding over and recovery"
+    },
+    {
+      "reference": "15.6",
+      "title": "Breach cancellation holding over and recovery"
+    },
+    {
+      "reference": "16",
+      "title": "Expiry handover and final accounting"
+    },
+    {
+      "reference": "16.1",
+      "title": "Expiry handover and final accounting"
+    },
+    {
+      "reference": "16.2",
+      "title": "Expiry handover and final accounting"
+    },
+    {
+      "reference": "16.3",
+      "title": "Expiry handover and final accounting"
+    },
+    {
+      "reference": "16.4",
+      "title": "Expiry handover and final accounting"
+    },
+    {
+      "reference": "16.5",
+      "title": "Expiry handover and final accounting"
+    },
+    {
+      "reference": "17",
+      "title": "Contracting authority and multiple Lessees"
+    },
+    {
+      "reference": "17.1",
+      "title": "Contracting authority and multiple Lessees"
+    },
+    {
+      "reference": "17.2",
+      "title": "Contracting authority and multiple Lessees"
+    },
+    {
+      "reference": "17.3",
+      "title": "Contracting authority and multiple Lessees"
+    },
+    {
+      "reference": "17.4",
+      "title": "Contracting authority and multiple Lessees"
+    },
+    {
+      "reference": "18",
+      "title": "Expert determination and disputes"
+    },
+    {
+      "reference": "18.1",
+      "title": "Expert determination and disputes"
+    },
+    {
+      "reference": "18.2",
+      "title": "Expert determination and disputes"
+    },
+    {
+      "reference": "18.3",
+      "title": "Expert determination and disputes"
+    },
+    {
+      "reference": "18.4",
+      "title": "Expert determination and disputes"
+    },
+    {
+      "reference": "19",
+      "title": "Notices and service"
+    },
+    {
+      "reference": "19.1",
+      "title": "Notices and service"
+    },
+    {
+      "reference": "19.2",
+      "title": "Notices and service"
+    },
+    {
+      "reference": "19.3",
+      "title": "Notices and service"
+    },
+    {
+      "reference": "19.4",
+      "title": "Notices and service"
+    },
+    {
+      "reference": "19.5",
+      "title": "Notices and service"
+    },
+    {
+      "reference": "20",
+      "title": "General terms costs and effectiveness"
+    },
+    {
+      "reference": "20.1",
+      "title": "General terms costs and effectiveness"
+    },
+    {
+      "reference": "20.2",
+      "title": "General terms costs and effectiveness"
+    },
+    {
+      "reference": "20.3",
+      "title": "General terms costs and effectiveness"
+    },
+    {
+      "reference": "20.4",
+      "title": "General terms costs and effectiveness"
+    },
+    {
+      "reference": "20.5",
+      "title": "General terms costs and effectiveness"
+    }
+  ]
+}

@@ -60,7 +60,9 @@ def update(items,posted,owners=(),tenants=()):
                     if not re.fullmatch(r'\d{4}-\d{2}-\d{2}',value):raise ValueError()
                     date.fromisoformat(value)
                 except ValueError:raise ValueError('Signing dates must use YYYY-MM-DD.') from None
-            if field=='place':value=human(value)
+            if field=='place':
+                value=human(value)
+                if re.search(r'\b(?:change financial particulars|financial particulars to financial)\b',value,re.I):raise ValueError('Enter only the actual signing place, without heading instructions.')
             entry[field]=value
         saved[key]=entry
     result[KEY]=saved
@@ -89,7 +91,33 @@ def check_baseline(token,items,property_id,draft_id,owners=(),tenants=(),confirm
         and data.get('signing')==projection(items,owners,tenants) and (not data.get('confirm') or confirmed))
 
 
-def signature_sections(parties):
-    """Retain each actual party; provide signing spaces for an unfilled role."""
-    return [party for role in ('Lessor','Lessee') for party in
-        ([row for row in parties if row['role']==role] or [dict(role=role,name='',identity_number='',representatives=[],printed_name='',statement=signing_statement())])]
+def signature_sections(parties,lessor=None):
+    """One mandated Lessor section, without requiring every registered owner to sign."""
+    from .lease_certificate_parties import representative,has_representative
+    owners=[row for row in parties if row['role']=='Lessor']
+    mandate=representative(lessor or {})
+    representatives=[mandate] if has_representative(mandate) else []
+    if not representatives:
+        for owner in owners:
+            for rep in owner.get('representatives',[]):
+                if rep not in representatives:representatives.append(rep)
+    matching=[row for row in owners if str(row.get('register_id'))==str((lessor or {}).get('owner_id'))] if (lessor or {}).get('owner_id') is not None else []
+    dated=[row for row in owners if row.get('place') or row.get('date')]
+    dates={(row.get('place',''),row.get('date','')) for row in dated}
+    saved=matching[0] if len(matching)==1 else dated[0] if len(dates)==1 else {}
+    lessor_section=dict(role='Lessor',name='; '.join(row.get('name','') for row in owners),identity_number='',
+        representatives=representatives,statement=signing_statement(saved.get('place',''),saved.get('date','')),
+        printed_name=', '.join(rep['name'] for rep in representatives if rep.get('name')),
+        capacity=', '.join(dict.fromkeys(rep['capacity'] for rep in representatives if rep.get('capacity'))),
+        heading='FOR AND ON BEHALF OF THE LESSOR',signer_label='Authorised Representative')
+    lessees=[deepcopy(row) for row in parties if row['role']=='Lessee']
+    first=lessees[0] if lessees else {}
+    lessee_section=dict(role='Lessee',name='',identity_number='',representatives=[],
+        statement=signing_statement(first.get('place',''),first.get('date','')),
+        heading='LESSEE / AUTHORISED REPRESENTATIVE',signer_label='Lessee or Authorised Representative',signers=[])
+    for row in lessees or [dict(name='',printed_name='',representatives=[])]:
+        signer=dict(row,capacity=', '.join(dict.fromkeys(rep['capacity'] for rep in row.get('representatives',[]) if rep.get('capacity'))))
+        signer['additional_particulars']=signing_statement(row.get('place',''),row.get('date','')).removeprefix('SIGNED at ') if (row.get('place'),row.get('date'))!=(first.get('place'),first.get('date')) else ''
+        lessee_section['signers'].append(signer)
+    lessor_section['signers']=[dict(printed_name=lessor_section['printed_name'],capacity=lessor_section['capacity'])]
+    return [lessor_section,lessee_section]

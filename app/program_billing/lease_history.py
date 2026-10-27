@@ -389,7 +389,7 @@ def full_lease_selection_state(draft):
     key,label,_=full_lease_identity(draft)
     saved=deepcopy(draft['items'].get('_lease_history',{}).get('full_lease_selections',{}).get(key,{}))
     selected=saved.get('selected',[])
-    for entry in selected:entry['source_status']='Selected from Full Lease PDF'
+    for entry in selected:entry['source_status']='Saved clause reference'
     return dict(lease_key=key,lease_label=label,selected=selected,version=draft['version'],catalog=[],relationships=[],notices=[],pdf_id=None,selection_mode='full_pdf')
 
 
@@ -402,12 +402,11 @@ def full_lease_index(prop,draft,with_pdf=False,existing_only=False):
 
 
 def full_lease_source(prop,draft):
-    from .lease_clause_index import retrieve_pdf,cached_pdf
-    index,_=full_lease_index(prop,draft,existing_only=True)
-    key=(str(current_user.id),str(prop['id']),str(draft['id']),index['input_version'])
-    payload=cached_pdf(key)
-    if payload is None:payload=retrieve_pdf(prop,draft,index);cached_pdf(key,payload)
-    return payload,index['source_sha256']
+    # Explicit PDF reference request only; clause selection never calls this.
+    from .lease_kit import preview_context
+    from .lease_kit_pdf import build_pdf
+    payload=build_pdf('lease',preview_context(prop['id']))
+    return payload,sha256(payload).hexdigest()
 
 
 def full_lease_provisions(payload,core_pages=9,section_pages=None):
@@ -493,10 +492,11 @@ def full_lease_select(prop,draft):
     checked=request.form.get('selected');identifier=request.form.get('provision_id','')
     if checked=='yes':
         digest=index['source_sha256']
-        if request.form.get('source_sha256')!=digest:abort(409,description='The Full Lease PDF changed. Search its current text again before selecting.')
+        if request.form.get('source_sha256')!=digest:abort(409,description='The lease headings changed. Reopen Select Clause before selecting.')
         entry=next((unit for unit in index['entries'] if unit['id']==identifier),None)
         if entry is None:abort(404)
-        entry=deepcopy(entry);entry['pdf_sha256']=digest;entry['location_page']=entry['page'];entry['id']=digest+':'+identifier
+        entry=deepcopy(entry);entry['pdf_sha256']=digest;entry['location_page']=entry.get('page');entry['id']=digest+':'+identifier
+        selected={identifier:saved_entry for identifier,saved_entry in selected.items() if (saved_entry['source'],saved_entry['reference'])!=(entry['source'],entry['reference'])}
         selected[entry['id']]=entry
     elif checked=='no':selected.pop(identifier,None)
     else:abort(400)
@@ -532,8 +532,9 @@ def addendum_content(prop,draft):
         from werkzeug.exceptions import HTTPException
         try:index,_=full_lease_index(prop,draft,existing_only=True)
         except HTTPException as error:raise ValueError(error.description) from None
-        digest=index['source_sha256']
-        if any(entry.get('pdf_sha256')!=digest for entry in state['selected']):raise ValueError('The Full Lease changed since selection. Return to Select Clause and select its current provisions; your entered amendment is retained.')
+        available={(entry['source'],entry['reference']):entry for entry in index['entries']}
+        if any((entry['source'],entry['reference']) not in available for entry in state['selected']):raise ValueError('A selected reference is no longer available. Return to Select Clause; your entered amendment is retained.')
+        state['selected']=[deepcopy(available[(entry['source'],entry['reference'])]) for entry in state['selected']]
     for entry in state['selected']:entry['source_status']='Current source'
     subject=addendum_subject(state['selected']);wording=request.form.get('wording','')
     if not wording.strip() or len(wording)>30000 or '\x00' in wording:raise ValueError('Enter amendment content (maximum 30000 characters).')
@@ -556,13 +557,17 @@ def addendum_pdf(prop,reference,wording,number,subject='',provisions=(),items=No
     story.append(Paragraph('Amendment Content',styles['Heading2']))
     for line in wording.splitlines():story.append(Paragraph(escape(line) or '&#160;',styles['BodyText']))
     story.extend([Spacer(1,16),Paragraph(escape(addendum_precedence()),styles['BodyText']),PageBreak(),Paragraph('SIGNATURES',styles['Title']),Paragraph('Addendum '+str(number).zfill(2)+' to '+escape(reference),styles['BodyText'])])
-    parties=signature_sections(rows(items or {}))
+    parties=signature_sections(rows(items or {}),(items or {}).get('_parties',{}).get('lessor',{}))
     for party in parties:
-        section=[Spacer(1,14),Paragraph(escape(party['statement']),styles['Heading3']),Paragraph(escape(party['role'].upper()),styles['Heading2'])]
-        if party.get('name') or party.get('identity_number'):section.append(Paragraph(escape(party.get('name','')+' | '+party.get('identity_number','')),styles['BodyText']))
+        section=[Spacer(1,14),Paragraph(escape(party['statement']),styles['Heading3']),Paragraph(escape(party['role'].upper()),styles['Heading2']),Paragraph(escape(party['heading']),styles['Heading3'])]
+        if party.get('name') or party.get('identity_number'):section.append(Paragraph(escape(' | '.join(value for value in (party.get('name',''),party.get('identity_number','')) if value)),styles['BodyText']))
         for representative in party.get('representatives',[]):
             if representative.get('name'):section.append(Paragraph('Authorised representative: '+escape(representative['name']),styles['BodyText']))
-        section.extend([Paragraph(escape(party['role'])+' signature: __________________________________',styles['BodyText']),Paragraph('Printed name: '+escape(party.get('printed_name') or party.get('name') or '__________________________________'),styles['BodyText'])])
+        for signer in party['signers']:
+            if signer.get('name'):section.append(Paragraph(escape(' | '.join(value for value in (signer.get('name',''),signer.get('identity_number','')) if value)),styles['BodyText']))
+            if signer.get('additional_particulars'):section.append(Paragraph('Signing particulars: '+escape(signer['additional_particulars']),styles['BodyText']))
+            section.extend([Paragraph(escape(party['signer_label'])+' - printed name: '+escape(signer.get('printed_name') or '__________________________________'),styles['BodyText']),Paragraph('Signature: __________________________________',styles['BodyText'])])
+            if party['role']=='Lessor' or signer.get('capacity'):section.append(Paragraph('Capacity: '+escape(signer.get('capacity') or '__________________________________'),styles['BodyText']))
         for number in (1,2):section.extend([Spacer(1,8),Paragraph('Witness '+str(number)+' - name: __________________________________',styles['BodyText']),Paragraph('Witness '+str(number)+' - signature: _________________________________',styles['BodyText'])])
         story.append(KeepTogether(section))
     SimpleDocTemplate(output,rightMargin=48,leftMargin=48,topMargin=48,bottomMargin=48).build(story)
@@ -587,14 +592,12 @@ def addendum_history(draft,property_id):
 def addendum(property_id):
     prop,draft=context(property_id,request.method=='POST');errors=[]
     if (request.method=='GET' and request.args.get('action')=='clause_index') or (request.method=='POST' and request.form.get('action')=='retry_clause_index'):
-        from .lease_clause_jobs import response
         from flask import jsonify
         from werkzeug.exceptions import HTTPException
-        try:return response(prop,draft,full_lease_provisions,full_lease_selection_state(draft),retry=request.method=='POST')
+        try:
+            index,_=full_lease_index(prop,draft)
+            return jsonify(status='ready',results=index['entries'],notices=index['notices'],source_sha256=index['source_sha256'],state=full_lease_selection_state(draft))
         except HTTPException as error:return jsonify(error=error.description,retryable=True),error.code
-        except Exception:
-            db.session.rollback();current_app.logger.exception('Clause Index request failed property=%s draft=%s',prop['id'],draft['id'])
-            return jsonify(error='The Clause Index service could not load. Check the service log and use Retry Index.',retryable=True),503
     if request.method=='GET' and request.args.get('action')=='search_lease':
         from flask import jsonify
         from werkzeug.exceptions import HTTPException
@@ -605,7 +608,11 @@ def addendum(property_id):
         response=send_file(BytesIO(payload),mimetype='application/pdf',as_attachment=False,download_name='Full-Lease.pdf',max_age=0)
         response.headers['Cache-Control']='private, no-store';response.headers['X-Content-Type-Options']='nosniff';return response
     if request.method=='GET' and request.args.get('workspace')=='selection':
-        return render_pm_template('program_billing/lease_addendum_select_pdf.html',title='Select Clause',property=prop,lease_draft=draft,clause_register=full_lease_selection_state(draft),unavailable=None)
+        from werkzeug.exceptions import HTTPException
+        heading_index=None;index_error=None
+        try:heading_index,_=full_lease_index(prop,draft)
+        except HTTPException as error:index_error=error.description
+        return render_pm_template('program_billing/lease_addendum_select_pdf.html',title='Select Clause',property=prop,lease_draft=draft,clause_register=full_lease_selection_state(draft),heading_index=heading_index,index_error=index_error,unavailable=None)
     if request.method=='POST' and request.form.get('action')=='select_lease_pdf':
         from flask import jsonify
         from werkzeug.exceptions import HTTPException

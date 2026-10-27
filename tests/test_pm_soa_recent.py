@@ -1,5 +1,5 @@
 """PM-only lease associations and property/agent isolation; local PostgreSQL only."""
-import copy,json,types,unittest
+import copy,json,types,unittest,uuid
 from functools import wraps
 from unittest.mock import patch
 from sqlalchemy import text,Column,Integer,String,Boolean
@@ -11,10 +11,13 @@ import test_pm_lease_lessee_persistence as fixture
 class RecentSOATests(unittest.TestCase):
     def setUp(self):
         fixture.LesseePersistenceTests.setUp(self)
-        self.session.execute(text('CREATE TEMP TABLE bil_lease(id integer PRIMARY KEY,tenant_id integer,property_id integer)'))
+        self.session.execute(text('CREATE TEMP TABLE bil_lease(id integer PRIMARY KEY,tenant_id integer,sectional_unit_id integer)'))
+        self.session.execute(text('CREATE TEMP TABLE bil_sectional_unit(id integer PRIMARY KEY,property_id integer)'))
+        self.session.execute(text('INSERT INTO bil_sectional_unit VALUES(26,26),(27,27),(28,28)'))
         self.session.execute(text("CREATE TEMP TABLE debtor(id integer PRIMARY KEY,name text); INSERT INTO debtor VALUES (1,'ProShop sentinel')"))
         self.session.execute(text("INSERT INTO bil_property VALUES (27,'Agent managed second property','Other address',7,false),(28,'Unrelated property','Private address',8,false)"))
         self.session.execute(text("UPDATE bil_tenant SET property_id=NULL WHERE id=11"))
+        self.session.execute(text("UPDATE bil_tenant SET property_id=27 WHERE id=22"))
         self.session.execute(text("INSERT INTO bil_lease VALUES(1,22,27)"))
         self.session.execute(text("INSERT INTO bil_tenant(id,manager_id,property_id,party_type,name,identity_number) VALUES (33,8,28,'natural_person','Private Tenant','PRIVATE'),(44,7,26,'natural_person','Unselected Register Tenant','UNSELECTED')"))
         self.session.execute(text("INSERT INTO bil_lease VALUES(2,33,28)"))
@@ -46,7 +49,7 @@ class RecentSOATests(unittest.TestCase):
         tree=html.fromstring(initial.data);self.assertEqual(tree.xpath('//*[@id="soa-property"]/option/@value'),['','27','26']);self.assertFalse(self.rows(initial))
         self.assertEqual(len(tree.xpath('//script[contains(@src,"pm_soa_property.js")]')),1)
         response=self.client.get(self.url+'?property_id=26',headers=self.headers);self.assertEqual(response.status_code,200,response.text)
-        self.assertEqual(len(self.rows(response)),1);self.assertIn('Natural Lessee',response.text);self.assertNotIn('Unselected Register Tenant',response.text)
+        self.assertEqual(len(self.rows(response)),2);self.assertIn('Natural Lessee',response.text);self.assertIn('Unselected Register Tenant',response.text)
         for forbidden in ('Job Card','creditors','materials','View Ledger','ProShop sentinel','Balance Owed'):
             self.assertNotIn(forbidden,response.text)
         self.assertIn('View Lease',response.text);self.assertIn('draft_id='+str(self.identifier),response.text)
@@ -57,7 +60,8 @@ class RecentSOATests(unittest.TestCase):
         self.assertEqual(self.client.get(self.url+'?property_id=28',headers=self.headers).status_code,404)
         self.assertEqual(self.client.get(self.url).status_code,403)
         items=copy.deepcopy(self.initial);items['_parties']['lessees']=[]
-        self.session.execute(text('UPDATE bil_lease_draft SET items=CAST(:items AS jsonb)'),dict(items=json.dumps(items)));self.session.commit()
+        self.session.execute(text('UPDATE bil_lease_draft SET items=CAST(:items AS jsonb)'),dict(items=json.dumps(items)))
+        self.session.execute(text('UPDATE bil_tenant SET property_id=NULL WHERE id=44'));self.session.commit()
         empty=self.client.get(self.url+'?property_id=26',headers=self.headers);self.assertIn('No lease tenants found for this property.',empty.text)
         self.user.id=8
         page=self.client.get(self.url,headers=self.headers);self.assertEqual(html.fromstring(page.data).xpath('//*[@id="soa-property"]/option/@value'),['','28'])
@@ -76,18 +80,15 @@ class RecentSOATests(unittest.TestCase):
         self.assertTrue(all(sql.lstrip().startswith('select') for sql in statements))
 
     def test_legacy_unit_relationship_without_lease_property_column_returns_200(self):
-        self.session.execute(text('ALTER TABLE bil_lease RENAME COLUMN property_id TO sectional_unit_id'))
-        self.session.execute(text('CREATE TEMP TABLE bil_sectional_unit(id integer PRIMARY KEY,property_id integer)'))
-        self.session.execute(text('INSERT INTO bil_sectional_unit VALUES(27,27),(28,28),(26,26)'))
         self.session.execute(text('INSERT INTO bil_lease VALUES(3,11,26)'));self.session.commit()
         from sqlalchemy import inspect
         self.assertNotIn('property_id',{c['name'] for c in inspect(self.conn).get_columns('bil_lease')})
         response=self.client.get(self.url+'?property_id=26',headers=self.headers)
-        self.assertEqual(response.status_code,200,response.text);self.assertEqual(len(self.rows(response)),1);self.assertIn('Natural Lessee',response.text)
+        self.assertEqual(response.status_code,200,response.text);self.assertEqual(len(self.rows(response)),2);self.assertIn('Natural Lessee',response.text)
         second=self.client.get(self.url+'?property_id=27',headers=self.headers);self.assertIn('Entity Lessee',second.text);self.assertNotIn('Natural Lessee',second.text)
         self.assertEqual(self.client.get(self.url+'?property_id=28',headers=self.headers).status_code,404)
     def test_legacy_tenant_relationship_without_lease_property_or_unit_column(self):
-        self.session.execute(text('ALTER TABLE bil_lease DROP COLUMN property_id'))
+        self.session.execute(text('ALTER TABLE bil_lease DROP COLUMN sectional_unit_id'))
         self.session.execute(text('UPDATE bil_tenant SET property_id=27 WHERE id=22'));self.session.commit()
         response=self.client.get(self.url+'?property_id=27',headers=self.headers)
         self.assertEqual(response.status_code,200,response.text);self.assertIn('Entity Lessee',response.text)
@@ -107,9 +108,39 @@ class RecentSOATests(unittest.TestCase):
             previous=self.user.id;self.user.id=property_row['manager_id']
             try:
                 with patch.object(lease_soa,'db',types.SimpleNamespace(session=types.SimpleNamespace(connection=lambda:connection,execute=connection.execute))):
-                    entries=lease_soa.tenants_for(property_row['id'])
+                    try:entries=lease_soa.tenants_for(property_row['id'])
+                    except __import__('werkzeug.exceptions',fromlist=['ServiceUnavailable']).ServiceUnavailable:
+                        self.assertNotIn('manager_id',{c['name'] for c in catalog.get_columns('bil_tenant',schema='public')});entries=[]
                 for entry in entries:
                     if 'property_id' in actual:
                         linked=connection.execute(text('SELECT 1 FROM public.bil_lease WHERE tenant_id=:t AND property_id=:p LIMIT 1'),dict(t=entry['id'],p=property_row['id'])).first()
                         self.assertIsNotNone(linked)
             finally:self.user.id=previous;connection.rollback()
+
+    def test_verified_almond_draft_only_tenant_12_all_drafts_and_registered_names(self):
+        self.user.id=644
+        self.session.execute(text("UPDATE bil_property SET manager_id=644,name='Almond' WHERE id=26"))
+        self.session.execute(text("INSERT INTO bil_tenant(id,manager_id,property_id,party_type,name,identity_number) VALUES(12,644,NULL,'natural_person','Marelise van der Merwe','TEST-12')"))
+        items={'_parties':{'lessees':[{'tenant_id':12,'legal_name':'Snapshot name is not the register name'}]}}
+        self.session.execute(text('UPDATE bil_lease_draft SET manager_id=644,version=61,items=CAST(:items AS jsonb),updated_at=now()-interval \'1 day\''),dict(items=json.dumps(items)))
+        newest=uuid.uuid4()
+        self.session.execute(text("INSERT INTO bil_lease_draft(id,property_id,manager_id,status,source_version,items,version,updated_at) VALUES(:id,26,644,'draft','test','{\"_parties\":{\"lessees\":[]}}',1,now())"),dict(id=newest));self.session.commit()
+        before=[dict(row) for row in self.session.execute(text('SELECT * FROM bil_tenant ORDER BY id')).mappings()]
+        response=self.client.get(self.url+'?property_id=26',headers=self.headers)
+        self.assertEqual(response.status_code,200,response.text);self.assertEqual(len(self.rows(response)),1);self.assertIn('Marelise van der Merwe',response.text)
+        self.assertNotIn('Snapshot name is not the register name',response.text);self.assertIn('draft_id='+str(self.identifier),response.text)
+        self.assertEqual(before,[dict(row) for row in self.session.execute(text('SELECT * FROM bil_tenant ORDER BY id')).mappings()])
+        self.assertIsNone(self.session.execute(text('SELECT property_id FROM bil_tenant WHERE id=12')).scalar())
+    def test_direct_and_duplicate_draft_associations_are_one_row_legacy_json_supported(self):
+        self.session.execute(text('UPDATE bil_tenant SET property_id=26 WHERE id=11'))
+        latest=uuid.uuid4();items={'_parties':{'lessee':{'tenant_id':11}}}
+        self.session.execute(text("INSERT INTO bil_lease_draft(id,property_id,manager_id,status,source_version,items,version,updated_at) VALUES(:id,26,7,'draft','test',CAST(:items AS jsonb),1,now()+interval '1 second')"),dict(id=latest,items=json.dumps(items)));self.session.commit()
+        response=self.client.get(self.url+'?property_id=26',headers=self.headers)
+        self.assertEqual(response.status_code,200);self.assertEqual(response.text.count('Natural Lessee'),1);self.assertIn('draft_id='+str(latest),response.text)
+        self.assertEqual(len(self.rows(response)),2) # Tenant 44 is a separate direct association.
+    def test_foreign_tenant_and_foreign_draft_manager_never_leak(self):
+        items={'_parties':{'lessees':[{'tenant_id':33},{'tenant_id':11},{'tenant_id':'invalid'}]}}
+        self.session.execute(text('UPDATE bil_lease_draft SET items=CAST(:items AS jsonb)'),dict(items=json.dumps(items)))
+        foreign=uuid.uuid4();self.session.execute(text("INSERT INTO bil_lease_draft(id,property_id,manager_id,status,source_version,items,version,updated_at) VALUES(:id,26,8,'draft','test',CAST(:items AS jsonb),1,now())"),dict(id=foreign,items=json.dumps({'_parties':{'lessees':[{'tenant_id':22}]}})));self.session.commit()
+        response=self.client.get(self.url+'?property_id=26',headers=self.headers)
+        self.assertEqual(response.status_code,200);self.assertNotIn('Private Tenant',response.text);self.assertNotIn('Entity Lessee',response.text);self.assertIn('Natural Lessee',response.text)

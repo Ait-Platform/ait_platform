@@ -3909,7 +3909,7 @@ def tenant_accounts():
 
 @billing_bp.get('/manager/tenant_accounts/<int:property_id>/tenant/<int:tenant_id>/ledger',endpoint='pm_soa_ledger')
 @login_required
-def pm_soa_ledger(property_id,tenant_id):
+def pm_soa_ledger(property_id,tenant_id,error=None,status=200):
     from .lease_soa import tenants_for
     from .lease_soa_ledger import transactions
     prop=db.session.query(BilProperty.id,BilProperty.name).filter(BilProperty.id==property_id,
@@ -3917,8 +3917,40 @@ def pm_soa_ledger(property_id,tenant_id):
     if prop is None:abort(404)
     tenant=next((row for row in tenants_for(property_id) if row['id']==tenant_id),None)
     if tenant is None:abort(404)
+    from .lease_soa_posting import token
+    from datetime import date
+    kind=request.form.get('kind') if request.method=='POST' else request.args.get('posting')
+    if kind not in ('charge','payment'):kind=None
+    values=request.form.to_dict() if request.method=='POST' else {}
+    if kind and not values.get('posting_key'):values['posting_key']=token(property_id,tenant_id,kind)
+    values.setdefault('txn_date',date.today().isoformat())
     return render_template('program_billing/pm_soa_ledger.html',property=prop,tenant=tenant,
-        entries=transactions(tenant_id))
+        entries=transactions(tenant_id),posting=kind,values=values,posting_error=error),status
+
+
+@billing_bp.route('/manager/tenant_accounts/<int:property_id>/tenant/<int:tenant_id>/ledger/post',methods=['POST'],endpoint='pm_soa_post')
+@login_required
+def pm_soa_post(property_id,tenant_id):
+    from .lease_soa_posting import post
+    from werkzeug.exceptions import HTTPException
+    from sqlalchemy.exc import SQLAlchemyError
+    try:
+        created=post(property_id,tenant_id,request.form)
+    except ValueError as exc:
+        db.session.rollback()
+        return pm_soa_ledger(property_id,tenant_id,error=str(exc),status=400)
+    except HTTPException as exc:
+        db.session.rollback()
+        if exc.code not in (409,503):raise
+        return pm_soa_ledger(property_id,tenant_id,error=exc.description,status=exc.code)
+    except SQLAlchemyError:
+        db.session.rollback()
+        current_app.logger.exception('PM manual posting failed')
+        return pm_soa_ledger(property_id,tenant_id,
+            error='The transaction could not be saved. No success was recorded. Retry using this form or contact support.',status=503)
+    flash('Transaction saved.' if created else 'This transaction was already saved; no duplicate was posted.','success')
+    return redirect(url_for('billing_bp.pm_soa_ledger',property_id=property_id,tenant_id=tenant_id))
+
 
 
 @billing_bp.route("/manager/tenant_ledger/<int:debtor_id>")

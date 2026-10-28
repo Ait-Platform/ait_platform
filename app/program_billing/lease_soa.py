@@ -7,7 +7,8 @@ from .lease_certificate import selected_tenants
 from .tenant_reference import read as tenant_reference
 
 
-def tenants_for(property_id):
+def tenants_for(property_id, manager_id=None):
+    owner=current_user.id if manager_id is None else manager_id
     # Inspect this connection, not ORM declarations: legacy production uses unit links.
     catalog=inspect(db.session.connection())
     def columns(table):
@@ -23,18 +24,18 @@ def tenants_for(property_id):
     identifiers={}
     if relation and 'tenant_id' in lease_columns:
         identifiers={row[0]:None for row in db.session.execute(text('SELECT DISTINCT l.tenant_id FROM bil_lease l '+relation+
-            ' WHERE p.id=:p AND p.manager_id=:u AND p.is_archived=false'),dict(p=property_id,u=current_user.id))}
+            ' WHERE p.id=:p AND p.manager_id=:u AND p.is_archived=false'),dict(p=property_id,u=owner))}
     # Register property links are valid independently of legacy bil_lease rows.
     if {'id','property_id','manager_id'}<=tenant_columns:
         for row in db.session.execute(text('''SELECT t.id FROM bil_tenant t
             JOIN bil_property p ON p.id=t.property_id
-            WHERE p.id=:p AND p.manager_id=:u AND p.is_archived=false AND t.manager_id=:u'''),dict(p=property_id,u=current_user.id)):
+            WHERE p.id=:p AND p.manager_id=:u AND p.is_archived=false AND t.manager_id=:u'''),dict(p=property_id,u=owner)):
             identifiers.setdefault(row[0],None)
     if {'id','items','property_id','manager_id','status','updated_at'}<=columns('bil_lease_draft'):
         drafts=db.session.execute(text('''SELECT d.id,d.items FROM bil_lease_draft d
             JOIN bil_property p ON p.id=d.property_id
             WHERE d.property_id=:p AND d.manager_id=:u AND p.manager_id=:u
-            AND p.is_archived=false AND d.status='draft' ORDER BY d.updated_at DESC,d.id DESC'''),dict(p=property_id,u=current_user.id)).mappings()
+            AND p.is_archived=false AND d.status='draft' ORDER BY d.updated_at DESC,d.id DESC'''),dict(p=property_id,u=owner)).mappings()
         for draft in drafts:
             for party in selected_tenants(draft['items']):
                 value=party.get('tenant_id')
@@ -47,6 +48,6 @@ def tenants_for(property_id):
     if 'manager_id' not in tenant_columns:
         abort(503,description='Tenant manager ownership cannot be verified in the available PM register schema.')
     manager_scope=' AND manager_id=:u'
-    for row in db.session.execute(text('SELECT id,name,email,phone,notes FROM bil_tenant WHERE id=ANY(:ids)'+manager_scope+' ORDER BY name,id'),dict(u=current_user.id,ids=list(identifiers))).mappings():
+    for row in db.session.execute(text('SELECT id,name,email,phone,notes FROM bil_tenant WHERE id=ANY(:ids)'+manager_scope+' ORDER BY name,id'),dict(u=owner,ids=list(identifiers))).mappings():
         entry=dict(row);entry['tenant_reference']=tenant_reference(entry.pop('notes'));entry['draft_id']=identifiers[row['id']];result.append(entry)
     return result

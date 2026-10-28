@@ -125,18 +125,9 @@ def post(property_id, tenant_id, form):
         db.session.execute(text("SELECT pg_advisory_xact_lock(1836020592,:tenant)"),dict(tenant=tenant_id))
         if has_opening(tenant_id):
             abort(409,description='An Opening Balance is already recorded for this tenant.')
-    reference = next_reference(direction)
-    entry = ledger_model()(tenant_id=tenant_id,txn_date=txn_date,month=raw_date[:7],
-        description=description,kind=kind,
-        amount=-amount if direction=='credit' else amount,ref=reference)
     try:
-        db.session.add(entry)
-        db.session.flush()
-        # Metadata belongs only to this newly inserted row; the established ORM
-        # stays compatible for legacy readers while the migration is being applied.
-        db.session.execute(text("""UPDATE bil_tenant_ledger
-            SET posting_key=:key,posting_hash=:digest,posting_notes=:notes WHERE id=:id"""),
-            dict(key=scope[4],digest=digest,notes=notes or None,id=entry.id))
+        append_entry(tenant_id,txn_date,description,kind,
+            -amount if direction=='credit' else amount,scope[4],digest,notes)
         db.session.commit()
     except IntegrityError as exc:
         if getattr(getattr(exc.orig,'diag',None),'constraint_name',None)=='uq_pm_ledger_opening':
@@ -163,16 +154,33 @@ def require_posting_schema():
         abort(503, description='The PM ledger schema does not support safe posting. Apply migration pm_soa_001 before posting.')
 
 
-def authorise(property_id, tenant_id):
+def authorise(property_id, tenant_id, manager_id=None):
+    owner=current_user.id if manager_id is None else manager_id
     prop = db.session.execute(text("""SELECT id FROM bil_property
         WHERE id=:p AND manager_id=:m AND NOT is_archived FOR SHARE"""),
-        dict(p=property_id,m=current_user.id)).first()
+        dict(p=property_id,m=owner)).first()
     tenant = db.session.execute(text("""SELECT id FROM bil_tenant
         WHERE id=:t AND manager_id=:m FOR SHARE"""),
-        dict(t=tenant_id,m=current_user.id)).first()
+        dict(t=tenant_id,m=owner)).first()
     if not prop or not tenant:abort(404)
     db.session.execute(text("""SELECT id FROM bil_lease_draft
         WHERE property_id=:p AND manager_id=:m FOR SHARE"""),
-        dict(p=property_id,m=current_user.id)).all()
+        dict(p=property_id,m=owner)).all()
     from .lease_soa import tenants_for
-    if not any(row['id']==tenant_id for row in tenants_for(property_id)):abort(404)
+    if not any(row['id']==tenant_id for row in tenants_for(property_id,manager_id=owner)):abort(404)
+
+
+def append_entry(tenant_id, txn_date, description, kind, amount, key, digest, notes=None):
+    """Shared insertion primitive; callers authorise and commit the transaction."""
+    amount=Decimal(str(amount))
+    if not amount.is_finite() or abs(amount)>Decimal('99999999.99'):
+        raise ValueError('Invalid ledger amount.')
+    entry=ledger_model()(tenant_id=tenant_id,txn_date=txn_date,month=txn_date.strftime('%Y-%m'),
+        description=description,kind=kind,amount=amount,
+        ref=next_reference('credit' if amount<0 else 'debit'))
+    db.session.add(entry)
+    db.session.flush()
+    db.session.execute(text("""UPDATE bil_tenant_ledger
+        SET posting_key=:key,posting_hash=:digest,posting_notes=:notes WHERE id=:id"""),
+        dict(key=key,digest=digest,notes=notes or None,id=entry.id))
+    return entry.id

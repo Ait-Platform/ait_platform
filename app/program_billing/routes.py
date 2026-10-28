@@ -3936,11 +3936,25 @@ def pm_soa_ledger(property_id,tenant_id,error=None,status=200):
                 direction='credit' if correction['amount']<0 else 'debit' if correction['amount'] else 'zero')
         if not values.get('posting_key'):values['posting_key']=form_token(property_id,tenant_id,correction)
     values.setdefault('txn_date',today().isoformat())
+    fixed=request.args.get('fixed')=='1' or request.form.get('action')=='fixed'
+    fixed_schedule=None
+    if fixed:
+        from .lease_soa_fixed import for_account,form_token as fixed_token
+        fixed_schedule=for_account(property_id,tenant_id)
+        kind=None;correction=None
+        if request.method!='POST':
+            values=dict(amount=str(fixed_schedule['amount']) if fixed_schedule else '',
+                start_date=fixed_schedule['pm_start_date'].isoformat() if fixed_schedule else today().isoformat(),
+                end_date=fixed_schedule['pm_end_date'].isoformat() if fixed_schedule else '',
+                day_of_month=str(fixed_schedule['day_of_month']) if fixed_schedule else '1',
+                status='active' if not fixed_schedule or fixed_schedule['pm_active'] else 'inactive')
+        if not values.get('posting_key'):values['posting_key']=fixed_token(property_id,tenant_id,fixed_schedule)
     entries=transactions(tenant_id)
     visible=request.args.get('visible',default=5,type=int)
     if visible is None or visible<5 or visible%5:abort(400)
     return render_template('program_billing/pm_soa_ledger.html',property=prop,tenant=tenant,
-        entries=entries,visible_entries=entries[-visible:],visible_count=visible,has_more=len(entries)>visible,posting=kind,values=values,posting_error=error,
+        entries=entries,visible_entries=entries[-visible:],visible_count=visible,has_more=len(entries)>visible,
+        fixed=fixed,fixed_schedule=fixed_schedule,posting=kind,values=values,posting_error=error,
         correction=correction,correction_opening=bool(correction and (correction['kind'] in ('opening_balance','opening_adjustment') or (correction['description'] or '').strip().lower()=='opening balance')),
         opening_recorded=has_opening(tenant_id),
         descriptions=DEBIT_DESCRIPTIONS if kind=='charge' else CREDIT_DESCRIPTIONS),status
@@ -3997,6 +4011,31 @@ def pm_soa_correct(property_id,tenant_id,row_id):
     flash('Correction saved: reversal and replacement recorded.' if created else
         'This correction was already saved; no duplicate entries were posted.','success')
     return redirect(url_for('billing_bp.pm_soa_ledger',property_id=property_id,tenant_id=tenant_id))
+
+
+@billing_bp.route('/manager/tenant_accounts/<int:property_id>/tenant/<int:tenant_id>/ledger/fixed',methods=['POST'],endpoint='pm_soa_save_fixed')
+@login_required
+def pm_soa_save_fixed(property_id,tenant_id):
+    from .lease_soa_fixed import save
+    from werkzeug.exceptions import HTTPException
+    from sqlalchemy.exc import SQLAlchemyError
+    if request.form.get('action')!='fixed':abort(400)
+    try:
+        created=save(property_id,tenant_id,request.form)
+    except ValueError as exc:
+        db.session.rollback()
+        return pm_soa_ledger(property_id,tenant_id,error=str(exc),status=400)
+    except HTTPException as exc:
+        db.session.rollback()
+        if exc.code!=409:raise
+        return pm_soa_ledger(property_id,tenant_id,error=exc.description,status=409)
+    except SQLAlchemyError:
+        db.session.rollback()
+        current_app.logger.exception('PM Fixed Charges save failed')
+        return pm_soa_ledger(property_id,tenant_id,
+            error='Fixed Charges could not be saved. Retry this form.',status=503)
+    flash('Fixed Charges saved.' if created else 'These Fixed Charges were already saved.','success')
+    return redirect(url_for('billing_bp.pm_soa_ledger',property_id=property_id,tenant_id=tenant_id,fixed=1))
 
 
 @billing_bp.route("/manager/tenant_ledger/<int:debtor_id>")

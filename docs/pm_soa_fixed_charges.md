@@ -1,0 +1,53 @@
+# PM SOA Fixed Charges and display delivery
+
+## Display stage
+
+Tenant Ledger overrides only its own parent flash block and renders the existing shared flash partial inside its tile. Other pages and shared flash styling are unchanged.
+
+Transactions show a display description and separate reference. Technical reversals display as Reversal. Audit actor IDs, UTC recorded timestamps, correction reasons, original/replacement explanations and stored posting notes are hidden from the transaction table, not deleted.
+
+txn_date is the effective transaction date. Existing naive timestamp values represent saved calendar dates and are not silently reinterpreted as UTC. Timezone-aware effective timestamps are displayed in Africa/Johannesburg. New-form defaults use the South African date. correction_recorded_at remains the unmodified UTC-aware audit timestamp. No production record was inspected or rewritten to guess a different historical date.
+
+The initial window contains the latest five transactions, in chronological order. Show More expands the window backwards by five; Show Less restores the latest five. Running balances and outstanding balance are calculated over the complete ledger before slicing.
+
+## Existing infrastructure and reuse
+
+The actual local PostgreSQL bil_tenant_recurring was inspected read-only. Its columns are id (sequence default), tenant_id, description varchar(255), kind varchar(50), amount numeric(10,2), day_of_month integer and is_active integer. Existing legacy materializers expect missing month fields and can post through legacy paths. Existing cron_run_billing.py targets shared Debtor accounting. None is called or modified.
+
+PM rent definitions reuse bil_tenant_recurring, with additive PM scope, date, status, version and idempotency fields. There is one PM rent definition per tenant/property, editable through Fixed Charges. Existing legacy definitions are not converted or edited. PM definitions keep legacy is_active=0 and use pm_active for the visible status. A check constraint prevents accidental legacy activation, avoiding a second materializer for these rows.
+
+All rent is posted through the existing PM posting service's shared append_entry primitive, using Decimal rand, the same D reference sequence, ledger model, persistent posting keys, managed-property and registered-tenant association checks. A worker supplies only the manager scope saved in the schedule and rechecks it against the actual property and tenant. No authenticated user is impersonated and no HTTP permission can be supplied from a form.
+
+## Schedule semantics
+
+- Description is fixed to Rent Due. Amount is positive rand with at most two decimals.
+- Start/end dates are inclusive. Monthly day defaults to 1; values 1..31 clamp to the last day in a shorter month, including leap years.
+- If the month's scheduled day precedes the start date, that month is skipped; no prorated or early charge is invented.
+- No date after today in South Africa is posted. No due date beyond the end date is posted.
+- Missed due months are caught up, including due dates within an expired schedule when the worker resumes later. Already posted months are skipped efficiently.
+- Inactive pauses posting. Reactivation catches unposted due dates within the configured interval. Configuration changes affect unposted periods; posted amounts and references remain untouched.
+- Schedule-row locks and a unique tenant/property/month ledger index prevent duplicate rent under concurrent runs or configuration changes. Corrections retain the original monthly marker, so correcting rent does not cause another scheduled charge.
+- Catch-up is bounded to 120 new months per schedule per run; subsequent runs continue safely.
+- Existing four-digit D reference capacity applies. Exhaustion fails the affected schedule without wrapping references or falsely reporting success.
+
+## Migration — not applied in production
+
+pm_soa_003 (child of pm_soa_002) adds PM columns/indexes/checks to the existing recurring table, two nullable rent-link columns to the existing ledger, a same-tenant/property schedule FK and a unique monthly-rent index. No new ledger or financial history rewrite is introduced.
+
+Migration was exercised only on isolated local PostgreSQL fixtures and through the actual Alembic environment. Follow the existing backup, restored-copy rehearsal, independent Render database identity and approval procedure before any production upgrade. The approval target is pm_soa_003; any absent pm_soa_001/002 ancestors would also be applied and must be included in that approval. Do not stamp, manually add columns, upgrade unrelated heads or bypass schema guards.
+
+## PM-only worker — not enabled in production
+
+The implementation does not start a timer inside Gunicorn and does not post from GET requests or application startup. An external daily PM-only job must be configured and enabled after explicit approval, compatible production migrations and review of active schedules.
+
+From the service repository root, use the same approved code checkout and assigned DATABASE_URL / existing secret environment group:
+
+```bash
+python scripts/pm_soa_post_fixed_rent.py --run
+```
+
+Suggested UTC cron expression: 5 22 * * * (00:05 South African time each day). A more frequent schedule is also idempotent. Do not repoint or replace the existing shared Debtor/ProShop billing cron.
+
+Without --run the script prints a no-write notice and makes no database connection. With --run it builds only a minimal worker Flask context; it never calls create_app() or unrelated application startup maintenance. It exits nonzero on missing schema or any failed schedule and outputs only posted/failed counts. Logs identify the schedule and exception category without echoing connection strings.
+
+No Render cron was created/enabled, production migration applied, or live financial transaction created during implementation. Automatic production execution remains pending those operational steps. Isolated tests exercise the real worker entry point, month-end/leap-day rules, catch-up, no future posting, inactive schedules, stale/duplicate forms, ownership denial, concurrent monthly uniqueness and rollback/retry.

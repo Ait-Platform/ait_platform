@@ -45,3 +45,7 @@ Outstanding Balance is shown only in the fourth summary-table column, using the 
 Migration pm_soa_002 (child of pm_soa_001) adds nullable audit columns, a same-tenant self foreign key, audit checks and unique correction-role/group indexes. It does not update existing records. Corrections fail closed until this migration is approved and applied. No production migration or financial test posting was performed. Targeting pm_soa_002 also applies pm_soa_001 if it is absent, so approval must cover both when appropriate; do not upgrade unrelated heads.
 
 Retry keys and original-row locks prevent duplicate corrections and changes based on stale source data. Edit is disabled on superseded originals and technical reversal rows; the latest replacement can itself be corrected, retaining the full chain. Opening-balance replacements use opening_adjustment, not another opening_balance marker. An opening correction may change debit/credit direction or record zero without lifting the one-opening-per-tenant rule. Both new entries use the selected correction date; recorded timestamps retain the actual audit time. Existing signed lease documents, ProShop and METSOA remain untouched.
+
+## PM-only Fixed Charges
+
+The new Fixed Charges workflow and migration pm_soa_003 supersede the earlier exclusion of recurring rent in this document. See [Fixed Charges delivery and worker setup](pm_soa_fixed_charges.md). Existing legacy materializers, METSOA and shared Debtor/ProShop cron are not used. Production migration and scheduled execution remain unapplied and disabled.

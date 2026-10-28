@@ -53,3 +53,29 @@ class PMDisplayTests(unittest.TestCase):
         self.assertEqual(len(messages),1)
         self.assertTrue(messages[0].xpath('ancestor::*[@id="pm-tenant-ledger"]'))
         self.assertTrue(messages[0].xpath('.//*[contains(@class,"text-emerald-800")]'))
+
+    def test_ledger_actions_replace_navigation_once_in_exact_order(self):
+        expected=['Post Charge','Record Payment','Fixed Charges','Opening Balance']
+        page=self.client.get(self.path(),headers=self.headers)
+        self.assertEqual(page.status_code,200,page.text)
+        tree=html.fromstring(page.data)
+        rows=tree.xpath('//*[@id="ledger-actions"]');self.assertEqual(len(rows),1)
+        actions=rows[0].xpath('./a|./button')
+        self.assertEqual([a.text_content() for a in actions],expected)
+        self.assertIn('justify-end',rows[0].get('class'))
+        self.assertEqual(rows[0].getprevious().xpath('string(.//h1)'),'Tenant Ledger')
+        self.assertTrue(rows[0].getnext().xpath('.//*[@id="ledger-summary"]'))
+        self.assertFalse(tree.xpath('//nav[@aria-label="Property Management"]'))
+        for label in expected:self.assertEqual(len(tree.xpath('//a[text()="'+label+'"]|//button[text()="'+label+'"]')),1)
+        self.assertEqual([a.get('href') for a in actions],
+            [self.path()+'?posting=charge',self.path()+'?posting=payment',self.path()+'?fixed=1',self.path()+'?posting=opening_balance'])
+        # The once-per-tenant disabled state and last position remain unchanged.
+        self.session.execute(text("INSERT INTO bil_tenant_ledger(tenant_id,description,kind,amount,ref) VALUES(11,'Opening Balance','opening_balance',0,'D0001')"));self.session.commit()
+        after=html.fromstring(self.client.get(self.path(),headers=self.headers).data)
+        actions=after.xpath('//*[@id="ledger-actions"]/*')
+        self.assertEqual([a.text_content() for a in actions],expected)
+        self.assertIsNotNone(actions[-1].get('disabled'))
+        # The same shared PM navigation remains on the tenant-selection page.
+        other=html.fromstring(self.client.get('/manager/tenant_accounts?property_id=26',headers=self.headers).data)
+        self.assertEqual(other.xpath('//nav[@aria-label="Property Management"]/a/text()'),
+            ['Property & Owner','Lease','METSOA','SOA','Property Portfolio'])

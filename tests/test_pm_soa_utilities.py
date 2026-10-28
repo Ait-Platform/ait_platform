@@ -30,7 +30,7 @@ class PMUtilityDefinitionTests(unittest.TestCase):
         fixture.PMFixedRentTests.setUp(self)
         apply_utilities(self.conn);self.conn.commit()
     def utility_form(self,charge_type='water',**changes):
-        page=self.client.get(self.path()+'?fixed=1&fixed_add=utility',headers=self.headers)
+        page=self.client.get(self.path()+'/fixed?fixed_add=utility',headers=self.headers)
         self.assertEqual(page.status_code,200,page.text)
         tree=html.fromstring(page.data)
         data={e.get('name'):e.get('value','') for e in tree.xpath('//form//input') if e.get('name')}
@@ -43,12 +43,12 @@ class PMUtilityDefinitionTests(unittest.TestCase):
         self.assertEqual(self.save(utility).status_code,302)
         self.assertEqual(self.save(utility).status_code,302)
         self.assertEqual(self.save(dict(utility,charge_type='electricity')).status_code,409)
-        page=self.client.get(self.path()+'?fixed=1',headers=self.headers)
+        page=self.client.get(self.path()+'/fixed',headers=self.headers)
         tree=html.fromstring(page.data)
         self.assertEqual(tree.xpath('//*[@id="monthly-rent"]/thead/tr/th/text()'),
-            ['Description','Monthly amount','Due day','Start date','End date','Status','Edit'])
+            ['Description','Amount','Due Day','Start Date','End Date','Status','Edit'])
         self.assertEqual(tree.xpath('//*[@id="utility-charges"]/thead/tr/th/text()'),
-            ['Description','Amount','Due day','Start date','End date','Status','Edit'])
+            ['Description','Amount','Due Day','Start Date','End Date','Status','Edit'])
         self.assertEqual(len(tree.xpath('//section//a[text()="Add Charge"]|//section//button[text()="Add Charge"]')),2)
         self.assertIn('Rent Due',tree.xpath('string(//*[@id="monthly-rent"])'))
         self.assertIn('Water',tree.xpath('string(//*[@id="utility-charges"])'))
@@ -65,7 +65,7 @@ class PMUtilityDefinitionTests(unittest.TestCase):
     def test_utility_edit_is_versioned_scoped_and_preserves_rent(self):
         self.schedule(start_date='2026-10-01')
         self.assertEqual(self.save(self.utility_form()).status_code,302)
-        page=self.client.get(self.path()+'?fixed=1',headers=self.headers)
+        page=self.client.get(self.path()+'/fixed',headers=self.headers)
         link=html.fromstring(page.data).xpath('//*[@id="utility-charges"]//a[text()="Edit"]/@href')[0]
         editor=self.client.get(link,headers=self.headers);tree=html.fromstring(editor.data)
         data={e.get('name'):e.get('value','') for e in tree.xpath('//form//input') if e.get('name')}
@@ -78,7 +78,7 @@ class PMUtilityDefinitionTests(unittest.TestCase):
         self.assertEqual(water['amount'],Decimal('700.50'));self.assertFalse(water['pm_active'])
         self.assertEqual(rent['amount'],Decimal('35000.00'))
         self.assertEqual(self.save(dict(data,charge_type='electricity')).status_code,409)
-        self.assertEqual(self.client.get(self.path(27,22)+'?fixed=1&fixed_edit='+str(water['id']),headers=self.headers).status_code,404)
+        self.assertEqual(self.client.get(self.path(27,22)+'/fixed?fixed_edit='+str(water['id']),headers=self.headers).status_code,404)
     def test_worker_posts_rent_and_agreed_utility_as_distinct_charges(self):
         self.schedule(start_date='2026-10-01')
         self.assertEqual(self.save(self.utility_form()).status_code,302)
@@ -121,7 +121,7 @@ class PMUtilityDefinitionTests(unittest.TestCase):
         self.assertEqual(self.save(self.utility_form()).status_code,302)
         self.assertEqual(self.run_due(),dict(posted=1,failed=0))
         before=self.session.execute(text('SELECT * FROM bil_tenant_ledger')).all()
-        page=self.client.get(self.path()+'?fixed=1',headers=self.headers)
+        page=self.client.get(self.path()+'/fixed',headers=self.headers)
         url=html.fromstring(page.data).xpath('//*[@id="utility-charges"]//a[text()="Edit"]/@href')[0]
         tree=html.fromstring(self.client.get(url,headers=self.headers).data)
         data={e.get('name'):e.get('value','') for e in tree.xpath('//form//input') if e.get('name')}

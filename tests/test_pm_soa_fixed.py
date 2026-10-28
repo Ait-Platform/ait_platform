@@ -39,7 +39,7 @@ class PMFixedRentTests(unittest.TestCase):
         clock=patch.object(lease_soa_fixed,'today',return_value=date(2026,10,28));clock.start();self.addCleanup(clock.stop)
         self.fixed=lease_soa_fixed
     def fixed_form(self,property_id=26,tenant_id=11,**changes):
-        page=self.client.get(self.path(property_id,tenant_id)+'?fixed=1',headers=self.headers)
+        page=self.client.get(self.path(property_id,tenant_id)+'/fixed',headers=self.headers)
         self.assertEqual(page.status_code,200,page.text)
         tree=html.fromstring(page.data)
         links=tree.xpath('//*[@id="monthly-rent"]//a[text()="Edit"]/@href')
@@ -123,7 +123,7 @@ class PMFixedRentTests(unittest.TestCase):
         self.assertEqual(self.save(dict(data,posting_key='invalid')).status_code,400)
         self.assertEqual(self.save(data,28,33).status_code,404)
         self.assertEqual(self.save(data,26,22).status_code,404)
-        self.assertEqual(self.client.get(self.path()+'/fixed',headers=self.headers).status_code,405)
+        self.assertEqual(self.client.get(self.path()+'/fixed',headers=self.headers).status_code,200)
         self.assertEqual(self.save(data).status_code,302)
         self.session.execute(text("UPDATE bil_lease_draft SET items='{}'::jsonb"));self.session.commit()
         self.assertEqual(self.run_due(),dict(posted=0,failed=1))
@@ -203,11 +203,11 @@ class PMFixedRentTests(unittest.TestCase):
         data=self.fixed_form()
         self.session.execute(text('DROP INDEX uq_pm_ledger_monthly_rent'));self.session.commit()
         with self.assertLogs(self.app.logger.name,level='WARNING') as logs:
-            page=self.client.get(self.path()+'?fixed=1',headers=self.headers)
+            page=self.client.get(self.path()+'/fixed',headers=self.headers)
         self.assertEqual(page.status_code,200,page.text)
         self.assertIn('Fixed Charges requires migration pm_soa_003',page.text)
         tree=html.fromstring(page.data)
-        self.assertTrue(tree.xpath('//*[@id="pm-tenant-ledger"]//*[@role="alert"]'))
+        self.assertTrue(tree.xpath('//*[@id="pm-fixed-charges"]//*[@role="alert"]'))
         self.assertFalse(tree.xpath('//form[input[@name="action"][@value="fixed"]]'))
         self.assertTrue(any('pm_soa_003' in entry for entry in logs.output))
         self.assertEqual(self.save(data).status_code,503)

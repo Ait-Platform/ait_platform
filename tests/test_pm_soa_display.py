@@ -68,7 +68,7 @@ class PMDisplayTests(unittest.TestCase):
         self.assertFalse(tree.xpath('//nav[@aria-label="Property Management"]'))
         for label in expected:self.assertEqual(len(tree.xpath('//a[text()="'+label+'"]|//button[text()="'+label+'"]')),1)
         self.assertEqual([a.get('href') for a in actions],
-            [self.path()+'?posting=charge',self.path()+'?posting=payment',self.path()+'?fixed=1',self.path()+'?posting=opening_balance'])
+            [self.path()+'?posting=charge',self.path()+'?posting=payment',self.path()+'/fixed',self.path()+'?posting=opening_balance'])
         # The once-per-tenant disabled state and last position remain unchanged.
         self.session.execute(text("INSERT INTO bil_tenant_ledger(tenant_id,description,kind,amount,ref) VALUES(11,'Opening Balance','opening_balance',0,'D0001')"));self.session.commit()
         after=html.fromstring(self.client.get(self.path(),headers=self.headers).data)

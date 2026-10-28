@@ -76,7 +76,7 @@ class PMUtilityDefinitionTests(unittest.TestCase):
         rent=next(r for r in rows if r['description']=='Rent Due')
         self.assertEqual(water['amount'],Decimal('700.50'));self.assertFalse(water['pm_active'])
         self.assertEqual(rent['amount'],Decimal('35000.00'))
-        self.assertEqual(self.save(dict(data,charge_type='electricity')).status_code,400)
+        self.assertEqual(self.save(dict(data,charge_type='electricity')).status_code,409)
         self.assertEqual(self.client.get(self.path(27,22)+'?fixed=1&fixed_edit='+str(water['id']),headers=self.headers).status_code,404)
     def test_stage_two_worker_preserves_rent_and_does_not_yet_post_utilities(self):
         self.schedule(start_date='2026-10-01')

@@ -8,6 +8,6 @@
 <div class="mb-4 flex flex-wrap items-center justify-between gap-4"><h1 class="text-2xl font-bold text-slate-900">{{ 'Rent' if section=='rent' else 'Utilities' }}</h1><a class="rounded-lg border border-slate-300 bg-slate-100 px-4 py-2" href="{{ url_for('billing_bp.pm_soa_fixed_page',property_id=property.id,tenant_id=tenant.id) }}">Back to Fixed Charges</a></div>
 <p class="mb-5 text-slate-600">{{ property.name }} — {{ tenant.name }} — {{ tenant.tenant_reference or 'PM tenant account ' ~ tenant.id }}</p>
 {% if posting_error %}<p role="alert" class="my-3 rounded-lg bg-red-100 p-3 text-red-900">{{ posting_error }}</p>{% endif %}
-{% if section=='rent' %}{% include 'program_billing/pm_soa_rent_plan.html' %}{% else %}<p class="my-3 text-slate-600">Utilities are read from saved METSOA calculations.</p>{% endif %}
+{% if section=='rent' %}{% include 'program_billing/pm_soa_rent_plan.html' %}{% else %}{% include 'program_billing/pm_soa_metsoa.html' %}{% endif %}
 </div></div>
 {% endblock %}

@@ -36,7 +36,7 @@ class RecentSOATests(unittest.TestCase):
                 return fn(*args,**kw)
             return wrapped
         env=dict(__package__='app.program_billing',billing_bp=types.SimpleNamespace(route=lambda *args,**kw:lambda f:f,get=lambda *args,**kw:lambda f:f),login_required=authenticated,abort=abort,db=self.db,BilProperty=Property,current_user=self.user,request=request,render_template=render_template,flash=flash,redirect=redirect,url_for=url_for,current_app=current_app)
-        fixture.functions('app/program_billing/routes.py',{'tenant_accounts','pm_soa_ledger','pm_soa_post','pm_soa_correct','pm_soa_save_fixed','pm_soa_fixed_page','pm_soa_rent_plan_action','pm_soa_rent_page','pm_soa_utilities_page','pm_soa_rent_later'},env)
+        fixture.functions('app/program_billing/routes.py',{'tenant_accounts','pm_soa_ledger','pm_soa_post','pm_soa_correct','pm_soa_save_fixed','pm_soa_fixed_page','pm_soa_rent_plan_action','pm_soa_rent_page','pm_soa_utilities_page','pm_soa_rent_later','pm_soa_post_utility'},env)
         self.app._got_first_request=False;self.app.add_url_rule('/manager/tenant_accounts',endpoint='billing_bp.tenant_accounts',view_func=env['tenant_accounts'])
         for endpoint in ('learner_dashboard','utilities_hub','property_portfolio','lease_live_view'):
             if 'billing_bp.'+endpoint not in self.app.view_functions:self.app.add_url_rule('/soa-test/'+endpoint,endpoint='billing_bp.'+endpoint,view_func=lambda:'Existing PM action')
@@ -50,6 +50,7 @@ class RecentSOATests(unittest.TestCase):
         for part in ('rent','utilities'):
             self.app.add_url_rule('/manager/tenant_accounts/<int:property_id>/tenant/<int:tenant_id>/ledger/fixed/'+part,endpoint='billing_bp.pm_soa_'+part+'_page',view_func=env['pm_soa_'+part+'_page'])
         self.app.add_url_rule('/manager/tenant_accounts/<int:property_id>/tenant/<int:tenant_id>/ledger/fixed/rent/later',endpoint='billing_bp.pm_soa_rent_later',view_func=env['pm_soa_rent_later'],methods=['POST'])
+        self.app.add_url_rule('/manager/tenant_accounts/<int:property_id>/tenant/<int:tenant_id>/ledger/fixed/utilities/post',endpoint='billing_bp.pm_soa_post_utility',view_func=env['pm_soa_post_utility'],methods=['POST'])
         self.url='/manager/tenant_accounts';self.headers={'X-Test-Owner':'yes'}
     def rows(self,response):return html.fromstring(response.data).xpath('//tbody/tr')
     def test_saved_lease_selection_discovers_tenant_without_property_or_debtor_link(self):

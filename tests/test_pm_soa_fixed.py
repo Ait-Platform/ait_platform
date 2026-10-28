@@ -39,17 +39,13 @@ class PMFixedRentTests(unittest.TestCase):
         clock=patch.object(lease_soa_fixed,'today',return_value=date(2026,10,28));clock.start();self.addCleanup(clock.stop)
         self.fixed=lease_soa_fixed
     def fixed_form(self,property_id=26,tenant_id=11,**changes):
-        page=self.client.get(self.path(property_id,tenant_id)+'/fixed',headers=self.headers)
-        self.assertEqual(page.status_code,200,page.text)
-        tree=html.fromstring(page.data)
-        links=tree.xpath('//*[@id="monthly-rent"]//a[text()="Edit"]/@href')
-        if not links:links=tree.xpath('//section[@aria-labelledby="monthly-rent-heading"]//a[text()="Add Charge"]/@href')
-        self.assertTrue(links,page.text)
-        page=self.client.get(links[0],headers=self.headers)
-        self.assertEqual(page.status_code,200,page.text)
-        tree=html.fromstring(page.data)
-        data={el.get('name'):el.get('value','') for el in tree.xpath('//form//input') if el.get('name')}
-        data.update(amount='35000',start_date='2026-01-01',end_date='2026-12-31',day_of_month='1',status='active')
+        # Schedule-service regression fixture; current UI derives rent from Lease Kit.
+        with self.app.app_context():
+            schedule=self.fixed.for_account(property_id,tenant_id)
+            key=self.fixed.form_token(property_id,tenant_id,schedule)
+        data=dict(csrf_token=self.csrf,action='fixed',posting_key=key,charge_type='rent',
+            amount='35000',start_date='2026-01-01',end_date='2026-12-31',day_of_month='1',status='active')
+        if schedule:data['fixed_edit']=str(schedule['id'])
         data.update(changes);return data
     def save(self,data,property_id=26,tenant_id=11,headers=None):
         return self.client.post(self.path(property_id,tenant_id)+'/fixed',data=data,
@@ -203,7 +199,7 @@ class PMFixedRentTests(unittest.TestCase):
         data=self.fixed_form()
         self.session.execute(text('DROP INDEX uq_pm_ledger_monthly_rent'));self.session.commit()
         with self.assertLogs(self.app.logger.name,level='WARNING') as logs:
-            page=self.client.get(self.path()+'/fixed',headers=self.headers)
+            page=self.client.get(self.path()+'/fixed/rent',headers=self.headers)
         self.assertEqual(page.status_code,200,page.text)
         self.assertIn('Fixed Charges requires migration pm_soa_003',page.text)
         tree=html.fromstring(page.data)

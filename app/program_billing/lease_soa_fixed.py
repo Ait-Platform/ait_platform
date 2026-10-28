@@ -185,6 +185,18 @@ def post_due(schedule_id,due):
         db.session.commit()
         return False
     month=due.strftime('%Y-%m')
+    if charge_type!='rent':
+        lock=int.from_bytes(hashlib.sha256(f"PMUTILITY:{row['tenant_id']}:{month}".encode()).digest()[:8],'big',signed=True)
+        db.session.execute(text('SELECT pg_advisory_xact_lock(:key)'),dict(key=lock))
+        transfers=db.session.execute(text("""SELECT posting_notes FROM bil_tenant_ledger
+            WHERE tenant_id=:t AND month=:month AND posting_notes LIKE 'PMMETSOA:%'"""),dict(t=row['tenant_id'],month=month)).scalars()
+        for notes in transfers:
+            try:source=json.loads(notes[len('PMMETSOA:'):])
+            except (ValueError,TypeError):continue
+            covered={source.get('utility')}
+            if 'water' in covered:covered.add('sewerage')
+            if source.get('property_id')==row['pm_property_id'] and charge_type in covered:
+                db.session.commit();return False
     type_filter=" AND COALESCE(fixed_charge_type,'rent')=:charge_type" if utilities else ''
     exists=db.session.execute(text("""SELECT EXISTS(SELECT 1 FROM bil_tenant_ledger
         WHERE tenant_id=:t AND rent_property_id=:p AND month=:month AND rent_schedule_id IS NOT NULL"""+type_filter+')'),

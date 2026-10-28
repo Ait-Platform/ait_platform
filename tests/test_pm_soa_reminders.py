@@ -54,3 +54,20 @@ class RentReminderTests(unittest.TestCase):
         self.assertEqual(self.client.post(form.get('action'),data=data).status_code,403)
         self.user.id=8
         self.assertNotIn('data-rent-reminder',self.workspace().text)
+
+    def test_actual_workspace_context_processor_supplies_in_tile_reminders(self):
+        import types
+        from flask import request,current_app
+        import test_pm_lease_lessee_persistence as loader
+        env=dict(__package__='app.program_billing',billing_bp=types.SimpleNamespace(context_processor=lambda f:f),request=request,db=self.db,current_app=current_app)
+        loader.functions('app/program_billing/routes.py',{'pm_soa_workspace_reminders'},env)
+        self.app._got_first_request=False
+        self.app.context_processor(env['pm_soa_workspace_reminders'])
+        def real_workspace():
+            return render_template_string('<div id="workspace-tile">{% include "program_billing/pm_soa_rent_reminders.html" %}</div>')
+        self.app.view_functions['billing_bp.learner_dashboard']=real_workspace
+        response=self.client.get('/soa-test/learner_dashboard',headers=self.headers)
+        self.assertEqual(response.status_code,200,response.text)
+        self.assertEqual(len(html.fromstring(response.data).xpath('//*[@id="workspace-tile"]//*[@data-rent-reminder]')),1)
+        # Unrelated PM pages do not receive repeated workspace reminders.
+        self.assertNotIn('data-rent-reminder',self.client.get(self.path()+'/fixed',headers=self.headers).text)

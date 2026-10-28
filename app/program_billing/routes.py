@@ -4014,55 +4014,27 @@ def pm_soa_fixed_page(property_id,tenant_id,error=None,status=200,section=None):
     if tenant is None:abort(404)
     if section is None:
         return render_template('program_billing/pm_soa_fixed.html',property=prop,tenant=tenant),status
-    from .lease_soa_dates import today
-    values=request.form.to_dict() if request.method=='POST' else {}
-    fixed_schedule=None;fixed_schedules=[];fixed_ready=True;utility_ready=False
-    fixed_form_open=False;fixed_group=None;fixed_options=[]
-    from .lease_soa_fixed import list_for_account,require_schema,form_token as fixed_token,CHARGE_TYPES
+    if section=='utilities':
+        from .lease_soa_metsoa import list_charges
+        from werkzeug.exceptions import ServiceUnavailable
+        try:charges=list_charges(property_id,tenant_id)
+        except ServiceUnavailable as exc:
+            db.session.rollback();charges=[];error=exc.description
+        return render_template('program_billing/pm_soa_fixed_section.html',property=prop,tenant=tenant,
+            section=section,posting_error=error,utility_charges=charges),status
+    from .lease_soa_rent_plan import plan
     from werkzeug.exceptions import ServiceUnavailable
-    try:
-        fixed_schedules=list_for_account(property_id,tenant_id)
-        utility_ready=require_schema()
-    except ServiceUnavailable as exc:
-        db.session.rollback();fixed_ready=False;error=exc.description
-        current_app.logger.warning('PM Fixed Charges unavailable: %s',exc.description)
-    fixed_edit=request.form.get('fixed_edit',type=int) if request.method=='POST' else request.args.get('fixed_edit',type=int)
-    fixed_group=request.args.get('fixed_add')
-    if fixed_group not in (None,'rent','utility'):abort(400)
-    if fixed_edit is not None:
-        fixed_schedule=next((r for r in fixed_schedules if r['id']==fixed_edit),None)
-        if fixed_ready and fixed_schedule is None:abort(404)
-    if request.method=='POST' and fixed_schedule is None:
-        fixed_schedule=next((r for r in fixed_schedules if (r.get('pm_charge_type') or 'rent')==request.form.get('charge_type','rent')),None)
-    if fixed_schedule:
-        fixed_group='rent' if (fixed_schedule.get('pm_charge_type') or 'rent')=='rent' else 'utility'
-    elif request.method=='POST':
-        fixed_group='rent' if request.form.get('charge_type','rent')=='rent' else 'utility'
-    fixed_form_open=fixed_ready and fixed_group is not None and (fixed_group=='rent' or utility_ready)
-    used={r.get('pm_charge_type') or 'rent' for r in fixed_schedules}
-    fixed_options=[(k,v) for k,v in CHARGE_TYPES.items() if k!='rent' and k not in used]
-    if request.method!='POST':
-        values=dict(amount=str(fixed_schedule['amount']) if fixed_schedule else '',
-            start_date=fixed_schedule['pm_start_date'].isoformat() if fixed_schedule else today().isoformat(),
-            end_date=fixed_schedule['pm_end_date'].isoformat() if fixed_schedule else '',
-            day_of_month=str(fixed_schedule['day_of_month']) if fixed_schedule else '1',
-            status='active' if not fixed_schedule or fixed_schedule['pm_active'] else 'inactive',
-            charge_type=(fixed_schedule.get('pm_charge_type') or 'rent') if fixed_schedule else 'rent' if fixed_group=='rent' else '',
-            fixed_agreed='1' if fixed_schedule and fixed_schedule.get('pm_fixed_agreed') else '')
-    if fixed_form_open and not values.get('posting_key'):
-        values['posting_key']=fixed_token(property_id,tenant_id,fixed_schedule,fixed_group)
-    rent_schedules=[r for r in fixed_schedules if (r.get('pm_charge_type') or 'rent')=='rent']
-    utility_schedules=[r for r in fixed_schedules if (r.get('pm_charge_type') or 'rent')!='rent']
     rent_plan=None;rent_plan_error=None
-    if fixed_ready:
-        from .lease_soa_rent_plan import plan
-        try:rent_plan=plan(property_id,tenant_id)
-        except ValueError as exc:rent_plan_error=str(exc)
-    return render_template('program_billing/pm_soa_fixed_section.html',property=prop,tenant=tenant,section=section,
-        fixed_ready=fixed_ready,utility_ready=utility_ready,fixed_schedule=fixed_schedule,
-        fixed_form_open=fixed_form_open,fixed_group=fixed_group,fixed_options=fixed_options,
-        rent_schedules=rent_schedules,utility_schedules=utility_schedules,values=values,posting_error=error,
-        rent_plan=rent_plan,rent_plan_error=rent_plan_error),status
+    try:
+        from .lease_soa_fixed import require_schema
+        require_schema()
+        rent_plan=plan(property_id,tenant_id)
+    except ValueError as exc:rent_plan_error=str(exc)
+    except ServiceUnavailable as exc:
+        db.session.rollback();error=exc.description
+        current_app.logger.warning('PM Fixed Charges unavailable: %s',exc.description)
+    return render_template('program_billing/pm_soa_fixed_section.html',property=prop,tenant=tenant,
+        section=section,rent_plan=rent_plan,rent_plan_error=rent_plan_error,posting_error=error),status
 
 
 @billing_bp.context_processor
@@ -4082,7 +4054,10 @@ def pm_soa_workspace_reminders():
 @login_required
 def pm_soa_rent_later(property_id,tenant_id):
     from .lease_soa_reminders import later
-    later(property_id,tenant_id,request.form)
+    try:later(property_id,tenant_id,request.form)
+    except ValueError as exc:
+        db.session.rollback()
+        return pm_soa_fixed_page(property_id,tenant_id,error=str(exc),status=409,section='rent')
     return redirect(url_for('billing_bp.learner_dashboard'))
 
 
@@ -4121,6 +4096,25 @@ def pm_soa_rent_plan_action(property_id,tenant_id):
     return redirect(url_for('billing_bp.pm_soa_rent_page',property_id=property_id,tenant_id=tenant_id))
 
 
+@billing_bp.route('/manager/tenant_accounts/<int:property_id>/tenant/<int:tenant_id>/ledger/fixed/utilities/post',methods=['POST'],endpoint='pm_soa_post_utility')
+@login_required
+def pm_soa_post_utility(property_id,tenant_id):
+    from .lease_soa_metsoa import post
+    from werkzeug.exceptions import HTTPException
+    from sqlalchemy.exc import SQLAlchemyError
+    try:created=post(property_id,tenant_id,request.form)
+    except HTTPException as exc:
+        db.session.rollback()
+        if exc.code not in (400,409,503):raise
+        return pm_soa_fixed_page(property_id,tenant_id,error=exc.description,status=exc.code,section='utilities')
+    except (SQLAlchemyError,ValueError):
+        db.session.rollback()
+        current_app.logger.exception('PM METSOA transfer failed')
+        return pm_soa_fixed_page(property_id,tenant_id,error='Utility posting could not be confirmed. Retry safely; no duplicate transfer will be posted.',status=503,section='utilities')
+    flash('Utility charge posted.' if created else 'This METSOA charge was already posted; no duplicate was recorded.','success')
+    return redirect(url_for('billing_bp.pm_soa_utilities_page',property_id=property_id,tenant_id=tenant_id))
+
+
 @billing_bp.route('/manager/tenant_accounts/<int:property_id>/tenant/<int:tenant_id>/ledger/fixed',methods=['POST'],endpoint='pm_soa_save_fixed')
 @login_required
 def pm_soa_save_fixed(property_id,tenant_id):
@@ -4128,22 +4122,23 @@ def pm_soa_save_fixed(property_id,tenant_id):
     from werkzeug.exceptions import HTTPException
     from sqlalchemy.exc import SQLAlchemyError
     if request.form.get('action')!='fixed':abort(400)
+    section='rent' if request.form.get('charge_type','rent')=='rent' else 'utilities'
     try:
         created=save(property_id,tenant_id,request.form)
     except ValueError as exc:
         db.session.rollback()
-        return pm_soa_fixed_page(property_id,tenant_id,error=str(exc),status=400)
+        return pm_soa_fixed_page(property_id,tenant_id,error=str(exc),status=400,section=section)
     except HTTPException as exc:
         db.session.rollback()
         if exc.code not in (409,503):raise
-        return pm_soa_fixed_page(property_id,tenant_id,error=exc.description,status=exc.code)
+        return pm_soa_fixed_page(property_id,tenant_id,error=exc.description,status=exc.code,section=section)
     except SQLAlchemyError:
         db.session.rollback()
         current_app.logger.exception('PM Fixed Charges save failed')
         return pm_soa_fixed_page(property_id,tenant_id,
-            error='Fixed Charges could not be saved. Retry this form.',status=503)
+            error='Fixed Charges could not be saved. Retry this form.',status=503,section=section)
     flash('Fixed Charges saved.' if created else 'These Fixed Charges were already saved.','success')
-    return redirect(url_for('billing_bp.pm_soa_fixed_page',property_id=property_id,tenant_id=tenant_id))
+    return redirect(url_for('billing_bp.pm_soa_rent_page' if section=='rent' else 'billing_bp.pm_soa_utilities_page',property_id=property_id,tenant_id=tenant_id))
 
 
 @billing_bp.route("/manager/tenant_ledger/<int:debtor_id>")

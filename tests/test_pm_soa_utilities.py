@@ -30,28 +30,25 @@ class PMUtilityDefinitionTests(unittest.TestCase):
         fixture.PMFixedRentTests.setUp(self)
         apply_utilities(self.conn);self.conn.commit()
     def utility_form(self,charge_type='water',**changes):
-        page=self.client.get(self.path()+'/fixed?fixed_add=utility',headers=self.headers)
-        self.assertEqual(page.status_code,200,page.text)
-        tree=html.fromstring(page.data)
-        data={e.get('name'):e.get('value','') for e in tree.xpath('//form//input') if e.get('name')}
-        data.update(charge_type=charge_type,amount='500.25',start_date='2026-10-01',
-            end_date='2027-09-30',day_of_month='1',status='active',fixed_agreed='1')
+        with self.app.app_context():
+            schedule=self.fixed.for_account(26,11,charge_type)
+            key=self.fixed.form_token(26,11,schedule,'utility')
+        data=dict(csrf_token=self.csrf,action='fixed',posting_key=key,charge_type=charge_type,
+            fixed_agreed='1',amount='500.25',start_date='2026-10-01',end_date='2027-09-30',day_of_month='1',status='active')
+        if schedule:data['fixed_edit']=str(schedule['id'])
         data.update(changes);return data
-    def test_two_tables_and_independent_add_buttons_with_rent_preserved(self):
+    def test_separate_pages_preserve_existing_rent_and_utility_definitions(self):
         self.schedule(start_date='2026-10-01')
         utility=self.utility_form()
         self.assertEqual(self.save(utility).status_code,302)
         self.assertEqual(self.save(utility).status_code,302)
         self.assertEqual(self.save(dict(utility,charge_type='electricity')).status_code,409)
+        with self.app.app_context():rows=self.fixed.list_for_account(26,11)
+        self.assertEqual({row['description'] for row in rows},{'Rent Due','Water'})
         page=self.client.get(self.path()+'/fixed',headers=self.headers)
         tree=html.fromstring(page.data)
-        self.assertEqual(tree.xpath('//*[@id="monthly-rent"]/thead/tr/th/text()'),
-            ['Description','Amount','Due Day','Start Date','End Date','Status','Edit'])
-        self.assertEqual(tree.xpath('//*[@id="utility-charges"]/thead/tr/th/text()'),
-            ['Description','Amount','Due Day','Start Date','End Date','Status','Edit'])
-        self.assertEqual(len(tree.xpath('//section//a[text()="Add Charge"]|//section//button[text()="Add Charge"]')),2)
-        self.assertIn('Rent Due',tree.xpath('string(//*[@id="monthly-rent"])'))
-        self.assertIn('Water',tree.xpath('string(//*[@id="utility-charges"])'))
+        self.assertEqual(tree.xpath('//a[text()="Rent" or text()="Utilities"]/text()'),['Rent','Utilities'])
+        self.assertFalse(tree.xpath('//table|//form'))
         self.assertEqual(self.session.execute(text('SELECT count(*) FROM bil_tenant_ledger')).scalar(),0)
         self.assertFalse(tree.xpath('//form'))
     def test_agreement_is_required_and_only_real_utility_categories_accepted(self):
@@ -65,10 +62,7 @@ class PMUtilityDefinitionTests(unittest.TestCase):
     def test_utility_edit_is_versioned_scoped_and_preserves_rent(self):
         self.schedule(start_date='2026-10-01')
         self.assertEqual(self.save(self.utility_form()).status_code,302)
-        page=self.client.get(self.path()+'/fixed',headers=self.headers)
-        link=html.fromstring(page.data).xpath('//*[@id="utility-charges"]//a[text()="Edit"]/@href')[0]
-        editor=self.client.get(link,headers=self.headers);tree=html.fromstring(editor.data)
-        data={e.get('name'):e.get('value','') for e in tree.xpath('//form//input') if e.get('name')}
+        data=self.utility_form()
         data.update(status='inactive',amount='700.50',fixed_agreed='1')
         self.assertEqual(self.save(data).status_code,302)
         self.assertEqual(self.save(data).status_code,302)
@@ -78,7 +72,7 @@ class PMUtilityDefinitionTests(unittest.TestCase):
         self.assertEqual(water['amount'],Decimal('700.50'));self.assertFalse(water['pm_active'])
         self.assertEqual(rent['amount'],Decimal('35000.00'))
         self.assertEqual(self.save(dict(data,charge_type='electricity')).status_code,409)
-        self.assertEqual(self.client.get(self.path(27,22)+'/fixed?fixed_edit='+str(water['id']),headers=self.headers).status_code,404)
+        self.assertEqual(self.save(data,27,22).status_code,400)
     def test_worker_posts_rent_and_agreed_utility_as_distinct_charges(self):
         self.schedule(start_date='2026-10-01')
         self.assertEqual(self.save(self.utility_form()).status_code,302)
@@ -121,10 +115,7 @@ class PMUtilityDefinitionTests(unittest.TestCase):
         self.assertEqual(self.save(self.utility_form()).status_code,302)
         self.assertEqual(self.run_due(),dict(posted=1,failed=0))
         before=self.session.execute(text('SELECT * FROM bil_tenant_ledger')).all()
-        page=self.client.get(self.path()+'/fixed',headers=self.headers)
-        url=html.fromstring(page.data).xpath('//*[@id="utility-charges"]//a[text()="Edit"]/@href')[0]
-        tree=html.fromstring(self.client.get(url,headers=self.headers).data)
-        data={e.get('name'):e.get('value','') for e in tree.xpath('//form//input') if e.get('name')}
+        data=self.utility_form()
         data.update(status='inactive',fixed_agreed='1')
         self.assertEqual(self.save(data).status_code,302)
         with patch.object(self.fixed,'today',return_value=date(2026,12,31)):

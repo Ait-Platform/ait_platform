@@ -14,7 +14,7 @@ class FixedChargesPageTests(unittest.TestCase):
     save=fixture.PMUtilityDefinitionTests.save
     utility_form=fixture.PMUtilityDefinitionTests.utility_form
 
-    def test_dedicated_navigation_inline_forms_and_back_context(self):
+    def test_dedicated_navigation_and_back_context(self):
         ledger=self.client.get(self.path(),headers=self.headers)
         tree=html.fromstring(ledger.data)
         self.assertFalse(tree.xpath('//*[@id="monthly-rent" or @id="utility-charges"]|//form[input[@name="action"][@value="fixed"]]'))
@@ -24,20 +24,19 @@ class FixedChargesPageTests(unittest.TestCase):
         tree=html.fromstring(page.data)
         self.assertEqual(tree.xpath('//h1/text()'),['Fixed Charges'])
         self.assertEqual(tree.xpath('//a[text()="Back to Tenant Ledger"]/@href'),[self.path()])
-        links=tree.xpath('//section//a[text()="Add Charge"]/@href')
-        self.assertEqual(len(links),2)
+        links=tree.xpath('//a[text()="Rent" or text()="Utilities"]/@href')
+        self.assertEqual(links,[self.path()+'/fixed/rent',self.path()+'/fixed/utilities'])
         for link in links:
-            formpage=self.client.get(link,headers=self.headers)
-            formtree=html.fromstring(formpage.data)
-            self.assertEqual(formpage.status_code,200)
-            self.assertEqual(len(formtree.xpath('//*[@id="pm-fixed-charges"]//*[@id="fixed-charge-workspace"]//form')),1)
+            page=self.client.get(link,headers=self.headers)
+            self.assertEqual(page.status_code,200,page.text)
+            formtree=html.fromstring(page.data)
             self.assertFalse(formtree.xpath('//dialog|//a[@target="_blank"]'))
-            self.assertEqual(formtree.xpath('//a[text()="Cancel"]/@href'),[self.path()+'/fixed'])
+            self.assertEqual(formtree.xpath('//a[text()="Back to Fixed Charges"]/@href'),[self.path()+'/fixed'])
         old=self.client.get(self.path()+'?fixed=1&fixed_add=utility',headers=self.headers)
         self.assertEqual(old.status_code,302)
         self.assertEqual(old.location,self.path()+'/fixed?fixed_add=utility')
 
-    def test_save_confirmation_edit_and_validation_stay_inside_dedicated_tile(self):
+    def test_legacy_service_confirmation_and_validation_stay_inside_tile(self):
         root=Path(__file__).resolve().parents[1]
         parent=(root/'templates/layout.html').read_text(encoding='utf-8')
         start=parent.index('{% block flashes %}')
@@ -46,21 +45,16 @@ class FixedChargesPageTests(unittest.TestCase):
         for data in (self.fixed_form(),self.utility_form()):
             response=self.save(data)
             self.assertEqual(response.status_code,302,response.text)
-            self.assertEqual(response.location,self.path()+'/fixed')
+            self.assertIn(response.location,[self.path()+'/fixed/rent',self.path()+'/fixed/utilities'])
             page=self.client.get(response.location,headers=self.headers)
             tree=html.fromstring(page.data)
             self.assertEqual(len(tree.xpath('//*[@id="pm-fixed-charges"]//*[@id="flash-toast-container"]')),1)
             self.assertIn('Fixed Charges saved.',page.text)
-        page=self.client.get(self.path()+'/fixed',headers=self.headers)
-        edits=html.fromstring(page.data).xpath('//table//a[text()="Edit"]/@href')
-        self.assertEqual(len(edits),2)
-        self.assertTrue(all(link.startswith(self.path()+'/fixed?fixed_edit=') for link in edits))
         invalid=self.fixed_form(amount='-10')
         response=self.save(invalid)
         self.assertEqual(response.status_code,400)
         tree=html.fromstring(response.data)
         self.assertTrue(tree.xpath('//*[@id="pm-fixed-charges"]//*[@role="alert"]'))
-        self.assertEqual(tree.xpath('//input[@name="amount"]/@value'),['-10'])
         self.assertEqual(self.session.execute(text('SELECT count(*) FROM bil_tenant_ledger')).scalar(),0)
 
     def test_dedicated_page_keeps_authentication_property_and_tenant_permissions(self):

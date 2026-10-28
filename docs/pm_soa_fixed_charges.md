@@ -89,3 +89,16 @@ python scripts/pm_soa_post_fixed_rent.py --run
 ```
 
 Suggested schedule is UTC cron 5 22 * * * (daily 00:05 South African time). The command handles missed due dates and retries; do not change the shared Debtor/ProShop cron. Monitor posted/failed counts and nonzero exits. No production test transactions are required or authorised by this procedure.
+
+
+## Rent, Utilities and workspace reminders (2026-10-28)
+
+Fixed Charges is now a two-button landing tile. Rent and Utilities have separate pages and return to the same property's tenant account. Rent lists the whole saved Lease Kit term, including WIP drafts; each Post submits exactly one due date. Future rows are disabled in the interface and rejected server-side. When necessary, assignment and that one month's posting share a transaction. Assign remains available to save the recurring definition without posting charges. No worker is enabled by these changes.
+
+The PM entry workspace shows the oldest unposted due month once per tenant/property account. Post Now uses the same authenticated, CSRF-protected rent endpoint. Later stores a session-only dismissal for that account, ending after 30 minutes of workspace inactivity; it never marks rent posted. Missing schedule migrations produce a notice rather than financial writes.
+
+Utilities reads only existing bil_metsoa_meter_month total_due values, joining the registered tenant and meter property to existing PM manager permissions. It does not call tariff calculators, METSOA materializers, or shared Debtor/ProShop posting. Water/sewerage remain combined where that is how the source meter total is saved. Sources without reliable property links, valid positive totals, known utility types or valid periods cannot post. Future billing/reading periods are disabled. This page cannot supply calculations that have not been persisted by METSOA.
+
+A transfer uses the existing PM debit sequence and posting metadata columns. Its deterministic posting_key identifies the tenant, meter and billing period, backed by the existing unique posting-key index. Source row/property locks and a tenant/month advisory lock serialize transfers. The source record reference, stored total, property, tenant, meter, period and actor/time are retained in posting_notes with the PMMETSOA prefix. Existing source rows and ledger entries are never overwritten. Changes to a transferred source require controlled reconciliation/correction, not another transfer. Recognised legacy aggregate postings block the affected month for reconciliation. Existing scheduled utility postings block overlapping transfers; future scheduled postings skip categories already transferred from METSOA.
+
+No additional migration is introduced. Existing pm_soa_001 is mandatory for secure PM posting; Rent retains the pm_soa_003 schedule prerequisite. Existing pm_soa_004 utility schedule protections remain intact. Production schema/data and deployment must be verified separately; these changes neither migrate production nor activate its worker.

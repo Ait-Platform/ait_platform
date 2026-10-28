@@ -192,3 +192,17 @@ class PMFixedRentTests(unittest.TestCase):
         self.assertEqual(self.session.execute(text('SELECT count(*) FROM bil_tenant_ledger')).scalar(),0)
         self.assertEqual(self.run_due(),dict(posted=1,failed=0))
         self.assertEqual(self.run_due(),dict(posted=0,failed=0))
+
+    def test_missing_write_schema_opens_fixed_page_with_notice_and_no_posting_form(self):
+        data=self.fixed_form()
+        self.session.execute(text('DROP INDEX uq_pm_ledger_monthly_rent'));self.session.commit()
+        with self.assertLogs(self.app.logger.name,level='WARNING') as logs:
+            page=self.client.get(self.path()+'?fixed=1',headers=self.headers)
+        self.assertEqual(page.status_code,200,page.text)
+        self.assertIn('Fixed Charges requires migration pm_soa_003',page.text)
+        tree=html.fromstring(page.data)
+        self.assertTrue(tree.xpath('//*[@id="pm-tenant-ledger"]//*[@role="alert"]'))
+        self.assertFalse(tree.xpath('//form[input[@name="action"][@value="fixed"]]'))
+        self.assertTrue(any('pm_soa_003' in entry for entry in logs.output))
+        self.assertEqual(self.save(data).status_code,503)
+        self.assertEqual(self.session.execute(text('SELECT count(*) FROM bil_tenant_ledger')).scalar(),0)

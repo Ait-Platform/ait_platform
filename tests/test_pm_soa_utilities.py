@@ -3,6 +3,7 @@ import importlib.util
 from pathlib import Path
 import unittest
 from decimal import Decimal
+from datetime import date
 from unittest.mock import patch
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
@@ -78,11 +79,12 @@ class PMUtilityDefinitionTests(unittest.TestCase):
         self.assertEqual(rent['amount'],Decimal('35000.00'))
         self.assertEqual(self.save(dict(data,charge_type='electricity')).status_code,409)
         self.assertEqual(self.client.get(self.path(27,22)+'?fixed=1&fixed_edit='+str(water['id']),headers=self.headers).status_code,404)
-    def test_stage_two_worker_preserves_rent_and_does_not_yet_post_utilities(self):
+    def test_worker_posts_rent_and_agreed_utility_as_distinct_charges(self):
         self.schedule(start_date='2026-10-01')
         self.assertEqual(self.save(self.utility_form()).status_code,302)
-        self.assertEqual(self.run_due(),dict(posted=1,failed=0))
-        self.assertEqual(self.session.execute(text('SELECT description FROM bil_tenant_ledger')).scalars().all(),['Rent Due'])
+        self.assertEqual(self.run_due(),dict(posted=2,failed=0))
+        self.assertEqual(self.session.execute(text('SELECT description FROM bil_tenant_ledger ORDER BY id')).scalars().all(),['Rent Due','Water'])
+        self.assertEqual(self.run_due(),dict(posted=0,failed=0))
     def test_database_disallows_unagreed_utility_schedule(self):
         data=self.utility_form()
         self.assertEqual(self.save(data).status_code,302)
@@ -91,3 +93,50 @@ class PMUtilityDefinitionTests(unittest.TestCase):
             self.session.execute(text("UPDATE bil_tenant_recurring SET pm_fixed_agreed=false WHERE pm_charge_type='water'"))
         self.session.rollback()
         self.assertTrue(self.session.execute(text("SELECT pm_fixed_agreed FROM bil_tenant_recurring WHERE pm_charge_type='water'")).scalar())
+
+    def test_all_categories_update_balance_once_without_estimates(self):
+        self.schedule(start_date='2026-10-01')
+        for kind in ('water','electricity','sewerage','refuse','other_utilities'):
+            self.assertEqual(self.save(self.utility_form(kind)).status_code,302)
+        self.assertEqual(self.run_due(),dict(posted=6,failed=0))
+        self.assertEqual(self.run_due(),dict(posted=0,failed=0))
+        rows=self.session.execute(text('SELECT * FROM bil_tenant_ledger ORDER BY id')).mappings().all()
+        self.assertEqual([r['ref'] for r in rows],['D'+str(n).zfill(4) for n in range(1,7)])
+        self.assertEqual({r['fixed_charge_type'] for r in rows},{'rent','water','electricity','sewerage','refuse','other_utilities'})
+        page=self.client.get(self.path(),headers=self.headers)
+        self.assertEqual(html.fromstring(page.data).xpath('string(//*[@id="ledger-summary"]/tbody/tr/td[4])'),'R 37,501.25')
+    def test_utility_month_end_catchup_no_future_and_inclusive_end(self):
+        self.assertEqual(self.save(self.utility_form(day_of_month='31',start_date='2028-01-01',end_date='2028-03-31')).status_code,302)
+
+        with patch.object(self.fixed,'today',return_value=date(2028,2,28)):
+            self.assertEqual(self.run_due(),dict(posted=1,failed=0))
+        with patch.object(self.fixed,'today',return_value=date(2028,2,29)):
+            self.assertEqual(self.run_due(),dict(posted=1,failed=0))
+        with patch.object(self.fixed,'today',return_value=date(2028,5,1)):
+            self.assertEqual(self.run_due(),dict(posted=1,failed=0))
+            self.assertEqual(self.run_due(),dict(posted=0,failed=0))
+        self.assertEqual([r[0].date() for r in self.session.execute(text('SELECT txn_date FROM bil_tenant_ledger ORDER BY txn_date'))],
+            [date(2028,1,31),date(2028,2,29),date(2028,3,31)])
+    def test_utility_deactivation_stops_later_posts_and_preserves_history(self):
+        self.assertEqual(self.save(self.utility_form()).status_code,302)
+        self.assertEqual(self.run_due(),dict(posted=1,failed=0))
+        before=self.session.execute(text('SELECT * FROM bil_tenant_ledger')).all()
+        page=self.client.get(self.path()+'?fixed=1',headers=self.headers)
+        url=html.fromstring(page.data).xpath('//*[@id="utility-charges"]//a[text()="Edit"]/@href')[0]
+        tree=html.fromstring(self.client.get(url,headers=self.headers).data)
+        data={e.get('name'):e.get('value','') for e in tree.xpath('//form//input') if e.get('name')}
+        data.update(status='inactive',fixed_agreed='1')
+        self.assertEqual(self.save(data).status_code,302)
+        with patch.object(self.fixed,'today',return_value=date(2026,12,31)):
+            self.assertEqual(self.run_due(),dict(posted=0,failed=0))
+        self.assertEqual(before,self.session.execute(text('SELECT * FROM bil_tenant_ledger')).all())
+    def test_worker_itself_rejects_unagreed_utility_and_foreign_manager(self):
+        self.assertEqual(self.save(self.utility_form()).status_code,302)
+        # Simulate inconsistent legacy data only in disposable test tables.
+        self.session.execute(text('ALTER TABLE bil_tenant_recurring DROP CONSTRAINT ck_pm_recurring_rent'))
+        self.session.execute(text("UPDATE bil_tenant_recurring SET pm_fixed_agreed=false WHERE pm_charge_type='water'"));self.session.commit()
+        self.assertEqual(self.run_due(),dict(posted=0,failed=1))
+        self.session.execute(text("UPDATE bil_tenant_recurring SET pm_fixed_agreed=true WHERE pm_charge_type='water'"))
+        self.session.execute(text('UPDATE bil_property SET manager_id=8 WHERE id=26'));self.session.commit()
+        self.assertEqual(self.run_due(),dict(posted=0,failed=1))
+        self.assertEqual(self.session.execute(text('SELECT count(*) FROM bil_tenant_ledger')).scalar(),0)

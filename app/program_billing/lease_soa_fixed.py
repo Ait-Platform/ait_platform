@@ -164,47 +164,58 @@ def due_dates(schedule,as_of):
 
 def post_due(schedule_id,due):
     """Background-only entry; dates and manager scope come from the locked schedule."""
-    require_schema()
+    utilities=require_schema()
     row=db.session.execute(text('SELECT * FROM bil_tenant_recurring WHERE id=:id AND pm_rent_schedule FOR UPDATE'),
         dict(id=schedule_id)).mappings().first()
-    if row is None or not row['pm_active'] or (row.get('pm_charge_type') or 'rent')!='rent':
+    if row is None or not row['pm_active']:
         db.session.commit()
         return False
+    charge_type=row.get('pm_charge_type') or 'rent'
+    if charge_type not in CHARGE_TYPES or row['description']!=CHARGE_TYPES.get(charge_type) or row['amount']<=0:
+        abort(409,description='The fixed-charge definition is invalid. No financial transaction was posted.')
+    if charge_type!='rent':
+        require_schema(charge_type)
+        if not row.get('pm_fixed_agreed'):
+            abort(409,description='Variable or unagreed utility charges cannot be posted automatically.')
     posting.authorise(row['pm_property_id'],row['tenant_id'],manager_id=row['pm_manager_id'])
     if (due>today() or due<row['pm_start_date'] or due>row['pm_end_date'] or
             due!=scheduled_date(due.year,due.month,row['day_of_month'])):
         db.session.commit()
         return False
     month=due.strftime('%Y-%m')
+    type_filter=" AND COALESCE(fixed_charge_type,'rent')=:charge_type" if utilities else ''
     exists=db.session.execute(text("""SELECT EXISTS(SELECT 1 FROM bil_tenant_ledger
-        WHERE tenant_id=:t AND rent_property_id=:p AND month=:month AND rent_schedule_id IS NOT NULL)"""),
-        dict(t=row['tenant_id'],p=row['pm_property_id'],month=month)).scalar()
+        WHERE tenant_id=:t AND rent_property_id=:p AND month=:month AND rent_schedule_id IS NOT NULL"""+type_filter+')'),
+        dict(t=row['tenant_id'],p=row['pm_property_id'],month=month,charge_type=charge_type)).scalar()
     if exists:
         db.session.commit()
         return False
-    key=hashlib.sha256(('PMRENT:'+str(row['tenant_id'])+':'+str(row['pm_property_id'])+':'+month).encode()).hexdigest()[:32]
+    key_source=('PMRENT:' if charge_type=='rent' else 'PMFIXED:'+charge_type+':')
+    key=hashlib.sha256((key_source+str(row['tenant_id'])+':'+str(row['pm_property_id'])+':'+month).encode()).hexdigest()[:32]
     digest=hashlib.sha256(json.dumps([row['id'],str(due),str(row['amount'])]).encode()).hexdigest()
-    entry_id=posting.append_entry(row['tenant_id'],due,'Rent Due','charge',row['amount'],key,digest)
-    db.session.execute(text("""UPDATE bil_tenant_ledger SET rent_schedule_id=:schedule,rent_property_id=:p
-        WHERE id=:id"""),dict(schedule=row['id'],p=row['pm_property_id'],id=entry_id))
+    entry_id=posting.append_entry(row['tenant_id'],due,CHARGE_TYPES[charge_type],'charge',row['amount'],key,digest)
+    extra=',fixed_charge_type=:charge_type' if utilities else ''
+    db.session.execute(text("""UPDATE bil_tenant_ledger SET rent_schedule_id=:schedule,rent_property_id=:p"""+extra+"""
+        WHERE id=:id"""),dict(schedule=row['id'],p=row['pm_property_id'],id=entry_id,charge_type=charge_type))
     db.session.commit()
     return True
 
 
 def run_due():
     """Catch up eligible months, bounded per run. No request/GET materialisation."""
-    require_schema()
+    utilities=require_schema()
     schedules=db.session.execute(text("""SELECT * FROM bil_tenant_recurring
         WHERE pm_rent_schedule AND pm_active ORDER BY id""")).mappings().all()
     db.session.commit()
     posted=0;failed=0
     for schedule in schedules:
-        if (schedule.get('pm_charge_type') or 'rent')!='rent':continue
+        charge_type=schedule.get('pm_charge_type') or 'rent'
         count=0
         try:
+            type_filter=" AND COALESCE(fixed_charge_type,'rent')=:charge_type" if utilities else ''
             recorded=set(db.session.execute(text("""SELECT month FROM bil_tenant_ledger
-                WHERE tenant_id=:t AND rent_property_id=:p AND rent_schedule_id IS NOT NULL"""),
-                dict(t=schedule['tenant_id'],p=schedule['pm_property_id'])).scalars())
+                WHERE tenant_id=:t AND rent_property_id=:p AND rent_schedule_id IS NOT NULL"""+type_filter),
+                dict(t=schedule['tenant_id'],p=schedule['pm_property_id'],charge_type=charge_type)).scalars())
             db.session.commit()
             for due in due_dates(schedule,today()):
                 if due.strftime('%Y-%m') in recorded:continue
@@ -213,6 +224,6 @@ def run_due():
                 if count>=120:break
         except Exception as exc:
             db.session.rollback()
-            logging.getLogger(__name__).error('PM rent schedule %s failed (%s)',schedule['id'],type(exc).__name__)
+            logging.getLogger(__name__).error('PM fixed-charge schedule %s failed (%s)',schedule['id'],type(exc).__name__)
             failed+=1
     return dict(posted=posted,failed=failed)

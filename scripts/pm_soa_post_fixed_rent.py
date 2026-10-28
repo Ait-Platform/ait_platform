@@ -1,4 +1,4 @@
-"""PM-only daily rent worker. Run from the service repo; never calls create_app()."""
+"""PM-only daily fixed-charge worker. Run from the service repo; never calls create_app()."""
 import argparse
 import json
 import os
@@ -11,7 +11,7 @@ sys.path.insert(0,str(ROOT))
 
 def main():
     parser=argparse.ArgumentParser(description='Post due PM Fixed Charges only.')
-    parser.add_argument('--run',action='store_true',help='Execute due rent posting using the assigned DATABASE_URL.')
+    parser.add_argument('--run',action='store_true',help='Execute due fixed-charge posting using the assigned DATABASE_URL.')
     args=parser.parse_args()
     if not args.run:
         print('No transactions posted. Use --run only in the authorised PM scheduled job.')
@@ -32,7 +32,7 @@ def main():
         try:result=run_due()
         except Exception:
             db.session.rollback()
-            print('PM rent worker failed. Check migration, ownership and assigned database configuration.')
+            print('PM fixed-charge worker failed. Check migration, ownership and assigned database configuration.')
             return 1
         print(json.dumps(result))
         return 1 if result['failed'] else 0

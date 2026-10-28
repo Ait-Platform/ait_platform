@@ -70,6 +70,13 @@ with engine.connect() as c:
     command.upgrade(config,'pm_soa_003')
     assert set(c.execute(text('SELECT version_num FROM alembic_version')).scalars())==existing|{'pm_soa_003'}
     assert before==c.execute(text('SELECT id,tenant_id,txn_date,month,description,kind,amount,ref FROM bil_tenant_ledger ORDER BY id')).all()
+    c.commit()
+    command.upgrade(config,'pm_soa_004')
+    assert set(c.execute(text('SELECT version_num FROM alembic_version')).scalars())==existing|{'pm_soa_004'}
+    assert before==c.execute(text('SELECT id,tenant_id,txn_date,month,description,kind,amount,ref FROM bil_tenant_ledger ORDER BY id')).all()
+    c.commit()
+    command.upgrade(config,'pm_soa_004')
+    assert c.execute(text('SELECT count(*) FROM bil_tenant_ledger')).scalar()==2
 print('Targeted Alembic rehearsal passed; existing heads and financial rows preserved.')
 '''
         result=subprocess.run([sys.executable,'-c',code],cwd=ROOT,capture_output=True,text=True,timeout=90)

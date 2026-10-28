@@ -49,3 +49,5 @@ Retry keys and original-row locks prevent duplicate corrections and changes base
 ## PM-only Fixed Charges
 
 The new Fixed Charges workflow and migration pm_soa_003 supersede the earlier exclusion of recurring rent in this document. See [Fixed Charges delivery and worker setup](pm_soa_fixed_charges.md). Existing legacy materializers, METSOA and shared Debtor/ProShop cron are not used. Production migration and scheduled execution remain unapplied and disabled.
+
+Fixed utilities extend this workflow under pm_soa_004, preserving pm_soa_003 and existing rent markers. Rent and agreed fixed utilities share the PM worker and debit sequence; category-specific monthly uniqueness prevents duplicate scheduled charges. See the Fixed Charges document for the read-only 503 notice behavior, tested upgrade and approval-only activation procedure. Variable utilities remain outside automatic posting.

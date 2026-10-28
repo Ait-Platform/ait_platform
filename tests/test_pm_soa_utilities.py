@@ -140,3 +140,61 @@ class PMUtilityDefinitionTests(unittest.TestCase):
         self.session.execute(text('UPDATE bil_property SET manager_id=8 WHERE id=26'));self.session.commit()
         self.assertEqual(self.run_due(),dict(posted=0,failed=1))
         self.assertEqual(self.session.execute(text('SELECT count(*) FROM bil_tenant_ledger')).scalar(),0)
+
+    def test_concurrent_utility_periods_are_unique_but_categories_are_independent(self):
+        import concurrent.futures,threading,uuid
+        from sqlalchemy import create_engine
+        from sqlalchemy.orm import scoped_session,sessionmaker
+        from app.program_billing import lease_soa_posting as posting
+        for kind in ('water','electricity'):
+            self.assertEqual(self.save(self.utility_form(kind)).status_code,302)
+        schedules={r[0]:r[1] for r in self.session.execute(text('SELECT pm_charge_type,id FROM bil_tenant_recurring WHERE pm_rent_schedule'))}
+        name='pm_utility_test_'+uuid.uuid4().hex
+        self.assertRegex(name,r'^pm_utility_test_[a-f0-9]{32}$')
+        table='public.'+name;sequence=table+'_seq'
+        self.session.commit()
+        self.conn.execute(text('CREATE TABLE '+table+' (LIKE bil_tenant_ledger INCLUDING ALL)'))
+        self.conn.execute(text('CREATE SEQUENCE '+sequence+' MINVALUE 1 MAXVALUE 9999 NO CYCLE'));self.conn.commit()
+        engine=create_engine(self.engine.url);sessions=scoped_session(sessionmaker(bind=engine))
+        worker_db=type('WorkerDB',(),{'session':sessions})()
+        def batch(kind):
+            barrier=threading.Barrier(2)
+            def run(_):
+                try:
+                    barrier.wait(timeout=10)
+                    ref=posting.next_reference('debit')
+                    sessions.execute(text('INSERT INTO '+table+"""(tenant_id,txn_date,month,description,kind,amount,ref,rent_schedule_id,rent_property_id,fixed_charge_type)
+                        VALUES(11,'2026-10-01','2026-10',:description,'charge',500.25,:ref,:schedule,26,:category)"""),
+                        dict(description=self.fixed.CHARGE_TYPES[kind],ref=ref,schedule=schedules[kind],category=kind))
+                    sessions.commit();return True
+                except IntegrityError:
+                    sessions.rollback();return False
+                finally:sessions.remove()
+            with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:return sorted(pool.map(run,[1,2]))
+        try:
+            with patch.object(posting,'db',worker_db),patch.dict(posting.REFERENCE_SEQUENCES,{'D':sequence}):
+                self.assertEqual(batch('water'),[False,True]);self.assertEqual(batch('electricity'),[False,True])
+            with engine.connect() as c:self.assertEqual(c.execute(text('SELECT count(*) FROM '+table)).scalar(),2)
+        finally:
+            sessions.remove();engine.dispose()
+            self.conn.execute(text('DROP TABLE '+table));self.conn.execute(text('DROP SEQUENCE '+sequence));self.conn.commit()
+
+
+class PMUtilityUpgradeTests(unittest.TestCase):
+    path=fixture.PMFixedRentTests.path
+    fixed_form=fixture.PMFixedRentTests.fixed_form
+    save=fixture.PMFixedRentTests.save
+    schedule=fixture.PMFixedRentTests.schedule
+    run_due=fixture.PMFixedRentTests.run_due
+    setUp=fixture.PMFixedRentTests.setUp
+    def test_upgrade_retains_existing_rent_markers_and_does_not_post_them_twice(self):
+        self.schedule(start_date='2026-10-01')
+        self.assertEqual(self.run_due(),dict(posted=1,failed=0))
+        columns='id,tenant_id,txn_date,description,kind,amount,ref,posting_key,posting_hash,rent_schedule_id,rent_property_id'
+        before=self.session.execute(text('SELECT '+columns+' FROM bil_tenant_ledger')).all()
+        self.session.commit()
+        apply_utilities(self.conn);self.conn.commit()
+        self.assertEqual(before,self.session.execute(text('SELECT '+columns+' FROM bil_tenant_ledger')).all())
+        self.assertIsNone(self.session.execute(text('SELECT fixed_charge_type FROM bil_tenant_ledger')).scalar())
+        self.assertEqual(self.run_due(),dict(posted=0,failed=0))
+        self.assertEqual(self.session.execute(text('SELECT count(*) FROM bil_tenant_ledger')).scalar(),1)

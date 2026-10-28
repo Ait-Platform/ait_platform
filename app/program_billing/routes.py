@@ -3918,7 +3918,7 @@ def pm_soa_ledger(property_id,tenant_id,error=None,status=200):
     tenant=next((row for row in tenants_for(property_id) if row['id']==tenant_id),None)
     if tenant is None:abort(404)
     from .lease_soa_posting import token,has_opening,DEBIT_DESCRIPTIONS,CREDIT_DESCRIPTIONS
-    from datetime import date
+    from .lease_soa_dates import today,effective_date
     correction=None
     edit_id=request.form.get('edit_id',type=int) if request.method=='POST' else request.args.get('edit',type=int)
     if edit_id is not None:
@@ -3931,13 +3931,16 @@ def pm_soa_ledger(property_id,tenant_id,error=None,status=200):
     if correction:
         from decimal import Decimal
         if request.method!='POST':
-            values=dict(txn_date=correction['txn_date'].strftime('%Y-%m-%d') if correction['txn_date'] else date.today().isoformat(),
+            values=dict(txn_date=effective_date(correction['txn_date']).isoformat() if correction['txn_date'] else today().isoformat(),
                 description=correction['description'],amount=str(abs(Decimal(str(correction['amount'])))),
                 direction='credit' if correction['amount']<0 else 'debit' if correction['amount'] else 'zero')
         if not values.get('posting_key'):values['posting_key']=form_token(property_id,tenant_id,correction)
-    values.setdefault('txn_date',date.today().isoformat())
+    values.setdefault('txn_date',today().isoformat())
+    entries=transactions(tenant_id)
+    visible=request.args.get('visible',default=5,type=int)
+    if visible is None or visible<5 or visible%5:abort(400)
     return render_template('program_billing/pm_soa_ledger.html',property=prop,tenant=tenant,
-        entries=transactions(tenant_id),posting=kind,values=values,posting_error=error,
+        entries=entries,visible_entries=entries[-visible:],visible_count=visible,has_more=len(entries)>visible,posting=kind,values=values,posting_error=error,
         correction=correction,correction_opening=bool(correction and (correction['kind'] in ('opening_balance','opening_adjustment') or (correction['description'] or '').strip().lower()=='opening balance')),
         opening_recorded=has_opening(tenant_id),
         descriptions=DEBIT_DESCRIPTIONS if kind=='charge' else CREDIT_DESCRIPTIONS),status

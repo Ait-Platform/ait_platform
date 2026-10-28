@@ -36,7 +36,7 @@ class OpeningBalanceTests(unittest.TestCase):
             page=self.client.get(self.path(prop,tenant),headers=self.headers)
             tree=html.fromstring(page.data)
             self.assertEqual(len(tree.xpath('//button[@disabled][text()="Opening Balance"]')),1)
-            self.assertIn('Opening reconciliation',page.text);self.assertIn(reference,page.text)
+            self.assertNotIn('Opening reconciliation',page.text);self.assertIn(reference,page.text)
             self.assertEqual(tree.xpath('string(//*[@id="ledger-summary"]/tbody/tr/td[4])'),'R '+format(expected,',.2f'))
             self.assertEqual(self.submit(data,prop,tenant).status_code,302) # identical retry
             self.assertEqual(self.submit(self.posting_form('opening_balance',prop,tenant,

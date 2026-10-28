@@ -70,8 +70,8 @@ class PMCorrectionTests(unittest.TestCase):
         self.assertNotIn('Outstanding balance: R',page.text)
         self.assertEqual(len(tree.xpath('//*[@id="ledger-transactions"]//tbody/tr')),3)
         self.assertEqual(len(tree.xpath('//*[@id="ledger-transactions"]//tbody/tr/td[last()]/*[text()="Edit"]')),3)
-        self.assertIn('Reversal of D0001',page.text);self.assertIn('Replacement of D0001',page.text)
-        self.assertIn(data['reason'],page.text)
+        self.assertNotIn('Reversal of D0001',page.text);self.assertNotIn('Replacement of D0001',page.text)
+        self.assertNotIn(data['reason'],page.text)
         self.assertFalse(any('debtor' in s or 'job_card' in s or 'metsoa' in s for s in statements))
     def test_payment_correction_and_duplicate_payload_protection(self):
         row_id=self.seed('payment',amount='80.05')

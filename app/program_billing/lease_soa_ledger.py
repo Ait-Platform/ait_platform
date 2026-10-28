@@ -3,6 +3,7 @@ from decimal import Decimal,InvalidOperation
 from flask import abort
 from sqlalchemy import text,inspect
 from app.extensions import db
+from .lease_soa_dates import effective_date
 
 
 def transactions(tenant_id):
@@ -31,6 +32,11 @@ def transactions(tenant_id):
         except (InvalidOperation,ValueError,TypeError):
             abort(503,description='A PM ledger amount is invalid. The account cannot be totalled safely; no records were changed.')
         balance+=amount
-        result.append(dict(row,debit=amount if amount>0 else Decimal('0.00'),
+        description='Reversal' if row['correction_role']=='reversal' or row['kind']=='correction_reversal' else 'Opening Balance' if row['kind']=='opening_adjustment' else row['description']
+        reference=row['ref'] or ''
+        if reference.startswith('PMPOST:'):reference=reference.partition(' | ')[2]
+        result.append(dict(row,display_date=effective_date(row['txn_date']),
+            display_description=description,display_reference=reference,
+            debit=amount if amount>0 else Decimal('0.00'),
             credit=-amount if amount<0 else Decimal('0.00'),balance=balance))
     return result

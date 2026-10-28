@@ -1,0 +1,55 @@
+"""PM ledger presentation: effective dates, tile flashes and latest-five window."""
+import unittest
+from datetime import datetime, timezone
+from pathlib import Path
+from lxml import html
+from sqlalchemy import text
+from jinja2 import ChoiceLoader, DictLoader, FileSystemLoader
+from flask import flash, redirect
+import test_pm_soa_ledger as fixture
+
+
+class PMDisplayTests(unittest.TestCase):
+    setUp=fixture.PMTenantLedgerTests.setUp
+    path=fixture.PMTenantLedgerTests.path
+    def test_latest_five_expand_in_fives_with_full_running_balances(self):
+        for n in range(1,13):
+            self.session.execute(text("""INSERT INTO bil_tenant_ledger
+                (tenant_id,txn_date,description,kind,amount,ref)
+                VALUES(11,:date,'Rent Due','charge',:amount,:ref)"""),
+                dict(date='2026-10-'+str(n).zfill(2),amount=n,ref='D'+str(n).zfill(4)))
+        self.session.commit()
+        page=self.client.get(self.path(),headers=self.headers)
+        tree=html.fromstring(page.data)
+        rows=tree.xpath('//*[@id="ledger-transactions"]/tbody/tr')
+        self.assertEqual([r[0].text_content() for r in rows],['2026-10-'+str(n).zfill(2) for n in range(8,13)])
+        self.assertEqual([r[4].text_content() for r in rows],['36.00','45.00','55.00','66.00','78.00'])
+        self.assertEqual(tree.xpath('string(//*[@id="ledger-summary"]/tbody/tr/td[4])'),'R 78.00')
+        more=tree.xpath('//a[text()="Show More"]/@href')[0]
+        expanded=self.client.get(more,headers=self.headers);expanded_tree=html.fromstring(expanded.data)
+        self.assertEqual(len(expanded_tree.xpath('//*[@id="ledger-transactions"]/tbody/tr')),10)
+        less=expanded_tree.xpath('//a[text()="Show Less"]/@href')[0]
+        self.assertEqual(len(html.fromstring(self.client.get(less,headers=self.headers).data).xpath('//*[@id="ledger-transactions"]/tbody/tr')),5)
+    def test_calendar_dates_do_not_reinterpret_naive_effective_dates_as_utc(self):
+        from app.program_billing.lease_soa_dates import effective_date
+        self.assertEqual(effective_date(datetime(2026,10,24,0,0)).isoformat(),'2026-10-24')
+        self.assertEqual(effective_date(datetime(2026,10,23,23,30,tzinfo=timezone.utc)).isoformat(),'2026-10-24')
+        self.assertEqual(effective_date(datetime(2026,10,24,22,30,tzinfo=timezone.utc)).isoformat(),'2026-10-25')
+    def test_success_flash_is_inside_tile_using_shared_style_once(self):
+        root=Path(__file__).resolve().parents[1]
+        parent=(root/'templates/layout.html').read_text(encoding='utf-8')
+        start=parent.index('{% block flashes %}')
+        end=parent.index('{% endblock %}',parent.index('{% endblock %}',start)+1)+len('{% endblock %}')
+        self.app.jinja_loader=ChoiceLoader([DictLoader({'layout.html':parent[start:end]+'{% block content %}{% endblock %}'}),FileSystemLoader(root/'templates')])
+        self.app._got_first_request=False
+        def notify():
+            flash('Correction saved: reversal and replacement recorded.','success')
+            return redirect(self.path())
+        self.app.add_url_rule('/display-test/notify',view_func=notify)
+        response=self.client.get('/display-test/notify',headers=self.headers,follow_redirects=True)
+        self.assertEqual(response.status_code,200,response.text)
+        tree=html.fromstring(response.data)
+        messages=tree.xpath('//*[@id="flash-toast-container"]')
+        self.assertEqual(len(messages),1)
+        self.assertTrue(messages[0].xpath('ancestor::*[@id="pm-tenant-ledger"]'))
+        self.assertTrue(messages[0].xpath('.//*[contains(@class,"text-emerald-800")]'))

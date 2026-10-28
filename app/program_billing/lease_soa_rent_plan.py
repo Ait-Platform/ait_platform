@@ -57,18 +57,22 @@ def plan(property_id,tenant_id):
         rows=rows,total=amount*months,assigned=assigned,schedule=schedule,key=key,snapshot=snapshot)
 
 
-def act(property_id,tenant_id,form):
+def verify_key(result,property_id,tenant_id,form):
     from itsdangerous import BadSignature
-    posting.authorise(property_id,tenant_id)
-    lock=int.from_bytes(hashlib.sha256(('PMFIXED:'+str(property_id)+':'+str(tenant_id)).encode()).digest()[:8],'big',signed=True)
-    posting.db.session.execute(text('SELECT pg_advisory_xact_lock(:key)'),dict(key=lock))
-    posting.db.session.execute(text('SELECT id FROM bil_tenant_recurring WHERE pm_rent_schedule AND pm_property_id=:p AND tenant_id=:t FOR UPDATE'),dict(p=property_id,t=tenant_id)).all()
-    result=plan(property_id,tenant_id)
     try:
         scope=posting.signer().loads(form.get('posting_key',''))
         if not isinstance(scope,list) or len(scope)!=5 or scope[:4]!=[current_user.id,property_id,tenant_id,'rent-plan:'+result['snapshot']]:raise BadSignature('scope')
     except (BadSignature,TypeError):
         abort(409,description='The lease or schedule changed. Reload Fixed Charges before assigning or posting.')
+
+
+def act(property_id,tenant_id,form):
+    posting.authorise(property_id,tenant_id)
+    lock=int.from_bytes(hashlib.sha256(('PMFIXED:'+str(property_id)+':'+str(tenant_id)).encode()).digest()[:8],'big',signed=True)
+    posting.db.session.execute(text('SELECT pg_advisory_xact_lock(:key)'),dict(key=lock))
+    posting.db.session.execute(text('SELECT id FROM bil_tenant_recurring WHERE pm_rent_schedule AND pm_property_id=:p AND tenant_id=:t FOR UPDATE'),dict(p=property_id,t=tenant_id)).all()
+    result=plan(property_id,tenant_id)
+    verify_key(result,property_id,tenant_id,form)
     if form.get('rent_action')=='assign':
         if result['assigned']:posting.db.session.commit();return 'Rent schedule is already assigned.'
         fixed.save(property_id,tenant_id,dict(charge_type='rent',amount=str(result['amount']),

@@ -1,0 +1,11 @@
+{% if pm_rent_notice %}<p role="status" class="my-3 rounded-lg bg-amber-50 p-3 text-amber-900">{{ pm_rent_notice }}</p>{% endif %}
+{% for reminder in pm_rent_reminders|default([]) %}
+<div data-rent-reminder class="my-3 rounded-lg border border-blue-200 bg-blue-50 p-4 text-blue-950">
+<p class="font-semibold">{{ reminder.month }} rent is due. Post this month's rent?</p>
+<p class="mt-1 text-sm">{{ reminder.property_name }} — {{ reminder.tenant_name }}</p>
+<div class="mt-3 flex flex-wrap justify-end gap-3">
+{% for endpoint,label in [('pm_soa_rent_plan_action','Post Now'),('pm_soa_rent_later','Later')] %}<form method="post" action="{{ url_for('billing_bp.'~endpoint,property_id=reminder.property_id,tenant_id=reminder.tenant_id) }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="posting_key" value="{{ reminder.key }}"><input type="hidden" name="rent_action" value="post"><input type="hidden" name="due" value="{{ reminder.due.isoformat() }}"><input type="hidden" name="origin" value="workspace">
+<button class="rounded-lg {{ 'bg-green-100' if label=='Post Now' else 'bg-slate-100' }} px-4 py-2">{{ label }}</button></form>{% endfor %}
+</div></div>
+{% endfor %}

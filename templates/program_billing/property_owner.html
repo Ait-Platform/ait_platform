@@ -12,6 +12,7 @@
         <a href="{{ url_for('bridge_bp.bridge') }}" class="rounded-lg bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700">Back</a>
       </div>
       {% set pm_menu_active = 'property_owner' %}{% include 'program_billing/menu.html' %}
+      {% include 'program_billing/pm_soa_rent_reminders.html' %}
       <h2 class="mt-4 text-xl font-semibold">Property &amp; Owner</h2>
       <style>
         #property-name { border: 1px solid #b8cbd7; }

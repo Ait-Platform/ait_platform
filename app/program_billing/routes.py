@@ -4065,6 +4065,27 @@ def pm_soa_fixed_page(property_id,tenant_id,error=None,status=200,section=None):
         rent_plan=rent_plan,rent_plan_error=rent_plan_error),status
 
 
+@billing_bp.context_processor
+def pm_soa_workspace_reminders():
+    if request.endpoint not in ('billing_bp.learner_dashboard','billing_bp.subject_home','billing_bp.property_owner') or request.method!='GET':return {}
+    from .lease_soa_reminders import reminders
+    from werkzeug.exceptions import HTTPException
+    from sqlalchemy.exc import SQLAlchemyError
+    try:return dict(pm_rent_reminders=reminders())
+    except (HTTPException,SQLAlchemyError) as exc:
+        db.session.rollback()
+        current_app.logger.warning('PM rent reminders unavailable: %s',type(exc).__name__)
+        return dict(pm_rent_reminders=[],pm_rent_notice='Rent reminders are currently unavailable. Open Rent to check due months.')
+
+
+@billing_bp.route('/manager/tenant_accounts/<int:property_id>/tenant/<int:tenant_id>/ledger/fixed/rent/later',methods=['POST'],endpoint='pm_soa_rent_later')
+@login_required
+def pm_soa_rent_later(property_id,tenant_id):
+    from .lease_soa_reminders import later
+    later(property_id,tenant_id,request.form)
+    return redirect(url_for('billing_bp.learner_dashboard'))
+
+
 @billing_bp.get('/manager/tenant_accounts/<int:property_id>/tenant/<int:tenant_id>/ledger/fixed/rent',endpoint='pm_soa_rent_page')
 @login_required
 def pm_soa_rent_page(property_id,tenant_id):
@@ -4096,6 +4117,7 @@ def pm_soa_rent_plan_action(property_id,tenant_id):
         current_app.logger.exception('PM rent schedule action failed')
         return pm_soa_fixed_page(property_id,tenant_id,error='Rent could not be saved. Retry safely; duplicate protection remains active.',status=503,section='rent')
     flash(message,'success')
+    if request.form.get('origin')=='workspace':return redirect(url_for('billing_bp.learner_dashboard'))
     return redirect(url_for('billing_bp.pm_soa_rent_page',property_id=property_id,tenant_id=tenant_id))
 
 

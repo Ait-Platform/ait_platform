@@ -75,7 +75,7 @@ def parse(form):
     return amount,start,end,day,status=='active'
 
 
-def save(property_id,tenant_id,form):
+def save(property_id,tenant_id,form,commit=True):
     charge_type=form.get('charge_type','rent')
     if charge_type not in CHARGE_TYPES:raise ValueError('Select an available charge description.')
     utilities=require_schema(charge_type)
@@ -109,7 +109,8 @@ def save(property_id,tenant_id,form):
         expected=replay['pm_create_hash'] if scope[4]==replay['pm_create_key'] else replay['pm_last_hash']
         if expected not in (digest,legacy_digest):
             abort(409,description='This Fixed Charges form was already saved with different details.')
-        db.session.commit();return False
+        if commit:db.session.commit()
+        return False
     params=dict(t=tenant_id,p=property_id,m=current_user.id,amount=amount,start=start,end=end,
         day=day,active=active,key=scope[4],digest=digest,charge_type=charge_type,
         agreed=agreed,description=CHARGE_TYPES[charge_type])
@@ -126,7 +127,8 @@ def save(property_id,tenant_id,form):
         expected=row['pm_create_hash'] if scope[4]==row['pm_create_key'] else row['pm_last_hash']
         if expected not in (digest,legacy_digest):
             abort(409,description='This Fixed Charges form was already saved with different details.')
-        db.session.commit();return False
+        if commit:db.session.commit()
+        return False
     if row is None:
         if not scope[3].startswith('fixed:add'):abort(404)
         extra_columns=',pm_charge_type,pm_fixed_agreed' if utilities else ''
@@ -144,7 +146,7 @@ def save(property_id,tenant_id,form):
         db.session.execute(text("""UPDATE bil_tenant_recurring SET amount=:amount,day_of_month=:day,
             pm_active=:active,pm_start_date=:start,pm_end_date=:end,pm_version=pm_version+1,
             pm_last_key=:key,pm_last_hash=:digest"""+extra+' WHERE id=:id'),params)
-    db.session.commit()
+    if commit:db.session.commit()
     return True
 
 

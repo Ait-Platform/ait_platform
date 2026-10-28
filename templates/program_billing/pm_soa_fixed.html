@@ -7,9 +7,6 @@
 {% include 'partials/flash_messages.html' %}
 <div class="mb-4 flex flex-wrap items-center justify-between gap-4"><h1 class="text-2xl font-bold text-slate-900">Fixed Charges</h1><a class="rounded-lg border border-slate-300 bg-slate-100 px-4 py-2" href="{{ url_for('billing_bp.pm_soa_ledger',property_id=property.id,tenant_id=tenant.id) }}">Back to Tenant Ledger</a></div>
 <p class="mb-5 text-slate-600">{{ property.name }} — {{ tenant.name }} — {{ tenant.tenant_reference or 'PM tenant account ' ~ tenant.id }}</p>
-{% if posting_error %}<p role="alert" class="my-3 rounded-lg bg-red-100 p-3 text-red-900">{{ posting_error }}</p>{% endif %}
-{% if fixed_form_open %}<div id="fixed-charge-workspace">{% include 'program_billing/pm_soa_fixed_form.html' %}</div>{% endif %}
-{% include 'program_billing/pm_soa_rent_plan.html' %}
-{% include 'program_billing/pm_soa_fixed_tables.html' %}
+<div class="my-4 flex flex-wrap justify-end gap-3"><a class="rounded-lg bg-blue-100 px-4 py-2" href="{{ url_for('billing_bp.pm_soa_rent_page',property_id=property.id,tenant_id=tenant.id) }}">Rent</a><a class="rounded-lg bg-green-100 px-4 py-2" href="{{ url_for('billing_bp.pm_soa_utilities_page',property_id=property.id,tenant_id=tenant.id) }}">Utilities</a></div>
 </div></div>
 {% endblock %}

@@ -52,7 +52,7 @@ def plan(property_id,tenant_id):
     for offset in range(months):
         due=month_date(start,offset);ref=posted.get(due.strftime('%Y-%m'))
         rows.append(dict(month=due.strftime('%B %Y'),due=due,amount=amount,ref=ref,
-            status='Posted' if ref else 'Assigned' if assigned else 'Not assigned',can_post=assigned and not ref and due<=today()))
+            status='Posted' if ref else 'Assigned' if assigned else 'Not assigned',can_post=not ref and due<=today()))
     return dict(draft_id=str(draft['id']),version=draft['version'],amount=amount,start=start,end=end,
         rows=rows,total=amount*months,assigned=assigned,schedule=schedule,key=key,snapshot=snapshot)
 
@@ -78,8 +78,12 @@ def act(property_id,tenant_id,form):
     if form.get('rent_action')!='post':abort(400)
     try:due=date.fromisoformat(form.get('due',''))
     except ValueError:abort(400)
-    if not result['assigned']:abort(409,description='Assign the current Lease Kit rent schedule before posting.')
     if not any(row['due']==due for row in result['rows']) or due>today():
         abort(400,description='Only a due month in this lease schedule may be posted.')
+    if not result['assigned']:
+        fixed.save(property_id,tenant_id,dict(charge_type='rent',amount=str(result['amount']),
+            start_date=str(result['start']),end_date=str(result['end']),day_of_month=str(result['start'].day),status='active',
+            posting_key=fixed.form_token(property_id,tenant_id,result['schedule'])),commit=False)
+        result['schedule']=fixed.for_account(property_id,tenant_id)
     created=fixed.post_due(result['schedule']['id'],due)
     return 'Rent posted to Tenant Ledger.' if created else 'This month was already posted; no duplicate was recorded.'

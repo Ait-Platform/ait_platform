@@ -4005,13 +4005,15 @@ def pm_soa_correct(property_id,tenant_id,row_id):
 
 @billing_bp.get('/manager/tenant_accounts/<int:property_id>/tenant/<int:tenant_id>/ledger/fixed',endpoint='pm_soa_fixed_page')
 @login_required
-def pm_soa_fixed_page(property_id,tenant_id,error=None,status=200):
+def pm_soa_fixed_page(property_id,tenant_id,error=None,status=200,section=None):
     from .lease_soa import tenants_for
     prop=db.session.query(BilProperty.id,BilProperty.name).filter(BilProperty.id==property_id,
         BilProperty.manager_id==current_user.id,BilProperty.is_archived==False).first()
     if prop is None:abort(404)
     tenant=next((row for row in tenants_for(property_id) if row['id']==tenant_id),None)
     if tenant is None:abort(404)
+    if section is None:
+        return render_template('program_billing/pm_soa_fixed.html',property=prop,tenant=tenant),status
     from .lease_soa_dates import today
     values=request.form.to_dict() if request.method=='POST' else {}
     fixed_schedule=None;fixed_schedules=[];fixed_ready=True;utility_ready=False
@@ -4056,11 +4058,23 @@ def pm_soa_fixed_page(property_id,tenant_id,error=None,status=200):
         from .lease_soa_rent_plan import plan
         try:rent_plan=plan(property_id,tenant_id)
         except ValueError as exc:rent_plan_error=str(exc)
-    return render_template('program_billing/pm_soa_fixed.html',property=prop,tenant=tenant,
+    return render_template('program_billing/pm_soa_fixed_section.html',property=prop,tenant=tenant,section=section,
         fixed_ready=fixed_ready,utility_ready=utility_ready,fixed_schedule=fixed_schedule,
         fixed_form_open=fixed_form_open,fixed_group=fixed_group,fixed_options=fixed_options,
         rent_schedules=rent_schedules,utility_schedules=utility_schedules,values=values,posting_error=error,
         rent_plan=rent_plan,rent_plan_error=rent_plan_error),status
+
+
+@billing_bp.get('/manager/tenant_accounts/<int:property_id>/tenant/<int:tenant_id>/ledger/fixed/rent',endpoint='pm_soa_rent_page')
+@login_required
+def pm_soa_rent_page(property_id,tenant_id):
+    return pm_soa_fixed_page(property_id,tenant_id,section='rent')
+
+
+@billing_bp.get('/manager/tenant_accounts/<int:property_id>/tenant/<int:tenant_id>/ledger/fixed/utilities',endpoint='pm_soa_utilities_page')
+@login_required
+def pm_soa_utilities_page(property_id,tenant_id):
+    return pm_soa_fixed_page(property_id,tenant_id,section='utilities')
 
 
 @billing_bp.route('/manager/tenant_accounts/<int:property_id>/tenant/<int:tenant_id>/ledger/fixed/rent',methods=['POST'],endpoint='pm_soa_rent_plan_action')
@@ -4072,17 +4086,17 @@ def pm_soa_rent_plan_action(property_id,tenant_id):
     try:message=act(property_id,tenant_id,request.form)
     except ValueError as exc:
         db.session.rollback()
-        return pm_soa_fixed_page(property_id,tenant_id,error=str(exc),status=400)
+        return pm_soa_fixed_page(property_id,tenant_id,error=str(exc),status=400,section='rent')
     except HTTPException as exc:
         db.session.rollback()
         if exc.code not in (400,409,503):raise
-        return pm_soa_fixed_page(property_id,tenant_id,error=exc.description,status=exc.code)
+        return pm_soa_fixed_page(property_id,tenant_id,error=exc.description,status=exc.code,section='rent')
     except SQLAlchemyError:
         db.session.rollback()
         current_app.logger.exception('PM rent schedule action failed')
-        return pm_soa_fixed_page(property_id,tenant_id,error='Rent could not be saved. Retry safely; duplicate protection remains active.',status=503)
+        return pm_soa_fixed_page(property_id,tenant_id,error='Rent could not be saved. Retry safely; duplicate protection remains active.',status=503,section='rent')
     flash(message,'success')
-    return redirect(url_for('billing_bp.pm_soa_fixed_page',property_id=property_id,tenant_id=tenant_id))
+    return redirect(url_for('billing_bp.pm_soa_rent_page',property_id=property_id,tenant_id=tenant_id))
 
 
 @billing_bp.route('/manager/tenant_accounts/<int:property_id>/tenant/<int:tenant_id>/ledger/fixed',methods=['POST'],endpoint='pm_soa_save_fixed')

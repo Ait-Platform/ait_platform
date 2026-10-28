@@ -4051,10 +4051,38 @@ def pm_soa_fixed_page(property_id,tenant_id,error=None,status=200):
         values['posting_key']=fixed_token(property_id,tenant_id,fixed_schedule,fixed_group)
     rent_schedules=[r for r in fixed_schedules if (r.get('pm_charge_type') or 'rent')=='rent']
     utility_schedules=[r for r in fixed_schedules if (r.get('pm_charge_type') or 'rent')!='rent']
+    rent_plan=None;rent_plan_error=None
+    if fixed_ready:
+        from .lease_soa_rent_plan import plan
+        try:rent_plan=plan(property_id,tenant_id)
+        except ValueError as exc:rent_plan_error=str(exc)
     return render_template('program_billing/pm_soa_fixed.html',property=prop,tenant=tenant,
         fixed_ready=fixed_ready,utility_ready=utility_ready,fixed_schedule=fixed_schedule,
         fixed_form_open=fixed_form_open,fixed_group=fixed_group,fixed_options=fixed_options,
-        rent_schedules=rent_schedules,utility_schedules=utility_schedules,values=values,posting_error=error),status
+        rent_schedules=rent_schedules,utility_schedules=utility_schedules,values=values,posting_error=error,
+        rent_plan=rent_plan,rent_plan_error=rent_plan_error),status
+
+
+@billing_bp.route('/manager/tenant_accounts/<int:property_id>/tenant/<int:tenant_id>/ledger/fixed/rent',methods=['POST'],endpoint='pm_soa_rent_plan_action')
+@login_required
+def pm_soa_rent_plan_action(property_id,tenant_id):
+    from .lease_soa_rent_plan import act
+    from werkzeug.exceptions import HTTPException
+    from sqlalchemy.exc import SQLAlchemyError
+    try:message=act(property_id,tenant_id,request.form)
+    except ValueError as exc:
+        db.session.rollback()
+        return pm_soa_fixed_page(property_id,tenant_id,error=str(exc),status=400)
+    except HTTPException as exc:
+        db.session.rollback()
+        if exc.code not in (400,409,503):raise
+        return pm_soa_fixed_page(property_id,tenant_id,error=exc.description,status=exc.code)
+    except SQLAlchemyError:
+        db.session.rollback()
+        current_app.logger.exception('PM rent schedule action failed')
+        return pm_soa_fixed_page(property_id,tenant_id,error='Rent could not be saved. Retry safely; duplicate protection remains active.',status=503)
+    flash(message,'success')
+    return redirect(url_for('billing_bp.pm_soa_fixed_page',property_id=property_id,tenant_id=tenant_id))
 
 
 @billing_bp.route('/manager/tenant_accounts/<int:property_id>/tenant/<int:tenant_id>/ledger/fixed',methods=['POST'],endpoint='pm_soa_save_fixed')

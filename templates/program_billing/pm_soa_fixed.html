@@ -9,6 +9,7 @@
 <p class="mb-5 text-slate-600">{{ property.name }} — {{ tenant.name }} — {{ tenant.tenant_reference or 'PM tenant account ' ~ tenant.id }}</p>
 {% if posting_error %}<p role="alert" class="my-3 rounded-lg bg-red-100 p-3 text-red-900">{{ posting_error }}</p>{% endif %}
 {% if fixed_form_open %}<div id="fixed-charge-workspace">{% include 'program_billing/pm_soa_fixed_form.html' %}</div>{% endif %}
+{% include 'program_billing/pm_soa_rent_plan.html' %}
 {% include 'program_billing/pm_soa_fixed_tables.html' %}
 </div></div>
 {% endblock %}

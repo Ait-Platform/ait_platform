@@ -1,4 +1,4 @@
-"""PM fixed monthly rent. No legacy materializer, METSOA or shared Debtor calls."""
+"""PM fixed-charge definitions. No legacy materializer, METSOA or shared Debtor calls."""
 import calendar
 import hashlib
 import json
@@ -14,8 +14,11 @@ from app.extensions import db
 from . import lease_soa_posting as posting
 from .lease_soa_dates import today
 
+CHARGE_TYPES={'rent':'Rent Due','water':'Water','electricity':'Electricity',
+    'sewerage':'Sewerage','refuse':'Refuse Removal','other_utilities':'Other Utilities'}
 
-def require_schema():
+
+def require_schema(charge_type='rent'):
     posting.require_posting_schema()
     inspector=inspect(db.session.connection())
     if not inspector.has_table('bil_tenant_recurring'):
@@ -29,26 +32,34 @@ def require_schema():
             'uq_pm_recurring_account' not in {i['name'] for i in inspector.get_indexes('bil_tenant_recurring') if i['unique']} or
             'uq_pm_ledger_monthly_rent' not in {i['name'] for i in inspector.get_indexes('bil_tenant_ledger') if i['unique']}):
         abort(503,description='Fixed Charges requires migration pm_soa_003. No financial transaction was posted.')
+    utilities={'pm_charge_type','pm_fixed_agreed'}<=columns.keys() and 'fixed_charge_type' in ledger
+    if charge_type!='rent' and not utilities:
+        abort(503,description='Utility Charges requires migration pm_soa_004. No financial transaction was posted.')
+    return utilities
 
 
-def for_account(property_id,tenant_id):
+def list_for_account(property_id,tenant_id):
     require_schema()
     posting.authorise(property_id,tenant_id)
-    row=db.session.execute(text("""SELECT * FROM bil_tenant_recurring
-        WHERE pm_rent_schedule AND pm_property_id=:p AND tenant_id=:t AND pm_manager_id=:m"""),
-        dict(p=property_id,t=tenant_id,m=current_user.id)).mappings().first()
-    return dict(row) if row else None
+    return [dict(row) for row in db.session.execute(text("""SELECT * FROM bil_tenant_recurring
+        WHERE pm_rent_schedule AND pm_property_id=:p AND tenant_id=:t AND pm_manager_id=:m ORDER BY id"""),
+        dict(p=property_id,t=tenant_id,m=current_user.id)).mappings()]
 
 
-def form_token(property_id,tenant_id,schedule):
-    kind='fixed:add' if schedule is None else 'fixed:'+str(schedule['id'])+':'+str(schedule['pm_version'])
+def for_account(property_id,tenant_id,charge_type='rent'):
+    return next((r for r in list_for_account(property_id,tenant_id) if
+        (r.get('pm_charge_type') or 'rent')==charge_type),None)
+
+
+def form_token(property_id,tenant_id,schedule,group='rent'):
+    kind='fixed:add:'+group if schedule is None else 'fixed:'+str(schedule['id'])+':'+str(schedule['pm_version'])
     return posting.token(property_id,tenant_id,kind)
 
 
 def parse(form):
     raw=form.get('amount','').strip()
     if not re.fullmatch(r'[0-9]{1,8}(?:\.[0-9]{1,2})?',raw) or Decimal(raw)<=0:
-        raise ValueError('Enter a positive rent amount with at most two decimals, up to R99,999,999.99.')
+        raise ValueError('Enter a positive amount with at most two decimals, up to R99,999,999.99.')
     amount=Decimal(raw).quantize(Decimal('0.01'))
     try:
         start=date.fromisoformat(form.get('start_date',''))
@@ -65,47 +76,74 @@ def parse(form):
 
 
 def save(property_id,tenant_id,form):
-    require_schema()
+    charge_type=form.get('charge_type','rent')
+    if charge_type not in CHARGE_TYPES:raise ValueError('Select an available charge description.')
+    utilities=require_schema(charge_type)
     posting.authorise(property_id,tenant_id)
+    agreed=form.get('fixed_agreed')=='1'
+    if charge_type!='rent' and not agreed:
+        raise ValueError('Only an explicitly agreed fixed monthly utility amount may be scheduled. Variable utilities cannot be automated.')
     amount,start,end,day,active=parse(form)
     try:
         scope=posting.signer().loads(form.get('posting_key',''))
         if (not isinstance(scope,list) or len(scope)!=5 or
             scope[:3]!=[current_user.id,property_id,tenant_id] or not isinstance(scope[3],str) or
-            not re.fullmatch(r'fixed:(?:add|[0-9]+:[0-9]+)',scope[3]) or
+            not re.fullmatch(r'fixed:(?:add(?::rent|:utility)?|[0-9]+:[0-9]+)',scope[3]) or
             not re.fullmatch('[a-f0-9]{32}',scope[4])):
             raise BadSignature('scope')
+        if scope[3].startswith('fixed:add') and (scope[3]=='fixed:add:utility')!=(charge_type!='rent'):
+            raise BadSignature('group')
     except (BadSignature,TypeError):
-        raise ValueError('Invalid Fixed Charges form. Open Fixed Charges again.')
-    digest=hashlib.sha256(json.dumps([str(amount),str(start),str(end),day,active]).encode()).hexdigest()
-    # One definition per property/tenant, with optimistic version and persistent retry keys.
+        raise ValueError('Invalid Fixed Charges form. Open Add Charge or Edit again.')
+    payload=[str(amount),str(start),str(end),day,active]
+    digest=hashlib.sha256(json.dumps([charge_type,agreed]+payload).encode()).hexdigest()
+    legacy_digest=hashlib.sha256(json.dumps(payload).encode()).hexdigest() if charge_type=='rent' else None
     lock=int.from_bytes(hashlib.sha256(('PMFIXED:'+str(property_id)+':'+str(tenant_id)).encode()).digest()[:8],'big',signed=True)
     db.session.execute(text('SELECT pg_advisory_xact_lock(:key)'),dict(key=lock))
+    replay=db.session.execute(text("""SELECT * FROM bil_tenant_recurring
+        WHERE pm_rent_schedule AND pm_property_id=:p AND tenant_id=:t
+          AND (pm_create_key=:key OR pm_last_key=:key)"""),
+        dict(p=property_id,t=tenant_id,key=scope[4])).mappings().first()
+    if replay:
+        if replay['pm_manager_id']!=current_user.id:abort(404)
+        expected=replay['pm_create_hash'] if scope[4]==replay['pm_create_key'] else replay['pm_last_hash']
+        if expected not in (digest,legacy_digest):
+            abort(409,description='This Fixed Charges form was already saved with different details.')
+        db.session.commit();return False
+    params=dict(t=tenant_id,p=property_id,m=current_user.id,amount=amount,start=start,end=end,
+        day=day,active=active,key=scope[4],digest=digest,charge_type=charge_type,
+        agreed=agreed,description=CHARGE_TYPES[charge_type])
+    if scope[3].startswith('fixed:add'):
+        filter_type=" AND COALESCE(pm_charge_type,'rent')=:charge_type" if utilities else ''
+    else:
+        params['id']=int(scope[3].split(':')[1]);filter_type=' AND id=:id'
     row=db.session.execute(text("""SELECT * FROM bil_tenant_recurring
-        WHERE pm_rent_schedule AND pm_property_id=:p AND tenant_id=:t FOR UPDATE"""),
-        dict(p=property_id,t=tenant_id)).mappings().first()
+        WHERE pm_rent_schedule AND pm_property_id=:p AND tenant_id=:t"""+filter_type+' FOR UPDATE'),params).mappings().first()
     if row and row['pm_manager_id']!=current_user.id:abort(404)
+    if row and (row.get('pm_charge_type') or 'rent')!=charge_type:
+        raise ValueError('An existing charge description cannot be changed. Use Add Charge for a different category.')
     if row and scope[4] in (row['pm_create_key'],row['pm_last_key']):
         expected=row['pm_create_hash'] if scope[4]==row['pm_create_key'] else row['pm_last_hash']
-        if digest!=expected:abort(409,description='This Fixed Charges form was already saved with different details.')
-        db.session.commit()
-        return False
-    params=dict(t=tenant_id,p=property_id,m=current_user.id,amount=amount,start=start,end=end,
-        day=day,active=active,key=scope[4],digest=digest)
+        if expected not in (digest,legacy_digest):
+            abort(409,description='This Fixed Charges form was already saved with different details.')
+        db.session.commit();return False
     if row is None:
-        if scope[3]!='fixed:add':abort(409,description='The rent schedule changed. Open Fixed Charges again.')
+        if not scope[3].startswith('fixed:add'):abort(404)
+        extra_columns=',pm_charge_type,pm_fixed_agreed' if utilities else ''
+        extra_values=',:charge_type,:agreed' if utilities else ''
         db.session.execute(text("""INSERT INTO bil_tenant_recurring
             (tenant_id,description,kind,amount,day_of_month,is_active,
              pm_rent_schedule,pm_active,pm_property_id,pm_manager_id,pm_start_date,pm_end_date,
-             pm_version,pm_create_key,pm_create_hash,pm_last_key,pm_last_hash)
-            VALUES(:t,'Rent Due','charge',:amount,:day,0,true,:active,:p,:m,:start,:end,1,:key,:digest,:key,:digest)"""),params)
+             pm_version,pm_create_key,pm_create_hash,pm_last_key,pm_last_hash"""+extra_columns+""")
+            VALUES(:t,:description,'charge',:amount,:day,0,true,:active,:p,:m,:start,:end,1,:key,:digest,:key,:digest"""+extra_values+')'),params)
     else:
         if scope[3]!='fixed:'+str(row['id'])+':'+str(row['pm_version']):
-            abort(409,description='The rent schedule changed. Reopen Fixed Charges before saving.')
+            abort(409,description='The charge schedule changed. Reopen Edit before saving.')
         params['id']=row['id']
+        extra=',pm_fixed_agreed=:agreed' if utilities else ''
         db.session.execute(text("""UPDATE bil_tenant_recurring SET amount=:amount,day_of_month=:day,
             pm_active=:active,pm_start_date=:start,pm_end_date=:end,pm_version=pm_version+1,
-            pm_last_key=:key,pm_last_hash=:digest WHERE id=:id"""),params)
+            pm_last_key=:key,pm_last_hash=:digest"""+extra+' WHERE id=:id'),params)
     db.session.commit()
     return True
 
@@ -129,7 +167,7 @@ def post_due(schedule_id,due):
     require_schema()
     row=db.session.execute(text('SELECT * FROM bil_tenant_recurring WHERE id=:id AND pm_rent_schedule FOR UPDATE'),
         dict(id=schedule_id)).mappings().first()
-    if row is None or not row['pm_active']:
+    if row is None or not row['pm_active'] or (row.get('pm_charge_type') or 'rent')!='rent':
         db.session.commit()
         return False
     posting.authorise(row['pm_property_id'],row['tenant_id'],manager_id=row['pm_manager_id'])
@@ -161,6 +199,7 @@ def run_due():
     db.session.commit()
     posted=0;failed=0
     for schedule in schedules:
+        if (schedule.get('pm_charge_type') or 'rent')!='rent':continue
         count=0
         try:
             recorded=set(db.session.execute(text("""SELECT month FROM bil_tenant_ledger

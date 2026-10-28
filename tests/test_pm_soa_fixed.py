@@ -42,6 +42,12 @@ class PMFixedRentTests(unittest.TestCase):
         page=self.client.get(self.path(property_id,tenant_id)+'?fixed=1',headers=self.headers)
         self.assertEqual(page.status_code,200,page.text)
         tree=html.fromstring(page.data)
+        links=tree.xpath('//*[@id="monthly-rent"]//a[text()="Edit"]/@href')
+        if not links:links=tree.xpath('//section[@aria-labelledby="monthly-rent-heading"]//a[text()="Add Charge"]/@href')
+        self.assertTrue(links,page.text)
+        page=self.client.get(links[0],headers=self.headers)
+        self.assertEqual(page.status_code,200,page.text)
+        tree=html.fromstring(page.data)
         data={el.get('name'):el.get('value','') for el in tree.xpath('//form//input') if el.get('name')}
         data.update(amount='35000',start_date='2026-01-01',end_date='2026-12-31',day_of_month='1',status='active')
         data.update(changes);return data

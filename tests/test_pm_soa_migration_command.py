@@ -30,7 +30,7 @@ def forbidden_factory(*a,**kw):raise AssertionError('Application startup is forb
 app.create_app=forbidden_factory
 config=Config(str(root/'alembic.ini'))
 script=ScriptDirectory.from_config(config)
-existing=set(script.get_heads())-{'pm_soa_001','pm_soa_002','pm_soa_003'}
+existing=set(script.get_heads())-{'pm_soa_001','pm_soa_002','pm_soa_003','pm_soa_004'}
 assert script.get_revision('pm_soa_001').down_revision is None
 engine=create_engine(target)
 with engine.connect() as c:

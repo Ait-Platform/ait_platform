@@ -3937,32 +3937,53 @@ def pm_soa_ledger(property_id,tenant_id,error=None,status=200):
         if not values.get('posting_key'):values['posting_key']=form_token(property_id,tenant_id,correction)
     values.setdefault('txn_date',today().isoformat())
     fixed=request.args.get('fixed')=='1' or request.form.get('action')=='fixed'
-    fixed_schedule=None
-    fixed_ready=True
+    fixed_schedule=None;fixed_schedules=[];fixed_ready=True;utility_ready=False
+    fixed_form_open=False;fixed_group=None;fixed_options=[]
     if fixed:
-        from .lease_soa_fixed import for_account,form_token as fixed_token
+        from .lease_soa_fixed import list_for_account,require_schema,form_token as fixed_token,CHARGE_TYPES
         from werkzeug.exceptions import ServiceUnavailable
-        try:
-            fixed_schedule=for_account(property_id,tenant_id)
-        except ServiceUnavailable as exc:
-            db.session.rollback()
-            fixed_ready=False
-            error=exc.description
-            current_app.logger.warning('PM Fixed Charges unavailable: %s',exc.description)
         kind=None;correction=None
+        try:
+            fixed_schedules=list_for_account(property_id,tenant_id)
+            utility_ready=require_schema()
+        except ServiceUnavailable as exc:
+            db.session.rollback();fixed_ready=False;error=exc.description
+            current_app.logger.warning('PM Fixed Charges unavailable: %s',exc.description)
+        fixed_edit=request.form.get('fixed_edit',type=int) if request.method=='POST' else request.args.get('fixed_edit',type=int)
+        fixed_group=request.args.get('fixed_add')
+        if fixed_group not in (None,'rent','utility'):abort(400)
+        if fixed_edit is not None:
+            fixed_schedule=next((r for r in fixed_schedules if r['id']==fixed_edit),None)
+            if fixed_ready and fixed_schedule is None:abort(404)
+        if request.method=='POST' and fixed_schedule is None:
+            fixed_schedule=next((r for r in fixed_schedules if (r.get('pm_charge_type') or 'rent')==request.form.get('charge_type','rent')),None)
+        if fixed_schedule:
+            fixed_group='rent' if (fixed_schedule.get('pm_charge_type') or 'rent')=='rent' else 'utility'
+        elif request.method=='POST':
+            fixed_group='rent' if request.form.get('charge_type','rent')=='rent' else 'utility'
+        fixed_form_open=fixed_ready and fixed_group is not None and (fixed_group=='rent' or utility_ready)
+        used={r.get('pm_charge_type') or 'rent' for r in fixed_schedules}
+        fixed_options=[(k,v) for k,v in CHARGE_TYPES.items() if k!='rent' and k not in used]
         if request.method!='POST':
             values=dict(amount=str(fixed_schedule['amount']) if fixed_schedule else '',
                 start_date=fixed_schedule['pm_start_date'].isoformat() if fixed_schedule else today().isoformat(),
                 end_date=fixed_schedule['pm_end_date'].isoformat() if fixed_schedule else '',
                 day_of_month=str(fixed_schedule['day_of_month']) if fixed_schedule else '1',
-                status='active' if not fixed_schedule or fixed_schedule['pm_active'] else 'inactive')
-        if fixed_ready and not values.get('posting_key'):values['posting_key']=fixed_token(property_id,tenant_id,fixed_schedule)
+                status='active' if not fixed_schedule or fixed_schedule['pm_active'] else 'inactive',
+                charge_type=(fixed_schedule.get('pm_charge_type') or 'rent') if fixed_schedule else 'rent' if fixed_group=='rent' else '',
+                fixed_agreed='1' if fixed_schedule and fixed_schedule.get('pm_fixed_agreed') else '')
+        if fixed_form_open and not values.get('posting_key'):
+            values['posting_key']=fixed_token(property_id,tenant_id,fixed_schedule,fixed_group)
+    rent_schedules=[r for r in fixed_schedules if (r.get('pm_charge_type') or 'rent')=='rent']
+    utility_schedules=[r for r in fixed_schedules if (r.get('pm_charge_type') or 'rent')!='rent']
     entries=transactions(tenant_id)
     visible=request.args.get('visible',default=5,type=int)
     if visible is None or visible<5 or visible%5:abort(400)
     return render_template('program_billing/pm_soa_ledger.html',property=prop,tenant=tenant,
         entries=entries,visible_entries=entries[-visible:],visible_count=visible,has_more=len(entries)>visible,
-        fixed=fixed,fixed_ready=fixed_ready,fixed_schedule=fixed_schedule,posting=kind,values=values,posting_error=error,
+        fixed=fixed,fixed_ready=fixed_ready,utility_ready=utility_ready,fixed_schedule=fixed_schedule,
+        fixed_form_open=fixed_form_open,fixed_group=fixed_group,fixed_options=fixed_options,
+        rent_schedules=rent_schedules,utility_schedules=utility_schedules,posting=kind,values=values,posting_error=error,
         correction=correction,correction_opening=bool(correction and (correction['kind'] in ('opening_balance','opening_adjustment') or (correction['description'] or '').strip().lower()=='opening balance')),
         opening_recorded=has_opening(tenant_id),
         descriptions=DEBIT_DESCRIPTIONS if kind=='charge' else CREDIT_DESCRIPTIONS),status

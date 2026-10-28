@@ -1,0 +1,15 @@
+{% for table_id,title,rows,group,amount_label in [('monthly-rent','Monthly Rent',rent_schedules,'rent','Monthly amount'),('utility-charges','Utility Charges',utility_schedules,'utility','Amount')] %}
+<section aria-labelledby="{{ table_id }}-heading" class="mb-6">
+<div class="mb-3 flex items-center justify-between gap-3"><h2 id="{{ table_id }}-heading" class="text-lg font-bold">{{ title }}</h2>
+{% if fixed_ready and ((group=='rent' and not rows) or (group=='utility' and utility_ready and fixed_options)) %}
+<a class="rounded-lg bg-blue-100 px-4 py-2" href="{{ url_for('billing_bp.pm_soa_ledger',property_id=property.id,tenant_id=tenant.id,fixed=1,fixed_add=group) }}">Add Charge</a>
+{% else %}<button disabled class="rounded-lg bg-slate-100 px-4 py-2 text-slate-500" title="Edit an existing category, or complete the required migration.">Add Charge</button>{% endif %}
+</div>
+{% if group=='utility' and fixed_ready and not utility_ready %}<p role="status" class="mb-3 rounded-lg bg-amber-50 p-3 text-amber-900">Utility Charges requires migration pm_soa_004. Existing rent functionality remains available.</p>{% endif %}
+{% if group=='utility' %}<p class="mb-3 text-sm text-slate-600">Only explicitly agreed fixed monthly utility amounts can be scheduled. Variable utility charges are not estimated or posted automatically.</p>{% endif %}
+<div class="overflow-x-auto"><table id="{{ table_id }}" class="w-full text-left"><thead class="bg-slate-100"><tr>{% for label in ['Description',amount_label,'Due day','Start date','End date','Status','Edit'] %}<th class="p-3">{{ label }}</th>{% endfor %}</tr></thead><tbody>
+{% for schedule in rows %}<tr class="border-b border-slate-200"><td class="p-3">{{ schedule.description }}</td><td class="p-3">R {{ '{:,.2f}'.format(schedule.amount) }}</td><td class="p-3">{{ schedule.day_of_month }}</td><td class="p-3">{{ schedule.pm_start_date.isoformat() }}</td><td class="p-3">{{ schedule.pm_end_date.isoformat() }}</td><td class="p-3">{{ 'Active' if schedule.pm_active else 'Inactive' }}</td><td class="p-3"><a class="rounded-lg bg-yellow-100 px-3 py-2" href="{{ url_for('billing_bp.pm_soa_ledger',property_id=property.id,tenant_id=tenant.id,fixed=1,fixed_edit=schedule.id) }}">Edit</a></td></tr>
+{% else %}<tr><td colspan="7" class="p-3 text-slate-600">No {{ 'monthly rent' if group=='rent' else 'fixed utility charges' }} recorded.</td></tr>{% endfor %}
+</tbody></table></div>
+</section>
+{% endfor %}

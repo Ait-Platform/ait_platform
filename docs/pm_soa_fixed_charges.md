@@ -55,3 +55,9 @@ No Render cron was created/enabled, production migration applied, or live financ
 ## Fixed Charges GET availability repair
 
 The GET route previously called the write-schema guard unconditionally and propagated its explicit HTTP 503 before rendering. This is reproduced with an absent pm_soa_003 monthly-rent index on isolated PostgreSQL. The page now returns HTTP 200 with the exact migration notice inside the tile and no enabled schedule form. Save/worker schema checks remain fail-closed. No migration or existing financial record is changed by this UI repair. Owner-supplied Render access logs confirm the Fixed Charges GET returned 503 while ledger/correction requests succeeded. They contain no exception or response body; the exact missing production object is not independently confirmed.
+
+## Separate charge tables and fixed utilities
+
+Fixed Charges now opens with separate Monthly Rent and Utility Charges tables. Add Charge and Edit use the existing authenticated, CSRF-protected, versioned save route. There is one configurable schedule per tenant/property/category (Rent Due, Water, Electricity, Sewerage, Refuse Removal or Other Utilities). Existing categories are edited rather than duplicated. Utility setup explicitly records that the monthly amount is agreed and fixed; variable charges are not accepted for automation.
+
+Additional migration pm_soa_004 is a child of preserved pm_soa_003. It adds category/agreement metadata and category-specific monthly uniqueness, without backfilling or rewriting existing schedules or transactions. Existing null categories mean rent, preserving old rent markers. It is not applied to production. A database with only pm_soa_003 can still manage rent; utilities remain disabled with an explicit pm_soa_004 notice.

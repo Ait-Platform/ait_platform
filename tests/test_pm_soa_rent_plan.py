@@ -26,7 +26,7 @@ class RentPlanTests(unittest.TestCase):
         page=self.client.get(self.path()+'/fixed/rent',headers=self.headers)
         self.assertEqual(page.status_code,200,page.text)
         tree=html.fromstring(page.data)
-        key=tree.xpath('//form[input[@name="rent_action"][@value="assign"]]/input[@name="posting_key"]/@value')[0]
+        key=tree.xpath('//form/input[@name="posting_key"]/@value')[0]
         return dict(csrf_token=self.csrf,posting_key=key,rent_action=action,due=due or '')
     def act(self,data,prop=26,tenant=11):
         return self.client.post(self.path(prop,tenant)+'/fixed/rent',data=data,headers=self.headers)

@@ -3947,7 +3947,7 @@ def pm_soa_ledger(property_id,tenant_id,error=None,status=200):
         posting=kind,values=values,posting_error=error,
         correction=correction,correction_opening=bool(correction and (correction['kind'] in ('opening_balance','opening_adjustment') or (correction['description'] or '').strip().lower()=='opening balance')),
         opening_recorded=has_opening(tenant_id),
-        descriptions=DEBIT_DESCRIPTIONS if kind=='charge' else CREDIT_DESCRIPTIONS),status
+        descriptions=DEBIT_DESCRIPTIONS[6:] if kind=='charge' else CREDIT_DESCRIPTIONS),status
 
 
 @billing_bp.route('/manager/tenant_accounts/<int:property_id>/tenant/<int:tenant_id>/ledger/post',methods=['POST'],endpoint='pm_soa_post')

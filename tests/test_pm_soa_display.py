@@ -25,10 +25,10 @@ class PMDisplayTests(unittest.TestCase):
         self.assertEqual([r[0].text_content() for r in rows],['2026-10-'+str(n).zfill(2) for n in range(8,13)])
         self.assertEqual([r[4].text_content() for r in rows],['36.00','45.00','55.00','66.00','78.00'])
         self.assertEqual(tree.xpath('string(//*[@id="ledger-summary"]/tbody/tr/td[4])'),'R 78.00')
-        more=tree.xpath('//a[text()="Show More"]/@href')[0]
+        more=tree.xpath('//a[starts-with(text(),"Show More (")]/@href')[0]
         expanded=self.client.get(more,headers=self.headers);expanded_tree=html.fromstring(expanded.data)
         self.assertEqual(len(expanded_tree.xpath('//*[@id="ledger-transactions"]/tbody/tr')),10)
-        less=expanded_tree.xpath('//a[text()="Show Less"]/@href')[0]
+        less=expanded_tree.xpath('//a[starts-with(text(),"Show Less (")]/@href')[0]
         self.assertEqual(len(html.fromstring(self.client.get(less,headers=self.headers).data).xpath('//*[@id="ledger-transactions"]/tbody/tr')),5)
     def test_calendar_dates_do_not_reinterpret_naive_effective_dates_as_utc(self):
         from app.program_billing.lease_soa_dates import effective_date
@@ -79,3 +79,24 @@ class PMDisplayTests(unittest.TestCase):
         other=html.fromstring(self.client.get('/manager/tenant_accounts?property_id=26',headers=self.headers).data)
         self.assertEqual(other.xpath('//nav[@aria-label="Property Management"]/a/text()'),
             ['Property & Owner','Lease','METSOA','SOA','Property Portfolio'])
+
+    def test_exact_displayed_total_counts_and_distinct_colours(self):
+        for n in range(20):
+            self.session.execute(text("INSERT INTO bil_tenant_ledger(tenant_id,txn_date,description,kind,amount) VALUES(11,'2026-10-01','Historical Rent Due','charge',1)"))
+        self.session.commit()
+        for count in (5,10,15,20):
+            page=self.client.get(self.path()+'?visible='+str(count),headers=self.headers)
+            tree=html.fromstring(page.data)
+            more=tree.xpath('//a[starts-with(text(),"Show More (")]')
+            less=tree.xpath('//a[starts-with(text(),"Show Less (")]')
+            if count<20:
+                self.assertEqual(more[0].text_content(),'Show More ('+str(count)+' of 20)')
+                self.assertIn('bg-blue-100',more[0].get('class'))
+            else:self.assertFalse(more)
+            if count>5:
+                self.assertEqual(less[0].text_content(),'Show Less ('+str(count)+' of 20)')
+                self.assertIn('bg-amber-100',less[0].get('class'))
+    def test_manual_dropdown_excludes_scheduled_descriptions_but_keeps_history(self):
+        page=self.client.get(self.path()+'?posting=charge',headers=self.headers)
+        options=html.fromstring(page.data).xpath('//select[@name="description"]/option/text()')
+        self.assertEqual(options,['Select description','Recoverable Repairs','Late Payment Charges','Other Charge'])

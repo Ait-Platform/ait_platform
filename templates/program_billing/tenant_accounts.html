@@ -1,5 +1,5 @@
 {% extends 'layout.html' %}
-{% block title %}SOA{% endblock %}
+{% block title %}{{ 'Tenant Ledger' if ledger_workflow else 'SOA' }}{% endblock %}
 
 {% block content %}
 <div class="min-h-screen bg-slate-50 py-10 px-4 flex flex-col items-center">
@@ -14,11 +14,11 @@
         <!-- First Row: Title & Back Button -->
     <div class="flex flex-col md:flex-row md:items-center justify-between border-b border-slate-100 px-6 pb-4 gap-4">
       <div>
-        <h1 class="text-2xl md:text-3xl font-bold text-slate-900">SOA</h1>
-        <p class="mt-1 text-sm text-slate-500">Property Management lease tenants and document access.</p>
+        <h1 class="text-2xl md:text-3xl font-bold text-slate-900">{{ 'Tenant Ledger — ' ~ selected_property.name if ledger_workflow else 'SOA' }}</h1>
+        <p class="mt-1 text-sm text-slate-500">{{ 'Select the registered tenant whose ledger you want to open.' if ledger_workflow else 'Property Management lease tenants and document access.' }}</p>
       </div>
       <div class="flex items-center gap-3">
-        <a href="{{ url_for('billing_bp.learner_dashboard') }}" class="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition shadow-sm">
+        <a href="{{ url_for('billing_bp.learner_dashboard',workflow='ledger') if ledger_workflow else url_for('billing_bp.learner_dashboard') }}" class="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition shadow-sm">
           <span>&larr;</span><span>Dashboard</span>
         </a>
       </div>
@@ -26,6 +26,7 @@
     
     <div class="px-6">{% set pm_menu_active = 'occupier' %}{% include 'program_billing/menu.html' %}</div>
     {% if selected_property %}<div class="px-6 py-3 flex justify-end"><a class="rounded-lg bg-cyan-100 px-4 py-2" href="{{ url_for('billing_bp.pm_soa_branding',property_id=selected_property.id) }}">SOA Branding</a></div>{% endif %}
+    {% if not ledger_workflow %}
     <div class="px-6 py-4 bg-indigo-50 border-b border-slate-100 flex flex-col md:flex-row justify-between items-center gap-4">
         <form method="GET" action="{{ url_for('billing_bp.tenant_accounts') }}" class="flex items-end gap-3 flex-wrap">
             <label for="soa-property">Select Property:</label>
@@ -35,6 +36,7 @@
             </select>
         </form>
     </div>
+    {% endif %}
 
 
     <div class="p-6">

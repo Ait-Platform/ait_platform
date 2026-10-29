@@ -51,7 +51,7 @@ def property_owner_page():
     owners_by_property={p['id']:owner_rows(p['id']) for p in properties} if enabled else {}
     return render_pm_template("program_billing/property_owner.html", properties=properties,
         owners_enabled=enabled, owners_by_property=owners_by_property,
-        error=error, property_name=name), status
+        error=error, property_name=name, ledger_workflow=request.args.get('workflow')=='ledger'), status
 
 
 @billing_bp.post("/billing/property-owner/<int:property_id>/address", endpoint="property_address")

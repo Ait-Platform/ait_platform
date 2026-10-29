@@ -3902,9 +3902,14 @@ def tenant_accounts():
     if request.args.get('property_id') and selected_id is None:abort(400)
     selected_property=next((prop for prop in properties if prop.id==selected_id),None)
     if selected_id is not None and selected_property is None:abort(404)
+    ledger_workflow=request.args.get('workflow')=='ledger'
+    if ledger_workflow and selected_property is None:
+        return redirect(url_for('billing_bp.learner_dashboard',workflow='ledger'))
     tenants=tenants_for(selected_id) if selected_property else []
+    if ledger_workflow and len(tenants)==1:
+        return redirect(url_for('billing_bp.pm_soa_ledger',property_id=selected_id,tenant_id=tenants[0]['id']))
     return render_template('program_billing/tenant_accounts.html',tenants=tenants,
-        properties=properties,selected_property=selected_property)
+        properties=properties,selected_property=selected_property,ledger_workflow=ledger_workflow)
 
 
 @billing_bp.route('/manager/tenant_accounts/<int:property_id>/branding',methods=['GET','POST'],endpoint='pm_soa_branding')

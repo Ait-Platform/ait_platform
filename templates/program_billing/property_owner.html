@@ -11,9 +11,9 @@
         <h1 class="text-2xl font-semibold text-slate-900">Property Management</h1>
         <a href="{{ url_for('bridge_bp.bridge') }}" class="rounded-lg bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700">Back</a>
       </div>
-      {% set pm_menu_active = 'property_owner' %}{% include 'program_billing/menu.html' %}
+      {% set pm_menu_active = 'occupier' if ledger_workflow else 'property_owner' %}{% include 'program_billing/menu.html' %}
       {% include 'program_billing/pm_soa_rent_reminders.html' %}
-      <h2 class="mt-4 text-xl font-semibold">Property &amp; Owner</h2>
+      <h2 class="mt-4 text-xl font-semibold">{{ 'Ledger — Select Property' if ledger_workflow else 'Property & Owner' }}</h2>
       <style>
         #property-name { border: 1px solid #b8cbd7; }
         #property-name:focus { border-color: #5289b0; outline: none; box-shadow: 0 0 0 3px #e4eff7; }
@@ -25,14 +25,14 @@
       </form>
       {% if error %}<p role="alert" class="mt-3 text-sm text-red-700">{{ error }}</p>{% endif %}
       <h2 class="mt-8 text-lg font-semibold text-slate-800">My Properties</h2>
-      <p class="mt-2 text-sm text-slate-600">Existing properties are listed automatically. Edit property names and addresses below. {% if owners_enabled %}Assign new or existing owners using the modal.{% else %}Owner assignment remains unavailable until the ownership schema is ready.{% endif %}</p>
+      <p class="mt-2 text-sm text-slate-600">{% if ledger_workflow %}Select a property name to open its tenant ledger. If it has multiple registered tenants, choose the correct tenant next.{% else %}Existing properties are listed automatically. Edit property names and addresses below.{% endif %} {% if owners_enabled %}Assign new or existing owners using the modal.{% else %}Owner assignment remains unavailable until the ownership schema is ready.{% endif %}</p>
       <div class="mt-4 overflow-x-auto rounded-lg border border-slate-200">
         <table class="w-full text-left text-sm">
           <thead class="bg-slate-50"><tr><th class="p-3">Property</th><th class="p-3">Address</th><th class="p-3">Owners</th></tr></thead>
           <tbody>
             {% for property in properties %}
             <tr class="border-t border-slate-200">
-              <td class="p-3 font-semibold"><a href="{{ url_for('billing_bp.property_edit', property_id=property.id) }}" class="text-blue-700 underline">{{ property.name }}</a>{% if property.is_archived %}<span class="ml-2 text-xs text-slate-500">Archived</span>{% endif %}</td>
+              <td class="p-3 font-semibold">{% if ledger_workflow and property.is_archived %}<span>{{ property.name }}</span>{% else %}<a href="{{ url_for('billing_bp.tenant_accounts', property_id=property.id,workflow='ledger') if ledger_workflow and not property.is_archived else url_for('billing_bp.property_edit', property_id=property.id) }}" class="text-blue-700 underline">{{ property.name }}</a>{% endif %}{% if property.is_archived %}<span class="ml-2 text-xs text-slate-500">Archived</span>{% endif %}</td>
               <td class="p-3"><button type="button" data-address-dialog="address-{{ property.id }}" class="text-blue-700 underline">{{ property.address or 'Assign Address' }}</button></td>
               <td class="p-3" data-property-owners="{{ property.id }}">
                 <div data-owner-names class="space-y-1">{% if owners_enabled %}{% for owner in owners_by_property.get(property.id, []) %}

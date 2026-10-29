@@ -1,0 +1,15 @@
+#tenant-statement td,#tenant-statement th { font-variant-numeric: tabular-nums; }
+@page { size: A4; margin: 14mm; }
+@media print {
+  body * { visibility: hidden; }
+  #tenant-statement, #tenant-statement * { visibility: visible; }
+  #tenant-statement { position: absolute; left: 0; top: 0; width: 100%; margin: 0; border: 0; box-shadow: none; overflow: visible; font-size: 10pt; }
+  #tenant-statement .soa-no-print { display: none !important; }
+  #tenant-statement .overflow-x-auto { overflow: visible; }
+  #tenant-statement table { width: 100%; border-collapse: collapse; }
+  #tenant-statement thead { display: table-header-group; }
+  #tenant-statement tfoot { display: table-row-group; }
+  #tenant-statement tr { break-inside: avoid; }
+  #tenant-statement th, #tenant-statement td { padding: 2mm; border-bottom: 1px solid #cbd5e1; }
+  #tenant-statement .soa-branding img { max-height: 40mm; max-width: 100%; }
+}

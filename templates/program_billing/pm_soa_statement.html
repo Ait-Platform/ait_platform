@@ -1,0 +1,20 @@
+{% extends 'layout.html' %}
+{% block title %}Tenant Statement of Account{% endblock %}
+{% block flashes %}{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="{{ url_for('static',filename='css/pm_soa_statement.css') }}">
+<div id="tenant-statement" class="mx-auto my-8 max-w-6xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"><div class="soa-no-print h-2 bg-slate-700"></div><div class="p-6">
+<div class="soa-no-print">{% include 'partials/flash_messages.html' %}</div>
+<div class="flex items-center justify-between gap-4"><h1 class="text-2xl font-bold">Statement of Account</h1><a class="soa-no-print rounded-lg bg-slate-100 px-4 py-2" href="{{ url_for('billing_bp.pm_soa_ledger',property_id=property.id,tenant_id=tenant.id) }}">Back to Tenant Ledger</a></div>
+<div class="soa-no-print my-4 flex justify-end"><button type="button" data-print-statement class="rounded-lg bg-blue-100 px-4 py-2">Print Statement</button></div>
+<form method="get" class="soa-no-print my-4 flex flex-wrap items-end gap-3 rounded-xl border border-slate-200 p-4"><label>Month<input autofocus required type="month" name="month" value="{{ statement.month }}" class="block rounded-lg border border-slate-300 p-2"></label><label>From (optional)<input type="date" name="from" value="{{ request.args.get('from','') }}" class="block rounded-lg border border-slate-300 p-2"></label><label>To (optional)<input type="date" name="to" value="{{ request.args.get('to','') }}" class="block rounded-lg border border-slate-300 p-2"></label><button class="rounded-lg bg-green-100 px-4 py-2">Show Statement</button></form>
+{% include 'program_billing/pm_soa_brand_header.html' %}
+<div class="my-5 grid gap-4 sm:grid-cols-2"><div><h2 class="text-lg font-bold">{{ property.name }}</h2><p class="whitespace-pre-line">{{ property.address or '' }}</p></div><div><h2 class="font-bold">{{ tenant.name }}</h2><p>Tenant reference: {{ tenant.tenant_reference or 'Not recorded' }}</p><p>{{ tenant.email or '' }}</p></div></div>
+<p class="my-4 font-semibold">Period: {{ statement.start.isoformat() }} to {{ statement.end.isoformat() }}</p>
+<div class="overflow-x-auto"><table id="tenant-statement-transactions" class="w-full text-left"><thead class="bg-slate-100"><tr>{% for label in ['Date','Description','Reference','Debit (ZAR)','Credit (ZAR)','Balance (ZAR)'] %}<th class="p-3">{{ label }}</th>{% endfor %}</tr></thead><tbody>
+<tr class="border-b border-slate-200"><td class="p-3">{{ statement.start.isoformat() }}</td><td colspan="4" class="p-3 font-semibold">Opening balance</td><td class="p-3 text-right">{{ '{:,.2f}'.format(statement.opening) }}</td></tr>
+{% for entry in statement.entries %}<tr class="border-b border-slate-200"><td class="p-3 whitespace-nowrap">{{ entry.date.isoformat() }}</td><td class="p-3">{{ entry.description or 'Transaction' }}</td><td class="p-3 whitespace-nowrap">{{ entry.reference }}</td><td class="p-3 text-right">{{ '{:,.2f}'.format(entry.debit) if entry.debit else '—' }}</td><td class="p-3 text-right">{{ '{:,.2f}'.format(entry.credit) if entry.credit else '—' }}</td><td class="p-3 text-right">{{ '{:,.2f}'.format(entry.balance) }}</td></tr>{% else %}<tr><td colspan="6" class="p-3">No transactions in the selected period.</td></tr>{% endfor %}
+</tbody><tfoot><tr><td colspan="3" class="p-3 font-semibold">Period totals</td><td class="p-3 text-right">{{ '{:,.2f}'.format(statement.debits) }}</td><td class="p-3 text-right">{{ '{:,.2f}'.format(statement.credits) }}</td><td></td></tr><tr class="bg-slate-100"><td colspan="5" class="p-3 font-bold">Closing balance</td><td id="statement-closing" class="p-3 text-right font-bold">R {{ '{:,.2f}'.format(statement.closing) }}</td></tr></tfoot></table></div>
+</div></div>
+<script src="{{ url_for('static',filename='js/pm_soa_statement.js') }}" defer></script>
+{% endblock %}

@@ -3939,6 +3939,24 @@ def pm_soa_brand_asset(property_id,identifier):
     return response
 
 
+@billing_bp.get('/manager/tenant_accounts/<int:property_id>/tenant/<int:tenant_id>/statement',endpoint='pm_soa_statement')
+@login_required
+def pm_soa_statement(property_id,tenant_id):
+    from .lease_soa_posting import authorise
+    from .lease_soa import tenants_for
+    from .lease_soa_branding import authorise as property_details,selected
+    from .lease_soa_statement import statement
+    authorise(property_id,tenant_id)
+    prop=property_details(property_id)
+    tenant=next((t for t in tenants_for(property_id) if t['id']==tenant_id),None)
+    if tenant is None:abort(404)
+    response=current_app.make_response(render_template('program_billing/pm_soa_statement.html',
+        property=prop,tenant=tenant,statement=statement(tenant_id,request.args),branding_rows=selected(property_id)))
+    response.headers['Cache-Control']='private, no-store'
+    response.headers['X-Content-Type-Options']='nosniff'
+    return response
+
+
 @billing_bp.get('/manager/tenant_accounts/<int:property_id>/tenant/<int:tenant_id>/ledger',endpoint='pm_soa_ledger')
 @login_required
 def pm_soa_ledger(property_id,tenant_id,error=None,status=200):

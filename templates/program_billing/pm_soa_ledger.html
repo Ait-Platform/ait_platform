@@ -11,7 +11,7 @@
 
 
 
-<div class="my-4 flex justify-end gap-3"><a class="rounded-lg bg-cyan-100 px-4 py-2" href="{{ url_for('billing_bp.pm_soa_branding',property_id=property.id) }}">SOA Branding</a></div>
+<div class="my-4 flex justify-end gap-3"><a class="rounded-lg bg-cyan-100 px-4 py-2" href="{{ url_for('billing_bp.pm_soa_branding',property_id=property.id) }}">SOA Branding</a><a class="rounded-lg bg-green-100 px-4 py-2" href="{{ url_for('billing_bp.pm_soa_statement',property_id=property.id,tenant_id=tenant.id) }}">Tenant Statement</a></div>
 {% if posting_error %}<p role="alert" class="my-3 rounded-lg bg-red-100 p-3 text-red-900">{{ posting_error }}</p>{% endif %}
 
 {% if correction %}

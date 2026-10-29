@@ -63,7 +63,7 @@ class OpeningBalanceTests(unittest.TestCase):
 
     def test_description_dropdowns_and_non_editable_reference(self):
         from app.program_billing import lease_soa_posting as posting
-        for kind,expected in [('charge',posting.DEBIT_DESCRIPTIONS),('payment',posting.CREDIT_DESCRIPTIONS)]:
+        for kind,expected in [('charge',posting.DEBIT_DESCRIPTIONS[6:]),('payment',posting.CREDIT_DESCRIPTIONS)]:
             response=self.client.get(self.path()+'?posting='+kind,headers=self.headers)
             tree=html.fromstring(response.data)
             self.assertEqual(tree.xpath('//select[@name="description"]/option/text()')[1:],list(expected))

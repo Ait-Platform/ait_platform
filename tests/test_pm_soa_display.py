@@ -84,7 +84,7 @@ class PMDisplayTests(unittest.TestCase):
         # The same shared PM navigation remains on the tenant-selection page.
         other=html.fromstring(self.client.get('/manager/tenant_accounts?property_id=26',headers=self.headers).data)
         self.assertEqual(other.xpath('//nav[@aria-label="Property Management"]/a/text()'),
-            ['Property & Owner','Lease','METSOA','Ledger','Property Portfolio'])
+            ['Property & Owner','Lease','METSOA','Property Portfolio'])
 
     def test_exact_displayed_total_counts_and_distinct_colours(self):
         for n in range(20):

@@ -3903,6 +3903,7 @@ def tenant_accounts():
     selected_property=next((prop for prop in properties if prop.id==selected_id),None)
     if selected_id is not None and selected_property is None:abort(404)
     ledger_workflow=request.args.get('workflow')=='ledger'
+    if ledger_workflow and len(request.args.getlist('property_id'))>1:abort(400)
     if ledger_workflow and selected_property is None:
         return redirect(url_for('billing_bp.learner_dashboard',workflow='ledger'))
     tenants=tenants_for(selected_id) if selected_property else []

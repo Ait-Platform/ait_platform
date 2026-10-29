@@ -45,9 +45,20 @@ class LedgerNavigationTests(unittest.TestCase):
         self.assertEqual(tree.xpath('//nav/a[@aria-current="page"]/text()'),['Ledger'])
         self.assertNotIn('Unrelated property',dashboard.text)
         self.assertFalse(tree.xpath('//select[@id="soa-property"]'))
-        links=tree.xpath('//table/tbody/tr/td[1]/a/@href')
-        self.assertEqual(len(links),2)
-        single=next(link for link in links if 'property_id=27' in link)
+        radios=tree.xpath('//*[@id="my-properties-table"]//input[@type="radio"]')
+        self.assertEqual({radio.get('value') for radio in radios},{'26','27'})
+        self.assertEqual({radio.get('name') for radio in radios},{'property_id'})
+        self.assertEqual({radio.get('form') for radio in radios},{'property-ledger-form'})
+        self.assertTrue(all(radio.get('required') is not None for radio in radios))
+        self.assertTrue(tree.xpath('//button[@id="open-property-ledger"][@disabled]'))
+        form=tree.xpath('//form[@id="property-ledger-form"]')[0]
+        self.assertEqual(form.getprevious().xpath('string(.//table/@id)'),'my-properties-table')
+        self.assertFalse(tree.xpath('//input[@name="property_name"]'))
+        links=tree.xpath('//table/tbody/tr/td/a/@href')
+        self.assertTrue(all('property_edit' in link for link in links))
+        self.assertEqual(len(tree.xpath('//button[@data-open-owner]')),2)
+        self.assertEqual(len(tree.xpath('//button[@data-address-dialog]')),2)
+        single=form.get('action')+'?workflow=ledger&property_id=27'
         response=self.client.get(single,headers=self.headers)
         self.assertEqual(response.status_code,302,response.text)
         self.assertEqual(response.location,self.path(27,22))
@@ -95,6 +106,29 @@ class LedgerNavigationTests(unittest.TestCase):
         self.assertTrue(tree.xpath('//table/tbody/tr/td[1]/a[contains(@href,"property_edit")]'))
         ledger=self.client.get('/soa-test/learner_dashboard?workflow=ledger',headers=self.headers)
         tree=html.fromstring(ledger.data)
-        self.assertTrue(tree.xpath('//table/tbody/tr/td[1]/span[text()="Archived property"]'))
-        self.assertFalse(tree.xpath('//table/tbody/tr/td[1]/a[text()="Archived property"]'))
+        self.assertTrue(tree.xpath('//table/tbody/tr/td/input[@value="29"][@disabled]'))
+        self.assertTrue(tree.xpath('//table/tbody/tr/td/a[text()="Archived property"]'))
         self.assertEqual(self.client.get(self.url+'?property_id=29&workflow=ledger',headers=self.headers).status_code,404)
+
+    def test_open_ledger_requires_exactly_one_authorised_selection(self):
+        missing=self.client.get(self.url+'?workflow=ledger',headers=self.headers)
+        self.assertEqual(missing.status_code,302)
+        self.assertEqual(missing.location,'/soa-test/learner_dashboard?workflow=ledger')
+        self.assertEqual(self.client.get(self.url+'?workflow=ledger&property_id=26&property_id=27',headers=self.headers).status_code,400)
+        self.assertEqual(self.client.get(self.url+'?workflow=ledger&property_id=28',headers=self.headers).status_code,404)
+
+    def test_owner_edit_assignment_and_address_controls_remain_independent(self):
+        owners=sys.modules['app.program_billing.owner_management']
+        owners.owners_enabled=lambda:True
+        owners.owner_rows=lambda p:[dict(owner_id=501,name='Registered Owner')]
+        self.app._got_first_request=False
+        self.app.add_url_rule('/navigation-test/owner/<int:owner_id>',endpoint='billing_bp.owner_edit',view_func=lambda **kw:'Existing owner editing')
+        page=self.client.get('/soa-test/learner_dashboard?workflow=ledger',headers=self.headers)
+        self.assertEqual(page.status_code,200,page.text)
+        tree=html.fromstring(page.data)
+        self.assertEqual(len(tree.xpath('//button[@data-owner-edit]')),2)
+        self.assertEqual(len(tree.xpath('//button[@data-open-owner]')),2)
+        self.assertEqual(len(tree.xpath('//button[@data-address-dialog]')),2)
+        self.assertTrue(all(button.get('type')=='button' for button in tree.xpath('//table//button')))
+        self.assertEqual(len(tree.xpath('//script[contains(@src,"pm_ledger_selection.js")]')),1)
+        self.assertFalse(tree.xpath('//form[@id="property-ledger-form"]//table'))

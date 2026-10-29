@@ -2465,163 +2465,23 @@ def setup_wizard():
         draft_record = BilArchitectureDraft.query.filter_by(property_id=property.id).first()
         draft_json = draft_record.draft_json if draft_record else None
     
+    from .metsoa_setup_safety import reason
+    setup_read_only_reason=reason(property.id)
     return render_template("program_billing/setup_wizard.html", 
-        property=property,
+        setup_read_only=bool(setup_read_only_reason),setup_read_only_reason=setup_read_only_reason,property=property,
         draft_json=json.dumps(draft_json) if draft_json else 'null')
 
 @billing_bp.route("/billing/setup/submit", methods=["POST"])
 @login_required
 def setup_submit():
-    payload_str = request.form.get("payload")
-    if not payload_str:
-        flash("Invalid payload", "danger")
-        return redirect(url_for("billing_bp.setup_wizard"))
-        
-    try:
-        import json
-        data = json.loads(payload_str)
-        
-        # 1. Create Property
-        prop_name = data.get("property_name", "").strip()
-        if not prop_name:
-            prop_name = "New Property"
-            
-        prop = BilProperty(
-            name=prop_name,
-            address=data.get("address"),
-            manager_id=current_user.id,
-            enrollment_id=_get_billing_enrollment_id(current_user.id),
-            metro_arrangement_amount=float(data.get("metro_arrangement_amount") or 0.0),
-            metro_arrangement_duration=int(data.get("metro_arrangement_duration") or 0),
-            metro_rates_amount=float(data.get("metro_rates_amount") or 0.0)
-        )
-        db.session.add(prop)
-        db.session.flush()
-        
-        # 2. Create Default Unit (Fix duplicate key crash)
-        unit = BilSectionalUnit(
-            property_id=prop.id,
-            name=f"{prop_name} - Main Unit (Prop {prop.id})"
-        )
-        db.session.add(unit)
-        db.session.flush()
-        
-        # 3. Conditionally Create Tenant & Lease
-        tenant_name = data.get("tenant_name", "").strip()
-        if tenant_name:
-            tenant = tenant_for_unit(prop, unit,
-                name=tenant_name,
-                email=data.get("tenant_email"),
-                email_statements=bool(data.get("email_statements")),
-            )
-            db.session.add(tenant)
-            db.session.flush()
-            
-            rent_amount = data.get("rent_amount")
-            lease = BilLease(
-                tenant_id=tenant.id,
-                property_id=prop.id,
-                rent_amount=float(rent_amount) if rent_amount else 0.0,
-                tenant_arrangement_charge=float(data.get("tenant_arrangement_charge") or 0.0),
-                tenant_rates_charge=float(data.get("tenant_rates_charge") or 0.0),
-                tenant_arrears_total=float(data.get("tenant_arrears_total") or 0.0),
-                tenant_arrears_installment=float(data.get("tenant_arrears_installment") or 0.0),
-                agent_fee_amount=float(data.get("agent_fee_amount") or 0.0),
-                agent_fee_target=str(data.get("agent_fee_target") or 'owner')
-            )
-            db.session.add(lease)
-            
-        # 5. Create Meters
-        meter_objects = {}
-        # First pass: Bulk Meters
-        for m_data in data.get("meters", []):
-            if m_data.get("hierarchy") == "bulk":
-                meter = BilMeter(
-                    meter_number=m_data.get("number"),
-                    utility_type=m_data.get("type"),
-                    property_id=prop.id,
-                    pointing_to=m_data.get("pointing_to"),
-                    municipal_bill_number=m_data.get("municipal_bill_number")
-                )
-                db.session.add(meter)
-                db.session.flush()
-                meter_objects[m_data.get("temp_id")] = meter.id
-                
-        # Second pass: Sub-meters and Independent
-        for m_data in data.get("meters", []):
-            h = m_data.get("hierarchy")
-            if h in ["independent", "sub"]:
-                parent_id = None
-                if h == "sub":
-                    parent_temp_id = m_data.get("parent_id")
-                    parent_id = meter_objects.get(parent_temp_id)
-                            
-                meter = BilMeter(
-                    meter_number=m_data.get("number"),
-                    utility_type=m_data.get("type"),
-                    property_id=prop.id,
-                    parent_meter_id=parent_id,
-                    pointing_to=m_data.get("pointing_to"),
-                    municipal_bill_number=m_data.get("municipal_bill_number")
-                )
-                db.session.add(meter)
-        
-        db.session.commit()
-        
-        # 6. Sync Municipality Accounts and capture AI metrics
-        from app.program_billing.helpers import sync_muni_accounts
-        from app.models.billing import BilMuniAccount, BilMuniCycleTotals, RefMuniOwner
-        from datetime import datetime
-        
-        sync_muni_accounts()
-        
-        muni_email = data.get("muni_email")
-        initial_due = data.get("initial_due_amount")
-        bill_no = data.get("metro_account_no")
-        
-        if not bill_no:
-            for m in data.get("meters", []):
-                if m.get("municipal_bill_number"):
-                    bill_no = m.get("municipal_bill_number")
-                    break
-                    
-        if bill_no:
-            acc = BilMuniAccount.query.filter_by(account_number=bill_no).first()
-            if not acc:
-                owner_name = prop.manager.name if prop.manager else "Unknown Owner"
-                owner = RefMuniOwner.query.filter_by(name=owner_name).first()
-                if not owner:
-                    owner = RefMuniOwner(name=owner_name)
-                    db.session.add(owner)
-                    db.session.flush()
-                acc = BilMuniAccount(account_number=bill_no, owner_id=owner.id)
-                db.session.add(acc)
-                db.session.flush()
-                
-            if muni_email:
-                acc.muni_email = muni_email
-            if initial_due:
-                month_str = datetime.utcnow().strftime("%Y-%m")
-                cycle = BilMuniCycleTotals.query.filter_by(account_id=acc.id, period=month_str).first()
-                if not cycle:
-                    cycle = BilMuniCycleTotals(
-                        account_id=acc.id,
-                        period=month_str,
-                        balance=float(initial_due),
-                        due=float(initial_due)
-                    )
-                    db.session.add(cycle)
-            db.session.commit()
-                    
-        flash("Property successfully set up!", "success")
-        return redirect(url_for("billing_bp.learner_dashboard"))
-        
-    except Exception as e:
-        db.session.rollback()
-        import traceback
-        traceback.print_exc()
-        flash(f"An error occurred during setup: {str(e)}", "danger")
-        return redirect(url_for("billing_bp.setup_wizard"))
+    # This old unscoped form creates another property rather than editing the selected one.
+    import json
+    from .metsoa_setup_safety import property_scope
+    try:data=json.loads(request.form.get('payload','{}'))
+    except (ValueError,TypeError):return jsonify(error='Invalid setup payload.'),400
+    if not isinstance(data,dict):return jsonify(error='Invalid setup payload.'),400
+    if data.get('property_id'):property_scope(data['property_id'])
+    return jsonify(error='Legacy setup submission is disabled. Use the property-scoped METSOA Setup wizard; existing configurations are view-only.'),409
 
 
 @billing_bp.route("/billing/utilities/<int:property_id>/metsoa/<month>/email", methods=["POST"])
@@ -2849,6 +2709,9 @@ def parse_readings_api():
 @billing_bp.route("/api/parse_bill_onboarding", methods=["POST"])
 @login_required
 def parse_bill_onboarding_api():
+    if request.form.get('property_id'):
+        from .metsoa_setup_safety import protect_save
+        protect_save(request.form['property_id'])
     if 'bill_files' not in request.files and 'bill_file' not in request.files:
         return jsonify({"error": "No file uploaded"}), 400
         
@@ -3021,6 +2884,11 @@ def ai_onboarding():
 @billing_bp.route("/billing/onboarding/process", methods=["POST"])
 @login_required
 def ai_onboarding_process():
+    from .metsoa_setup_safety import protect_save
+    proposed=request.get_json(silent=True)
+    if not isinstance(proposed,dict) or not proposed.get('property_id'):
+        return jsonify(error='Select a property before saving setup.'),400
+    protect_save(proposed['property_id'],proposed)
     data = request.json
     if not data:
         return jsonify({"error": "Invalid JSON payload"}), 400
@@ -3221,6 +3089,8 @@ def onboarding_start_setup():
 @billing_bp.route('/save_architecture_draft/<int:property_id>', methods=['POST'])
 @login_required
 def save_architecture_draft(property_id):
+    from .metsoa_setup_safety import protect_save
+    protect_save(property_id,request.get_json(silent=True))
     from app.models.billing import BilArchitectureDraft
     prop = BilProperty.query.get_or_404(property_id)
     if prop.manager_id != current_user.id:
@@ -3242,6 +3112,8 @@ def save_architecture_draft(property_id):
 @billing_bp.route("/billing/onboarding/save_global_architecture/<int:property_id>", methods=["POST"])
 @login_required
 def save_global_architecture(property_id):
+    from .metsoa_setup_safety import protect_save
+    protect_save(property_id,request.get_json(silent=True))
     try:
         from app.models.billing import BilArchitectureDraft
         prop = BilProperty.query.get_or_404(property_id)
@@ -3256,20 +3128,7 @@ def save_global_architecture(property_id):
         from app.models.billing import BilMuniAccount, RefMuniOwner, BilMeter
         from datetime import datetime
         
-        # 1. Clean up old architecture
-        old_accounts = BilMuniAccount.query.filter_by(property_id=prop.id).all()
-        old_acc_nums = [a.account_number for a in old_accounts if a.account_number]
-        
-        if old_acc_nums:
-            old_meters = BilMeter.query.filter(BilMeter.municipal_bill_number.in_(old_acc_nums)).all()
-            old_meter_ids = [m.id for m in old_meters]
-            if old_meter_ids:
-                from app.models.billing import BilMeterReading, BilConsumption
-                BilMeterReading.query.filter(BilMeterReading.meter_id.in_(old_meter_ids)).delete(synchronize_session=False)
-                BilConsumption.query.filter(BilConsumption.meter_id.in_(old_meter_ids)).delete(synchronize_session=False)
-                BilMeter.query.filter(BilMeter.id.in_(old_meter_ids)).delete(synchronize_session=False)
-                
-        BilMuniAccount.query.filter_by(property_id=prop.id).delete(synchronize_session=False)
+        # Initial setup only. Existing architecture is blocked before any writes.
 
         # 2. Process Owners
         owner_map = {} # acc.id (e.g. 'acc_0') -> owner_obj.id
@@ -3711,6 +3570,14 @@ def utilities_hub():
         month = request.form.get("billing_month")
         action = request.form.get("action")
         
+        if action=='setup':
+            if not property_id:
+                flash('Select a property before opening METSOA Setup.','warning')
+                return redirect(url_for('billing_bp.utilities_hub'))
+            from .metsoa_setup_safety import property_scope
+            selected_id=property_scope(property_id)
+            return redirect(url_for('billing_bp.setup_wizard',property_id=selected_id))
+
         if not property_id or not month:
             flash("Please select both a property and a month.", "warning")
             return redirect(url_for("billing_bp.utilities_hub"))

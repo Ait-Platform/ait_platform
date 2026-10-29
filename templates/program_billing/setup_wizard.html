@@ -11,6 +11,7 @@
     <!-- Header -->
     <div class="bg-white px-8 pt-6 pb-2 flex flex-col gap-2">
       {% include "partials/flash_messages.html" %}
+      {% if setup_read_only %}<p id="setup-read-only-notice" role="status" class="my-3 rounded-lg bg-amber-50 p-3 text-amber-900">{{ setup_read_only_reason }}</p>{% endif %}
       <!-- Row 1 -->
       <div class="flex justify-between items-start">
         <div>
@@ -242,13 +243,15 @@
       <div class="flex space-x-3">
         <button type="button" id="btn-prev" onclick="prevStep()" class="hidden px-6 py-2 border border-slate-300 text-slate-600 font-bold rounded-lg hover:bg-slate-100 transition">Back</button>
         <button type="button" id="btn-next" onclick="nextStep()" class="px-8 py-2 bg-blue-600 text-white font-bold rounded-lg shadow-sm hover:bg-blue-700 transition">Next Step</button>
-        <button type="button" id="btn-save" onclick="saveArchitecture()" class="hidden px-8 py-2 bg-emerald-600 text-white font-bold rounded-lg shadow-sm hover:bg-emerald-700 transition">Save &amp; Finalize Architecture</button>
+        <button type="button" id="btn-save" {{ 'disabled aria-disabled="true"'|safe if setup_read_only else '' }} onclick="saveArchitecture()" class="hidden px-8 py-2 bg-emerald-600 text-white font-bold rounded-lg shadow-sm hover:bg-emerald-700 transition">Save &amp; Finalize Architecture</button>
       </div>
     </div>
   </div>
 </div>
 
 <script>
+  const SETUP_READ_ONLY = {{ setup_read_only|default(false)|tojson }};
+  const SETUP_READ_ONLY_REASON = {{ setup_read_only_reason|default('',true)|tojson }};
   let currentStep = 1;
   const TOTAL_STEPS = 12;
   
@@ -428,6 +431,7 @@
     if(step === 12) buildOwnersDashboard();
     
     updateBadges();
+    if (SETUP_READ_ONLY) document.querySelectorAll('.wizard-step input, .wizard-step select, .wizard-step textarea, .wizard-step button').forEach(control => { control.disabled = true; });
   }
 
   function validateGlobalMeters() {
@@ -457,6 +461,7 @@
   }
   
   function nextStep() {
+    if (SETUP_READ_ONLY) { if (currentStep < TOTAL_STEPS) { currentStep++; showStep(currentStep); } return; }
     if (currentStep === 1) { if (!gatherPropertyMap()) return; }
     if (currentStep === 2) { if (!gatherAccounts()) return; }
     if (currentStep === 3) { if(!gatherMeters('bulk-water')) return; }
@@ -501,6 +506,7 @@
   let savePending = false;
   
   async function performAutoSave() {
+    if (SETUP_READ_ONLY) return;
     if (isSaving) {
         savePending = true;
         return;
@@ -529,6 +535,7 @@
   }
 
   function triggerAutoSave() {
+    if (SETUP_READ_ONLY) return;
     if(saveTimeout) clearTimeout(saveTimeout);
     saveTimeout = setTimeout(() => {
       // Only gather from the active step to prevent wiping data from other steps!
@@ -1606,6 +1613,7 @@
   }
 
   async function saveArchitecture() {
+    if (SETUP_READ_ONLY) { alert(SETUP_READ_ONLY_REASON); return; }
     if(!gatherMapping() || !gatherInitialReadings() || !gatherArrears() || !gatherRates() || !gatherArrangements() || !gatherOwners()) {
       return; // Do not save if validation fails on the final page
     }

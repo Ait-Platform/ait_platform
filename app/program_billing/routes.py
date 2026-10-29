@@ -3907,6 +3907,38 @@ def tenant_accounts():
         properties=properties,selected_property=selected_property)
 
 
+@billing_bp.route('/manager/tenant_accounts/<int:property_id>/branding',methods=['GET','POST'],endpoint='pm_soa_branding')
+@login_required
+def pm_soa_branding(property_id):
+    from . import lease_soa_branding as branding
+    from werkzeug.exceptions import HTTPException
+    prop=branding.authorise(property_id);error=None;status=200
+    if request.method=='POST':
+        try:message=branding.save(property_id,request.form,request.files)
+        except HTTPException:db.session.rollback();raise
+        except ValueError as exc:db.session.rollback();error=str(exc);status=400
+        except Exception:
+            db.session.rollback();current_app.logger.exception('PM SOA branding save failed')
+            error='Branding could not be saved to private storage. Existing selections remain unchanged.';status=503
+        else:
+            flash(message,'success');return redirect(url_for('billing_bp.pm_soa_branding',property_id=property_id))
+    return render_template('program_billing/pm_soa_branding.html',property=prop,branding_rows=branding.rows(property_id),
+        branding_ready=branding.ready(),form_key=branding.form_key(property_id),error=error),status
+
+
+@billing_bp.get('/manager/tenant_accounts/<int:property_id>/branding/<uuid:identifier>/preview',endpoint='pm_soa_brand_asset')
+@login_required
+def pm_soa_brand_asset(property_id,identifier):
+    from .lease_soa_branding import asset
+    from flask import Response
+    try:payload=asset(property_id,identifier)
+    except ValueError as exc:abort(409,description=str(exc))
+    response=Response(payload,mimetype='image/png')
+    response.headers['Cache-Control']='private, no-store'
+    response.headers['X-Content-Type-Options']='nosniff'
+    return response
+
+
 @billing_bp.get('/manager/tenant_accounts/<int:property_id>/tenant/<int:tenant_id>/ledger',endpoint='pm_soa_ledger')
 @login_required
 def pm_soa_ledger(property_id,tenant_id,error=None,status=200):
@@ -3942,7 +3974,8 @@ def pm_soa_ledger(property_id,tenant_id,error=None,status=200):
     entries=transactions(tenant_id)
     visible=request.args.get('visible',default=5,type=int)
     if visible is None or visible<5 or visible%5:abort(400)
-    return render_template('program_billing/pm_soa_ledger.html',property=prop,tenant=tenant,
+    from .lease_soa_branding import selected
+    return render_template('program_billing/pm_soa_ledger.html',property=prop,tenant=tenant,branding_rows=selected(property_id),
         entries=entries,visible_entries=entries[-visible:],visible_count=visible,has_more=len(entries)>visible,
         posting=kind,values=values,posting_error=error,
         correction=correction,correction_opening=bool(correction and (correction['kind'] in ('opening_balance','opening_adjustment') or (correction['description'] or '').strip().lower()=='opening balance')),

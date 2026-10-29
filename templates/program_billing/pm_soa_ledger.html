@@ -11,6 +11,7 @@
 
 
 
+<div class="my-4 flex justify-end gap-3"><a class="rounded-lg bg-cyan-100 px-4 py-2" href="{{ url_for('billing_bp.pm_soa_branding',property_id=property.id) }}">SOA Branding</a></div>
 {% if posting_error %}<p role="alert" class="my-3 rounded-lg bg-red-100 p-3 text-red-900">{{ posting_error }}</p>{% endif %}
 
 {% if correction %}
@@ -42,6 +43,7 @@
 </form>
 {% endif %}
 <p class="mb-4 text-sm text-slate-600">Recorded PM transactions in rand. A positive balance is due; a negative balance is an account credit.</p>
+{% include 'program_billing/pm_soa_brand_header.html' %}
 {% if entries %}<div class="overflow-x-auto"><table id="ledger-transactions" class="w-full text-left"><thead class="bg-slate-100"><tr>{% for label in ['Date','Description','Debit','Credit','Balance','Actions'] %}<th class="p-3">{{ label }}</th>{% endfor %}</tr></thead><tbody>
 {% for entry in visible_entries %}<tr class="border-b border-slate-200"><td class="whitespace-nowrap p-3">{{ entry.display_date.isoformat() if entry.display_date else 'Date not recorded' }}</td><td class="p-3"><span>{{ entry.display_description or 'Description not recorded' }}</span>{% if entry.display_reference %}<span class="ml-2 text-sm text-slate-600"> — {{ entry.display_reference }}</span>{% endif %}</td><td class="p-3 text-right">{{ '{:,.2f}'.format(entry.debit) if entry.debit else '—' }}</td><td class="p-3 text-right">{{ '{:,.2f}'.format(entry.credit) if entry.credit else '—' }}</td><td class="p-3 text-right">{{ '{:,.2f}'.format(entry.balance) }}</td><td class="p-3">{% if entry.corrected or entry.correction_role=='reversal' %}<button disabled class="rounded-lg bg-slate-100 px-3 py-2 text-slate-500" title="Edit the latest replacement; original and reversal entries remain in the audit trail.">Edit</button>{% else %}<a class="rounded-lg bg-yellow-100 px-3 py-2" href="{{ url_for('billing_bp.pm_soa_ledger',property_id=property.id,tenant_id=tenant.id,edit=entry.id) }}">Edit</a>{% endif %}</td></tr>{% endfor %}
 </tbody></table></div>

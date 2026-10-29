@@ -1,0 +1,4 @@
+{% if branding_rows %}<header class="soa-branding my-5 border-b border-slate-200 pb-4">
+{% for brand in branding_rows %}{% if brand.details.format=='image' %}<img class="{{ 'h-20 max-w-xs object-contain' if brand.kind=='logo' else 'w-full max-h-64 object-contain' }}" src="{{ url_for('billing_bp.pm_soa_brand_asset',property_id=property.id,identifier=brand.id) }}" alt="{{ brand.title }}">
+{% else %}<div class="text-center"><h2 class="text-2xl font-bold">{{ brand.details.business_name }}</h2><p class="whitespace-pre-line">{{ brand.details.address }}</p><p>{{ brand.details.contact }}</p></div>{% endif %}{% endfor %}
+</header>{% endif %}

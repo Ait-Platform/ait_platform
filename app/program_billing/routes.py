@@ -80,7 +80,7 @@ def billing_checkout(month):
     
     return render_template("program_billing/checkout_summary.html", 
                            month=month, 
-                           cost_cents=cost_cents, meter_count=meter_count,wallet_tokens=wallet_tokens,token_cost=cost_cents//100, 
+                           cost_cents=cost_cents, meter_count=meter_count,wallet_tokens=wallet_tokens,token_cost=cost_cents//100,
                            settings=settings,
                            main_prop=main_prop)
 
@@ -2801,164 +2801,11 @@ def ai_onboarding():
 @billing_bp.route("/billing/onboarding/process", methods=["POST"])
 @login_required
 def ai_onboarding_process():
-    from .metsoa_setup_safety import protect_save
-    proposed=request.get_json(silent=True)
-    if not isinstance(proposed,dict) or not proposed.get('property_id'):
-        return jsonify(error='Select a property before saving setup.'),400
-    protect_save(proposed['property_id'],proposed)
-    data = request.json
-    if not data:
-        return jsonify({"error": "Invalid JSON payload"}), 400
-        
-    try:
-        property_id = data.get("property_id")
-        if not property_id:
-            return jsonify({"error": "Missing property_id. You must start a setup from the dashboard first."}), 400
-            
-        prop = BilProperty.query.get(property_id)
-        if not prop or prop.manager_id != current_user.id:
-            return jsonify({"error": "Property not found or unauthorized"}), 403
-            
-        # 1. Update Property Details
-        prop.address = data.get("address") or prop.address
-        prop.metro_rates_amount = float(data.get("rates_amount") or 0.0)
-        
-        # 2. Setup Units & Tenants Map
-        unit_map = {}
-        tenant_map = {}
-        
-        # 2a. Owner Account (Default)
-        owner_unit = BilSectionalUnit(property_id=prop.id, name=f"{prop.name} - Owner/Common")
-        db.session.add(owner_unit)
-        db.session.flush()
-        unit_map["owner"] = prop.id
-        
-        owner_tenant = tenant_for_unit(prop, owner_unit, name="Owner Account")
-        db.session.add(owner_tenant)
-        db.session.flush()
-        tenant_map["owner"] = owner_tenant.id
-        db.session.add(BilLease(tenant_id=owner_tenant.id, property_id=prop.id, rent_amount=0))
-        
-        # 2b. Dynamic Tenants
-        for t_data in data.get("tenants", []):
-            tid = t_data.get("id")
-            if not tid: continue
-            tname = t_data.get("name", "").strip() or f"Statement {tid}"
-            rent = float(t_data.get("rent") or 0.0)
-            
-            t_unit = BilSectionalUnit(property_id=prop.id, name=f"Unit {str(tid).upper()} (Prop {prop.id})")
-            db.session.add(t_unit)
-            db.session.flush()
-            unit_map[tid] = prop.id
-            
-            t_tenant = tenant_for_unit(prop, t_unit, name=tname)
-            db.session.add(t_tenant)
-            db.session.flush()
-            tenant_map[tid] = t_tenant.id
-            db.session.add(BilLease(tenant_id=t_tenant.id, property_id=prop.id, rent_amount=rent))
-            
-        # 3. Create Meters and initial readings (baselines)
-        month = data.get("month")
-        from datetime import datetime
-        if not month:
-            month = datetime.now().strftime("%Y-%m")
-            
-        def _add_baseline(meter, m_data):
-            last_date_str = m_data.get("previous_date")
-            new_date_str = m_data.get("current_date")
-            try:
-                last_date = datetime.strptime(last_date_str, "%Y-%m-%d").date() if last_date_str else datetime.utcnow().date()
-            except:
-                last_date = datetime.utcnow().date()
-            try:
-                new_date = datetime.strptime(new_date_str, "%Y-%m-%d").date() if new_date_str else datetime.utcnow().date()
-            except:
-                new_date = datetime.utcnow().date()
-            
-            last_read = float(m_data.get("previous_reading") or 0)
-            new_read = float(m_data.get("current_reading") or 0)
-            usage = float(m_data.get("usage") or 0)
-            
-            if usage == 0 and new_read > 0 and last_read > 0:
-                usage = new_read - last_read
-            
-            days = (new_date - last_date).days
-            if days <= 0: days = 30
-            
-            cons = BilConsumption(
-                meter_id=meter.id,
-                meter_number=meter.meter_number,
-                month=month,
-                last_date=last_date,
-                new_date=new_date,
-                last_read=last_read,
-                new_read=new_read,
-                days=days,
-                consumption=usage
-            )
-            db.session.add(cons)
-
-        bulk_meters = {} # utility_type -> meter.id
-        
-        # PASS 1: Bulk Meters
-        for m_data in data.get("readings", []):
-            if m_data.get("is_bulk"):
-                assign_to = m_data.get("assign_to", "owner")
-                u_id = unit_map.get(assign_to, prop.id)
-                u_type = (m_data.get("utility_type") or "water").lower()
-                
-                meter = BilMeter(
-                    meter_number=m_data.get("meter_number"),
-                    utility_type=u_type,
-                    property_id=u_id,
-                    pointing_to="Entire Property",
-                    municipal_bill_number=m_data.get("accountNo")
-                )
-                db.session.add(meter)
-                db.session.flush()
-                bulk_meters[u_type] = meter.id
-                _add_baseline(meter, m_data)
-                
-        # PASS 2: Sub / Independent Meters
-        for m_data in data.get("readings", []):
-            if not m_data.get("is_bulk"):
-                assign_to = m_data.get("assign_to", "owner")
-                u_id = unit_map.get(assign_to, prop.id)
-                u_type = (m_data.get("utility_type") or "water").lower()
-                
-                parent_id = None
-                if m_data.get("linked_to_bulk"):
-                    parent_id = bulk_meters.get(u_type)
-                
-                meter = BilMeter(
-                    meter_number=m_data.get("meter_number"),
-                    utility_type=u_type,
-                    property_id=u_id,
-                    parent_meter_id=parent_id,
-                    pointing_to=None,
-                    municipal_bill_number=m_data.get("accountNo")
-                )
-                db.session.add(meter)
-                db.session.flush()
-                _add_baseline(meter, m_data)
-            
-        # Advance the onboarding status to the next tile!
-        prop.onboarding_status = 'draft_readings'
-        
-        db.session.commit()
-        
-        # Sync Municipality Accounts
-        from app.program_billing.helpers import sync_muni_accounts
-        sync_muni_accounts()
-        
-        # Return success as JSON since Alpine fetch is expecting it
-        return jsonify({"success": True, "property_id": prop.id})
-        
-    except Exception as e:
-        db.session.rollback()
-        import traceback
-        traceback.print_exc()
-        return jsonify({"error": f"An error occurred during setup: {str(e)}"}), 500
+    from .metsoa_setup_safety import property_scope
+    data=request.get_json(silent=True)
+    if not isinstance(data,dict) or not data.get('property_id'):return jsonify(error='Select a property.'),400
+    property_scope(data['property_id'])
+    return jsonify(error='Legacy tenant/unit onboarding is disabled for Utilities. Use the property-scoped Setup Wizard; existing configurations and history are unchanged.'),409
 
 @billing_bp.route("/billing/onboarding/start_setup", methods=["POST"])
 @login_required
@@ -3037,6 +2884,7 @@ def save_global_architecture(property_id):
         try:
             result=save(property_id,proposed)
             db.session.commit()
+            flash(result['message'],'success')
             return jsonify(result)
         except HTTPException as exc:
             db.session.rollback()
@@ -3046,245 +2894,8 @@ def save_global_architecture(property_id):
             current_app.logger.exception('Property Utilities configuration save failed')
             return jsonify(success=False,error='Configuration could not be saved; no changes were committed. Check the database schema and server logs.'),503
     from .metsoa_setup_safety import protect_save
-    protect_save(property_id,request.get_json(silent=True))
-    try:
-        from app.models.billing import BilArchitectureDraft
-        prop = BilProperty.query.get_or_404(property_id)
-        if prop.manager_id != current_user.id:
-            return jsonify({"error": "Unauthorized"}), 403
-
-        data = request.json
-        if not data:
-            return jsonify({"error": "No data provided"}), 400
-
-        from app.extensions import db
-        from app.models.billing import BilMuniAccount, RefMuniOwner, BilMeter
-        from datetime import datetime
-        
-        # Initial setup only. Existing architecture is blocked before any writes.
-
-        # 2. Process Owners
-        owner_map = {} # acc.id (e.g. 'acc_0') -> owner_obj.id
-        owner_data_map = {} # acc.id -> {'email': ..., 'address': ...}
-        for o_data in data.get('owners', []):
-            name = o_data.get('name', '').strip().title()
-            acc_id = o_data.get('account_id')
-            email = o_data.get('email', '').strip()
-            address = o_data.get('address', '').strip()
-            if name and acc_id:
-                owner = RefMuniOwner.query.filter_by(name=name).first()
-                if not owner:
-                    owner = RefMuniOwner(name=name)
-                    db.session.add(owner)
-                    db.session.flush()
-                owner_map[acc_id] = owner.id
-                owner_data_map[acc_id] = {'email': email, 'address': address}
-
-        # 3. Process Accounts & attach rates/arrears/arrangements
-        acc_obj_map = {} # acc.id -> BilMuniAccount
-        for a_data in data.get('accounts', []):
-            acc_num = a_data.get('number', '').strip()
-            acc_id = a_data.get('id')
-            if acc_num and acc_id:
-                acc = BilMuniAccount(
-                    property_id=prop.id,
-                    account_number=acc_num,
-                    is_bulk_account=True if a_data.get('isBulk') else False
-                )
-                if acc_id in owner_map:
-                    acc.owner_id = owner_map[acc_id]
-                if acc_id in owner_data_map:
-                    acc.muni_email = owner_data_map[acc_id].get('email')
-                    acc.owner_address = owner_data_map[acc_id].get('address')
-                db.session.add(acc)
-                acc_obj_map[acc_id] = acc
-        
-        db.session.flush()
-
-        # Attach Rates
-        for r in data.get('rates', []):
-            acc = acc_obj_map.get(r.get('account_id'))
-            if acc:
-                acc.rates_amount = float(r.get('amount') or 0.0)
-                if r.get('date'):
-                    acc.rates_date = datetime.strptime(r.get('date'), '%Y-%m-%d').date()
-                acc.rates_charge_to = r.get('charge_to', 'owner')
-                acc.rates_reference = r.get('reference', '')
-                acc.rates_erf_details = r.get('erf_details', '')
-                acc.rates_property_category = r.get('property_category', '')
-                acc.rates_market_value = float(r.get('market_value') or 0.0)
-                acc.rates_rateable_value = float(r.get('rateable_value') or 0.0)
-                acc.rates_general_randage = float(r.get('general_randage') or 0.0)
-                acc.rates_sra_randage = float(r.get('sra_randage') or 0.0)
-                acc.rates_deferred = float(r.get('deferred') or 0.0)
-                acc.rates_sra_monthly = float(r.get('sra_monthly') or 0.0)
-                acc.rates_general_monthly = float(r.get('general_monthly') or 0.0)
-
-        # Attach Arrears
-        for a in data.get('arrears', []):
-            acc = acc_obj_map.get(a.get('account_id'))
-            if acc:
-                acc.arrears_amount = float(a.get('amount') or 0.0)
-                if a.get('date'):
-                    acc.arrears_date = datetime.strptime(a.get('date'), '%Y-%m-%d').date()
-                acc.arrears_charge_to = a.get('charge_to', 'owner')
-                
-        # Attach Arrangements
-        for arg in data.get('arrangements', []):
-            acc = acc_obj_map.get(arg.get('account_id'))
-            if acc:
-                acc.arrangement_contract_number = arg.get('contract_number', '')
-                acc.arrangement_charge_to = arg.get('charge_to', 'owner')
-                acc.arrangement_agreement_amount = float(arg.get('agreement_amount') or 0.0)
-                acc.arrangement_installments_raised = float(arg.get('installments_raised') or 0.0)
-                acc.arrangement_installment_amount = float(arg.get('installment_amount') or 0.0)
-                acc.arrangement_amount_owing = float(arg.get('amount_owing') or 0.0)
-                acc.arrangement_remaining_periods = int(arg.get('remaining_periods') or 0)
-                if arg.get('date'):
-                    acc.arrangement_date = datetime.strptime(arg.get('date'), '%Y-%m-%d').date()
-
-        # 4. Process Meters
-        # Extract meters and map them properly from frontend payload
-        raw_meters = []
-        for u_type, key in [('Water', 'bulkWater'), ('Electrical', 'bulkElec'), ('Water', 'subWater'), ('Electrical', 'subElec')]:
-            for m_item in data.get(key, []):
-                m_item['u_type'] = u_type
-                m_item['is_bulk'] = key.startswith('bulk')
-                raw_meters.append(m_item)
-                
-        # Build account map
-        acc_map = { a.get('id'): a.get('number', '').strip() for a in data.get('accounts', []) }
-        
-        # Find the bulk account
-        bulk_acc_num = ''
-        for a in data.get('accounts', []):
-            if a.get('isBulk'):
-                bulk_acc_num = a.get('number', '').strip()
-                break
-        if not bulk_acc_num and data.get('accounts'):
-            bulk_acc_num = data.get('accounts')[0].get('number', '').strip()
-        
-        # Build meter-to-account map { meter_id: account_number }
-        meter_acc = {}
-        for mp in data.get('mapping', []):
-            acc_id = mp.get('account_id')
-        for m_item in data.get('bulkWater', []):
-            meter_acc[m_item.get('id')] = bulk_acc_num
-        for m_item in data.get('bulkElec', []):
-            meter_acc[m_item.get('id')] = bulk_acc_num
-            
-        # For sub meters, read from mapping
-        for m_map in data.get('mapping', []):
-            acc_id = m_map.get('account_id')
-            w_id = m_map.get('water')
-            e_id = m_map.get('elec')
-            if acc_id in acc_map:
-                if w_id:
-                    meter_acc[w_id] = acc_map[acc_id]
-                if e_id:
-                    meter_acc[e_id] = acc_map[acc_id]
-                    
-        # Fallback if mapping is empty (like when only 1 account)
-        if len(acc_map) == 1:
-            only_acc_num = list(acc_map.values())[0]
-            for m_item in data.get('subWater', []):
-                meter_acc[m_item.get('id')] = only_acc_num
-            for m_item in data.get('subElec', []):
-                meter_acc[m_item.get('id')] = only_acc_num
-    
-        active_meters_map = {}
-                
-        for m_data in raw_meters:
-            m_num = m_data.get('number', '').strip()
-            m_id = m_data.get('id')
-            u_type = m_data.get('u_type')
-            
-            # Determine account number
-            acc_num = bulk_acc_num if m_data.get('is_bulk') else meter_acc.get(m_id, '')
-            
-            if m_num and acc_num:
-                meter = BilMeter(
-                    meter_number=m_num,
-                    utility_type=u_type,
-                    municipal_bill_number=acc_num
-                )
-                db.session.add(meter)
-                db.session.flush() # get meter.id
-                active_meters_map[m_id] = meter
-                
-                initial_readings = data.get('initialReadings', [])
-                for r_data in initial_readings:
-                    if str(r_data.get('meter_number', '')) == str(m_num):
-                        from datetime import datetime
-                        from app.models.billing import BilMeterReading
-                        rd_date = r_data.get('date')
-                        rd_val = r_data.get('value')
-                        if rd_date and rd_val is not None:
-                            try:
-                                parsed_date = datetime.strptime(rd_date, '%Y-%m-%d').date()
-                                reading = BilMeterReading(
-                                    meter_id=meter.id,
-                                    reading_date=parsed_date,
-                                    reading_value=float(rd_val)
-                                )
-                                db.session.add(reading)
-                            except:
-                                pass
-
-        # Handle Exceptions (Stolen Meters)
-        for exc in data.get('exceptions', []):
-            s_num = exc.get('stolen_num', '').strip()
-            r_id = exc.get('replacement_id', '')
-            d_stolen = exc.get('date_stolen')
-            d_replaced = exc.get('date_replaced')
-            
-            if s_num and r_id in active_meters_map:
-                rep_meter = active_meters_map[r_id]
-                
-                from datetime import datetime
-                try:
-                    parsed_ds = datetime.strptime(d_stolen, '%Y-%m-%d').date() if d_stolen else None
-                    parsed_dr = datetime.strptime(d_replaced, '%Y-%m-%d').date() if d_replaced else None
-                except:
-                    parsed_ds = None
-                    parsed_dr = None
-                    
-                stolen_meter = BilMeter(
-                    meter_number=s_num,
-                    utility_type=rep_meter.utility_type,
-                    municipal_bill_number=rep_meter.municipal_bill_number,
-                    status='stolen',
-                    date_stolen=parsed_ds,
-                    date_replaced=parsed_dr
-                )
-                db.session.add(stolen_meter)
-                db.session.flush()
-                
-                rep_meter.replacement_for_meter_id = stolen_meter.id
-
-        prop.onboarding_status = 'draft_manual'
-        
-        # Save Draft JSON so frontend wizard can restore it!
-        from app.models.billing import BilArchitectureDraft
-        draft = BilArchitectureDraft.query.filter_by(property_id=prop.id).first()
-        if not draft:
-            draft = BilArchitectureDraft(property_id=prop.id)
-            db.session.add(draft)
-        draft.draft_json = data
-        
-        db.session.commit()
-        return jsonify({"message": "Architecture saved successfully!"}), 200
-        
-    except Exception as e:
-        from app.extensions import db
-        import traceback
-        try:
-            db.session.rollback()
-        except:
-            pass
-        print("SAVE GLOBAL ARCHITECTURE ERROR:", str(e))
-        traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+    protect_save(property_id,proposed)
+    return jsonify(success=False,error='Reopen the property-scoped Setup Wizard before saving. This legacy payload cannot replace existing records.'),409
 
 @billing_bp.route('/property/<int:property_id>/email_architecture_summary', methods=['GET', 'POST'])
 @login_required
@@ -3306,7 +2917,7 @@ def architecture_summary(property_id):
     
     acc_nums = [a.account_number for a in accounts if a.account_number]
     if acc_nums:
-        meters = BilMeter.query.filter(BilMeter.municipal_bill_number.in_(acc_nums)).all()
+        meters = BilMeter.query.filter(BilMeter.property_id==property_id, BilMeter.municipal_bill_number.in_(acc_nums)).all()
     else:
         meters = []
         

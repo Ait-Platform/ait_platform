@@ -134,4 +134,4 @@ class LedgerNavigationTests(unittest.TestCase):
         for row in rows:
             self.assertEqual(row.xpath('./td[4]//a/text()'),['Ledger','Utilities'])
             self.assertIn('whitespace-normal',row.xpath('./td[2]/@class')[0])
-        self.assertEqual(set(tree.xpath('//a[text()="Utilities"]/@href')),{'/soa-test/utilities_hub?property_id=26','/soa-test/utilities_hub?property_id=27'})
+        self.assertEqual(set(tree.xpath('//*[@id="my-properties-table"]//a[text()="Utilities"]/@href')),{'/soa-test/utilities_hub?property_id=26','/soa-test/utilities_hub?property_id=27'})

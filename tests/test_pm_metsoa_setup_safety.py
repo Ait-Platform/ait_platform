@@ -85,7 +85,7 @@ class MetsoaSetupProtectionTests(unittest.TestCase):
         try:
             for path in ('/save_architecture_draft/26','/billing/onboarding/save_global_architecture/26','/billing/onboarding/process'):
                 response=self.client.post(path,json=dict(property_id=26,accounts=[]),headers=dict(self.headers,**{'X-CSRFToken':self.csrf}))
-                self.assertEqual(response.status_code,409,response.text);self.assertIn('view-only',response.text)
+                self.assertEqual(response.status_code,409,response.text);self.assertTrue('view-only' in response.text or 'Legacy tenant/unit onboarding is disabled' in response.text)
             parse=self.client.post('/api/parse_bill_onboarding',data=dict(property_id=26,csrf_token=self.csrf),headers=self.headers)
             self.assertEqual(parse.status_code,409)
             legacy=self.client.post('/billing/setup/submit',data=dict(csrf_token=self.csrf,payload=json.dumps({'property_id':26})),headers=self.headers)

@@ -1,5 +1,5 @@
 """Existing meter reading/consumption capture with property scope and append-only history."""
-from datetime import date
+from datetime import date,timedelta
 from decimal import Decimal,InvalidOperation
 from flask import abort
 from sqlalchemy import text
@@ -32,7 +32,7 @@ def save(data):
         prior=Decimal(0);prior_date=new_date;consumption=number(estimate);days=30
     else:
         prior=number(data['prev_reading']) if data.get('prev_reading') not in (None,'') else number(previous['reading_value']) if previous else Decimal(0)
-        try:prior_date=date.fromisoformat(data['prev_date']) if data.get('prev_date') else previous['reading_date'] if previous else new_date.replace(day=1)
+        try:prior_date=date.fromisoformat(data['prev_date']) if data.get('prev_date') else previous['reading_date'] if previous else new_date-timedelta(days=30)
         except (ValueError,TypeError):abort(400,description='Invalid previous reading date.')
         if prior_date>=new_date or value<prior:abort(400,description='Reading must not decrease and its date must follow the previous reading date.')
         days=(new_date-prior_date).days;consumption=value-prior

@@ -4,6 +4,7 @@
 {% block flashes %}{% endblock %}
 
 {% block content %}
+{% set utility_month=request.args.get('billing_month') or now_month %}
 <div class="max-w-6xl mx-auto px-4 py-4">
   <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden min-h-[70vh] flex flex-col">
     <!-- Top Strip -->
@@ -11,21 +12,21 @@
     <!-- Header -->
     <div class="bg-white px-8 pt-6 pb-2 flex flex-col gap-2">
       {% include "partials/flash_messages.html" %}
-      {% if setup_read_only %}<a href="{{ url_for('billing_bp.setup_wizard',property_id=property.id,edit=1,billing_month=request.args.get('billing_month')) }}" class="inline-flex rounded-lg bg-blue-100 px-4 py-2 font-semibold">Edit Configuration</a><p id="setup-read-only-notice" role="status" class="my-3 rounded-lg bg-amber-50 p-3 text-amber-900">{{ setup_read_only_reason }}</p>{% endif %}
-      <p class="my-3 text-sm text-slate-600">Setup saves municipal accounts, owner details and meter configuration. Capture readings through Utilities → Readings. Existing financial particulars and historical exceptions are preserved; this save does not change them.</p>
-      {% set utility_active='setup' %}{% set utility_month=request.args.get('billing_month') or now_month %}{% include 'program_billing/utilities_menu.html' %}
       <!-- Row 1 -->
       <div class="flex justify-between items-start">
         <div>
           <h1 class="text-xl font-extrabold text-slate-800 leading-tight">Architecture Mapping</h1>
           <p class="text-xs text-slate-500 leading-tight">Property: <span class="font-bold text-slate-700">{{ property.name }}</span></p>
         </div>
-        <a href="{{ url_for('billing_bp.property_portfolio') }}" class="inline-flex items-center space-x-2 bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 font-semibold py-2 px-4 rounded-lg transition shadow-sm text-sm">
+        <a href="{{ url_for('billing_bp.utilities_hub',property_id=property.id,billing_month=utility_month) }}" class="inline-flex items-center space-x-2 bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 font-semibold py-2 px-4 rounded-lg transition shadow-sm text-sm">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
           <span>Back</span>
         </a>
       </div>
       
+      {% if setup_read_only %}<a href="{{ url_for('billing_bp.setup_wizard',property_id=property.id,edit=1,billing_month=request.args.get('billing_month')) }}" class="inline-flex rounded-lg bg-blue-100 px-4 py-2 font-semibold">Edit Configuration</a><p id="setup-read-only-notice" role="status" class="my-3 rounded-lg bg-amber-50 p-3 text-amber-900">{{ setup_read_only_reason }}</p>{% endif %}
+      <p class="my-3 text-sm text-slate-600">Setup saves municipal accounts, owner details and meter configuration. Capture readings through Utilities → Readings. Existing financial particulars and historical exceptions are preserved; this save does not change them.</p>
+      {% set utility_active='setup' %}{% set utility_month=request.args.get('billing_month') or now_month %}{% include 'program_billing/utilities_menu.html' %}
       <!-- Row 2 -->
       <div class="grid grid-cols-4 md:grid-cols-6 gap-2 text-[11px] w-full text-center">
           <span id="step-1-badge" class="px-2 py-1 rounded-full font-bold bg-blue-100 text-blue-700 whitespace-nowrap">1. Property</span>
@@ -427,6 +428,15 @@
       }
     }
 
+    if(step === 5) {
+      for (const [containerId,candidates] of [['sub-water',wizardData.bulkWater],['sub-elec',wizardData.bulkElec]]) {
+        document.querySelectorAll('#'+containerId+'-container .supplying-bulk').forEach(select => {
+          const saved=select.value;select.replaceChildren(new Option('No bulk meter',''));
+          for (const candidate of candidates) select.add(new Option(candidate.number,candidate.id));
+          select.value=saved;
+        });
+      }
+    }
     if(step === 6) updateExceptionDropdowns();
     if(step === 7) buildMappingDashboard();
     if(step === 8) buildReadingsDashboard();
@@ -436,6 +446,7 @@
     if(step === 12) buildOwnersDashboard();
     
     updateBadges();
+    document.querySelectorAll('#step-6 input, #step-6 select, #step-6 button, #step-8 input, #step-8 select, #step-8 button, #step-9 input, #step-9 select, #step-9 button, #step-10 input, #step-10 select, #step-10 button, #step-11 input, #step-11 select, #step-11 button').forEach(control => { control.disabled=true; });
     if (SETUP_READ_ONLY) document.querySelectorAll('.wizard-step input, .wizard-step select, .wizard-step textarea, .wizard-step button').forEach(control => { control.disabled = true; });
   }
 
@@ -467,6 +478,7 @@
   
   function nextStep() {
     if (SETUP_READ_ONLY) { if (currentStep < TOTAL_STEPS) { currentStep++; showStep(currentStep); } return; }
+    if ([6,8,9,10,11].includes(currentStep)) { currentStep++; showStep(currentStep); return; }
     if (currentStep === 1) { if (!gatherPropertyMap()) return; }
     if (currentStep === 2) { if (!gatherAccounts()) return; }
     if (currentStep === 3) { if(!gatherMeters('bulk-water')) return; }
@@ -1631,7 +1643,7 @@
 
   async function saveArchitecture() {
     if (SETUP_READ_ONLY) { alert(SETUP_READ_ONLY_REASON); return; }
-    if(!gatherMapping() || !gatherInitialReadings() || !gatherArrears() || !gatherRates() || !gatherArrangements() || !gatherOwners()) {
+    if(!gatherMapping() || !gatherOwners()) {
       return; // Do not save if validation fails on the final page
     }
     console.log("Saving Architecture:", wizardData);
@@ -1648,7 +1660,7 @@
       
       if (response.ok) {
         // Clear draft on successful save!
-        window.location.href = "{{ url_for('billing_bp.architecture_summary', property_id=property.id) }}?from_wizard=1";
+        window.location.href = {{ url_for('billing_bp.setup_wizard',property_id=property.id,billing_month=request.args.get('billing_month') or now_month)|tojson }};
       } else {
         const text = await response.text();
         try {
@@ -1658,7 +1670,7 @@
            if (text.toLowerCase().includes("csrf") || text.toLowerCase().includes("bad request")) {
                alert("Your session expired while you were filling out the wizard! Please save your data to a text file (just in case), do a hard refresh (Ctrl+Shift+R), and try again.");
            } else {
-               alert("An unexpected server error occurred (500). The data could not be parsed.");
+               alert("Configuration was not saved (HTTP " + response.status + "). Your entries remain available. Reopen Setup if the configuration changed, or contact support with this status.");
            }
         }
       }

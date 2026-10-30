@@ -54,3 +54,23 @@ class UtilitiesStatementTests(fixture.ReconciliationTests):
         with self.client.session_transaction() as stored:self.assertEqual(stored['metro_billing_meters'],1);self.assertEqual(stored['metro_billing_property_id'],26)
         self.assertEqual(self.session.execute(text('SELECT count(*) FROM bil_statement_payment')).scalar(),1)
         self.assertEqual(self.client.get('/checkout/2026-11?property_id=28',headers=self.headers).status_code,403)
+
+    def test_legacy_onboarding_cannot_create_units_tenants_or_financial_records(self):
+        before=self.snapshot()
+        response=self.client.post('/billing/onboarding/process',json=dict(property_id=27,readings=[],tenants=[dict(id='new',name='Not to create')]),headers=dict(self.headers,**{'X-CSRFToken':self.csrf}))
+        self.assertEqual(response.status_code,409);self.assertEqual(before,self.snapshot())
+        self.assertEqual(self.session.execute(text('SELECT count(*) FROM bil_sectional_unit')).scalar(),3)
+    def test_legacy_required_unit_column_blocks_new_meter_without_partial_writes(self):
+        self.session.execute(text('ALTER TABLE bil_meter ADD COLUMN sectional_unit_id integer'))
+        self.session.execute(text('UPDATE bil_meter SET sectional_unit_id=26'))
+        self.session.execute(text('ALTER TABLE bil_meter ALTER COLUMN sectional_unit_id SET NOT NULL'));self.session.commit();self.conn.commit()
+        before=self.snapshot();payload=self.payload(27)
+        payload.update(accounts=[dict(id='a',number='NEW-27')],subWater=[dict(id='w',number='NEW-W')],mapping=[dict(account_id='a',water='w')],owners=[])
+        response=self.save(payload,27);self.assertEqual(response.status_code,503,response.text)
+        self.assertIn('nullability migration',response.json['error']);self.assertEqual(before,self.snapshot())
+    def test_account_financial_particulars_are_not_changed_by_configuration_save(self):
+        self.session.execute(text("UPDATE bil_muni_account SET arrears_amount=1234.56,ca_contract_number='HISTORICAL',rates_amount=654.32 WHERE id=1"));self.session.commit()
+        before=dict(self.session.execute(text('SELECT arrears_amount,ca_contract_number,rates_amount FROM bil_muni_account WHERE id=1')).mappings().one())
+        payload=self.payload();payload['rates']=[dict(account_id='acc_0',amount=99999)]
+        self.assertEqual(self.save(payload).status_code,200)
+        self.assertEqual(before,dict(self.session.execute(text('SELECT arrears_amount,ca_contract_number,rates_amount FROM bil_muni_account WHERE id=1')).mappings().one()))

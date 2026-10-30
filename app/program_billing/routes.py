@@ -2362,16 +2362,16 @@ def build_wizard_data_from_db(property_id):
                 bw_count += 1
             else:
                 m_id = f"sub-water_{sw_count}"
-                wizardData['subWater'].append({'id': m_id, 'number': m.meter_number})
+                wizardData['subWater'].append({'id': m_id, 'record_id': m.id, 'number': m.meter_number})
                 sw_count += 1
         else:
             if is_bulk:
                 m_id = f"bulk-elec_{be_count}"
-                wizardData['bulkElec'].append({'id': m_id, 'number': m.meter_number})
+                wizardData['bulkElec'].append({'id': m_id, 'record_id': m.id, 'number': m.meter_number})
                 be_count += 1
             else:
                 m_id = f"sub-elec_{se_count}"
-                wizardData['subElec'].append({'id': m_id, 'number': m.meter_number})
+                wizardData['subElec'].append({'id': m_id, 'record_id': m.id, 'number': m.meter_number})
                 se_count += 1
                 
         db_to_ui_meter[m.id] = m_id
@@ -2397,6 +2397,10 @@ def build_wizard_data_from_db(property_id):
                     'date_replaced': m.date_replaced.strftime('%Y-%m-%d') if m.date_replaced else ''
                 })
 
+    for group in ('bulkWater','bulkElec','subWater','subElec'):
+        for entry in wizardData[group]:
+            source=next((m for m in meters if m.id==entry['record_id']),None)
+            entry['parent_id']=db_to_ui_meter.get(source.parent_meter_id) if source else None
     wizardData['mapping'] = list(mapping_dict.values())
 
     wizardData['propertyMap'] = {

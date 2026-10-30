@@ -47,3 +47,18 @@ class UtilitiesConfigurationTests(fixture.MetsoaSetupProtectionTests):
         self.assertEqual(self.save(payload).status_code,409);self.assertEqual(before,self.snapshot())
         payload=self.payload();payload['subWater'][0]['number']='CHANGED'
         self.assertEqual(self.save(payload).status_code,409);self.assertEqual(before,self.snapshot())
+
+    def test_five_individual_water_meters_use_bulk_parent_without_electricity_bulk(self):
+        payload=self.payload(27)
+        payload.update(accounts=[dict(id='bulk',number='BULK-27',isBulk=True)]+[dict(id='a'+str(i),number='ACCOUNT-'+str(i)) for i in range(5)],bulkWater=[dict(id='bw',number='BULK-W')],subWater=[dict(id='w'+str(i),number='W-'+str(i),parent_id='bw') for i in range(5)],subElec=[dict(id='e',number='E-27')],mapping=[dict(account_id='a'+str(i),water='w'+str(i),elec='e' if i==0 else '') for i in range(5)],owners=[])
+        response=self.save(payload,27);self.assertEqual(response.status_code,200,response.text)
+        bulk=self.session.execute(text("SELECT id FROM bil_meter WHERE meter_number='BULK-W'")).scalar()
+        self.assertEqual(self.session.execute(text('SELECT count(*) FROM bil_meter WHERE parent_meter_id=:p'),dict(p=bulk)).scalar(),5)
+        self.assertIsNone(self.session.execute(text("SELECT parent_meter_id FROM bil_meter WHERE meter_number='E-27'")).scalar())
+        self.assertEqual(self.session.execute(text('SELECT count(*) FROM bil_meter_reading')).scalar(),1)
+    def test_circular_or_cross_property_bulk_reference_rolls_back_every_change(self):
+        payload=self.payload(27)
+        payload.update(accounts=[dict(id='b',number='B-27',isBulk=True)],bulkWater=[dict(id='bw',number='BW-27',parent_id='bw')],subWater=[],mapping=[],owners=[])
+        before=self.snapshot();self.assertEqual(self.save(payload,27).status_code,400);self.assertEqual(before,self.snapshot())
+        payload['bulkWater'][0]['parent_id']='sub-water_0'
+        self.assertEqual(self.save(payload,27).status_code,400);self.assertEqual(before,self.snapshot())

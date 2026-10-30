@@ -82,6 +82,8 @@
                 </select>
             </div>
             
+            <div><label for="bulk-water-individuals" class="block text-sm font-bold text-slate-700">Water: How many individual meters are supplied by this bulk meter?</label><input id="bulk-water-individuals" type="number" min="0" value="0" class="w-full rounded border border-slate-400 px-3 py-2" onchange="document.getElementById('pm_water').value=Number(this.value)+(document.getElementById('pm_bulk_water').value==='yes'?1:0)"></div>
+            <div><label for="bulk-elec-individuals" class="block text-sm font-bold text-slate-700">Electricity: How many individual meters are supplied by this bulk meter?</label><input id="bulk-elec-individuals" type="number" min="0" value="0" class="w-full rounded border border-slate-400 px-3 py-2" onchange="document.getElementById('pm_elec').value=Number(this.value)+(document.getElementById('pm_bulk_elec').value==='yes'?1:0)"></div>
             <div>
                 <label class="block text-sm font-bold text-slate-700 mb-1">Total Unique Owners</label>
                 <input type="number" id="pm_owners" value="{{ property.expected_owners|default(1) }}" min="1" class="w-full border border-slate-400 shadow-inner bg-white rounded px-3 py-2 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition">
@@ -580,6 +582,8 @@
             EXPECTED_ELEC = wizardData.propertyMap.elec || 0;
             EXPECTED_OWNERS = wizardData.propertyMap.owners || 1;
             EXPECTED_ADDRESSES = wizardData.propertyMap.addresses || 1;
+            document.getElementById('bulk-water-individuals').value = Math.max(0, EXPECTED_WATER-(wizardData.propertyMap.bulkWater?1:0));
+            document.getElementById('bulk-elec-individuals').value = Math.max(0, EXPECTED_ELEC-(wizardData.propertyMap.bulkElec?1:0));
             IS_BULK_WATER = wizardData.propertyMap.bulkWater || false;
             IS_BULK_ELEC = wizardData.propertyMap.bulkElec || false;
             
@@ -613,12 +617,12 @@
         
         const swList = wizardData.subWater || [];
         for(let i=0; i<EXPECTED_SUB_WATER; i++) {
-            addMeterRow('sub-water', i < swList.length ? swList[i].number : "", i < swList.length ? swList[i].record_id : null);
+            addMeterRow('sub-water', i < swList.length ? swList[i].number : "", i < swList.length ? swList[i].record_id : null, i < swList.length ? swList[i].parent_id : null);
         }
         
         const seList = wizardData.subElec || [];
         for(let i=0; i<EXPECTED_SUB_ELEC; i++) {
-            addMeterRow('sub-elec', i < seList.length ? seList[i].number : "", i < seList.length ? seList[i].record_id : null);
+            addMeterRow('sub-elec', i < seList.length ? seList[i].number : "", i < seList.length ? seList[i].record_id : null, i < seList.length ? seList[i].parent_id : null);
         }
 
         // Restore Exceptions
@@ -714,7 +718,7 @@
   }
 
   // --- STEP 2 & 3: METERS ---
-  function addMeterRow(containerId, val="", recordId=null) {
+  function addMeterRow(containerId, val="", recordId=null, parentId=null) {
     const container = document.getElementById(containerId + '-container');
     const idx = container.children.length;
     const rowColor = (idx % 2 === 0) ? 'bg-sky-50' : 'bg-white';
@@ -726,6 +730,14 @@
         <input type="text" class="meter-num w-full rounded border-2 border-blue-500 px-3 py-1.5 text-sm focus:border-blue-500 outline-none" placeholder="Meter Number" value="${val}">
       </div>
     `;
+    if (containerId.startsWith('sub-')) {
+      const label=document.createElement('label');label.className='text-sm';label.textContent='Supplying bulk meter';
+      const select=document.createElement('select');select.className='supplying-bulk rounded border border-slate-300 px-3 py-2';
+      select.add(new Option('No bulk meter',''));
+      const candidates=containerId==='sub-water'?wizardData.bulkWater:wizardData.bulkElec;
+      for (const candidate of candidates) select.add(new Option(candidate.number,candidate.id));
+      select.value=parentId || '';label.appendChild(select);row.appendChild(label);
+    }
     container.appendChild(row);
   }
 
@@ -740,7 +752,7 @@
     rows.forEach((row, i) => {
       const num = row.querySelector('.meter-num').value.trim();
       if (!num) hasBlank = true;
-      list.push({ id: `${containerId}_${i}`, number: num, record_id: row.dataset.recordId ? Number(row.dataset.recordId) : null });
+      list.push({ id: `${containerId}_${i}`, number: num, parent_id: row.querySelector('.supplying-bulk')?.value || null, record_id: row.dataset.recordId ? Number(row.dataset.recordId) : null });
     });
     
     if (!silent && hasBlank && rows.length > 0) {

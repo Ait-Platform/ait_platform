@@ -2276,6 +2276,7 @@ def build_wizard_data_from_db(property_id):
             
         wizardData['accounts'].append({
             'id': acc_id_str,
+            'record_id': acc.id,
             'number': acc.account_number,
             'owner': '', # Handled in owners section
             'isBulk': acc.is_bulk_account
@@ -2335,7 +2336,7 @@ def build_wizard_data_from_db(property_id):
                 })
 
     acc_nums = [a.account_number for a in accounts if a.account_number]
-    meters = BilMeter.query.filter(BilMeter.municipal_bill_number.in_(acc_nums)).all()
+    meters = BilMeter.query.filter(BilMeter.property_id==property_id, BilMeter.municipal_bill_number.in_(acc_nums)).all()
     
     bw_count = 0
     be_count = 0
@@ -2357,7 +2358,7 @@ def build_wizard_data_from_db(property_id):
         if 'water' in u:
             if is_bulk:
                 m_id = f"bulk-water_{bw_count}"
-                wizardData['bulkWater'].append({'id': m_id, 'number': m.meter_number})
+                wizardData['bulkWater'].append({'id': m_id, 'record_id': m.id, 'number': m.meter_number})
                 bw_count += 1
             else:
                 m_id = f"sub-water_{sw_count}"
@@ -2467,8 +2468,12 @@ def setup_wizard():
     
     from .metsoa_setup_safety import reason
     setup_read_only_reason=reason(property.id)
+    from .utilities_configuration import revision
+    configuration_revision=revision(property.id)
+    if request.args.get('edit')=='1' or not setup_read_only_reason:
+        setup_read_only_reason=None
     return render_template("program_billing/setup_wizard.html", 
-        setup_read_only=bool(setup_read_only_reason),setup_read_only_reason=setup_read_only_reason,property=property,
+        configuration_revision=configuration_revision,setup_read_only=bool(setup_read_only_reason),setup_read_only_reason=setup_read_only_reason,property=property,
         draft_json=json.dumps(draft_json) if draft_json else 'null')
 
 @billing_bp.route("/billing/setup/submit", methods=["POST"])
@@ -3112,6 +3117,22 @@ def save_architecture_draft(property_id):
 @billing_bp.route("/billing/onboarding/save_global_architecture/<int:property_id>", methods=["POST"])
 @login_required
 def save_global_architecture(property_id):
+    from app.extensions import db
+    proposed=request.get_json(silent=True)
+    if isinstance(proposed,dict) and proposed.get('mode')=='property_configuration_v1':
+        from .utilities_configuration import save
+        from werkzeug.exceptions import HTTPException
+        try:
+            result=save(property_id,proposed)
+            db.session.commit()
+            return jsonify(result)
+        except HTTPException as exc:
+            db.session.rollback()
+            return jsonify(success=False,error=exc.description),exc.code
+        except Exception:
+            db.session.rollback()
+            current_app.logger.exception('Property Utilities configuration save failed')
+            return jsonify(success=False,error='Configuration could not be saved; no changes were committed. Check the database schema and server logs.'),503
     from .metsoa_setup_safety import protect_save
     protect_save(property_id,request.get_json(silent=True))
     try:

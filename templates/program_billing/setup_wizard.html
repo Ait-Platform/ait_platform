@@ -11,7 +11,8 @@
     <!-- Header -->
     <div class="bg-white px-8 pt-6 pb-2 flex flex-col gap-2">
       {% include "partials/flash_messages.html" %}
-      {% if setup_read_only %}<p id="setup-read-only-notice" role="status" class="my-3 rounded-lg bg-amber-50 p-3 text-amber-900">{{ setup_read_only_reason }}</p>{% endif %}
+      {% if setup_read_only %}<a href="{{ url_for('billing_bp.setup_wizard',property_id=property.id,edit=1,billing_month=request.args.get('billing_month')) }}" class="inline-flex rounded-lg bg-blue-100 px-4 py-2 font-semibold">Edit Configuration</a><p id="setup-read-only-notice" role="status" class="my-3 rounded-lg bg-amber-50 p-3 text-amber-900">{{ setup_read_only_reason }}</p>{% endif %}
+      <p class="my-3 text-sm text-slate-600">Setup saves municipal accounts, owner details and meter configuration. Capture readings through Utilities → Readings. Existing financial particulars and historical exceptions are preserved; this save does not change them.</p>
       <!-- Row 1 -->
       <div class="flex justify-between items-start">
         <div>
@@ -243,7 +244,7 @@
       <div class="flex space-x-3">
         <button type="button" id="btn-prev" onclick="prevStep()" class="hidden px-6 py-2 border border-slate-300 text-slate-600 font-bold rounded-lg hover:bg-slate-100 transition">Back</button>
         <button type="button" id="btn-next" onclick="nextStep()" class="px-8 py-2 bg-blue-600 text-white font-bold rounded-lg shadow-sm hover:bg-blue-700 transition">Next Step</button>
-        <button type="button" id="btn-save" {{ 'disabled aria-disabled="true"'|safe if setup_read_only else '' }} onclick="saveArchitecture()" class="hidden px-8 py-2 bg-emerald-600 text-white font-bold rounded-lg shadow-sm hover:bg-emerald-700 transition">Save &amp; Finalize Architecture</button>
+        <button type="button" id="btn-save" {{ 'disabled aria-disabled="true"'|safe if setup_read_only else '' }} onclick="saveArchitecture()" class="hidden px-8 py-2 bg-emerald-600 text-white font-bold rounded-lg shadow-sm hover:bg-emerald-700 transition">Save Configuration</button>
       </div>
     </div>
   </div>
@@ -252,6 +253,7 @@
 <script>
   const SETUP_READ_ONLY = {{ setup_read_only|default(false)|tojson }};
   const SETUP_READ_ONLY_REASON = {{ setup_read_only_reason|default('',true)|tojson }};
+  const CONFIGURATION_REVISION = {{ configuration_revision|default('')|tojson }};
   let currentStep = 1;
   const TOTAL_STEPS = 12;
   
@@ -594,29 +596,29 @@
             for(let i=0; i<EXPECTED_ACCOUNTS; i++) addAccountRow();
         } else {
             wizardData.accounts.forEach(acc => {
-                addAccountRow(acc.number, acc.owner, acc.isBulk);
+                addAccountRow(acc.number, acc.owner, acc.isBulk, acc.record_id);
             });
         }
 
         // Strict Meter Row Generation
         const bwList = wizardData.bulkWater || [];
         for(let i=0; i<EXPECTED_BULK_WATER; i++) {
-            addMeterRow('bulk-water', i < bwList.length ? bwList[i].number : "");
+            addMeterRow('bulk-water', i < bwList.length ? bwList[i].number : "", i < bwList.length ? bwList[i].record_id : null);
         }
         
         const beList = wizardData.bulkElec || [];
         for(let i=0; i<EXPECTED_BULK_ELEC; i++) {
-            addMeterRow('bulk-elec', i < beList.length ? beList[i].number : "");
+            addMeterRow('bulk-elec', i < beList.length ? beList[i].number : "", i < beList.length ? beList[i].record_id : null);
         }
         
         const swList = wizardData.subWater || [];
         for(let i=0; i<EXPECTED_SUB_WATER; i++) {
-            addMeterRow('sub-water', i < swList.length ? swList[i].number : "");
+            addMeterRow('sub-water', i < swList.length ? swList[i].number : "", i < swList.length ? swList[i].record_id : null);
         }
         
         const seList = wizardData.subElec || [];
         for(let i=0; i<EXPECTED_SUB_ELEC; i++) {
-            addMeterRow('sub-elec', i < seList.length ? seList[i].number : "");
+            addMeterRow('sub-elec', i < seList.length ? seList[i].number : "", i < seList.length ? seList[i].record_id : null);
         }
 
         // Restore Exceptions
@@ -660,12 +662,13 @@
   }
 
   // --- STEP 1: ACCOUNTS ---
-  function addAccountRow(accNum="", ownerName="", isBulk=false) {
+  function addAccountRow(accNum="", ownerName="", isBulk=false, recordId=null) {
     if (!IS_BULK_WATER && !IS_BULK_ELEC) isBulk = false;
     const container = document.getElementById('accounts-container');
     const idx = container.children.length;
     const rowColor = (idx % 2 === 0) ? 'bg-sky-50' : 'bg-white';
     const row = document.createElement('div');
+    row.dataset.recordId = recordId || '';
     row.className = `grid grid-cols-12 gap-4 items-center p-2 rounded-lg border border-slate-200 shadow-sm acc-row ${rowColor}`;
     row.innerHTML = `
       <div class="col-span-12 bulk-col-adj">
@@ -699,7 +702,7 @@
         accNumbers.add(accNum);
       }
       
-      wizardData.accounts.push({ id: `acc_${i}`, number: accNum, owner: owner, isBulk: isBulk });
+      wizardData.accounts.push({ id: `acc_${i}`, number: accNum, record_id: row.dataset.recordId ? Number(row.dataset.recordId) : null, owner: owner, isBulk: isBulk });
     });
 
     if (!silent) {
@@ -711,11 +714,12 @@
   }
 
   // --- STEP 2 & 3: METERS ---
-  function addMeterRow(containerId, val="") {
+  function addMeterRow(containerId, val="", recordId=null) {
     const container = document.getElementById(containerId + '-container');
     const idx = container.children.length;
     const rowColor = (idx % 2 === 0) ? 'bg-sky-50' : 'bg-white';
     const row = document.createElement('div');
+    row.dataset.recordId = recordId || '';
     row.className = `flex items-center space-x-3 p-2 rounded-lg border border-slate-200 shadow-sm meter-row ${rowColor}`;
     row.innerHTML = `
       <div class="flex-grow">
@@ -736,7 +740,7 @@
     rows.forEach((row, i) => {
       const num = row.querySelector('.meter-num').value.trim();
       if (!num) hasBlank = true;
-      list.push({ id: `${containerId}_${i}`, number: num });
+      list.push({ id: `${containerId}_${i}`, number: num, record_id: row.dataset.recordId ? Number(row.dataset.recordId) : null });
     });
     
     if (!silent && hasBlank && rows.length > 0) {
@@ -1626,7 +1630,7 @@
           'Content-Type': 'application/json',
           'X-CSRFToken': '{{ csrf_token() }}'
         },
-        body: JSON.stringify(wizardData)
+        body: JSON.stringify({ ...wizardData, mode: "property_configuration_v1", configuration_revision: CONFIGURATION_REVISION })
       });
       
       if (response.ok) {

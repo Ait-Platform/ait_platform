@@ -35,6 +35,8 @@ class MetsoaSetupProtectionTests(unittest.TestCase):
         from app.program_billing import metsoa_setup_safety
         import app.extensions as extensions
         ext=patch.object(extensions,'db',self.db);ext.start();self.addCleanup(ext.stop)
+        from app.program_billing import utilities_configuration
+        config_db=patch.object(utilities_configuration,'db',self.db);config_db.start();self.addCleanup(config_db.stop)
         self.safety=metsoa_setup_safety
         scoped=patch.object(metsoa_setup_safety,'db',self.db);scoped.start();self.addCleanup(scoped.stop)
         def authenticated(fn):

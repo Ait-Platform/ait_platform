@@ -184,7 +184,7 @@ def save(property_id,form):
     if new_meters:
         for c in inspect(db.session.connection()).get_columns('bil_meter'):
             if c['name']=='sectional_unit_id' and not c['nullable']:
-                abort(503,description='Cannot create this meter: legacy bil_meter.sectional_unit_id is mandatory. A separately approved schema correction is required; no account or meter changes were saved.')
+                abort(503,description='Cannot create this meter: legacy bil_meter.sectional_unit_id is mandatory. Apply migration metsoa_setup_002 before creating property-based meters; no account or meter changes were saved.')
     baselines={}
     for kind,key in [('water','water_number'),('electricity','electricity_number')]:
         if data[key]:baselines[kind]=baseline(kind,form,meters[kind])

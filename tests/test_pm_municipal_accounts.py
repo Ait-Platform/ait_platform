@@ -92,6 +92,36 @@ class MunicipalAccountsTests(fixture.UtilitiesConfigurationTests):
         self.assertEqual(response.status_code,503,response.text);self.assertIn('sectional_unit_id is mandatory',response.text)
         self.assertEqual(before,self.snapshot())
 
+    def test_nullable_unit_migration_preserves_foreign_keys_and_all_history(self):
+        import importlib.util
+        from pathlib import Path
+        from alembic.migration import MigrationContext
+        from alembic.operations import Operations
+        from sqlalchemy import inspect
+        self.session.execute(text('INSERT INTO bil_sectional_unit VALUES(260,26)'))
+        self.session.execute(text('ALTER TABLE bil_meter ADD COLUMN sectional_unit_id integer NOT NULL DEFAULT 260 REFERENCES bil_sectional_unit(id)'))
+        self.session.execute(text('ALTER TABLE bil_meter ALTER COLUMN sectional_unit_id DROP DEFAULT'))
+        self.session.commit();self.conn.commit()
+        before=self.snapshot()
+        fks=inspect(self.conn).get_foreign_keys('bil_meter')
+        spec=importlib.util.spec_from_file_location('meter_nullable',Path(__file__).resolve().parents[1]/'migrations/versions/metsoa_setup_002.py')
+        migration=importlib.util.module_from_spec(spec);spec.loader.exec_module(migration)
+        with patch.object(migration,'op',Operations(MigrationContext.configure(self.conn))):
+            migration.upgrade();migration.upgrade()
+        self.session.commit();self.conn.commit()
+        self.assertEqual(before,self.snapshot())
+        self.assertEqual(fks,inspect(self.conn).get_foreign_keys('bil_meter'))
+        self.assertTrue(next(c for c in inspect(self.conn).get_columns('bil_meter') if c['name']=='sectional_unit_id')['nullable'])
+        result=self.post(dict(account_number='ALMOND-NULL-UNIT',owner_name='Owner',water_number='ALMOND-W',electricity_number='ALMOND-E'))
+        self.assertEqual(result.status_code,302,result.text)
+        meters=self.session.execute(text("SELECT * FROM bil_meter WHERE municipal_bill_number='ALMOND-NULL-UNIT'")).mappings().all()
+        self.assertEqual(len(meters),2)
+        for meter in meters:
+            self.assertIsNone(meter['sectional_unit_id']);self.assertEqual(meter['property_id'],26)
+            self.assertEqual(self.session.execute(text('SELECT count(*) FROM bil_meter_reading WHERE meter_id=:m'),dict(m=meter['id'])).scalar(),1)
+        self.assertEqual(before['bil_consumption'],self.snapshot()['bil_consumption'])
+        self.test_next_month_consumption_uses_saved_opening_without_posting_on_capture()
+
     def test_utilities_action_opens_accounts_with_property_and_month(self):
         response=self.client.post('/soa-test/utilities_hub',data=dict(csrf_token=self.csrf,property_id=26,billing_month='2026-11',action='accounts'),headers=self.headers)
         self.assertEqual(response.status_code,302)

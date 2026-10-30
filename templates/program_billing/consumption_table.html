@@ -1,6 +1,7 @@
 {% extends "layout.html" %}
 {% block title %}Consumption Review{% endblock %}
 
+{% block flashes %}{% endblock %}
 {% block content %}
 <div class="min-h-screen bg-slate-50 py-12 px-4 sm:px-6 lg:px-8 font-sans">
   <div class="max-w-7xl mx-auto space-y-8">
@@ -9,17 +10,19 @@
       <div class="h-2 bg-green-500"></div>
       
       <div class="p-8">
+        {% include "partials/flash_messages.html" %}
         <div class="flex items-center justify-between mb-8 pb-6 border-b border-slate-200">
           <div>
             <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight">Consumption Review</h1>
             <p class="text-slate-500 mt-2">Property: <strong>{{ property.name }}</strong> | Month: <strong>{{ month }}</strong></p>
           </div>
-          <a href="{{ url_for('billing_bp.utilities_hub') }}" class="inline-flex items-center px-4 py-2 bg-slate-100 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-200 transition">
+          <a href="{{ url_for('billing_bp.utilities_hub',property_id=property.id,billing_month=month) }}" class="inline-flex items-center px-4 py-2 bg-slate-100 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-200 transition">
             <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
             Back to Utilities Hub
           </a>
         </div>
 
+        {% set utility_active='consumption' %}{% set utility_month=month %}{% include 'program_billing/utilities_menu.html' %}
         <div class="flex justify-end space-x-3 mb-6">
           <button onclick="window.print()" class="inline-flex items-center px-4 py-2 bg-slate-100 text-slate-700 text-sm font-semibold rounded-lg hover:bg-slate-200 transition border border-slate-300 shadow-sm">
             <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
@@ -93,6 +96,9 @@
             </tbody>
           </table>
         </div>
+
+        <h2 class="mt-6 text-lg font-semibold">Bulk reconciliation</h2><p class="my-2 text-sm text-slate-600">Actual difference = bulk consumption minus linked individual consumption. Chargeable difference is never negative and is allocated to the owner. This review posts no charges; existing tariffs remain unchanged.</p>
+        <div class="overflow-x-auto"><table class="w-full text-left text-sm"><thead><tr>{% for title in ['Bulk meter','Individual meters','Bulk consumption','Individual consumption','Actual difference','Chargeable difference','Allocation','Status'] %}<th class="p-2">{{ title }}</th>{% endfor %}</tr></thead><tbody>{% for row in reconciliation %}<tr class="border-t"><td class="p-2">{{ row.bulk.meter_number }}</td><td class="p-2">{{ row.individual_count }}</td>{% for value in [row.bulk_consumption,row.individual_consumption,row.difference,row.chargeable_difference] %}<td class="p-2">{{ value if value is not none else 'Unconfirmed' }}</td>{% endfor %}<td class="p-2">{{ row.allocation }}</td><td class="p-2">{{ row.status }}</td></tr>{% else %}<tr><td colspan="8" class="p-3">No linked bulk arrangements.</td></tr>{% endfor %}</tbody></table></div>
 
       </div>
     </div>

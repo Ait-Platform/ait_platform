@@ -1443,24 +1443,10 @@ def build_raw_water_row(meter_id, month):
     }]
 
 def get_all_property_meters(property_id):
-    from app.models.billing import BilProperty, BilMuniAccount, BilMeter
-    all_meters = BilMeter.query.filter_by(property_id=property_id).all()
-        
-    muni_accounts = BilMuniAccount.query.filter_by(property_id=property_id).all()
-    muni_acc_numbers = [acc.account_number for acc in muni_accounts if acc.account_number]
-    if muni_acc_numbers:
-        muni_meters = BilMeter.query.filter(BilMeter.municipal_bill_number.in_(muni_acc_numbers)).all()
-        for m in muni_meters:
-            if m not in all_meters:
-                all_meters.append(m)
-                
-    for acc in muni_accounts:
-        if acc.water_meter and acc.water_meter not in all_meters:
-            all_meters.append(acc.water_meter)
-        if acc.elec_meter and acc.elec_meter not in all_meters:
-            all_meters.append(acc.elec_meter)
-            
-    return all_meters
+    from app.models.billing import BilMeter
+    # Utilities associations are explicit property links only; no tenant/unit or number inference.
+    return BilMeter.query.filter_by(property_id=property_id).all()
+
 
 def build_electrical_rows(property_id, month, is_exception=False, filter_meter_ids=None):
     rows = []
@@ -3444,25 +3430,11 @@ def utilities_hub():
 def consumption_review(property_id, month):
     from app.models.billing import BilProperty, BilMuniAccount, BilMeter, BilConsumption
     prop = BilProperty.query.get_or_404(property_id)
-    if prop.manager_id != current_user.id and not current_user.has_role('admin'):
-        abort(403)
+    from .metsoa_setup_safety import property_scope
+    property_scope(property_id)
         
-    all_meters = BilMeter.query.filter_by(property_id=property_id).all()
-        
-    muni_accounts = BilMuniAccount.query.filter_by(property_id=prop.id).all()
-    muni_acc_numbers = [acc.account_number for acc in muni_accounts if acc.account_number]
-    if muni_acc_numbers:
-        muni_meters = BilMeter.query.filter(BilMeter.municipal_bill_number.in_(muni_acc_numbers)).all()
-        for m in muni_meters:
-            if m not in all_meters:
-                all_meters.append(m)
-                
-    for acc in muni_accounts:
-        if acc.water_meter and acc.water_meter not in all_meters:
-            all_meters.append(acc.water_meter)
-        if acc.elec_meter and acc.elec_meter not in all_meters:
-            all_meters.append(acc.elec_meter)
-            
+    all_meters = get_all_property_meters(property_id)
+
     # Get consumption records for these meters for this month
     meter_ids = [m.id for m in all_meters]
     if meter_ids:
@@ -3483,7 +3455,8 @@ def consumption_review(property_id, month):
             'consumption': c
         })
         
-    return render_template("program_billing/consumption_table.html", property=prop, month=month, data=data)
+    from .utilities_reconciliation import reconcile
+    return render_template("program_billing/consumption_table.html", property=prop, month=month, data=data, reconciliation=reconcile(property_id,month))
 
 
 
@@ -3502,25 +3475,11 @@ def email_consumption(property_id, month):
         return {"success": False, "error": "Email address is required"}, 400
         
     prop = BilProperty.query.get_or_404(property_id)
-    if prop.manager_id != current_user.id and not current_user.has_role('admin'):
-        return {"success": False, "error": "Unauthorized"}, 403
+    from .metsoa_setup_safety import property_scope
+    property_scope(property_id)
         
-    all_meters = BilMeter.query.filter_by(property_id=property_id).all()
-        
-    muni_accounts = BilMuniAccount.query.filter_by(property_id=prop.id).all()
-    muni_acc_numbers = [acc.account_number for acc in muni_accounts if acc.account_number]
-    if muni_acc_numbers:
-        muni_meters = BilMeter.query.filter(BilMeter.municipal_bill_number.in_(muni_acc_numbers)).all()
-        for m in muni_meters:
-            if m not in all_meters:
-                all_meters.append(m)
-                
-    for acc in muni_accounts:
-        if acc.water_meter and acc.water_meter not in all_meters:
-            all_meters.append(acc.water_meter)
-        if acc.elec_meter and acc.elec_meter not in all_meters:
-            all_meters.append(acc.elec_meter)
-            
+    all_meters = get_all_property_meters(property_id)
+
     meter_ids = [m.id for m in all_meters]
     if meter_ids:
         consumptions = BilConsumption.query.filter(

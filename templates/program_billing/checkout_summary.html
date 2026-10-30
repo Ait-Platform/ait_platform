@@ -61,12 +61,12 @@
           <h4 class="text-sm font-bold text-slate-900">Wallet Balance</h4>
           <p class="text-xs text-slate-500">Available tokens for platform usage</p>
         </div>
-        <div class="text-lg font-bold text-slate-900">R{{ "%.2f"|format(main_prop.wallet_balance_cents / 100) }}</div>
+        <div class="text-lg font-bold text-slate-900">{{ wallet_tokens }} tokens</div>
         {% endif %}
       </div>
 
       <div class="pt-4">
-        {% if is_trial or main_prop.wallet_balance_cents >= cost_cents %}
+        {% if is_trial or wallet_tokens >= token_cost %}
         <form action="{{ url_for('billing_bp.billing_unlock', month=month) }}" method="POST">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
           <button type="submit" class="w-full bg-slate-900 text-white rounded-xl py-4 font-bold text-lg hover:bg-slate-800 transition-colors shadow-lg shadow-slate-900/20 flex items-center justify-center">

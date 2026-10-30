@@ -1,10 +1,17 @@
 {% extends "layout.html" %}
 {% block title %}MetSoa Statement{% endblock %}
 
+{% block flashes %}{% endblock %}
 {% block content %}
 <div class="min-h-screen bg-slate-100 py-10 px-4 flex flex-col items-center">
   <div class="w-full max-w-5xl bg-white shadow-lg overflow-hidden relative" id="statement-container">
     
+    <div class="print:hidden h-2 bg-green-500"></div><div class="print:hidden p-4">
+    {% include 'partials/flash_messages.html' %}
+    <div class="flex items-center justify-between gap-3"><h1 class="text-xl font-semibold">METSOA — {{ property.name }} — {{ month }}</h1><a href="{{ url_for('billing_bp.utilities_hub',property_id=property.id,billing_month=month) }}" class="rounded-lg bg-slate-100 px-4 py-2">Back to Utilities</a></div>
+    {% set utility_active='metsoa' %}{% set utility_month=month %}{% include 'program_billing/utilities_menu.html' %}
+    <a href="{{ url_for('billing_bp.exception_metsoa',property_id=property.id,month=month) }}" class="inline-flex rounded-lg bg-yellow-100 px-4 py-2">Exception statements</a>
+    </div>
     <!-- Top Action Bar (Hidden in Print) -->
     <div class="print:hidden bg-slate-800 text-white p-4 flex justify-between items-center">
       <button onclick="window.history.back()" class="text-sm font-medium hover:text-slate-300 transition flex items-center">

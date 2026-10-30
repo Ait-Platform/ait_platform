@@ -32,10 +32,9 @@ class UtilitiesReadingsTests(fixture.UtilitiesConfigurationTests):
         env=dict(__package__='app.program_billing',billing_bp=types.SimpleNamespace(route=lambda *a,**kw:lambda f:f),login_required=auth,request=request,abort=abort,render_template=render_template,redirect=redirect,url_for=url_for,flash=flash,current_app=current_app,db=self.db)
         loader.functions('app/program_billing/routes.py',{'property_hub','save_reading'},env)
         self.app._got_first_request=False
-        self.app.add_url_rule('/readings/<int:property_id>',endpoint='billing_bp.property_hub',view_func=env['property_hub'],methods=['GET','POST'])
+        self.app.view_functions['billing_bp.property_hub']=env['property_hub']
+        self.app.add_url_rule('/readings/<int:property_id>',endpoint='billing_bp.property_hub',view_func=env['property_hub'],methods=['POST'])
         self.app.add_url_rule('/api/save_reading',endpoint='billing_bp.save_reading',view_func=env['save_reading'],methods=['POST'])
-        for endpoint in ('consumption_review','metsoa'):
-            self.app.add_url_rule('/utilities/'+endpoint+'/<int:property_id>/<month>',endpoint='billing_bp.'+endpoint,view_func=lambda **kw:'Existing utility route')
     def reading(self,**kwargs):
         data=dict(meter_id=1,property_id=26,reading_month='2026-11',date='2026-11-30',reading='150',prev_reading='123',prev_date='2026-10-31');data.update(kwargs)
         return self.client.post('/api/save_reading',json=data,headers=dict(self.headers,**{'X-CSRFToken':self.csrf}))

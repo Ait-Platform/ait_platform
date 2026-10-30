@@ -56,6 +56,8 @@ class MetsoaSetupProtectionTests(unittest.TestCase):
         self.app.add_url_rule('/soa-test/utilities_hub',endpoint='billing_bp.utilities_hub',view_func=env['utilities_hub'],methods=['POST'])
         routes=[('/billing/setup','setup_wizard',['GET']),('/billing/setup/submit','setup_submit',['POST']),('/save_architecture_draft/<int:property_id>','save_architecture_draft',['POST']),('/billing/onboarding/save_global_architecture/<int:property_id>','save_global_architecture',['POST']),('/billing/onboarding/process','ai_onboarding_process',['POST']),('/api/parse_bill_onboarding','parse_bill_onboarding_api',['POST'])]
         for path,name,methods in routes:self.app.add_url_rule(path,endpoint='billing_bp.'+name,view_func=env[name],methods=methods)
+        for endpoint in ('property_hub','consumption_review','metsoa'):
+            self.app.add_url_rule('/readings/<int:property_id>' if endpoint=='property_hub' else '/utilities/'+endpoint+'/<int:property_id>/<month>',endpoint='billing_bp.'+endpoint,view_func=lambda **kw:'Existing Utilities destination')
         self.app.add_url_rule('/property/<int:property_id>/architecture_summary',endpoint='billing_bp.architecture_summary',view_func=lambda **kw:'Existing summary')
     def snapshot(self):
         return {table:self.session.execute(text('SELECT * FROM '+table+' ORDER BY id')).mappings().all() for table in ('bil_muni_account','bil_meter','bil_meter_reading','bil_consumption','bil_architecture_draft')}

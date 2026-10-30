@@ -37,11 +37,14 @@ billing_bp = Blueprint('billing_bp', __name__)
 @login_required
 def billing_checkout(month):
     from app.models.billing import BilStatementPayment, BilProperty, BilProperty, BilMeter, BilPlatformSettings
+    from .metsoa_setup_safety import property_scope
+    selected_id=request.args.get('property_id')
+    if selected_id:selected_id=property_scope(selected_id)
     # Check if already paid
     payment = BilStatementPayment.query.filter_by(manager_id=current_user.id, month=month).first()
     if payment and payment.amount_paid_cents > 0:
         flash("You have already unlocked statements for this month.", "info")
-        return redirect(url_for('billing_bp.learner_dashboard'))
+        return redirect(url_for('billing_bp.metsoa',property_id=selected_id,month=month) if selected_id else url_for('billing_bp.learner_dashboard'))
         
     # Calculate meters
     props = BilProperty.query.filter_by(manager_id=current_user.id).all()
@@ -51,10 +54,7 @@ def billing_checkout(month):
         flash("You have no properties to bill.", "warning")
         return redirect(url_for('billing_bp.learner_dashboard'))
         
-    units = BilProperty.query.filter(BilProperty.property_id.in_(prop_ids)).all()
-    unit_ids = [property.id for u in units]
-    
-    meters = BilMeter.query.filter(BilMeter.property_id.in_(unit_ids)).all()
+    meters = BilMeter.query.filter(BilMeter.property_id.in_(prop_ids)).all()
     meter_count = len(meters)
     
     settings = BilPlatformSettings.query.first()
@@ -68,15 +68,19 @@ def billing_checkout(month):
         extra_meters = meter_count - settings.included_meters
         cost_cents += extra_meters * settings.extra_meter_price_cents
         
+    session["metro_billing_property_id"] = selected_id
     session["metro_billing_month"] = month
     session["metro_billing_meters"] = meter_count
     session["metro_billing_amount_cents"] = cost_cents
     
-    main_prop = props[0] if props else None
+    main_prop = next((p for p in props if p.id==selected_id),props[0] if props else None)
+    from app.models.auth import AitTokenWallet
+    wallet=AitTokenWallet.query.filter_by(user_id=current_user.id).first()
+    wallet_tokens=wallet.balance if wallet else 0
     
     return render_template("program_billing/checkout_summary.html", 
                            month=month, 
-                           cost_cents=cost_cents, 
+                           cost_cents=cost_cents, meter_count=meter_count,wallet_tokens=wallet_tokens,token_cost=cost_cents//100, 
                            settings=settings,
                            main_prop=main_prop)
 
@@ -1847,6 +1851,8 @@ def _auto_post_to_ledger(tenant_id, month, grand_total, tenant, elec_rows=None):
 @billing_bp.route("/billing/utilities/<int:property_id>/exception_metsoa/<month>")
 @login_required
 def exception_metsoa(property_id, month):
+    from .metsoa_setup_safety import property_scope
+    property_scope(property_id)
     from app.models.billing import BilProperty
     
     prop = BilProperty.query.get_or_404(property_id)
@@ -1858,7 +1864,7 @@ def exception_metsoa(property_id, month):
         if not payment or payment.amount_paid_cents <= 0:
             if current_user.id == manager_id:
                 flash(f"Please unlock statements for {month} before viewing or generating PDFs.", "warning")
-                return redirect(url_for('billing_bp.billing_checkout', month=month))
+                return redirect(url_for('billing_bp.billing_checkout', month=month,property_id=property_id))
             elif current_user.has_role('admin'):
                 pass
             else:
@@ -1890,6 +1896,8 @@ def exception_metsoa(property_id, month):
 @billing_bp.route("/billing/utilities/<int:property_id>/exception_metsoa/<month>/email", methods=["POST"])
 @login_required
 def email_exception_metsoa(property_id, month):
+    from .metsoa_setup_safety import property_scope
+    property_scope(property_id)
     from app.models.billing import BilProperty
     from flask import request
     from app.utils.mailer import send_pdf_email
@@ -1974,6 +1982,8 @@ def email_exception_metsoa(property_id, month):
 @billing_bp.route('/metsoa/<int:property_id>/<month>', methods=['GET'])
 @login_required
 def metsoa(property_id, month):
+    from .metsoa_setup_safety import property_scope
+    property_scope(property_id)
     from app.models.billing import BilProperty
     prop = BilProperty.query.get_or_404(property_id)
     if prop.manager_id != current_user.id and not current_user.has_role('admin'):
@@ -1985,7 +1995,7 @@ def metsoa(property_id, month):
     if not payment or payment.amount_paid_cents <= 0:
         if current_user.id == manager_id:
             flash(f"Please unlock statements for {month} before viewing or generating PDFs.", "warning")
-            return redirect(url_for('billing_bp.billing_checkout', month=month))
+            return redirect(url_for('billing_bp.billing_checkout', month=month,property_id=property_id))
         elif current_user.has_role('admin'):
             flash(f"Notice: Manager has not paid for {month} statements.", "info")
         else:
@@ -2371,7 +2381,7 @@ def setup_wizard():
     if request.args.get('edit')=='1' or not setup_read_only_reason:
         setup_read_only_reason=None
     return render_template("program_billing/setup_wizard.html", 
-        configuration_revision=configuration_revision,setup_read_only=bool(setup_read_only_reason),setup_read_only_reason=setup_read_only_reason,property=property,
+        now_month=datetime.now().strftime('%Y-%m'),configuration_revision=configuration_revision,setup_read_only=bool(setup_read_only_reason),setup_read_only_reason=setup_read_only_reason,property=property,
         draft_json=json.dumps(draft_json) if draft_json else 'null')
 
 @billing_bp.route("/billing/setup/submit", methods=["POST"])
@@ -2390,6 +2400,8 @@ def setup_submit():
 @billing_bp.route("/billing/utilities/<int:property_id>/metsoa/<month>/email", methods=["POST"])
 @login_required
 def email_metsoa(property_id, month):
+    from .metsoa_setup_safety import property_scope
+    property_scope(property_id)
     from app.models.billing import BilProperty
     from flask import request
     from app.utils.mailer import send_pdf_email
@@ -2474,6 +2486,8 @@ def email_metsoa(property_id, month):
 @billing_bp.route("/metsoa/<int:property_id>/<month>/pdf")
 @login_required
 def metsoa_pdf(property_id, month):
+    from .metsoa_setup_safety import property_scope
+    property_scope(property_id)
     from app.models.billing import BilProperty
     import tempfile
     
@@ -2486,7 +2500,7 @@ def metsoa_pdf(property_id, month):
         if not payment or payment.amount_paid_cents <= 0:
             if current_user.id == manager_id:
                 flash(f"Please unlock statements for {month} before generating PDFs.", "warning")
-                return redirect(url_for('billing_bp.billing_checkout', month=month))
+                return redirect(url_for('billing_bp.billing_checkout', month=month,property_id=property_id))
             elif current_user.has_role('admin'):
                 pass
             else:

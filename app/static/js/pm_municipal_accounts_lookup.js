@@ -1,4 +1,4 @@
-/* Read-only exact-number lookup. Property reassignment is never performed here. */
+/* Exact-number lookup plus a separately confirmed, CSRF-protected association. */
 (() => {
   const form=document.getElementById('municipal-account-form');
   if (!form) return;
@@ -9,6 +9,11 @@
   const saveButtons=form.querySelectorAll('button[name="save_action"]');
   const accountId=form.querySelector('input[name="account_id"]');
   const version=form.querySelector('input[name="version"]');
+  const association=document.getElementById('account-association');
+  const confirmed=document.getElementById('association-confirmed');
+  const associateButton=document.getElementById('associate-account');
+  const associationError=document.getElementById('association-error');
+  let associationRecord=null;
   let timer,controller,generation=0,hadRecord=form.dataset.existingAccount==='yes';
   const groups=Array.from(form.querySelectorAll('[data-meter-baseline]'));
   function lock(locked) {
@@ -26,6 +31,7 @@
   }
   function clearRecord() {
     accountId.value='';version.value='';details.replaceChildren();
+    association.hidden=true;confirmed.checked=false;associateButton.disabled=true;associationError.textContent='';associationRecord=null;
     for (const group of groups) {
       const kind=group.dataset.meterBaseline;group.dataset.established='no';
       document.getElementById(kind+'_latest_recorded').textContent='';
@@ -56,6 +62,7 @@
   async function search() {
     clearTimeout(timer);if (controller) controller.abort();
     const attempt=++generation;const query=number.value.trim();retry.hidden=true;
+    association.hidden=true;associationRecord=null;confirmed.checked=false;associateButton.disabled=true;
     if (!query) { status.textContent='Enter a municipal account number.';lock(false);return; }
     lock(true);status.textContent='Searching existing municipal accounts…';controller=new AbortController();
     try {
@@ -72,6 +79,12 @@
       if (result.matches) { clearRecord();hadRecord=true;for (const match of result.matches) review(match);lock(true);return; }
       if (!result.details_available) { clearRecord();hadRecord=true; }
       review(result);
+      if (result.account_id) accountId.value=result.account_id;
+      if (result.association==='unassigned') {
+        associationRecord=result;
+        if (result.can_associate) association.hidden=false;
+        else if (result.association_conflicts) for (const conflict of result.association_conflicts) line(details,'Association blocked',conflict);
+      }
       if (result.details_available) {
         number.value=result.values.account_number;
         for (const [key,value] of Object.entries(result.values)) {
@@ -97,4 +110,23 @@
   });
   number.addEventListener('change',search);
   retry.addEventListener('click',search);
+  confirmed.addEventListener('change',()=>{ associateButton.disabled=!confirmed.checked || !associationRecord || !associationRecord.can_associate; });
+  associateButton.addEventListener('click',async()=>{
+    if (!confirmed.checked || !associationRecord || !associationRecord.can_associate) return;
+    const attempt=generation;associateButton.disabled=true;associationError.textContent='';
+    const body=new URLSearchParams({account_id:String(associationRecord.account_id),association_token:associationRecord.association_token,association_confirmed:'yes',csrf_token:form.querySelector('input[name="csrf_token"]').value});
+    try {
+      const response=await fetch(form.dataset.associateUrl,{method:'POST',credentials:'same-origin',headers:{Accept:'application/json','Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'},body});
+      if (!(response.headers.get('Content-Type') || '').includes('application/json')) throw new Error('Association returned an unexpected sign-in or error page. Sign in again and retry lookup.');
+      const result=await response.json();
+      if (!response.ok || !result.success) throw new Error(result.error || 'Association was not saved. Retry lookup before confirming again.');
+      if (attempt!==generation) return;
+      confirmed.checked=false;association.hidden=true;associationRecord=null;
+      await search();
+    } catch (error) {
+      if (attempt!==generation) return;
+      associationError.textContent=error.message;associateButton.disabled=true;confirmed.checked=false;
+      retry.hidden=false;lock(true);
+    }
+  });
 })();

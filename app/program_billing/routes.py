@@ -3026,6 +3026,23 @@ def municipal_accounts(property_id):
     from .municipal_accounts import page
     return page(property_id)
 
+@billing_bp.route('/billing/utilities/<int:property_id>/accounts/associate',methods=['POST'])
+@login_required
+def municipal_account_associate(property_id):
+    from .municipal_association import associate
+    from app.extensions import db
+    from werkzeug.exceptions import HTTPException
+    try:
+        account_id=associate(property_id,request.form)
+        db.session.commit()
+        current_app.logger.info('Municipal account association confirmed account_id=%s property_id=%s manager_id=%s',account_id,property_id,current_user.id)
+        return jsonify(success=True,account_id=account_id)
+    except HTTPException as exc:
+        db.session.rollback();return jsonify(success=False,error=exc.description),exc.code
+    except Exception:
+        db.session.rollback();current_app.logger.exception('Municipal account association failed')
+        return jsonify(success=False,error='Association could not be saved; no property associations or historical records were changed.'),503
+
 @billing_bp.route('/billing/utilities/<int:property_id>/accounts/lookup',methods=['GET'])
 @login_required
 def municipal_account_lookup(property_id):

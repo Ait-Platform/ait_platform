@@ -44,6 +44,9 @@ def lookup(property_id,number):
         association='selected_property' if match['property_id']==property_id else 'unassigned' if match['property_id'] is None else 'other_property'
         allowed=match['manager_id']==current_user.id if match['property_id'] is not None else may_review_unassigned(match['id'])
         item=dict(found=True,association=association,editable=False,details_available=bool(allowed))
+        if association=='unassigned':
+            from .municipal_association import preview
+            item.update(account_id=match['id'],**preview(property_id,match['id']))
         if not allowed:
             item['message']=('Unassigned historical account found. Details require verified manager ownership or existing administrator access. Property association must be verified before updates.' if association=='unassigned' else 'This account belongs to another property. Its details are restricted and it cannot be modified here.')
             results.append(item);continue
@@ -142,8 +145,15 @@ def save(property_id,form):
     try:account_id=int(raw) if raw else None
     except (TypeError,ValueError):abort(400,description='Invalid municipal account.')
     if account_id is not None and account_id<=0:abort(400,description='Invalid municipal account.')
-    account=next((a for a in account_rows(property_id) if a['id']==account_id),None) if account_id else None
+    owned=account_rows(property_id)
+    account=next((a for a in owned if a['id']==account_id),None) if account_id else None
     if account_id and not account:abort(404)
+    if not account_id:
+        matches=[a for a in owned if (a['account_number'] or '').strip().casefold()==data['account_number'].casefold()]
+        if len(matches)>1:abort(409,description='Multiple saved accounts match this number. Resolve the duplicate records before saving.')
+        if matches:account=matches[0];account_id=account['id']
+    if account and (account['account_number'] or '').strip().casefold()==data['account_number'].casefold():
+        data['account_number']=account['account_number']
     meters,issues=meters_for(account) if account else ({'water':None,'electricity':None},[])
     if issues:abort(409,description=' '.join(issues))
     if account and form.get('version')!=token(account,meters):abort(409,description='This account changed after the form was opened. Reopen Edit before saving; your entered values remain below.')

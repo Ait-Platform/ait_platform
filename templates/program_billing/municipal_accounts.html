@@ -11,13 +11,19 @@
 {% if show_form %}
 <h2 class="text-lg font-semibold">{{ 'Edit Municipal Account' if account_id else 'New Municipal Account' }}</h2>
 {% if error %}<p role="alert" class="my-3 rounded-lg bg-red-50 p-3 text-red-800">{{ error }}</p>{% endif %}
-<form id="municipal-account-form" data-lookup-url="{{ url_for('billing_bp.municipal_account_lookup',property_id=property.id) }}" data-existing-account="{{ 'yes' if account_id else 'no' }}" method="POST" action="{{ url_for('billing_bp.municipal_accounts',property_id=property.id) }}" class="mt-4 space-y-4">
+<form id="municipal-account-form" data-lookup-url="{{ url_for('billing_bp.municipal_account_lookup',property_id=property.id) }}" data-associate-url="{{ url_for('billing_bp.municipal_account_associate',property_id=property.id) }}" data-existing-account="{{ 'yes' if account_id else 'no' }}" method="POST" action="{{ url_for('billing_bp.municipal_accounts',property_id=property.id) }}" class="mt-4 space-y-4">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="billing_month" value="{{ utility_month }}"><input type="hidden" name="account_id" value="{{ account_id or '' }}"><input type="hidden" name="version" value="{{ version }}">
 <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
 {% for key,label,required,maxlength in [('account_number','Municipal account number',true,50),('owner_name','Account owner',true,100)] %}
 <div><label for="{{ key }}" class="mb-2 block font-semibold">{{ label }}</label><input id="{{ key }}" name="{{ key }}" value="{{ values[key] }}" maxlength="{{ maxlength }}" {% if required %}required{% endif %} {% if loop.first %}autofocus{% endif %} class="w-full rounded-lg border border-slate-300 px-3 py-2"></div>
 {% endfor %}</div>
-<div class="rounded-lg bg-slate-50 p-3"><p id="account-lookup-status" role="status" aria-live="polite">Entering an account number searches existing records. No property associations are changed.</p><button id="account-lookup-retry" type="button" hidden class="mt-2 rounded-lg bg-yellow-100 px-3 py-2">Retry Lookup</button><div id="account-lookup-details" class="mt-2 space-y-2 text-sm"></div></div>
+<div class="rounded-lg bg-slate-50 p-3"><p id="account-lookup-status" role="status" aria-live="polite">Entering an account number searches existing records. No property associations are changed.</p><button id="account-lookup-retry" type="button" hidden class="mt-2 rounded-lg bg-yellow-100 px-3 py-2">Retry Lookup</button><div id="account-lookup-details" class="mt-2 space-y-2 text-sm"></div>
+<div id="account-association" hidden class="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
+<p>Association links the existing account and its verified, unassigned meters to {{ property.name }}. Historical readings and consumption remain unchanged.</p>
+<label class="my-3 flex items-start gap-2"><input id="association-confirmed" type="checkbox" class="mt-1"><span>I have verified the municipal account and meter information against the original records and confirm this account belongs to {{ property.name }}.</span></label>
+<button id="associate-account" type="button" disabled class="rounded-lg bg-yellow-100 px-4 py-2 font-semibold">Associate with This Property</button>
+<p id="association-error" role="alert" class="mt-2 text-red-800"></p>
+</div></div>
 {% for kind,label,unit in [('water','Water','kL'),('electricity','Electricity','kWh')] %}
 <fieldset class="rounded-lg border border-slate-200 p-4" data-meter-baseline="{{ kind }}" data-established="{{ 'yes' if established[kind] else 'no' }}"><legend class="px-2 font-semibold">{{ label }} meter (optional)</legend>
 <div class="grid grid-cols-1 gap-4 md:grid-cols-3">

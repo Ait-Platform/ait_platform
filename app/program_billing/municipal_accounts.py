@@ -1,6 +1,8 @@
 """Independent property-scoped municipal accounts. No bulk or history mutations."""
 import hashlib,json,re
-from datetime import datetime
+from datetime import datetime,date
+from decimal import Decimal,InvalidOperation
+from zoneinfo import ZoneInfo
 from flask import request,abort,render_template,redirect,url_for,flash,current_app
 from sqlalchemy import text,inspect
 from sqlalchemy.exc import IntegrityError
@@ -8,7 +10,31 @@ from werkzeug.exceptions import HTTPException
 from app.extensions import db
 from .metsoa_setup_safety import property_scope
 
-FIELDS=('account_number','owner_name','water_number','electricity_number')
+BASELINE_FIELDS=('water_opening_reading','water_opening_date','electricity_opening_reading','electricity_opening_date')
+FIELDS=('account_number','owner_name','water_number','electricity_number')+BASELINE_FIELDS
+
+def opening(meter):
+    if not meter:return None
+    return db.session.execute(text('SELECT id,reading_date,reading_value FROM bil_meter_reading WHERE meter_id=:m ORDER BY reading_date,id LIMIT 1'),dict(m=meter['id'])).mappings().first()
+
+def baseline(kind,form,meter):
+    existing=opening(meter)
+    reading=str(form.get(kind+'_opening_reading') or '').strip()
+    day=str(form.get(kind+'_opening_date') or '').strip()
+    if existing:
+        try:same=(not reading or Decimal(reading)==Decimal(str(existing['reading_value']))) and (not day or day==existing['reading_date'].isoformat())
+        except InvalidOperation:same=False
+        if not same:abort(409,description='The existing '+kind+' opening reading is protected. Editing account details cannot replace historical readings.')
+        return None
+    if meter and db.session.execute(text('SELECT 1 FROM bil_consumption WHERE meter_id=:m LIMIT 1'),dict(m=meter['id'])).first():
+        abort(409,description='This meter has consumption history but no saved reading baseline. Verify its historical opening reading before adding one.')
+    try:
+        value=Decimal(reading)
+        if not re.fullmatch(r'\d{4}-\d{2}-\d{2}',day):raise ValueError()
+        parsed=date.fromisoformat(day)
+        if not value.is_finite() or value<0 or value>Decimal('1000000000000') or parsed.year<1900 or parsed>datetime.now(ZoneInfo('Africa/Johannesburg')).date():raise ValueError()
+    except (ValueError,InvalidOperation):abort(400,description='Enter a valid non-negative '+kind+' opening reading (maximum 1,000,000,000,000) and a reading date from 1900 through today.')
+    return dict(value=value,day=parsed)
 
 def account_rows(property_id):
     return [dict(r) for r in db.session.execute(text('SELECT a.*,o.name AS owner_name FROM bil_muni_account a LEFT JOIN ref_muni_owner o ON o.id=a.owner_id WHERE a.property_id=:p ORDER BY a.id'),dict(p=property_id)).mappings()]
@@ -84,6 +110,11 @@ def save(property_id,form):
         for c in inspect(db.session.connection()).get_columns('bil_meter'):
             if c['name']=='sectional_unit_id' and not c['nullable']:
                 abort(503,description='Cannot create this meter: legacy bil_meter.sectional_unit_id is mandatory. A separately approved schema correction is required; no account or meter changes were saved.')
+    baselines={}
+    for kind,key in [('water','water_number'),('electricity','electricity_number')]:
+        if data[key]:baselines[kind]=baseline(kind,form,meters[kind])
+        elif form.get(kind+'_opening_reading') or form.get(kind+'_opening_date'):
+            abort(400,description='An opening reading requires its corresponding meter number.')
     # Owner names can be shared: never rename a shared owner record.
     db.session.execute(text('INSERT INTO ref_muni_owner(name) VALUES(:n) ON CONFLICT(name) DO NOTHING'),dict(n=data['owner_name']))
     owner_id=db.session.execute(text('SELECT id FROM ref_muni_owner WHERE name=:n'),dict(n=data['owner_name'])).scalar()
@@ -103,6 +134,14 @@ def save(property_id,form):
         db.session.execute(text('UPDATE bil_muni_account SET account_number=:n,owner_id=:o,water_meter_id=:w,elec_meter_id=:e,muni_water_meter_no=:wn,muni_elec_meter_no=:en WHERE id=:id AND property_id=:p'),values)
     else:
         account_id=db.session.execute(text('INSERT INTO bil_muni_account(property_id,account_number,owner_id,water_meter_id,elec_meter_id,muni_water_meter_no,muni_elec_meter_no,is_bulk_account) VALUES(:p,:n,:o,:w,:e,:wn,:en,false) RETURNING id'),values).scalar()
+    for kind,entry in baselines.items():
+        if entry is not None:
+            # Property-row lock serialises this page and the existing reading service.
+            # No existing reading is updated; no consumption or charge is generated.
+            meter_id=meters[kind]['id']
+            if db.session.execute(text('SELECT 1 FROM bil_meter_reading WHERE meter_id=:m LIMIT 1'),dict(m=meter_id)).first():
+                abort(409,description='A reading was recorded while saving. Reopen the account before retrying.')
+            db.session.execute(text('INSERT INTO bil_meter_reading(meter_id,reading_date,reading_value) VALUES(:m,:d,:v)'),dict(m=meter_id,d=entry['day'],v=entry['value']))
     return account_id
 
 def page(property_id):
@@ -110,13 +149,15 @@ def page(property_id):
     prop=db.session.execute(text('SELECT id,name,address FROM bil_property WHERE id=:p'),dict(p=property_id)).mappings().one()
     month=request.values.get('billing_month') or datetime.now().strftime('%Y-%m')
     if not re.fullmatch(r'\d{4}-(0[1-9]|1[0-2])',month):abort(400)
-    error=None;status=200;values={k:'' for k in FIELDS};version='';account_id=None
+    error=None;status=200;values={k:'' for k in FIELDS};version='';account_id=None;established={'water':False,'electricity':False}
     if request.method=='POST':
         values={k:request.form.get(k,'') for k in FIELDS};version=request.form.get('version','');account_id=request.form.get('account_id')
         try:
-            identifier=save(property_id,request.form);db.session.commit()
-            flash('Municipal account saved. Existing meter history was preserved.','success')
-            return redirect(url_for('billing_bp.municipal_accounts',property_id=property_id,edit=identifier,billing_month=month))
+            action=request.form.get('save_action','finish')
+            if action not in ('add_another','finish'):abort(400,description='Choose a valid save action.')
+            save(property_id,request.form);db.session.commit()
+            flash('Municipal account saved with opening readings. Existing history was preserved; no consumption charges were generated.','success')
+            return redirect(url_for('billing_bp.municipal_accounts',property_id=property_id,billing_month=month,**({'view':'list'} if action=='finish' else {})))
         except HTTPException as exc:
             db.session.rollback();error=exc.description;status=exc.code
         except IntegrityError as exc:
@@ -132,6 +173,10 @@ def page(property_id):
     for account in accounts:
         meters,issues=meters_for(account)
         item=dict(account);item['issues']=issues
+        for kind in ('water','electricity'):
+            recorded=opening(meters[kind]);item[kind+'_opening_reading']=str(recorded['reading_value']) if recorded else ''
+            item[kind+'_opening_date']=recorded['reading_date'].isoformat() if recorded else ''
+            if str(account_id)==str(account['id']):established[kind]=bool(recorded)
         item['water_number']=meters['water']['meter_number'] if meters['water'] else account['muni_water_meter_no'] or ''
         item['electricity_number']=meters['electricity']['meter_number'] if meters['electricity'] else account['muni_elec_meter_no'] or ''
         display.append(item)
@@ -142,5 +187,6 @@ def page(property_id):
         if not account:abort(404)
         meters,issues=meters_for(account);item=next(a for a in display if a['id']==account_id)
         values={k:item.get(k) or '' for k in FIELDS};version=token(account,meters)
+        established={kind:bool(opening(meters[kind])) for kind in ('water','electricity')}
         if issues:error=' '.join(issues)
-    return render_template('program_billing/municipal_accounts.html',property=prop,accounts=display,values=values,version=version,account_id=account_id,error=error,utility_month=month),status
+    return render_template('program_billing/municipal_accounts.html',property=prop,accounts=display,values=values,version=version,account_id=account_id,error=error,utility_month=month,established=established,today=datetime.now(ZoneInfo('Africa/Johannesburg')).date().isoformat(),show_form=request.method=='POST' or bool(account_id) or request.args.get('view')!='list'),status

@@ -1,0 +1,26 @@
+{% extends 'layout.html' %}
+{% block title %}Municipal Accounts{% endblock %}
+{% block flashes %}{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-6xl px-4 py-10"><div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow"><div class="h-2 bg-green-500"></div><div class="p-6">
+{% include 'partials/flash_messages.html' %}
+<div class="flex items-center justify-between gap-3"><h1 class="text-2xl font-semibold">Municipal Accounts</h1><a href="{{ url_for('billing_bp.utilities_hub',property_id=property.id,billing_month=utility_month) }}" class="rounded-lg bg-slate-100 px-4 py-2">Back to Utilities</a></div>
+{% set utility_active='accounts' %}{% include 'program_billing/utilities_menu.html' %}
+<h2 class="text-lg font-semibold">{{ property.name }}</h2><p class="break-words text-slate-600">{{ property.address or '' }}</p>
+<div class="my-4 flex justify-end"><a href="{{ url_for('billing_bp.municipal_accounts',property_id=property.id,billing_month=utility_month) }}" class="rounded-lg bg-blue-100 px-4 py-2 font-semibold">Add Municipal Account</a></div>
+<h2 class="text-lg font-semibold">{{ 'Edit Municipal Account' if account_id else 'New Municipal Account' }}</h2>
+{% if error %}<p role="alert" class="my-3 rounded-lg bg-red-50 p-3 text-red-800">{{ error }}</p>{% endif %}
+<form method="POST" action="{{ url_for('billing_bp.municipal_accounts',property_id=property.id) }}" class="mt-4 space-y-4">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="billing_month" value="{{ utility_month }}"><input type="hidden" name="account_id" value="{{ account_id or '' }}"><input type="hidden" name="version" value="{{ version }}">
+<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+{% for key,label,required,maxlength in [('account_number','Municipal account number',true,50),('owner_name','Account owner',true,100),('water_number','Water meter number (optional)',false,50),('electricity_number','Electricity meter number (optional)',false,50)] %}
+<div><label for="{{ key }}" class="mb-2 block font-semibold">{{ label }}</label><input id="{{ key }}" name="{{ key }}" value="{{ values[key] }}" maxlength="{{ maxlength }}" {% if required %}required{% endif %} {% if loop.first %}autofocus{% endif %} class="w-full rounded-lg border border-slate-300 px-3 py-2"></div>
+{% endfor %}</div>
+<p class="text-sm text-slate-600">New accounts require at least one meter number. Each account saves independently. Existing meters and history are retained; historical identifier changes or removal may be blocked.</p>
+<div class="flex justify-end gap-2"><a href="{{ url_for('billing_bp.municipal_accounts',property_id=property.id,billing_month=utility_month) }}" class="rounded-lg bg-red-100 px-4 py-2">Cancel</a><button type="submit" class="rounded-lg bg-green-100 px-4 py-2 font-semibold">Save Account</button></div>
+</form>
+<div class="mt-6 overflow-x-auto"><table class="w-full text-left text-sm"><thead class="bg-slate-50"><tr>{% for label in ['Municipal Account','Account Owner','Water Meter','Electricity Meter','Actions'] %}<th class="p-3">{{ label }}</th>{% endfor %}</tr></thead><tbody>
+{% for account in accounts %}<tr class="border-t"><td class="p-3">{{ account.account_number }}{% for issue in account.issues %}<p class="mt-1 text-sm text-amber-900">{{ issue }}</p>{% endfor %}</td><td class="p-3">{{ account.owner_name or '' }}</td><td class="p-3">{{ account.water_number }}</td><td class="p-3">{{ account.electricity_number }}</td><td class="p-3"><a href="{{ url_for('billing_bp.municipal_accounts',property_id=property.id,edit=account.id,billing_month=utility_month) }}" class="inline-flex rounded-lg bg-yellow-100 px-3 py-2 font-semibold">{{ 'View' if account.issues else 'Edit' }}</a></td></tr>{% else %}<tr><td colspan="5" class="p-4 text-slate-600">No municipal accounts recorded for this property.</td></tr>{% endfor %}
+</tbody></table></div>
+</div></div></div>
+{% endblock %}

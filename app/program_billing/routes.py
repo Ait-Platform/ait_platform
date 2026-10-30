@@ -3020,6 +3020,12 @@ def meter_exceptions(property_id):
                            replacement_map=replacement_map)
 
 
+@billing_bp.route('/billing/utilities/<int:property_id>/accounts',methods=['GET','POST'])
+@login_required
+def municipal_accounts(property_id):
+    from .municipal_accounts import page
+    return page(property_id)
+
 @billing_bp.route("/billing/utilities", methods=["GET", "POST"])
 @login_required
 def utilities_hub():
@@ -3042,10 +3048,10 @@ def utilities_hub():
         if not selected_property:
             flash('Select a property before opening Utilities.','warning')
             return redirect(url_for('billing_bp.utilities_hub',billing_month=month))
-        targets={'readings':'property_hub','consumption':'consumption_review','metsoa':'metsoa','exceptions':'exception_metsoa','setup':'setup_wizard'}
+        targets={'readings':'property_hub','consumption':'consumption_review','metsoa':'metsoa','exceptions':'exception_metsoa','setup':'setup_wizard','accounts':'municipal_accounts'}
         if action not in targets:abort(400)
         kwargs=dict(property_id=property_id)
-        if action in ('readings','setup'):kwargs['billing_month']=month
+        if action in ('readings','setup','accounts'):kwargs['billing_month']=month
         else:kwargs['month']=month
         return redirect(url_for('billing_bp.'+targets[action],**kwargs))
     return render_template('program_billing/utilities_hub.html',properties=properties,selected_property=selected_property,current_month=month)

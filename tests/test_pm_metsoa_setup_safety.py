@@ -49,12 +49,12 @@ class MetsoaSetupProtectionTests(unittest.TestCase):
             login_required=authenticated,request=request,abort=abort,render_template=render_template,
             flash=flash,redirect=redirect,url_for=url_for,current_app=current_app,current_user=self.user,
             jsonify=jsonify,db=self.db,BilProperty=models['BilProperty'],datetime=datetime)
-        names={'utilities_hub','setup_wizard','setup_submit','save_architecture_draft','save_global_architecture','ai_onboarding_process','parse_bill_onboarding_api','build_wizard_data_from_db'}
+        names={'utilities_hub','setup_wizard','setup_submit','save_architecture_draft','save_global_architecture','ai_onboarding_process','parse_bill_onboarding_api','build_wizard_data_from_db','municipal_accounts'}
         loader.functions('app/program_billing/routes.py',names,env)
         self.app._got_first_request=False
         self.app.view_functions['billing_bp.utilities_hub']=env['utilities_hub']
         self.app.add_url_rule('/soa-test/utilities_hub',endpoint='billing_bp.utilities_hub',view_func=env['utilities_hub'],methods=['POST'])
-        routes=[('/billing/setup','setup_wizard',['GET']),('/billing/setup/submit','setup_submit',['POST']),('/save_architecture_draft/<int:property_id>','save_architecture_draft',['POST']),('/billing/onboarding/save_global_architecture/<int:property_id>','save_global_architecture',['POST']),('/billing/onboarding/process','ai_onboarding_process',['POST']),('/api/parse_bill_onboarding','parse_bill_onboarding_api',['POST'])]
+        routes=[('/billing/utilities/<int:property_id>/accounts','municipal_accounts',['GET','POST']),('/billing/setup','setup_wizard',['GET']),('/billing/setup/submit','setup_submit',['POST']),('/save_architecture_draft/<int:property_id>','save_architecture_draft',['POST']),('/billing/onboarding/save_global_architecture/<int:property_id>','save_global_architecture',['POST']),('/billing/onboarding/process','ai_onboarding_process',['POST']),('/api/parse_bill_onboarding','parse_bill_onboarding_api',['POST'])]
         for path,name,methods in routes:self.app.add_url_rule(path,endpoint='billing_bp.'+name,view_func=env[name],methods=methods)
         for endpoint in ('property_hub','consumption_review','metsoa'):
             self.app.add_url_rule('/readings/<int:property_id>' if endpoint=='property_hub' else '/utilities/'+endpoint+'/<int:property_id>/<month>',endpoint='billing_bp.'+endpoint,view_func=lambda **kw:'Existing Utilities destination')
@@ -120,7 +120,7 @@ class MetsoaSetupProtectionTests(unittest.TestCase):
         tree=html.fromstring(response.data)
         self.assertEqual(response.status_code,200)
         self.assertFalse(tree.xpath('//select[@name="property_id"]'))
-        self.assertEqual(tree.xpath('//nav[@aria-label="Utilities"]/a/text()'),['Readings','Consumption','METSOA','Setup Wizard'])
+        self.assertEqual(tree.xpath('//nav[@aria-label="Utilities"]/a/text()'),['Readings','Consumption','METSOA','Setup Wizard','Municipal Accounts'])
         self.assertEqual(tree.xpath('//input[@name="property_id"]/@value'),['26'])
         self.assertEqual(tree.xpath('//input[@type="month"]/@value'),['2026-10'])
         self.assertEqual(self.client.get('/soa-test/utilities_hub?property_id=28',headers=self.headers).status_code,403)
@@ -133,7 +133,7 @@ class MetsoaSetupProtectionTests(unittest.TestCase):
         self.assertFalse(tree.xpath('//nav[@aria-label="Property Management"]'))
         self.assertEqual(len(tree.xpath('//nav[@aria-label="Utilities"]')),1)
         self.assertEqual(tree.xpath('//h1/parent::div/following-sibling::*[1]/@aria-label'),['Utilities'])
-        self.assertEqual(tree.xpath('//nav[@aria-label="Utilities"]/a/@href'),['/readings/26?billing_month=2026-11','/utilities/consumption_review/26/2026-11','/utilities/metsoa/26/2026-11','/billing/setup?property_id=26&billing_month=2026-11'])
+        self.assertEqual(tree.xpath('//nav[@aria-label="Utilities"]/a/@href'),['/readings/26?billing_month=2026-11','/utilities/consumption_review/26/2026-11','/utilities/metsoa/26/2026-11','/billing/setup?property_id=26&billing_month=2026-11','/billing/utilities/26/accounts?billing_month=2026-11'])
         wizard=self.client.get('/billing/setup?property_id=26&billing_month=2026-11',headers=self.headers)
         self.assertEqual(wizard.status_code,200)
         self.assertFalse(html.fromstring(wizard.data).xpath('//nav[@aria-label="Utilities"]'))

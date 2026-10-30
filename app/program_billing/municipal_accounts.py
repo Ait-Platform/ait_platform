@@ -47,6 +47,7 @@ def lookup(property_id,number):
         if association=='unassigned':
             from .municipal_association import preview
             item.update(account_id=match['id'],**preview(property_id,match['id']))
+            allowed=allowed or item['can_associate'];item['details_available']=bool(allowed)
         if not allowed:
             item['message']=('Unassigned historical account found. Details require verified manager ownership or existing administrator access. Property association must be verified before updates.' if association=='unassigned' else 'This account belongs to another property. Its details are restricted and it cannot be modified here.')
             results.append(item);continue
@@ -59,6 +60,9 @@ def lookup(property_id,number):
             for kind,pointer,types in [('water','water_meter_id',['water']),('electricity','elec_meter_id',['electricity','electrical'])]:
                 if account[pointer]:
                     groups[kind]=[dict(r) for r in db.session.execute(text('SELECT * FROM bil_meter WHERE id=:id'),dict(id=account[pointer])).mappings()]
+                elif item.get('can_associate'):
+                    from .municipal_association import state
+                    groups[kind]=[m for m in state(property_id,account['id'])['meters'] if (m.get('utility_type') or '').lower() in types]
                 elif getattr(current_user,'has_role',lambda role:False)('admin'):
                     groups[kind]=[dict(r) for r in db.session.execute(text('SELECT * FROM bil_meter WHERE municipal_bill_number=:n AND lower(utility_type)=ANY(:types) ORDER BY id'),dict(n=account['account_number'],types=types)).mappings()]
                 else:groups[kind]=[]
@@ -73,8 +77,8 @@ def lookup(property_id,number):
             values[kind+'_number']=meter['meter_number'] if meter else account[declared] or ''
             values[kind+'_opening_reading']=str(first['reading_value']) if first else ''
             values[kind+'_opening_date']=first['reading_date'].isoformat() if first else ''
-        item.update(account_id=account['id'],values=values,meters=records,owner_email=account['muni_email'] or '',owner_address=account['owner_address'] or '',issues=issues,editable=association=='selected_property' and not issues,version=token(account,meters) if association=='selected_property' else '')
-        item['message']={'selected_property':'Account belongs to the selected property. Existing details and recorded readings have been loaded.','other_property':'Account belongs to another property you manage. Review only; it cannot be edited from this property.','unassigned':'Unassigned historical account — review only. Explicit, verified property association is required before updates can be enabled.'}[association]
+        item.update(account_id=account['id'],values=values,meters=records,owner_email=account['muni_email'] or '',owner_address=account['owner_address'] or '',issues=issues,editable=(association=='selected_property' or item.get('can_associate',False)) and not issues,version=token(account,meters) if association=='selected_property' else item.get('association_token',''))
+        item['message']={'selected_property':'Account belongs to the selected property. Existing details and recorded readings have been loaded.','other_property':'Account belongs to another property you manage. Review only; it cannot be edited from this property.','unassigned':'Existing account loaded. Save will link it to this property if its relationships remain conflict-free.'}[association]
         if issues:item['message']+=' '+' '.join(issues)
         results.append(item)
     current=[r for r in results if r['association']=='selected_property']
@@ -145,6 +149,18 @@ def save(property_id,form):
     try:account_id=int(raw) if raw else None
     except (TypeError,ValueError):abort(400,description='Invalid municipal account.')
     if account_id is not None and account_id<=0:abort(400,description='Invalid municipal account.')
+    # Resolve by registered identity on the server; Save is the association intent.
+    candidates=db.session.execute(text('SELECT id,property_id FROM bil_muni_account WHERE lower(btrim(account_number))=lower(:n) ORDER BY id'),dict(n=data['account_number'])).mappings().all()
+    if len(candidates)>1:abort(409,description='Multiple existing accounts use this number; resolve duplicate records before saving.')
+    if candidates and candidates[0]['property_id'] is None:
+        candidate=candidates[0]
+        if account_id and account_id!=candidate['id']:abort(409,description='Account identity does not match the entered account number.')
+        from .municipal_association import associate
+        account_id=associate(property_id,dict(account_id=candidate['id'],association_token=form.get('version',''),association_confirmed='yes'))
+        linked=next(a for a in account_rows(property_id) if a['id']==account_id)
+        linked_meters,linked_issues=meters_for(linked)
+        if linked_issues:abort(409,description=' '.join(linked_issues))
+        form=dict(form);form['version']=token(linked,linked_meters)
     owned=account_rows(property_id)
     account=next((a for a in owned if a['id']==account_id),None) if account_id else None
     if account_id and not account:abort(404)
@@ -231,7 +247,7 @@ def page(property_id):
             action=request.form.get('save_action','finish')
             if action not in ('add_another','finish'):abort(400,description='Choose a valid save action.')
             save(property_id,request.form);db.session.commit()
-            flash('Municipal account saved with opening readings. Existing history was preserved; no consumption charges were generated.','success')
+            flash('Municipal account saved.','success')
             return redirect(url_for('billing_bp.municipal_accounts',property_id=property_id,billing_month=month,**({'view':'list'} if action=='finish' else {})))
         except HTTPException as exc:
             db.session.rollback();error=exc.description;status=exc.code

@@ -97,4 +97,9 @@ def associate(property_id,form):
     if linked is None:abort(409,description='Account association changed; no reassignment was performed.')
     for meter in plan['meters']:
         db.session.execute(text('UPDATE bil_meter SET property_id=:p WHERE id=:m AND property_id IS NULL'),dict(p=property_id,m=meter['id']))
+    # Unique, verified historical meters may be identified by the saved number rather than a pointer.
+    for pointer,types in [('water_meter_id',('water',)),('elec_meter_id',('electricity','electrical'))]:
+        group=[m for m in plan['meters'] if (m.get('utility_type') or '').lower() in types]
+        if not plan['account'].get(pointer) and len(group)==1:
+            db.session.execute(text('UPDATE bil_muni_account SET '+pointer+'=:m WHERE id=:a AND '+pointer+' IS NULL'),dict(m=group[0]['id'],a=account_id))
     return account_id

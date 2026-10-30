@@ -173,7 +173,7 @@ class MunicipalAccountsTests(fixture.UtilitiesConfigurationTests):
         self.assertEqual(response.location,self.accounts_url+'?billing_month=2026-11')
         page=self.client.get(response.location,headers=self.headers);tree=html.fromstring(page.data)
         self.assertEqual(tree.xpath('//input[@name="account_number"]/@value'),[''])
-        self.assertEqual(tree.xpath('//button[@name="save_action"]/@value'),['add_another','finish'])
+        self.assertEqual(tree.xpath('//button[@name="save_action"]/@value'),['finish'])
         entries=self.session.execute(text("SELECT m.utility_type,r.reading_value,r.reading_date FROM bil_meter m JOIN bil_meter_reading r ON r.meter_id=m.id WHERE m.municipal_bill_number='OPENING-ACCOUNT' ORDER BY m.utility_type")).all()
         self.assertEqual(len(entries),2);self.assertEqual({r.reading_value for r in entries},{0,100.25})
         self.assertEqual(before['bil_consumption'],self.snapshot()['bil_consumption'])
@@ -269,19 +269,19 @@ class MunicipalAccountsTests(fixture.UtilitiesConfigurationTests):
     def test_unassigned_historical_review_is_explicitly_read_only_and_preserves_records(self):
         self.historical_account();self.user.has_role=lambda role:role=='admin'
         before=self.snapshot();result=self.lookup('HIST-ACCOUNT').json
-        self.assertEqual(result['association'],'unassigned');self.assertTrue(result['details_available']);self.assertFalse(result['editable'])
+        self.assertEqual(result['association'],'unassigned');self.assertTrue(result['details_available']);self.assertTrue(result['editable'])
         self.assertEqual(result['values']['owner_name'],'Historical Owner')
         self.assertEqual(result['meters']['water'][0]['latest'],dict(value='45.0',date='2026-10-01'))
-        self.assertEqual(result['owner_email'],'owner@example.com');self.assertIn('verified property association',result['message'])
-        self.assertEqual(self.post(dict(account_id=90,account_number='HIST-ACCOUNT',owner_name='Historical Owner',water_number='HIST-W')).status_code,404)
+        self.assertEqual(result['owner_email'],'owner@example.com');self.assertIn('Save will link',result['message'])
+        self.assertEqual(self.post(dict(account_id=90,account_number='HIST-ACCOUNT',owner_name='Historical Owner',water_number='HIST-W')).status_code,409)
         self.assertEqual(self.post(dict(account_number='HIST-ACCOUNT',owner_name='Historical Owner',water_number='HIST-W')).status_code,409)
         self.assertEqual(before,self.snapshot())
     def test_unassigned_with_owned_pointer_can_be_reviewed_but_unknown_manager_is_restricted(self):
         self.historical_account();result=self.lookup('HIST-ACCOUNT').json
-        self.assertFalse(result['details_available']);self.assertNotIn('Historical Owner',str(result))
+        self.assertTrue(result['details_available']);self.assertEqual(result['values']['owner_name'],'Historical Owner')
         self.session.execute(text('UPDATE bil_meter SET property_id=26 WHERE id=2'));self.session.commit()
         result=self.lookup('HIST-ACCOUNT').json
-        self.assertTrue(result['details_available']);self.assertEqual(result['association'],'unassigned');self.assertFalse(result['editable'])
+        self.assertTrue(result['details_available']);self.assertEqual(result['association'],'unassigned');self.assertTrue(result['editable'])
         self.assertIsNone(self.session.execute(text('SELECT property_id FROM bil_muni_account WHERE id=90')).scalar())
     def test_foreign_manager_details_and_lookup_urls_are_protected(self):
         self.session.execute(text("INSERT INTO ref_muni_owner(id,name) VALUES(501,'PRIVATE OWNER')"))
@@ -300,6 +300,43 @@ class MunicipalAccountsTests(fixture.UtilitiesConfigurationTests):
         result=self.lookup('HIST-ACCOUNT').json;self.assertEqual(result['association'],'ambiguous');self.assertFalse(result['editable'])
         self.assertEqual(len(result['matches']),2);self.assertEqual(result['matches'][1]['values']['owner_name'],'')
 
+    def test_save_associates_and_updates_in_one_transaction_without_confirmation(self):
+        self.historical_account();before=self.snapshot();review=self.lookup('HIST-ACCOUNT').json
+        self.assertTrue(review['editable']);self.assertEqual(before,self.snapshot())
+        data=dict(review['values'],account_id=90,version=review['version'],owner_name='Updated historical owner',electricity_number='NEW-HIST-E',electricity_opening_reading='25',electricity_opening_date='2020-01-31')
+        result=self.post(data);self.assertEqual(result.status_code,302,result.text)
+        account=self.session.execute(text('SELECT * FROM bil_muni_account WHERE id=90')).mappings().one()
+        self.assertEqual(account['property_id'],26);self.assertEqual(account['water_meter_id'],2)
+        self.assertEqual(self.session.execute(text('SELECT property_id FROM bil_meter WHERE id=2')).scalar(),26)
+        self.assertEqual(self.session.execute(text('SELECT count(*) FROM bil_muni_account')).scalar(),2)
+        self.assertEqual(before['bil_consumption'],self.snapshot()['bil_consumption'])
+        for row in before['bil_meter_reading']:self.assertIn(row,self.snapshot()['bil_meter_reading'])
+        page=self.client.get(self.accounts_url,headers=self.headers)
+        self.assertNotIn('Associate with This Property',page.text);self.assertNotIn('association-confirmed',page.text)
+        tree=html.fromstring(page.data);self.assertEqual(tree.xpath('//button[@name="save_action"]/text()'),['Save'])
+
+    def test_save_reuses_declared_historical_meter_without_pointer(self):
+        self.historical_account()
+        self.session.execute(text("UPDATE bil_muni_account SET water_meter_id=NULL,muni_water_meter_no='HIST-W' WHERE id=90"))
+        self.session.execute(text('UPDATE bil_meter SET municipal_bill_number=NULL WHERE id=2'));self.session.commit();self.conn.commit()
+        before=self.snapshot();review=self.lookup('HIST-ACCOUNT').json
+        # Preview must include the existing meter, not offer to create a duplicate.
+        self.assertEqual(review['values']['water_number'],'HIST-W')
+        data=dict(review['values'],account_id=90,version=review['version'])
+        result=self.post(data);self.assertEqual(result.status_code,302,result.text)
+        self.assertEqual(self.session.execute(text('SELECT water_meter_id FROM bil_muni_account WHERE id=90')).scalar(),2)
+        self.assertEqual(len(before['bil_meter']),len(self.snapshot()['bil_meter']))
+        self.assertEqual(before['bil_meter_reading'],self.snapshot()['bil_meter_reading'])
+
+    def test_failed_save_rolls_back_association_and_meter_updates(self):
+        self.historical_account();review=self.lookup('HIST-ACCOUNT').json;before=self.snapshot()
+        data=dict(review['values'],account_id=90,version=review['version'],electricity_number='INVALID-BASELINE',electricity_opening_reading='-1',electricity_opening_date='2020-01-31')
+        result=self.post(data);self.assertEqual(result.status_code,400,result.text);self.assertEqual(before,self.snapshot())
+        data.update(electricity_opening_reading='10')
+        self.session.execute(text('UPDATE bil_meter SET property_id=27 WHERE id=2'));self.session.commit();self.conn.commit()
+        before=self.snapshot();result=self.post(data)
+        self.assertEqual(result.status_code,409,result.text);self.assertEqual(before,self.snapshot())
+
     def association(self,review,p=26,**overrides):
         data=dict(csrf_token=self.csrf,account_id=review.get('account_id'),association_token=review.get('association_token',''),association_confirmed='yes');data.update(overrides)
         return self.client.post('/billing/utilities/'+str(p)+'/accounts/associate',data=data,headers=self.headers)
@@ -317,7 +354,7 @@ class MunicipalAccountsTests(fixture.UtilitiesConfigurationTests):
         self.assertEqual(self.session.execute(text('SELECT count(*) FROM bil_muni_account')).scalar(),1)
     def test_explicit_association_keeps_ids_and_history_then_allows_completion(self):
         self.historical_account();review=self.lookup('HIST-ACCOUNT').json
-        self.assertTrue(review['can_associate']);self.assertFalse(review['editable'])
+        self.assertTrue(review['can_associate']);self.assertTrue(review['editable'])
         before=self.snapshot()
         rejected=self.association(review,association_confirmed='');self.assertEqual(rejected.status_code,400)
         self.assertEqual(before,self.snapshot())

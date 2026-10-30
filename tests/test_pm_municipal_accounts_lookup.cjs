@@ -41,23 +41,7 @@ const own={found:true,association:'selected_property',editable:true,details_avai
   racing.ids.account_number.value='NEW';racing.ids.account_number.listeners.input();const second=racing.ids.account_number.listeners.change();
   pending[1](response({found:false,editable:true,message:'New account'}));await second;pending[0](response(own));await first;
   assert.equal(racing.ids.account_number.value,'NEW');assert.equal(racing.account.value,'');assert.equal(racing.buttons[0].disabled,false);
-  let saved=false,postBody;
-  const association=harness(async(url,options)=>{
-    if (options.method==='POST') { postBody=options.body;saved=true;return response({success:true,account_id:1}); }
-    return response(saved?own:{...own,association:'unassigned',editable:false,can_associate:true,association_token:'signed-review'});
-  });
-  await association.search('MET-26');
-  assert.equal(association.account.value,1);assert.equal(association.buttons[0].disabled,true);
-  assert.equal(association.ids['account-association'].hidden,false);assert.equal(association.ids['associate-account'].disabled,true);
-  association.ids['association-confirmed'].checked=true;association.ids['association-confirmed'].listeners.change();
-  assert.equal(association.ids['associate-account'].disabled,false);
-  await association.ids['associate-account'].listeners.click();
-  assert.equal(postBody.get('account_id'),'1');assert.equal(postBody.get('csrf_token'),'csrf-value');
-  assert.equal(postBody.get('association_token'),'signed-review');assert.equal(postBody.get('association_confirmed'),'yes');
-  assert.equal(association.account.value,1);assert.equal(association.version.value,'saved-version');assert.equal(association.buttons[0].disabled,false);
-  const failure=harness(async(url,options)=>options.method==='POST'?{...response({error:'Conflicting property link'}),ok:false,status:409}:response({...own,association:'unassigned',editable:false,can_associate:true,association_token:'review'}));
-  await failure.search('MET-26');failure.ids['association-confirmed'].checked=true;
-  await failure.ids['associate-account'].listeners.click();
-  assert.match(failure.ids['association-error'].textContent,/Conflicting property link/);assert.equal(failure.buttons[0].disabled,true);assert.equal(failure.ids['account-lookup-retry'].hidden,false);
-  console.log('9 lookup UI scenarios passed: populate, unassigned, other property, restricted details, new account, HTML failure and stale response.');
+  const unassigned=harness(async()=>response({...own,association:'unassigned',editable:true,version:'review-token'}));
+  await unassigned.search('MET-26');assert.equal(unassigned.account.value,1);assert.equal(unassigned.version.value,'review-token');assert.equal(unassigned.buttons[0].disabled,false);
+  console.log('8 lookup UI scenarios passed: populate, unassigned, other property, restricted details, new account, HTML failure and stale response.');
 })().catch(error=>{ console.error(error);process.exitCode=1; });

@@ -44,6 +44,21 @@ class MunicipalAccountsTests(fixture.UtilitiesConfigurationTests):
         page=self.client.get(a.location,headers=self.headers);self.assertEqual(page.status_code,200)
         self.assertIn('Municipal account saved',page.text);self.assertIn('SECOND-ACCOUNT',page.text)
         self.assertIn('CXN998',page.text);self.assertIn('billing_month=2026-11',page.text)
+    def test_summary_shows_only_latest_readings_with_edit_and_scroll(self):
+        self.session.execute(text("INSERT INTO bil_meter_reading(id,meter_id,reading_date,reading_value) VALUES(2000,1,'2026-10-01',456.75)"));self.session.commit();self.conn.commit()
+        before=self.snapshot()
+        page=self.client.get(self.accounts_url+'?view=list',headers=self.headers)
+        self.assertEqual(page.status_code,200)
+        tree=html.fromstring(page.data);table=tree.xpath('//table')[0]
+        self.assertEqual(table.xpath('.//th/text()'),['Municipal Account','Account Owner','Water Meter','Latest Reading','Date','Electricity Meter','Latest Reading','Date','Actions'])
+        row=table.xpath('.//tbody/tr')[0];cells=row.xpath('./td')
+        self.assertEqual(len(cells),9);self.assertEqual(cells[2].text_content().strip(),'WATER-26')
+        self.assertEqual(cells[3].text_content().strip(),'456.75 kL');self.assertEqual(cells[4].text_content().strip(),'2026-10-01')
+        self.assertNotIn('Opening',table.text_content());self.assertNotIn('123',table.text_content())
+        self.assertEqual(row.xpath('.//a/text()'),['Edit']);self.assertIn('edit=1',row.xpath('.//a/@href')[0])
+        self.assertTrue(tree.xpath('//div[contains(@class,"overflow-x-auto")][@tabindex="0"]'))
+        self.assertEqual(before,self.snapshot())
+
     def test_independent_edit_uses_stable_ids_preserves_history_and_rejects_stale_form(self):
         before=self.snapshot();data=self.account_form(1);data.pop('csrf_token');data['billing_month']='2026-11';data['owner_name']='Correct Owner'
         response=self.post({k:v for k,v in data.items() if k!='billing_month'})

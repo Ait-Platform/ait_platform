@@ -40,6 +40,7 @@ class LedgerNavigationTests(unittest.TestCase):
         tree=html.fromstring(dashboard.data)
         self.assertFalse(tree.xpath('//nav[@aria-label="Property Management"]/a[text()="Ledger"]'))
         self.assertEqual(tree.xpath('//nav/a[@aria-current="page"]/text()'),['Property & Owner'])
+        self.assertEqual(tree.xpath('//nav[@aria-label="Property Management"]/a/text()'),['Property & Owner','Lease','Property Portfolio'])
         self.assertNotIn('Unrelated property',dashboard.text)
         self.assertFalse(tree.xpath('//select[@id="soa-property"]|//input[@type="radio"]|//form[@id="property-ledger-form"]|//button[text()="Open Ledger"]'))
         rows=tree.xpath('//*[@id="my-properties-table"]/tbody/tr')

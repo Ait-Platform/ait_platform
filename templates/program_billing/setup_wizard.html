@@ -26,7 +26,6 @@
       
       {% if setup_read_only %}<a href="{{ url_for('billing_bp.setup_wizard',property_id=property.id,edit=1,billing_month=request.args.get('billing_month')) }}" class="inline-flex rounded-lg bg-blue-100 px-4 py-2 font-semibold">Edit Configuration</a><p id="setup-read-only-notice" role="status" class="my-3 rounded-lg bg-amber-50 p-3 text-amber-900">{{ setup_read_only_reason }}</p>{% endif %}
       <p class="my-3 text-sm text-slate-600">Setup saves municipal accounts, owner details and meter configuration. Capture readings through Utilities → Readings. Existing financial particulars and historical exceptions are preserved; this save does not change them.</p>
-      {% set utility_active='setup' %}{% set utility_month=request.args.get('billing_month') or now_month %}{% include 'program_billing/utilities_menu.html' %}
       <!-- Row 2 -->
       <div class="grid grid-cols-4 md:grid-cols-6 gap-2 text-[11px] w-full text-center">
           <span id="step-1-badge" class="px-2 py-1 rounded-full font-bold bg-blue-100 text-blue-700 whitespace-nowrap">1. Property</span>

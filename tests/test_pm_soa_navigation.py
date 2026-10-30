@@ -45,9 +45,9 @@ class LedgerNavigationTests(unittest.TestCase):
         rows=tree.xpath('//*[@id="my-properties-table"]/tbody/tr')
         self.assertEqual(len(rows),2)
         for row in rows:
-            self.assertEqual(len(row.xpath('./td/a[text()="Ledger"]')),1)
+            self.assertEqual(len(row.xpath('./td//a[text()="Ledger"]')),1)
             self.assertEqual(len(row.xpath('./td/a[contains(@href,"property_edit")]')),1)
-        links=tree.xpath('//table/tbody/tr/td/a[text()="Ledger"]/@href')
+        links=tree.xpath('//table/tbody/tr/td//a[text()="Ledger"]/@href')
         self.assertEqual(set(links),{self.url+'?property_id=26&workflow=ledger',self.url+'?property_id=27&workflow=ledger'})
         single=next(link for link in links if 'property_id=27' in link)
         response=self.client.get(single,headers=self.headers)
@@ -123,3 +123,15 @@ class LedgerNavigationTests(unittest.TestCase):
         self.assertTrue(all(button.get('type')=='button' for button in tree.xpath('//table//button')))
         self.assertFalse(tree.xpath('//script[contains(@src,"pm_ledger_selection.js")]'))
         self.assertFalse(tree.xpath('//form[@id="property-ledger-form"]//table'))
+
+    def test_property_utilities_actions_and_wrapping(self):
+        self.session.execute(text("UPDATE bil_property SET address=:address WHERE id=26"),dict(address='Long address '*12));self.session.commit()
+        page=self.client.get('/soa-test/learner_dashboard',headers=self.headers)
+        tree=html.fromstring(page.data)
+        self.assertEqual(tree.xpath('//*[@id="my-properties-table"]/thead/tr/th/text()'),['Property','Address','Owners','Actions'])
+        rows=tree.xpath('//*[@id="my-properties-table"]/tbody/tr')
+        self.assertEqual(len(rows),2)
+        for row in rows:
+            self.assertEqual(row.xpath('./td[4]//a/text()'),['Ledger','Utilities'])
+            self.assertIn('whitespace-normal',row.xpath('./td[2]/@class')[0])
+        self.assertEqual(set(tree.xpath('//a[text()="Utilities"]/@href')),{'/soa-test/utilities_hub?property_id=26','/soa-test/utilities_hub?property_id=27'})

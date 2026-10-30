@@ -29,22 +29,22 @@
       <h2 class="mt-8 text-lg font-semibold text-slate-800">My Properties</h2>
       <p class="mt-2 text-sm text-slate-600">Existing properties are listed automatically. Property names open property management; Ledger opens that property's tenant account. Multiple tenants require an explicit choice. {% if owners_enabled %}Assign new or existing owners using the modal.{% else %}Owner assignment remains unavailable until the ownership schema is ready.{% endif %}</p>
       <div class="mt-4 overflow-x-auto rounded-lg border border-slate-200">
-        <table id="my-properties-table" class="w-full text-left text-sm">
-          <thead class="bg-slate-50"><tr><th class="p-3">Property</th><th class="p-3">Address</th><th class="p-3">Owners</th></tr></thead>
+        <table id="my-properties-table" class="w-full table-fixed text-left text-sm">
+          <thead class="bg-slate-50"><tr><th class="p-3">Property</th><th class="p-3">Address</th><th class="p-3">Owners</th><th class="p-3">Actions</th></tr></thead>
           <tbody>
             {% for property in properties %}
             <tr class="border-t border-slate-200">
-              <td class="p-3 font-semibold"><a href="{{ url_for('billing_bp.property_edit', property_id=property.id) }}" class="text-blue-700 underline">{{ property.name }}</a>{% if property.is_archived %}<span class="ml-2 text-xs text-slate-500">Archived</span><button type="button" disabled class="ml-3 rounded-lg bg-slate-100 px-3 py-2 text-slate-500">Ledger</button>{% else %}<a href="{{ url_for('billing_bp.tenant_accounts',property_id=property.id,workflow='ledger') }}" class="ml-3 inline-flex rounded-lg bg-blue-100 px-3 py-2 text-sm font-semibold text-slate-900" aria-label="Ledger for {{ property.name }}">Ledger</a>{% endif %}</td>
-              <td class="p-3"><button type="button" data-address-dialog="address-{{ property.id }}" class="text-blue-700 underline">{{ property.address or 'Assign Address' }}</button></td>
+              <td class="p-3 font-semibold"><a href="{{ url_for('billing_bp.property_edit', property_id=property.id) }}" class="text-blue-700 underline">{{ property.name }}</a>{% if property.is_archived %}<span class="ml-2 text-xs text-slate-500">Archived</span>{% endif %}</td>
+              <td class="p-3 break-words whitespace-normal [overflow-wrap:anywhere]"><button type="button" data-address-dialog="address-{{ property.id }}" class="max-w-full whitespace-normal break-words text-left text-blue-700 underline">{{ property.address or 'Assign Address' }}</button></td>
               <td class="p-3" data-property-owners="{{ property.id }}">
                 <div data-owner-names class="space-y-1">{% if owners_enabled %}{% for owner in owners_by_property.get(property.id, []) %}
                   <div><button type="button" data-owner-edit="{{ owner|tojson|forceescape }}" data-owner-property-id="{{ property.id }}" data-owner-property-name="{{ property.name }}" data-owner-edit-url="{{ url_for('billing_bp.owner_edit', owner_id=owner.owner_id) }}" class="text-blue-700 underline">{{ owner.name }}</button></div>
                 {% endfor %}{% endif %}</div>
                 <button type="button" data-open-owner data-property-id="{{ property.id }}" data-property-name="{{ property.name }}" class="mt-2 text-blue-700 underline">+ Add Owner</button>
               </td>
-
+              <td class="p-3"><div class="flex flex-wrap gap-2">{% if property.is_archived %}<button type="button" disabled class="rounded-lg bg-slate-100 px-3 py-2 text-slate-500">Ledger</button><button type="button" disabled class="rounded-lg bg-slate-100 px-3 py-2 text-slate-500">Utilities</button>{% else %}<a href="{{ url_for('billing_bp.tenant_accounts',property_id=property.id,workflow='ledger') }}" class="inline-flex rounded-lg bg-blue-100 px-3 py-2 font-semibold text-slate-900" aria-label="Ledger for {{ property.name }}">Ledger</a><a href="{{ url_for('billing_bp.utilities_hub',property_id=property.id) }}" class="inline-flex rounded-lg bg-green-100 px-3 py-2 font-semibold text-slate-900" aria-label="Utilities for {{ property.name }}">Utilities</a>{% endif %}</div></td>
             </tr>
-            {% else %}<tr><td colspan="3" class="p-6 text-slate-600">{{ "No properties registered. Add a property from Property & Owner." if ledger_workflow else "No properties registered yet. Enter a property name above to begin." }}</td></tr>{% endfor %}
+            {% else %}<tr><td colspan="4" class="p-6 text-slate-600">{{ "No properties registered. Add a property from Property & Owner." if ledger_workflow else "No properties registered yet. Enter a property name above to begin." }}</td></tr>{% endfor %}
           </tbody>
         </table>
       </div>

@@ -63,9 +63,9 @@ class MetsoaSetupProtectionTests(unittest.TestCase):
         self.assertEqual(hub.status_code,200,hub.text)
         tree=html.fromstring(hub.data)
         button=tree.xpath('//button[@name="action"][@value="setup"]')[0]
-        self.assertEqual(button.text_content(),'METSOA Setup');self.assertIsNotNone(button.get('formnovalidate'))
+        self.assertEqual(button.text_content(),'Setup Wizard')
         response=self.client.post('/soa-test/utilities_hub',data=dict(csrf_token=self.csrf,action='setup',property_id='26'),headers=self.headers)
-        self.assertEqual(response.status_code,302);self.assertEqual(response.location,'/billing/setup?property_id=26')
+        self.assertEqual(response.status_code,302);self.assertTrue(response.location.startswith('/billing/setup?property_id=26&billing_month='))
         page=self.client.get(response.location,headers=self.headers)
         self.assertEqual(page.status_code,200,page.text)
         self.assertIn('Architecture Mapping',page.text);self.assertIn('MET-26',page.text)
@@ -110,3 +110,15 @@ class MetsoaSetupProtectionTests(unittest.TestCase):
         response=self.client.post('/save_architecture_draft/27',json={},headers=dict(self.headers,**{'X-CSRFToken':self.csrf}))
         self.assertEqual(response.status_code,409)
         self.assertEqual(self.session.execute(text("SELECT meter_number FROM bil_meter WHERE id=2")).scalar(),'EXISTING-27')
+
+    def test_utilities_property_context_order_and_permissions(self):
+        response=self.client.get('/soa-test/utilities_hub?property_id=26&billing_month=2026-10',headers=self.headers)
+        tree=html.fromstring(response.data)
+        self.assertEqual(response.status_code,200)
+        self.assertFalse(tree.xpath('//select[@name="property_id"]'))
+        self.assertEqual(tree.xpath('//nav[@aria-label="Utilities"]/button/text()'),['Readings','Consumption','METSOA','Setup Wizard'])
+        self.assertEqual(tree.xpath('//input[@name="property_id"]/@value'),['26'])
+        self.assertEqual(tree.xpath('//input[@type="month"]/@value'),['2026-10'])
+        self.assertEqual(self.client.get('/soa-test/utilities_hub?property_id=28',headers=self.headers).status_code,403)
+        self.assertEqual(self.client.get('/soa-test/utilities_hub?property_id=26&property_id=27',headers=self.headers).status_code,400)
+        self.assertEqual(self.client.get('/soa-test/utilities_hub?property_id=26&billing_month=2026-19',headers=self.headers).status_code,400)

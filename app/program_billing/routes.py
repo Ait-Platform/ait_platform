@@ -3561,35 +3561,30 @@ def meter_exceptions(property_id):
 def utilities_hub():
     from app.models.billing import BilProperty
     from datetime import datetime
-    
-    properties = BilProperty.query.filter_by(manager_id=current_user.id).all()
-    current_month = datetime.now().strftime("%Y-%m")
-    
-    if request.method == "POST":
-        property_id = request.form.get("property_id")
-        month = request.form.get("billing_month")
-        action = request.form.get("action")
-        
-        if action=='setup':
-            if not property_id:
-                flash('Select a property before opening METSOA Setup.','warning')
-                return redirect(url_for('billing_bp.utilities_hub'))
-            from .metsoa_setup_safety import property_scope
-            selected_id=property_scope(property_id)
-            return redirect(url_for('billing_bp.setup_wizard',property_id=selected_id))
-
-        if not property_id or not month:
-            flash("Please select both a property and a month.", "warning")
-            return redirect(url_for("billing_bp.utilities_hub"))
-            
-        if action == "consumption":
-            return redirect(url_for("billing_bp.consumption_review", property_id=property_id, month=month))
-        elif action == "metsoa":
-            return redirect(url_for("billing_bp.metsoa", property_id=property_id, month=month))
-        elif action == "exceptions":
-            return redirect(url_for("billing_bp.exception_metsoa", property_id=property_id, month=month))
-
-    return render_template("program_billing/utilities_hub.html", properties=properties, current_month=current_month)
+    import re
+    from .metsoa_setup_safety import property_scope
+    values=request.form if request.method=='POST' else request.args
+    if len(values.getlist('property_id'))>1:abort(400)
+    property_id=values.get('property_id')
+    selected_property=None
+    if property_id:
+        property_id=property_scope(property_id)
+        selected_property=BilProperty.query.get_or_404(property_id)
+    properties=BilProperty.query.filter_by(manager_id=current_user.id).all() if not selected_property else []
+    month=values.get('billing_month') or datetime.now().strftime('%Y-%m')
+    if not re.fullmatch(r'\d{4}-(0[1-9]|1[0-2])',month):abort(400,description='Select a valid billing month.')
+    if request.method=='POST':
+        action=values.get('action')
+        if not selected_property:
+            flash('Select a property before opening Utilities.','warning')
+            return redirect(url_for('billing_bp.utilities_hub',billing_month=month))
+        targets={'readings':'property_hub','consumption':'consumption_review','metsoa':'metsoa','exceptions':'exception_metsoa','setup':'setup_wizard'}
+        if action not in targets:abort(400)
+        kwargs=dict(property_id=property_id)
+        if action in ('readings','setup'):kwargs['billing_month']=month
+        else:kwargs['month']=month
+        return redirect(url_for('billing_bp.'+targets[action],**kwargs))
+    return render_template('program_billing/utilities_hub.html',properties=properties,selected_property=selected_property,current_month=month)
 
 @billing_bp.route("/billing/utilities/<int:property_id>/consumption/<month>")
 @login_required

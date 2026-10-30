@@ -3026,6 +3026,15 @@ def municipal_accounts(property_id):
     from .municipal_accounts import page
     return page(property_id)
 
+@billing_bp.route('/billing/utilities/<int:property_id>/accounts/lookup',methods=['GET'])
+@login_required
+def municipal_account_lookup(property_id):
+    from .municipal_accounts import lookup
+    response=jsonify(lookup(property_id,request.args.get('account_number')))
+    response.headers['Cache-Control']='no-store'
+    response.vary.add('Cookie')
+    return response
+
 @billing_bp.route("/billing/utilities", methods=["GET", "POST"])
 @login_required
 def utilities_hub():

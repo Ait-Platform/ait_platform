@@ -17,6 +17,71 @@ def opening(meter):
     if not meter:return None
     return db.session.execute(text('SELECT id,reading_date,reading_value FROM bil_meter_reading WHERE meter_id=:m ORDER BY reading_date,id LIMIT 1'),dict(m=meter['id'])).mappings().first()
 
+def latest(meter):
+    if not meter:return None
+    return db.session.execute(text('SELECT reading_date,reading_value FROM bil_meter_reading WHERE meter_id=:m ORDER BY reading_date DESC,id DESC LIMIT 1'),dict(m=meter['id'])).mappings().first()
+
+def reading_detail(row):
+    return dict(value=str(row['reading_value']),date=row['reading_date'].isoformat()) if row else None
+
+def may_review_unassigned(account_id):
+    from flask_login import current_user
+    if getattr(current_user,'has_role',lambda role:False)('admin'):return True
+    # A shared owner name or knowledge of an account number is not proof of manager access.
+    links=db.session.execute(text('SELECT m.property_id,p.manager_id FROM bil_muni_account a JOIN bil_meter m ON m.id=a.water_meter_id OR m.id=a.elec_meter_id LEFT JOIN bil_property p ON p.id=m.property_id WHERE a.id=:id'),dict(id=account_id)).mappings().all()
+    known=[r for r in links if r['property_id'] is not None]
+    return bool(known) and all(r['manager_id']==current_user.id for r in known)
+
+def lookup(property_id,number):
+    from flask_login import current_user
+    property_scope(property_id)
+    number=str(number or '').strip()
+    if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9 ./_-]{0,49}',number):abort(400,description='Enter a valid municipal account number.')
+    matches=db.session.execute(text('SELECT a.id,a.property_id,p.manager_id FROM bil_muni_account a LEFT JOIN bil_property p ON p.id=a.property_id WHERE lower(btrim(a.account_number))=lower(:n) ORDER BY a.id LIMIT 21'),dict(n=number)).mappings().all()
+    if not matches:return dict(found=False,association='not_found',editable=True,message='No matching account found. Enter the new account and opening readings.')
+    results=[]
+    for match in matches:
+        association='selected_property' if match['property_id']==property_id else 'unassigned' if match['property_id'] is None else 'other_property'
+        allowed=match['manager_id']==current_user.id if match['property_id'] is not None else may_review_unassigned(match['id'])
+        item=dict(found=True,association=association,editable=False,details_available=bool(allowed))
+        if not allowed:
+            item['message']=('Unassigned historical account found. Details require verified manager ownership or existing administrator access. Property association must be verified before updates.' if association=='unassigned' else 'This account belongs to another property. Its details are restricted and it cannot be modified here.')
+            results.append(item);continue
+        account=dict(db.session.execute(text('SELECT a.*,o.name AS owner_name FROM bil_muni_account a LEFT JOIN ref_muni_owner o ON o.id=a.owner_id WHERE a.id=:id'),dict(id=match['id'])).mappings().one())
+        if association!='unassigned':
+            meters,issues=meters_for(account)
+            groups={kind:[meter] if meter else [] for kind,meter in meters.items()}
+        else:
+            groups={};issues=[]
+            for kind,pointer,types in [('water','water_meter_id',['water']),('electricity','elec_meter_id',['electricity','electrical'])]:
+                if account[pointer]:
+                    groups[kind]=[dict(r) for r in db.session.execute(text('SELECT * FROM bil_meter WHERE id=:id'),dict(id=account[pointer])).mappings()]
+                elif getattr(current_user,'has_role',lambda role:False)('admin'):
+                    groups[kind]=[dict(r) for r in db.session.execute(text('SELECT * FROM bil_meter WHERE municipal_bill_number=:n AND lower(utility_type)=ANY(:types) ORDER BY id'),dict(n=account['account_number'],types=types)).mappings()]
+                else:groups[kind]=[]
+                if len(groups[kind])>1:issues.append('Multiple '+kind+' meter matches; no meter was selected automatically.')
+            meters={kind:entries[0] if len(entries)==1 else None for kind,entries in groups.items()}
+        values={k:'' for k in FIELDS}
+        values.update(account_number=account['account_number'] or '',owner_name=account['owner_name'] or '')
+        records={}
+        for kind,declared in [('water','muni_water_meter_no'),('electricity','muni_elec_meter_no')]:
+            records[kind]=[dict(number=m['meter_number'],opening=reading_detail(opening(m)),latest=reading_detail(latest(m))) for m in groups[kind]]
+            meter=meters[kind];first=opening(meter)
+            values[kind+'_number']=meter['meter_number'] if meter else account[declared] or ''
+            values[kind+'_opening_reading']=str(first['reading_value']) if first else ''
+            values[kind+'_opening_date']=first['reading_date'].isoformat() if first else ''
+        item.update(account_id=account['id'],values=values,meters=records,owner_email=account['muni_email'] or '',owner_address=account['owner_address'] or '',issues=issues,editable=association=='selected_property' and not issues,version=token(account,meters) if association=='selected_property' else '')
+        item['message']={'selected_property':'Account belongs to the selected property. Existing details and recorded readings have been loaded.','other_property':'Account belongs to another property you manage. Review only; it cannot be edited from this property.','unassigned':'Unassigned historical account — review only. Explicit, verified property association is required before updates can be enabled.'}[association]
+        if issues:item['message']+=' '+' '.join(issues)
+        results.append(item)
+    current=[r for r in results if r['association']=='selected_property']
+    if len(current)==1:
+        result=current[0]
+        if len(results)>1:result['message']+=' Other records use this account number; only the selected property record is loaded.'
+        return result
+    if len(results)==1:return results[0]
+    return dict(found=True,association='ambiguous',editable=False,message='Multiple existing accounts match this number. No account was selected automatically; review the matching records before proceeding.',matches=results)
+
 def baseline(kind,form,meter):
     existing=opening(meter)
     reading=str(form.get(kind+'_opening_reading') or '').strip()
@@ -89,8 +154,8 @@ def save(property_id,form):
         db.session.execute(text('SELECT pg_advisory_xact_lock(:key)'),dict(key=lock))
     duplicate=db.session.execute(text('SELECT id FROM bil_muni_account WHERE property_id=:p AND lower(btrim(account_number))=lower(:n) AND (:id IS NULL OR id<>:id) LIMIT 1'),dict(p=property_id,n=data['account_number'],id=account_id)).first()
     if duplicate:abort(409,description='This municipal account number already exists for the selected property.')
-    if not account and db.session.execute(text('SELECT 1 FROM bil_muni_account WHERE property_id IS NULL AND lower(btrim(account_number))=lower(:n) LIMIT 1'),dict(n=data['account_number'])).first():
-        abort(409,description='An unassociated historical account already uses this number. Verify its property association before creating another account.')
+    if (not account or data['account_number']!=account['account_number']) and db.session.execute(text('SELECT 1 FROM bil_muni_account WHERE lower(btrim(account_number))=lower(:n) AND (:id IS NULL OR id<>:id) LIMIT 1'),dict(n=data['account_number'],id=account_id)).first():
+        abort(409,description='An existing account already uses this number. Review its verified property association instead of creating a duplicate or reassigning it.')
     if account and data['account_number']!=account['account_number']:
         if any(has_history(m) for m in meters.values() if m):abort(409,description='This account has meter history. Its historical account number cannot be changed through this page.')
         catalog=inspect(db.session.connection())
@@ -149,7 +214,7 @@ def page(property_id):
     prop=db.session.execute(text('SELECT id,name,address FROM bil_property WHERE id=:p'),dict(p=property_id)).mappings().one()
     month=request.values.get('billing_month') or datetime.now().strftime('%Y-%m')
     if not re.fullmatch(r'\d{4}-(0[1-9]|1[0-2])',month):abort(400)
-    error=None;status=200;values={k:'' for k in FIELDS};version='';account_id=None;established={'water':False,'electricity':False}
+    error=None;status=200;values={k:'' for k in FIELDS};version='';account_id=None;established={'water':False,'electricity':False};current_readings={}
     if request.method=='POST':
         values={k:request.form.get(k,'') for k in FIELDS};version=request.form.get('version','');account_id=request.form.get('account_id')
         try:
@@ -176,6 +241,7 @@ def page(property_id):
         for kind in ('water','electricity'):
             recorded=opening(meters[kind]);item[kind+'_opening_reading']=str(recorded['reading_value']) if recorded else ''
             item[kind+'_opening_date']=recorded['reading_date'].isoformat() if recorded else ''
+            recent=latest(meters[kind]);item[kind+'_latest_reading']=str(recent['reading_value']) if recent else '';item[kind+'_latest_date']=recent['reading_date'].isoformat() if recent else ''
             if str(account_id)==str(account['id']):established[kind]=bool(recorded)
         item['water_number']=meters['water']['meter_number'] if meters['water'] else account['muni_water_meter_no'] or ''
         item['electricity_number']=meters['electricity']['meter_number'] if meters['electricity'] else account['muni_elec_meter_no'] or ''
@@ -188,5 +254,6 @@ def page(property_id):
         meters,issues=meters_for(account);item=next(a for a in display if a['id']==account_id)
         values={k:item.get(k) or '' for k in FIELDS};version=token(account,meters)
         established={kind:bool(opening(meters[kind])) for kind in ('water','electricity')}
+        current_readings={kind:reading_detail(latest(meters[kind])) for kind in ('water','electricity')}
         if issues:error=' '.join(issues)
-    return render_template('program_billing/municipal_accounts.html',property=prop,accounts=display,values=values,version=version,account_id=account_id,error=error,utility_month=month,established=established,today=datetime.now(ZoneInfo('Africa/Johannesburg')).date().isoformat(),show_form=request.method=='POST' or bool(account_id) or request.args.get('view')!='list'),status
+    return render_template('program_billing/municipal_accounts.html',property=prop,accounts=display,values=values,version=version,account_id=account_id,error=error,utility_month=month,current_readings=current_readings,established=established,today=datetime.now(ZoneInfo('Africa/Johannesburg')).date().isoformat(),show_form=request.method=='POST' or bool(account_id) or request.args.get('view')!='list'),status

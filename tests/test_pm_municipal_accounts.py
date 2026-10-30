@@ -2,7 +2,7 @@
 from unittest.mock import patch
 from pathlib import Path
 from jinja2 import ChoiceLoader,DictLoader
-from sqlalchemy import text
+from sqlalchemy import text,event
 from lxml import html
 import test_pm_utilities_configuration as fixture
 
@@ -182,3 +182,72 @@ class MunicipalAccountsTests(fixture.UtilitiesConfigurationTests):
         self.assertEqual(result['consumption'],15.5);self.assertEqual(result['days'],29)
         baseline=self.session.execute(text('SELECT reading_value FROM bil_meter_reading WHERE meter_id=:m ORDER BY reading_date,id LIMIT 1'),dict(m=meter)).scalar()
         self.assertEqual(baseline,100.25)
+
+    def lookup(self,number,p=26):
+        return self.client.get('/billing/utilities/'+str(p)+'/accounts/lookup',query_string=dict(account_number=number),headers=self.headers)
+    def historical_account(self):
+        self.session.execute(text("INSERT INTO ref_muni_owner(id,name) VALUES(501,'Historical Owner')"))
+        self.session.execute(text("INSERT INTO bil_meter(id,meter_number,utility_type,municipal_bill_number,status) VALUES(2,'HIST-W','Water','HIST-ACCOUNT','active')"))
+        self.session.execute(text("INSERT INTO bil_muni_account(id,account_number,owner_id,water_meter_id,muni_email,owner_address) VALUES(90,'HIST-ACCOUNT',501,2,'owner@example.com','Recorded address')"))
+        self.session.execute(text("INSERT INTO bil_meter_reading(id,meter_id,reading_date,reading_value) VALUES(2000,2,'2020-01-01',10),(2001,2,'2026-10-01',45)"));self.session.commit();self.conn.commit()
+    def test_lookup_selected_property_populates_current_records_and_latest_not_opening(self):
+        self.session.execute(text("INSERT INTO bil_meter_reading(id,meter_id,reading_date,reading_value) VALUES(2000,1,'2026-10-01',456.75)"));self.session.commit();self.conn.commit()
+        before=self.snapshot();writes=[]
+        def record(conn,cursor,sql,params,context,many):
+            if sql.lstrip().lower().startswith(('insert ','update ','delete ')):writes.append(sql)
+        event.listen(self.conn,'before_cursor_execute',record)
+        try:response=self.lookup(' met-26 ')
+        finally:event.remove(self.conn,'before_cursor_execute',record)
+        self.assertEqual(response.status_code,200,response.text);self.assertIn('no-store',response.headers['Cache-Control'])
+        result=response.json;self.assertEqual(result['association'],'selected_property');self.assertTrue(result['editable'])
+        self.assertEqual(result['values']['account_number'],'MET-26');self.assertEqual(result['values']['water_number'],'WATER-26')
+        self.assertEqual(result['values']['water_opening_reading'],'123.0')
+        self.assertEqual(result['meters']['water'][0]['latest'],dict(value='456.75',date='2026-10-01'))
+        self.assertEqual(before,self.snapshot());self.assertFalse(writes)
+        page=self.client.get(self.accounts_url+'?edit=1',headers=self.headers)
+        self.assertIn('Latest recorded reading: 456.75',page.text)
+        data={k:result['values'][k] for k in result['values']};data.update(account_id=result['account_id'],version=result['version'],owner_name='Updated Owner')
+        self.assertEqual(self.post(data).status_code,302)
+        self.assertEqual(before['bil_meter_reading'],self.snapshot()['bil_meter_reading'])
+    def test_other_property_review_never_enables_cross_property_updates(self):
+        self.session.execute(text("INSERT INTO ref_muni_owner(id,name) VALUES(501,'Other managed owner')"))
+        self.session.execute(text("INSERT INTO bil_muni_account(id,property_id,account_number,owner_id,muni_water_meter_no) VALUES(90,27,'OTHER-MANAGED',501,'DECLARED-W')"));self.session.commit();self.conn.commit()
+        before=self.snapshot();result=self.lookup('OTHER-MANAGED').json
+        self.assertEqual(result['association'],'other_property');self.assertTrue(result['details_available']);self.assertFalse(result['editable'])
+        self.assertEqual(result['values']['owner_name'],'Other managed owner')
+        self.assertEqual(self.post(dict(account_id=90,account_number='OTHER-MANAGED',owner_name='Changed',water_number='DECLARED-W')).status_code,404)
+        self.assertEqual(self.post(dict(account_number='OTHER-MANAGED',owner_name='Duplicate',water_number='NEW-W')).status_code,409)
+        self.assertEqual(before,self.snapshot())
+    def test_unassigned_historical_review_is_explicitly_read_only_and_preserves_records(self):
+        self.historical_account();self.user.has_role=lambda role:role=='admin'
+        before=self.snapshot();result=self.lookup('HIST-ACCOUNT').json
+        self.assertEqual(result['association'],'unassigned');self.assertTrue(result['details_available']);self.assertFalse(result['editable'])
+        self.assertEqual(result['values']['owner_name'],'Historical Owner')
+        self.assertEqual(result['meters']['water'][0]['latest'],dict(value='45.0',date='2026-10-01'))
+        self.assertEqual(result['owner_email'],'owner@example.com');self.assertIn('verified property association',result['message'])
+        self.assertEqual(self.post(dict(account_id=90,account_number='HIST-ACCOUNT',owner_name='Historical Owner',water_number='HIST-W')).status_code,404)
+        self.assertEqual(self.post(dict(account_number='HIST-ACCOUNT',owner_name='Historical Owner',water_number='HIST-W')).status_code,409)
+        self.assertEqual(before,self.snapshot())
+    def test_unassigned_with_owned_pointer_can_be_reviewed_but_unknown_manager_is_restricted(self):
+        self.historical_account();result=self.lookup('HIST-ACCOUNT').json
+        self.assertFalse(result['details_available']);self.assertNotIn('Historical Owner',str(result))
+        self.session.execute(text('UPDATE bil_meter SET property_id=26 WHERE id=2'));self.session.commit()
+        result=self.lookup('HIST-ACCOUNT').json
+        self.assertTrue(result['details_available']);self.assertEqual(result['association'],'unassigned');self.assertFalse(result['editable'])
+        self.assertIsNone(self.session.execute(text('SELECT property_id FROM bil_muni_account WHERE id=90')).scalar())
+    def test_foreign_manager_details_and_lookup_urls_are_protected(self):
+        self.session.execute(text("INSERT INTO ref_muni_owner(id,name) VALUES(501,'PRIVATE OWNER')"))
+        self.session.execute(text("INSERT INTO bil_muni_account(id,property_id,account_number,owner_id) VALUES(90,28,'FOREIGN',501)"));self.session.commit();self.conn.commit()
+        response=self.lookup('FOREIGN');self.assertEqual(response.status_code,200)
+        self.assertEqual(response.json['association'],'other_property');self.assertFalse(response.json['details_available'])
+        self.assertNotIn('PRIVATE OWNER',response.text);self.assertNotIn('values',response.json)
+        self.assertEqual(self.lookup('FOREIGN',28).status_code,403)
+        self.assertEqual(self.client.get(self.accounts_url+'/lookup?account_number=MET-26').status_code,403)
+        self.assertEqual(self.lookup('<script>').status_code,400)
+    def test_unknown_account_can_be_created_and_missing_or_ambiguous_details_are_not_invented(self):
+        result=self.lookup('NEW-NUMBER').json;self.assertFalse(result['found']);self.assertTrue(result['editable'])
+        self.assertEqual(self.post(dict(account_number='NEW-NUMBER',owner_name='Owner',water_number='BRAND-NEW')).status_code,302)
+        self.historical_account();self.user.has_role=lambda role:role=='admin'
+        self.session.execute(text("INSERT INTO bil_muni_account(id,account_number) VALUES(91,'HIST-ACCOUNT')"));self.session.commit()
+        result=self.lookup('HIST-ACCOUNT').json;self.assertEqual(result['association'],'ambiguous');self.assertFalse(result['editable'])
+        self.assertEqual(len(result['matches']),2);self.assertEqual(result['matches'][1]['values']['owner_name'],'')

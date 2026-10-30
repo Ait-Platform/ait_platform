@@ -351,122 +351,25 @@ def edit_property(property_id):
 @billing_bp.route("/billing/property/<int:property_id>/input_readings", methods=["GET", "POST"])
 @login_required
 def property_hub(property_id):
-    prop = BilProperty.query.get_or_404(property_id)
-    if prop.manager_id != current_user.id and not current_user.has_role('admin'):
-        abort(403)
-        
-    all_meters = BilMeter.query.filter_by(property_id=property_id).all()
-        
-    # Also collect master meters by municipal account numbers
-    from app.models.billing import BilMuniAccount, BilMeter
-    muni_accounts = BilMuniAccount.query.filter_by(property_id=prop.id).all()
-    muni_acc_numbers = [acc.account_number for acc in muni_accounts if acc.account_number]
-    
-    if muni_acc_numbers:
-        muni_meters = BilMeter.query.filter(BilMeter.municipal_bill_number.in_(muni_acc_numbers)).all()
-        for m in muni_meters:
-            if m not in all_meters:
-                all_meters.append(m)
-                
-    # Also grab meters directly mapped by water_meter_id / elec_meter_id if any exist
-    for acc in muni_accounts:
-        if acc.water_meter and acc.water_meter not in all_meters:
-            all_meters.append(acc.water_meter)
-        if acc.elec_meter and acc.elec_meter not in all_meters:
-            all_meters.append(acc.elec_meter)
-        
+    from app.models.billing import BilProperty,BilMeter,BilMeterReading,BilConsumption
+    from .metsoa_setup_safety import property_scope
     from datetime import datetime
-    import calendar
-    
-
-    tenant_id = None
-    if units and units[0].tenants:
-        tenant_id = units[0].tenants[0].id
-
-    if request.method == "POST":
-        reading_month = request.form.get("reading_month")
-        if not reading_month:
-            flash("Reading month is required.", "danger")
-            return redirect(request.url)
-            
-        added_count = 0
-        for m in all_meters:
-            val_str = request.form.get(f"reading_{m.id}")
-            date_str = request.form.get(f"date_{m.id}")
-            
-            # Handle Baseline (Previous) Reading if submitted
-            prev_val_str = request.form.get(f"prev_reading_{m.id}")
-            prev_date_str = request.form.get(f"prev_date_{m.id}")
-            
-            # If the user provided a baseline, save it first
-            if prev_val_str and prev_val_str.strip() and prev_date_str and prev_date_str.strip():
-                prev_val = float(prev_val_str)
-                prev_date = datetime.strptime(prev_date_str, "%Y-%m-%d").date()
-                
-                # Create the baseline reading
-                baseline_read_obj = BilMeterReading(
-                    meter_id=m.id,
-                    reading_date=prev_date,
-                    reading_value=prev_val
-                )
-                db.session.add(baseline_read_obj)
-                db.session.flush() # Ensure it's available for the new reading logic below
-            
-            if val_str and val_str.strip() and date_str and date_str.strip():
-                new_val = float(val_str)
-                new_date = datetime.strptime(date_str, "%Y-%m-%d").date()
-                
-                # Fetch the latest reading before or equal to this new_date
-                last_reading = BilMeterReading.query.filter(
-                    BilMeterReading.meter_id == m.id,
-                    BilMeterReading.reading_date <= new_date # Allow same day if baseline was just added
-                ).order_by(BilMeterReading.reading_date.desc()).first()
-                
-                # Prevent duplicate entries on exact same day if it's the exact same value
-                if last_reading and last_reading.reading_date == new_date and last_reading.reading_value == new_val:
-                    continue
-                
-                # Create the new reading
-                new_read_obj = BilMeterReading(
-                    meter_id=m.id,
-                    reading_date=new_date,
-                    reading_value=new_val
-                )
-                db.session.add(new_read_obj)
-                
-                # If there is a previous reading, calculate consumption
-                if last_reading and last_reading.reading_date < new_date:
-                    days = (new_date - last_reading.reading_date).days
-                    if days > 0:
-                        consumption_val = new_val - last_reading.reading_value
-                        
-                        # Only save positive consumption (if meter rolled over or replaced, needs manual adjustment)
-                        if consumption_val >= 0:
-                            cons_obj = BilConsumption(
-                                meter_id=m.id,
-                                meter_number=m.meter_number,
-                                last_date=last_reading.reading_date,
-                                new_date=new_date,
-                                last_read=last_reading.reading_value,
-                                new_read=new_val,
-                                days=days,
-                                consumption=consumption_val,
-                                month=reading_month
-                            )
-                            db.session.add(cons_obj)
-                added_count += 1
-                
-        if added_count > 0:
-            db.session.commit()
-            flash(f"Successfully saved {added_count} meter reading(s) for {reading_month}!", "success")
-            
-            # Redirect to the Property Hub
-            return redirect(url_for('billing_bp.property_hub', property_id=property_id))
-        else:
-            flash("No readings were entered.", "warning")
-            
-        return redirect(url_for('billing_bp.property_hub', property_id=property_id))
-        
+    import calendar,re
+    property_scope(property_id)
+    prop=BilProperty.query.get_or_404(property_id)
+    all_meters=BilMeter.query.filter_by(property_id=property_id).all()
+    tenant_id=None
+    if request.method=='POST':
+        from .utilities_readings import save
+        from werkzeug.exceptions import HTTPException
+        try:
+            for meter in all_meters:
+                if request.form.get('reading_'+str(meter.id)) not in (None,''):
+                    save(dict(meter_id=meter.id,property_id=property_id,reading_month=request.form.get('reading_month'),date=request.form.get('date_'+str(meter.id)),reading=request.form.get('reading_'+str(meter.id)),prev_reading=request.form.get('prev_reading_'+str(meter.id)),prev_date=request.form.get('prev_date_'+str(meter.id))))
+            db.session.commit();flash('Readings saved.','success')
+        except HTTPException as exc:
+            db.session.rollback();flash(exc.description,'danger')
+        return redirect(url_for('billing_bp.property_hub',property_id=property_id,billing_month=request.form.get('reading_month')))
     # GET: Prepare data for template
     passed_date = request.args.get('date')
     if passed_date:
@@ -482,6 +385,11 @@ def property_hub(property_id):
         current_date = datetime.now().strftime("%Y-%m-%d")
         current_month = datetime.now().strftime("%Y-%m")
         
+    selected_month=request.args.get('billing_month')
+    if selected_month:
+        if not re.fullmatch(r'\d{4}-(0[1-9]|1[0-2])',selected_month):abort(400)
+        current_month=selected_month
+        current_date=selected_month+'-'+str(calendar.monthrange(int(selected_month[:4]),int(selected_month[5:]))[1])
     meters_data = []
     for m in all_meters:
         # Determine hierarchy
@@ -3462,97 +3370,17 @@ def architecture_summary(property_id):
 @billing_bp.route("/api/save_reading", methods=["POST"])
 @login_required
 def save_reading():
-    from app.models import BilMeter, BilConsumption
-    data = request.json
-    meter_id = data.get("meter_id")
-    reading_month = data.get("reading_month")
-    
-    if not meter_id or not reading_month:
-        return {"success": False, "error": "Missing meter_id or reading_month"}, 400
-        
-    m = BilMeter.query.get(meter_id)
-    if not m:
-        return {"success": False, "error": "Meter not found"}, 404
-        
-    if data.get("estimated_consumption") is not None:
-        est_cons = float(data.get("estimated_consumption"))
-        date_str = data.get("date")
-        from datetime import datetime
-        new_date = datetime.strptime(date_str, "%Y-%m-%d").date()
-        
-        BilConsumption.query.filter_by(meter_id=m.id, month=reading_month).delete()
-        
-        cons_obj = BilConsumption(
-            meter_id=m.id,
-            meter_number=m.meter_number,
-            last_date=new_date,
-            new_date=new_date,
-            last_read=0,
-            new_read=0,
-            days=30,
-            consumption=est_cons,
-            month=reading_month
-        )
-        from app.extensions import db
-        db.session.add(cons_obj)
-        db.session.commit()
-        return {"success": True, "message": "Saved"}
-        
-    # Standard reading save logic
-    from datetime import datetime
-    new_date = datetime.strptime(data.get("date"), "%Y-%m-%d").date()
-    new_reading = float(data.get("reading"))
-    
-    BilConsumption.query.filter_by(meter_id=m.id, month=reading_month).delete()
-    
-    prev_reading = data.get("prev_reading")
-    prev_date_str = data.get("prev_date")
-    
-    if prev_reading is not None and prev_reading != "":
-        prev_reading = float(prev_reading)
-        if prev_date_str:
-            prev_date = datetime.strptime(prev_date_str, "%Y-%m-%d").date()
-        else:
-            from dateutil.relativedelta import relativedelta
-            prev_date = new_date - relativedelta(days=30)
-    else:
-        # Query the database for the most recent reading before new_date
-        from app.models.billing import BilMeterReading
-        last_r = BilMeterReading.query.filter(
-            BilMeterReading.meter_id == m.id,
-            BilMeterReading.reading_date < new_date
-        ).order_by(BilMeterReading.reading_date.desc()).first()
-        
-        if last_r:
-            prev_reading = last_r.reading_value
-            prev_date = last_r.reading_date
-        else:
-            prev_reading = 0
-            from dateutil.relativedelta import relativedelta
-            prev_date = new_date - relativedelta(days=30)
-        
-    days = (new_date - prev_date).days
-    if days == 0: days = 30
-    
-    cons_val = new_reading - prev_reading
-    if cons_val < 0: cons_val = 0
-    
-    cons_obj = BilConsumption(
-        meter_id=m.id,
-        meter_number=m.meter_number,
-        last_date=prev_date,
-        new_date=new_date,
-        last_read=prev_reading,
-        new_read=new_reading,
-        days=days,
-        consumption=cons_val,
-        month=reading_month
-    )
-    
+    from .utilities_readings import save
     from app.extensions import db
-    db.session.add(cons_obj)
-    db.session.commit()
-    return {"success": True, "message": "Saved"}
+    from werkzeug.exceptions import HTTPException
+    try:
+        result=save(request.get_json(silent=True));db.session.commit()
+        return result
+    except HTTPException as exc:
+        db.session.rollback();return dict(success=False,error=exc.description),exc.code
+    except Exception:
+        db.session.rollback();current_app.logger.exception('Utilities reading could not be saved')
+        return dict(success=False,error='Reading could not be saved. No history was changed.'),503
 
 
 @billing_bp.route("/meter_exceptions/<int:property_id>", methods=["GET"])

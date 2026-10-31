@@ -133,6 +133,13 @@ def token(account,meters):
 def has_history(meter):
     return db.session.execute(text('SELECT EXISTS(SELECT 1 FROM bil_meter_reading WHERE meter_id=:m) OR EXISTS(SELECT 1 FROM bil_consumption WHERE meter_id=:m)'),dict(m=meter['id'])).scalar()
 
+def registered_owners(property_id):
+    catalog=inspect(db.session.connection())
+    if not catalog.has_table('bil_property_ownership') or not catalog.has_table('bil_owner_identity'):return []
+    return [dict(r) for r in db.session.execute(text("""SELECT DISTINCT o.id,o.display_name AS name FROM bil_property_ownership a JOIN bil_owner_identity o ON o.id=a.owner_id
+        WHERE a.property_id=:p AND NOT EXISTS(SELECT 1 FROM bil_property_ownership newer WHERE newer.supersedes_id=a.id)
+        AND (a.effective_to IS NULL OR a.effective_to>CURRENT_DATE) AND (a.effective_from IS NULL OR a.effective_from<=CURRENT_DATE) ORDER BY o.display_name,o.id"""),dict(p=property_id)).mappings()]
+
 def clean(form):
     data={k:str(form.get(k) or '').strip() for k in FIELDS}
     if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9 ./_-]{0,49}',data['account_number']):abort(400,description='Enter a municipal account number of 1–50 letters, digits, spaces, dots, slashes or hyphens.')
@@ -170,6 +177,8 @@ def save(property_id,form):
         if matches:account=matches[0];account_id=account['id']
     if account and (account['account_number'] or '').strip().casefold()==data['account_number'].casefold():
         data['account_number']=account['account_number']
+    if data['owner_name'] not in {o['name'] for o in registered_owners(property_id)} and not (account and data['owner_name']==account.get('owner_name')):
+        abort(400,description='Select a registered owner of this property. Register the owner in Property & Owner first.')
     meters,issues=meters_for(account) if account else ({'water':None,'electricity':None},[])
     if issues:abort(409,description=' '.join(issues))
     if account and form.get('version')!=token(account,meters):abort(409,description='This account changed after the form was opened. Reopen Edit before saving; your entered values remain below.')
@@ -282,4 +291,4 @@ def page(property_id):
         established={kind:bool(opening(meters[kind])) for kind in ('water','electricity')}
         current_readings={kind:reading_detail(latest(meters[kind])) for kind in ('water','electricity')}
         if issues:error=' '.join(issues)
-    return render_template('program_billing/municipal_accounts.html',property=prop,accounts=display,values=values,version=version,account_id=account_id,error=error,utility_month=month,current_readings=current_readings,established=established,today=datetime.now(ZoneInfo('Africa/Johannesburg')).date().isoformat(),show_form=request.method=='POST' or bool(account_id) or request.args.get('view')!='list'),status
+    return render_template('program_billing/municipal_accounts.html',property=prop,accounts=display,owners=registered_owners(property_id),values=values,version=version,account_id=account_id,error=error,utility_month=month,current_readings=current_readings,established=established,today=datetime.now(ZoneInfo('Africa/Johannesburg')).date().isoformat(),show_form=request.method=='POST' or bool(account_id) or request.args.get('view')!='list'),status

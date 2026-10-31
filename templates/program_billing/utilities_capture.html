@@ -1,0 +1,38 @@
+{% extends 'layout.html' %}
+{% block title %}{{ 'Meter Readings' if kind=='readings' else 'Metro Reconciliation' }}{% endblock %}
+{% block flashes %}{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-6xl px-4 py-10"><div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow"><div class="h-2 bg-green-500"></div><div class="p-6">
+{% include 'partials/flash_messages.html' %}
+<div class="flex items-center justify-between gap-3"><h1 class="text-2xl font-semibold">{{ 'Meter Readings' if kind=='readings' else 'Metro Reconciliation' }}</h1><a href="{{ url_for('billing_bp.utilities_hub',property_id=property.id) }}" class="rounded-lg bg-slate-100 px-4 py-2">Back to Utilities</a></div>
+{% include 'program_billing/municipal_navigation.html' %}
+<h2 class="text-lg font-semibold">{{ property.name }}</h2>
+{% if error %}<p role="alert" class="my-3 rounded-lg bg-red-50 p-3 text-red-800">{{ error }}</p>{% endif %}
+<form method="POST" class="mt-4 space-y-4">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="record_id" value="{{ edit_id or '' }}"><input type="hidden" name="version" value="{{ version }}">
+<div class="grid grid-cols-1 gap-4 md:grid-cols-3">
+{% if kind=='readings' %}
+<div><label for="reading_date" class="block font-semibold">Date</label><input id="reading_date" name="reading_date" type="date" min="1900-01-01" max="{{ today }}" required autofocus value="{{ values.get('reading_date',today) }}" class="w-full rounded-lg border border-slate-300 px-3 py-2"></div>
+<div><label for="meter_id" class="block font-semibold">Meter</label><select id="meter_id" name="meter_id" required class="w-full rounded-lg border border-slate-300 px-3 py-2"><option value="">Select meter</option>{% for meter in meters %}{% if not edit_id or values.get('meter_id')|string==meter.id|string %}<option value="{{ meter.id }}" data-unit="{{ 'kL' if meter.utility_type|lower=='water' else 'kWh' }}" {% if values.get('meter_id')|string==meter.id|string %}selected{% endif %}>{{ meter.meter_number }}</option>{% endif %}{% endfor %}</select></div>
+<div><label for="reading_value" class="block font-semibold">Reading <span id="reading-unit"></span></label><input id="reading_value" name="reading_value" type="number" min="0" step="any" required value="{{ values.get('reading_value','') }}" class="w-full rounded-lg border border-slate-300 px-3 py-2"></div>
+{% else %}
+<div><label for="statement_date" class="block font-semibold">Statement date</label><input id="statement_date" name="statement_date" type="date" min="1900-01-01" required autofocus value="{{ values.get('statement_date',today) }}" class="w-full rounded-lg border border-slate-300 px-3 py-2"></div>
+<div><label for="account_id" class="block font-semibold">Municipal Account</label><select id="account_id" name="account_id" required class="w-full rounded-lg border border-slate-300 px-3 py-2"><option value="">Select account</option>{% for account in accounts %}{% if not edit_id or values.get('account_id')|string==account.id|string %}<option value="{{ account.id }}" {% if values.get('account_id')|string==account.id|string %}selected{% endif %}>{{ account.account_number }}</option>{% endif %}{% endfor %}</select></div>
+{% for key,label in [('arrears','Arrears'),('balance','Balance'),('due','Due')] %}<div><label for="{{ key }}" class="block font-semibold">{{ label }} (ZAR)</label><input id="{{ key }}" name="{{ key }}" type="number" step="0.01" required value="{{ values.get(key,'') }}" class="w-full rounded-lg border border-slate-300 px-3 py-2"></div>{% endfor %}
+<div><label for="due_date" class="block font-semibold">Due date</label><input id="due_date" name="due_date" type="date" min="1900-01-01" required value="{{ values.get('due_date','') }}" class="w-full rounded-lg border border-slate-300 px-3 py-2"></div>
+{% endif %}</div>
+<div class="flex justify-end gap-2"><a href="{{ url_for('billing_bp.meter_readings' if kind=='readings' else 'billing_bp.metro_reconciliation',property_id=property.id) }}" class="rounded-lg bg-red-100 px-4 py-2">Cancel</a><button class="rounded-lg bg-green-100 px-4 py-2 font-semibold" type="submit">Save</button></div>
+</form>
+{% if kind!='readings' %}<p class="mt-4 text-sm text-slate-600">Paid uses municipal payments allocated to this account and billing month only. If that allocation is unavailable, Paid is unavailable. Tenant ledger and property-wide payments are excluded.</p>{% endif %}
+<div class="mt-6 overflow-x-auto" tabindex="0" role="region" aria-label="{{ 'Meter readings' if kind=='readings' else 'Municipal statements' }}"><table class="w-full text-left text-sm"><thead class="bg-slate-50"><tr>{% for label in (['Date','Meter','Reading','Action'] if kind=='readings' else ['Date','Account','Arrears','Balance','Due','Paid','Action']) %}<th scope="col" class="whitespace-nowrap p-3">{{ label }}</th>{% endfor %}</tr></thead><tbody>
+{% for row in rows %}<tr class="border-t"><td class="whitespace-nowrap p-3">{{ row.reading_date if kind=='readings' else row.statement_date }}</td>
+{% if kind=='readings' %}<td class="p-3">{{ row.meter_number }}</td><td class="whitespace-nowrap p-3">{{ row.reading_value }} {{ 'kL' if row.utility_type|lower=='water' else 'kWh' }}</td>{% else %}<td class="p-3">{{ row.account_number }}</td>{% for key in ['arrears','balance','due'] %}<td class="whitespace-nowrap p-3">R{{ '{:,.2f}'.format(row[key]) }}</td>{% endfor %}<td class="whitespace-nowrap p-3">{{ 'R{:,.2f}'.format(row.paid) if row.paid is not none else 'Unavailable' }}</td>{% endif %}
+<td class="p-3"><a class="inline-flex rounded-lg bg-yellow-100 px-3 py-2 font-semibold" href="{{ url_for('billing_bp.meter_readings' if kind=='readings' else 'billing_bp.metro_reconciliation',property_id=property.id,edit=row.id) }}">Edit</a></td></tr>{% else %}<tr><td colspan="{{ 4 if kind=='readings' else 7 }}" class="p-4 text-slate-600">No {{ 'readings' if kind=='readings' else 'statements' }} recorded.</td></tr>{% endfor %}
+</tbody></table></div>
+</div></div></div>
+{% if kind=='readings' %}<script>
+const meterSelect=document.getElementById('meter_id');
+function showUnit(){document.getElementById('reading-unit').textContent=meterSelect.selectedOptions[0]?.dataset.unit || '';}
+meterSelect.addEventListener('change',showUnit);showUnit();
+</script>{% endif %}
+{% endblock %}

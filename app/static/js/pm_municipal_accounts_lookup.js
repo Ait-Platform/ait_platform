@@ -13,7 +13,7 @@
   const groups=Array.from(form.querySelectorAll('[data-meter-baseline]'));
   function lock(locked) {
     for (const button of saveButtons) button.disabled=locked;
-    for (const id of ['owner_name','water_number','electricity_number']) document.getElementById(id).readOnly=locked;
+    for (const id of ['owner_name','water_number','electricity_number']) { const field=document.getElementById(id);field.readOnly=locked;if(field.tagName==='SELECT') field.disabled=locked; }
     for (const group of groups) {
       const kind=group.dataset.meterBaseline;
       for (const suffix of ['opening_reading','opening_date']) {
@@ -77,7 +77,7 @@
       if (result.details_available) {
         number.value=result.values.account_number;
         for (const [key,value] of Object.entries(result.values)) {
-          const field=document.getElementById(key);if (field && key!=='account_number') field.value=value || '';
+          const field=document.getElementById(key);if (field && key!=='account_number') { if(key==='owner_name' && field.tagName==='SELECT' && value && !Array.from(field.options).some(option=>option.value===value)) { const option=document.createElement('option');option.value=value;option.textContent=value+' — existing account owner';field.appendChild(option); } field.value=value || ''; }
         }
         for (const group of groups) {
           const kind=group.dataset.meterBaseline;const meters=result.meters[kind] || [];

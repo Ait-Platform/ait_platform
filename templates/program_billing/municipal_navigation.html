@@ -1,0 +1,3 @@
+<nav aria-label="Municipal Utilities" class="my-4 flex flex-wrap justify-end gap-2">
+{% for endpoint,label in [('municipal_accounts','Municipal Accounts'),('meter_readings','Meter Readings'),('metro_reconciliation','Metro Reconciliation')] %}<a href="{{ url_for('billing_bp.'+endpoint,property_id=property.id) }}" {% if request.endpoint=='billing_bp.'+endpoint %}aria-current="page"{% endif %} class="rounded-lg bg-blue-100 px-4 py-2 font-semibold">{{ label }}</a>{% endfor %}
+</nav>

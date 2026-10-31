@@ -6,6 +6,7 @@
 {% include 'partials/flash_messages.html' %}
 <div class="flex items-center justify-between gap-3"><h1 class="text-2xl font-semibold">Municipal Accounts</h1><a href="{{ url_for('billing_bp.utilities_hub',property_id=property.id,billing_month=utility_month) }}" class="rounded-lg bg-slate-100 px-4 py-2">Back to Utilities</a></div>
 <div class="my-4 flex justify-end"><a href="{{ url_for('billing_bp.municipal_accounts',property_id=property.id,billing_month=utility_month) }}" class="rounded-lg bg-blue-100 px-4 py-2 font-semibold">Add Municipal Account</a></div>
+{% include 'program_billing/municipal_navigation.html' %}
 <h2 class="text-lg font-semibold">{{ property.name }}</h2><p class="break-words text-slate-600">{{ property.address or '' }}</p>
 {% if show_form %}
 <h2 class="text-lg font-semibold">{{ 'Edit Municipal Account' if account_id else 'New Municipal Account' }}</h2>
@@ -13,9 +14,11 @@
 <form id="municipal-account-form" data-lookup-url="{{ url_for('billing_bp.municipal_account_lookup',property_id=property.id) }}" data-existing-account="{{ 'yes' if account_id else 'no' }}" method="POST" action="{{ url_for('billing_bp.municipal_accounts',property_id=property.id) }}" class="mt-4 space-y-4">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="billing_month" value="{{ utility_month }}"><input type="hidden" name="account_id" value="{{ account_id or '' }}"><input type="hidden" name="version" value="{{ version }}">
 <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-{% for key,label,required,maxlength in [('account_number','Municipal account number',true,50),('owner_name','Account owner',true,100)] %}
+{% for key,label,required,maxlength in [('account_number','Municipal account number',true,50)] %}
 <div><label for="{{ key }}" class="mb-2 block font-semibold">{{ label }}</label><input id="{{ key }}" name="{{ key }}" value="{{ values[key] }}" maxlength="{{ maxlength }}" {% if required %}required{% endif %} {% if loop.first %}autofocus{% endif %} class="w-full rounded-lg border border-slate-300 px-3 py-2"></div>
-{% endfor %}</div>
+{% endfor %}
+<div><label for="owner_name" class="mb-2 block font-semibold">Account Owner</label><select id="owner_name" name="owner_name" required class="w-full rounded-lg border border-slate-300 px-3 py-2"><option value="">Select registered owner</option>{% if values.owner_name and values.owner_name not in owners|map(attribute='name')|list %}<option value="{{ values.owner_name }}" selected>{{ values.owner_name }} — existing account owner</option>{% endif %}{% for owner in owners %}<option value="{{ owner.name }}" {% if values.owner_name==owner.name %}selected{% endif %}>{{ owner.name }}</option>{% endfor %}</select></div>
+</div>
 <div class="rounded-lg bg-slate-50 p-3"><p id="account-lookup-status" role="status" aria-live="polite">Enter the municipal account number to load saved details.</p><button id="account-lookup-retry" type="button" hidden class="mt-2 rounded-lg bg-yellow-100 px-3 py-2">Retry Lookup</button><div id="account-lookup-details" class="mt-2 space-y-2 text-sm"></div>
 </div>
 {% for kind,label,unit in [('water','Water','kL'),('electricity','Electricity','kWh')] %}
@@ -31,8 +34,8 @@
 <div class="flex justify-end gap-2"><a href="{{ url_for('billing_bp.municipal_accounts',property_id=property.id,billing_month=utility_month) }}" class="rounded-lg bg-red-100 px-4 py-2">Cancel</a><button type="submit" name="save_action" value="finish" class="rounded-lg bg-green-100 px-4 py-2 font-semibold">Save</button></div>
 </form>
 {% endif %}
-<div class="mt-6 overflow-x-auto" role="region" aria-label="Municipal accounts" tabindex="0"><table class="w-full text-left text-sm"><thead class="bg-slate-50"><tr>{% for label in ['Municipal Account','Account Owner','Water Meter','Latest Reading','Date','Electricity Meter','Latest Reading','Date','Actions'] %}<th scope="col" class="whitespace-nowrap p-3">{{ label }}</th>{% endfor %}</tr></thead><tbody>
-{% for account in accounts %}<tr class="border-t"><td class="p-3">{{ account.account_number }}{% for issue in account.issues %}<p class="mt-1 text-sm text-amber-900">{{ issue }}</p>{% endfor %}</td><td class="p-3">{{ account.owner_name or '' }}</td>{% for kind,unit in [('water','kL'),('electricity','kWh')] %}<td class="whitespace-nowrap p-3">{{ account[kind+'_number'] }}</td><td class="whitespace-nowrap p-3">{% if account[kind+'_latest_date'] %}{{ account[kind+'_latest_reading'] }} {{ unit }}{% endif %}</td><td class="whitespace-nowrap p-3">{{ account[kind+'_latest_date'] or '' }}</td>{% endfor %}<td class="p-3"><a href="{{ url_for('billing_bp.municipal_accounts',property_id=property.id,edit=account.id,billing_month=utility_month) }}" class="inline-flex rounded-lg bg-yellow-100 px-3 py-2 font-semibold">{{ 'View' if account.issues else 'Edit' }}</a></td></tr>{% else %}<tr><td colspan="9" class="p-4 text-slate-600">No municipal accounts recorded for this property.</td></tr>{% endfor %}
+<div class="mt-6 overflow-x-auto" role="region" aria-label="Municipal accounts" tabindex="0"><table class="w-full text-left text-sm"><thead class="bg-slate-50"><tr>{% for label in ['Municipal Account','Account Owner','Water Meter','Electricity Meter','Action'] %}<th scope="col" class="whitespace-nowrap p-3">{{ label }}</th>{% endfor %}</tr></thead><tbody>
+{% for account in accounts %}<tr class="border-t"><td class="p-3">{{ account.account_number }}{% for issue in account.issues %}<p class="mt-1 text-sm text-amber-900">{{ issue }}</p>{% endfor %}</td><td class="p-3">{{ account.owner_name or '' }}</td>{% for kind,unit in [('water','kL'),('electricity','kWh')] %}<td class="whitespace-nowrap p-3">{{ account[kind+'_number'] }}</td>{% endfor %}<td class="p-3"><a href="{{ url_for('billing_bp.municipal_accounts',property_id=property.id,edit=account.id,billing_month=utility_month) }}" class="inline-flex rounded-lg bg-yellow-100 px-3 py-2 font-semibold">{{ 'View' if account.issues else 'Edit' }}</a></td></tr>{% else %}<tr><td colspan="5" class="p-4 text-slate-600">No municipal accounts recorded for this property.</td></tr>{% endfor %}
 </tbody></table></div>
 </div></div></div>
 <script>

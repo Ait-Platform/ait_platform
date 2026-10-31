@@ -3026,6 +3026,18 @@ def municipal_accounts(property_id):
     from .municipal_accounts import page
     return page(property_id)
 
+@billing_bp.route('/billing/utilities/<int:property_id>/meter-readings',methods=['GET','POST'])
+@login_required
+def meter_readings(property_id):
+    from .utilities_capture import page
+    return page(property_id,'readings')
+
+@billing_bp.route('/billing/utilities/<int:property_id>/metro-reconciliation',methods=['GET','POST'])
+@login_required
+def metro_reconciliation(property_id):
+    from .utilities_capture import page
+    return page(property_id,'statements')
+
 @billing_bp.route('/billing/utilities/<int:property_id>/accounts/associate',methods=['POST'])
 @login_required
 def municipal_account_associate(property_id):

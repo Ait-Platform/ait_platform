@@ -1,10 +1,10 @@
 # Original tariff METSOA reconnection
 
-The existing PM Generate METSOA URL remains /billing/utilities/<property_id>/generate-metsoa?billing_month=YYYY-MM. Add &format=pdf for an inline PDF generated from the same original metsoa.html template. Property access and the PM token-free policy are unchanged. Legacy statement/token routes are unchanged.
+The existing PM Generate METSOA URL remains /billing/utilities/<property_id>/generate-metsoa?billing_month=YYYY-MM. Add &format=pdf for an inline PDF generated from the same original metsoa.html template. The Utilities navigation has an adjacent YYYY-MM billing-month input. It defaults to the current South African month through the existing page context, supports historical periods and submits the property-specific Generate METSOA route using GET. Property access and the PM token-free policy are unchanged. Legacy statement/token routes are unchanged.
 
 ## Sources
 
-The PM adapter reads registered property meters and municipal account pointers, canonical bil_meter_reading pairs, bil_tariff and recorded municipal owner names. It does not read Metro Reconciliation statement figures or payments, and never reads/writes historical bil_consumption for generation. It never invokes generate_consumption_records_from_readings or any posting function.
+The PM adapter reads registered property meters and municipal account pointers, canonical bil_meter_reading pairs, bil_tariff and verified registered tenant associations for the statement recipient. It does not read Metro Reconciliation statement figures or payments, and never reads/writes historical bil_consumption for generation. It never invokes generate_consumption_records_from_readings or any posting function.
 
 Existing build_electrical_rows, build_water_rows and water/sanitation detail builders accept optional scoped in-memory records and explicit tariffs. Their legacy callers keep their original defaults. PM uses Decimal values and effective database records; the confirmed recurring surcharge rule is used; no unverified water-loss, management or refuse fallback is used. The original electricity summary, water summary, side-by-side water/sanitation band details and final-total position are retained. PM rates are printed without the original one-decimal water-rate rounding. Missing inputs produce a prominent INCOMPLETE marker and withhold the final amount due; any displayed figures are confirmed components only. Summary and tariff details print on separate pages.
 
@@ -27,3 +27,11 @@ The current owner reports ANG489 consumption of 184 kL. Generation still require
 Isolated PostgreSQL tests use the owner-reported rates/dates and explicitly seeded test band metadata. They verify consumption 31 kL, 1 kL, 15 kWh and 547 kWh, effective-date selection, ambiguity/missing rates, original calculation defaults, read-only repeated generation, unchanged token/property restrictions, and exclusion of all reconciliation figures. A local original-template PDF is generated through Playwright, parsed with pypdf and rendered with PyMuPDF for visual inspection. These are test records, not a live Almond financial statement.
 
 No migration is required. No production records or tariffs were changed. After Render deploys, review /billing/utilities/26/generate-metsoa?billing_month=2026-10 and resolve only the specifically reported missing inputs through the appropriate authorised data workflow. No final live amount is certified by local tests.
+
+## METSOA recipient
+
+Municipal account ownership is not the statement recipient. The PM renderer reuses the existing read-only property/manager-scoped tenant retrieval, including direct register links, legacy lease links and saved Lease Kit tenant IDs. It displays the registered tenant name and email, never a municipal owner name or a draft name substituted by name matching. No account owner, tenant, lease or ledger record is changed.
+
+A single current verified candidate can be selected automatically. Multiple candidates require explicit tenant selection. Historical billing months require explicit selection because a current property link alone does not establish historical occupancy. A superseded draft-only association is not automatically assumed current. The selected registered tenant ID is validated against the authorised property's candidates and retained in the generated PDF URL. Missing tenant associations or unverifiable register ownership are reported on the statement. A missing email is displayed as Not provided.
+
+No recipient settings table or migration is needed: this is a validated statement-view selection. Live recipient associations were not inspected during implementation. If Almond has no reliable registered tenant link, confirm the existing register/property or saved lease association through its existing workflow; no association is manufactured by generation.

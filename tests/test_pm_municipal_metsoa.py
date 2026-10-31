@@ -6,7 +6,7 @@ from sqlalchemy import text,event
 from lxml import html
 import test_pm_utilities_capture as fixture
 class MunicipalMetsoaTests(fixture.UtilitiesCaptureTests):
-    generation_url='/billing/utilities/26/generate-metsoa?billing_month=2026-10'
+    generation_url='/billing/utilities/26/generate-metsoa?billing_month=2026-10&recipient_id=11'
     def setUp(self):
         super().setUp()
         self.app.add_url_rule('/test-checkout/<month>',endpoint='billing_bp.billing_checkout',view_func=lambda **kw:'Existing checkout')
@@ -27,6 +27,7 @@ class MunicipalMetsoaTests(fixture.UtilitiesCaptureTests):
         for meter,day,value in [(1,'2026-10-23',31),(1,'2026-11-23',9999),(2,'2026-09-11',614),(2,'2026-10-11',615),(3,'2026-08-26',49577),(3,'2026-10-26',49592),(4,'2026-08-26',30025),(4,'2026-10-26',30572),(5,'2026-10-25',20)]:
             self.session.execute(text('INSERT INTO bil_meter_reading(meter_id,reading_date,reading_value) VALUES(:m,:d,:v)'),dict(m=meter,d=day,v=value))
         self.session.execute(text("INSERT INTO bil_municipal_statement(account_id,period,statement_date,arrears,balance,due,due_date) VALUES(1,'2026-10','2026-10-28',7043.55,7190.88,7190.88,'2026-11-07')"));self.session.commit();self.conn.commit()
+        self.session.execute(text('UPDATE bil_tenant SET property_id=NULL WHERE id=44'));self.session.commit();self.conn.commit()
         self.seed_tariffs_and_builders()
     def seed_tariffs_and_builders(self):
         import test_pm_lease_lessee_persistence as loader
@@ -46,7 +47,7 @@ class MunicipalMetsoaTests(fixture.UtilitiesCaptureTests):
         def record(conn,cursor,sql,params,context,many):queries.append(sql.lower())
         event.listen(self.conn,'before_cursor_execute',record)
         try:
-            with self.app.test_request_context():data=self.metsoa.build(26,'2026-10')
+            with self.app.test_request_context():data=self.metsoa.build(26,'2026-10',recipient_id=11)
             page=self.client.get(self.generation_url,headers=self.headers);self.assertEqual(page.status_code,200,page.text)
             self.assertEqual(self.client.get(self.generation_url,headers=self.headers).status_code,200)
         finally:event.remove(self.conn,'before_cursor_execute',record)
@@ -63,18 +64,18 @@ class MunicipalMetsoaTests(fixture.UtilitiesCaptureTests):
     def test_valid_explicit_surcharges_and_second_reading_enable_final_amount(self):
         self.session.execute(text("INSERT INTO bil_tariff(utility_type,code,description,rate,unit,effective_date) VALUES('water','WSSurcharge','Recorded water surcharge',1.48,'R/kL','2026-06-05'),('sewerage','SDSurcharge','Recorded sewerage surcharge',1.48,'R/kL','2026-06-05')"))
         self.session.execute(text("INSERT INTO bil_meter_reading(meter_id,reading_date,reading_value) VALUES(5,'2026-09-25',10)"));self.session.commit();self.conn.commit()
-        with self.app.test_request_context():data=self.metsoa.build(26,'2026-10')
+        with self.app.test_request_context():data=self.metsoa.build(26,'2026-10',recipient_id=11)
         self.assertTrue(data['pm_complete'],data['pm_issues'])
         page=self.client.get(self.generation_url,headers=self.headers);self.assertNotIn('NOT A FINAL AMOUNT DUE',page.text);self.assertIn('Amount Due R',page.text)
     def test_effective_rates_ignore_future_records_and_detect_ambiguous_or_missing(self):
         self.session.execute(text("INSERT INTO bil_tariff(utility_type,code,rate,effective_date) VALUES('electricity','ELEC01',99,'2027-01-01')"));self.session.commit();self.conn.commit()
-        with self.app.test_request_context():data=self.metsoa.build(26,'2026-10')
+        with self.app.test_request_context():data=self.metsoa.build(26,'2026-10',recipient_id=11)
         self.assertEqual(data['electricity']['rows'][0]['rate'],Decimal('3.2795'))
         self.session.execute(text("INSERT INTO bil_tariff(utility_type,code,rate,effective_date) VALUES('electricity','ELEC01',8,'2026-01-01')"));self.session.commit();self.conn.commit()
-        with self.app.test_request_context():data=self.metsoa.build(26,'2026-10')
+        with self.app.test_request_context():data=self.metsoa.build(26,'2026-10',recipient_id=11)
         self.assertEqual(data['electricity']['rows'],[]);self.assertIn('conflicting records',str(data['pm_issues']))
         self.session.execute(text("DELETE FROM bil_tariff WHERE utility_type IN ('water','water_fixed')"));self.session.commit();self.conn.commit()
-        with self.app.test_request_context():data=self.metsoa.build(26,'2026-10')
+        with self.app.test_request_context():data=self.metsoa.build(26,'2026-10',recipient_id=11)
         self.assertEqual(data['water']['meters'],[]);self.assertIn('No applicable water',str(data['pm_issues']))
     def test_permissions_and_token_free_pm_access_remain_unchanged(self):
         self.session.execute(text('DELETE FROM bil_statement_payment'));self.session.commit();self.conn.commit()
@@ -84,7 +85,7 @@ class MunicipalMetsoaTests(fixture.UtilitiesCaptureTests):
         self.assertEqual(self.client.get(self.generation_url.replace('2026-10','2026-19'),headers=self.headers).status_code,400)
     def test_conflicting_readings_produce_no_guessed_water_charge(self):
         self.session.execute(text("INSERT INTO bil_meter_reading(meter_id,reading_date,reading_value) VALUES(1,'2026-10-23',40)"));self.session.commit();self.conn.commit()
-        with self.app.test_request_context():data=self.metsoa.build(26,'2026-10')
+        with self.app.test_request_context():data=self.metsoa.build(26,'2026-10',recipient_id=11)
         self.assertNotIn('CEL888',[r['meter_number'] for r in data['water']['meters']]);self.assertIn('Conflicting readings',str(data['pm_issues']))
     def test_legacy_builder_defaults_remain_unchanged(self):
         tiers=[dict(multiplier=999.0,rate=39.39,label='test band')]
@@ -94,15 +95,15 @@ class MunicipalMetsoaTests(fixture.UtilitiesCaptureTests):
         self.assertEqual(total,6.93);self.assertEqual(lines[-1]['rate'],1.48)
     def test_mid_period_tariff_changes_and_invalid_band_metadata_are_not_guessed(self):
         self.session.execute(text("INSERT INTO bil_tariff(utility_type,code,rate,effective_date) VALUES('electricity','ELEC01',8,'2026-10-01')"));self.session.commit();self.conn.commit()
-        with self.app.test_request_context():data=self.metsoa.build(26,'2026-10')
+        with self.app.test_request_context():data=self.metsoa.build(26,'2026-10',recipient_id=11)
         self.assertEqual(data['electricity']['rows'],[]);self.assertIn('tariff effective date changes',str(data['pm_issues']))
         self.session.execute(text("UPDATE bil_tariff SET reduction_factor=NULL WHERE code='W01'"));self.session.commit();self.conn.commit()
-        with self.app.test_request_context():data=self.metsoa.build(26,'2026-10')
+        with self.app.test_request_context():data=self.metsoa.build(26,'2026-10',recipient_id=11)
         self.assertIn('invalid band',str(data['pm_issues']));self.assertEqual(data['water']['meters'],[])
 
     def test_water_loss_is_fixed_per_meter_and_never_a_consumption_surcharge(self):
         self.session.execute(text("INSERT INTO bil_tariff(utility_type,code,description,rate,unit,effective_date) VALUES('water_fixed','W_LOSS','Historical insurance',17.12,'R/month','2025-01-01')"));self.session.commit();self.conn.commit()
-        with self.app.test_request_context():data=self.metsoa.build(26,'2026-10')
+        with self.app.test_request_context():data=self.metsoa.build(26,'2026-10',recipient_id=11)
         for water in data['water']['meters']:
             levies=[r for r in water['ws_breakdown'] if r['desc']=='Water Loss Levy (insurance)']
             self.assertEqual(len(levies),1);self.assertEqual(levies[0]['cons'],1);self.assertEqual(levies[0]['rate'],Decimal('19.30'));self.assertEqual(levies[0]['due'],Decimal('19.30'))
@@ -110,7 +111,7 @@ class MunicipalMetsoaTests(fixture.UtilitiesCaptureTests):
         self.assertFalse(data['pm_complete']);self.assertIn('ANG489',str(data['pm_issues']))
     def test_confirmed_water_and_sewerage_surcharges_are_separate_per_meter(self):
         self.session.execute(text("INSERT INTO bil_tariff(utility_type,code,description,rate,unit,effective_date) VALUES('water','WSSurcharge','Approved water consumption surcharge',1.48,'R/kL','2026-06-05'),('sewerage','SDSurcharge','Approved sewerage consumption surcharge',1.48,'R/kL','2026-06-05')"));self.session.commit();self.conn.commit()
-        with self.app.test_request_context():data=self.metsoa.build(26,'2026-10')
+        with self.app.test_request_context():data=self.metsoa.build(26,'2026-10',recipient_id=11)
         for water in data['water']['meters']:
             expected=Decimal('45.88') if water['meter_number']=='CEL888' else Decimal('1.48')
             ws=[r for r in water['ws_breakdown'] if r['desc']=='Water surcharge'];sd=[r for r in water['sd_breakdown'] if r['desc']=='Sewerage surcharge']
@@ -118,7 +119,7 @@ class MunicipalMetsoaTests(fixture.UtilitiesCaptureTests):
             levy=next(r for r in water['ws_breakdown'] if r['desc']=='Water Loss Levy (insurance)');self.assertEqual(levy['due'],Decimal('19.30'))
     def test_known_w_loss_code_uses_effective_rate_despite_legacy_type_or_unit(self):
         self.session.execute(text("UPDATE bil_tariff SET utility_type='water',unit='R/kL' WHERE code='W_LOSS'"));self.session.commit();self.conn.commit()
-        with self.app.test_request_context():data=self.metsoa.build(26,'2026-10')
+        with self.app.test_request_context():data=self.metsoa.build(26,'2026-10',recipient_id=11)
         self.assertNotIn('W_LOSS',str(data['pm_issues']))
         for water in data['water']['meters']:
             levies=[r for r in water['ws_breakdown'] if r['desc']=='Water Loss Levy (insurance)']
@@ -128,7 +129,7 @@ class MunicipalMetsoaTests(fixture.UtilitiesCaptureTests):
 
     def test_missing_insurance_levy_does_not_silently_become_a_zero_charge(self):
         self.session.execute(text("DELETE FROM bil_tariff WHERE code='W_LOSS'"));self.session.commit();self.conn.commit()
-        with self.app.test_request_context():data=self.metsoa.build(26,'2026-10')
+        with self.app.test_request_context():data=self.metsoa.build(26,'2026-10',recipient_id=11)
         self.assertFalse(data['pm_complete']);self.assertIn('No verified effective W_LOSS',str(data['pm_issues']))
         for water in data['water']['meters']:
             self.assertFalse(any(r['desc']=='Water Loss Levy (insurance)' for r in water['ws_breakdown']))
@@ -137,7 +138,7 @@ class MunicipalMetsoaTests(fixture.UtilitiesCaptureTests):
         self.session.execute(text("UPDATE bil_meter_reading SET reading_value=184 WHERE meter_id=5"))
         self.session.execute(text("INSERT INTO bil_meter_reading(meter_id,reading_date,reading_value) VALUES(5,'2026-09-25',0)"));self.session.commit();self.conn.commit()
         before=self.snapshot()
-        with self.app.test_request_context():data=self.metsoa.build(26,'2026-10')
+        with self.app.test_request_context():data=self.metsoa.build(26,'2026-10',recipient_id=11)
         water=next(r for r in data['water']['meters'] if r['meter_number']=='ANG489')
         self.assertEqual(water['summary']['consumption'],Decimal('184'))
         ws=next(r for r in water['ws_breakdown'] if r['desc']=='Water surcharge');sd=next(r for r in water['sd_breakdown'] if r['desc']=='Sewerage surcharge');levy=next(r for r in water['ws_breakdown'] if r['desc']=='Water Loss Levy (insurance)')
@@ -152,9 +153,61 @@ class MunicipalMetsoaTests(fixture.UtilitiesCaptureTests):
         self.assertEqual(before,self.snapshot())
     def test_duplicate_w_loss_metadata_does_not_double_charge_insurance(self):
         self.session.execute(text("INSERT INTO bil_tariff(utility_type,code,rate,unit,effective_date) VALUES('water','W_LOSS',19.30,NULL,'2026-06-05')"));self.session.commit();self.conn.commit()
-        with self.app.test_request_context():data=self.metsoa.build(26,'2026-10')
+        with self.app.test_request_context():data=self.metsoa.build(26,'2026-10',recipient_id=11)
         self.assertFalse(data['pm_complete']);self.assertIn('W_LOSS has conflicting records',str(data['pm_issues']))
         for water in data['water']['meters']:self.assertFalse(any(r['desc']=='Water Loss Levy (insurance)' for r in water['ws_breakdown']))
+
+    def test_billing_month_selector_preserves_property_and_historical_month(self):
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+        before=self.snapshot()
+        for suffix,expected in [('',''+datetime.now(ZoneInfo('Africa/Johannesburg')).strftime('%Y-%m')),('?billing_month=2025-09','2025-09')]:
+            page=self.client.get(self.readings_url+suffix,headers=self.headers);self.assertEqual(page.status_code,200,page.text)
+            tree=html.fromstring(page.data)
+            self.assertEqual(tree.xpath('//form[@id="metsoa-generate"]/@action'),['/billing/utilities/26/generate-metsoa'])
+            self.assertEqual(tree.xpath('//form[@id="metsoa-generate"]//input[@name="billing_month"]/@value'),[expected])
+            self.assertEqual(tree.xpath('//form[@id="metsoa-generate"]//input[@name="billing_month"]/@type'),['month'])
+            self.assertEqual(tree.xpath('//form[@id="metsoa-generate"]//button/text()'),['Generate METSOA'])
+        self.assertEqual(before,self.snapshot())
+
+    def test_registered_tenant_recipient_does_not_replace_municipal_owner(self):
+        self.session.execute(text("INSERT INTO ref_muni_owner(id,name) VALUES(777,'S. Nanhoo')"))
+        self.session.execute(text("UPDATE bil_muni_account SET owner_id=777 WHERE id=1"))
+        self.session.execute(text("UPDATE bil_tenant SET email='tenant@example.test' WHERE id=11"));self.session.commit();self.conn.commit()
+        before=self.snapshot()
+        page=self.client.get(self.generation_url,headers=self.headers);self.assertEqual(page.status_code,200,page.text)
+        self.assertIn('Natural Lessee',page.text);self.assertIn('tenant@example.test',page.text);self.assertNotIn('S. Nanhoo',page.text)
+        tree=html.fromstring(page.data)
+        self.assertEqual(tree.xpath('//select[@name="recipient_id"]/option[@selected]/@value'),['11'])
+        self.assertIn('recipient_id=11',tree.xpath('//a[contains(@href,"format=pdf")]/@href')[0])
+        self.assertEqual(before,self.snapshot());self.assertEqual(self.session.execute(text('SELECT owner_id FROM bil_muni_account WHERE id=1')).scalar(),777)
+    def test_multiple_tenants_require_selection_and_cross_property_recipient_is_denied(self):
+        self.session.execute(text('UPDATE bil_tenant SET property_id=26 WHERE id=44'));self.session.commit();self.conn.commit()
+        with self.app.test_request_context():data=self.metsoa.build(26,'2026-10')
+        self.assertIsNone(data['pm_recipient']);self.assertIn('Multiple tenants',data['pm_recipient_issue'])
+        page=self.client.get(self.generation_url,headers=self.headers);self.assertEqual(page.status_code,200)
+        self.assertEqual(self.client.get(self.generation_url.replace('recipient_id=11','recipient_id=33'),headers=self.headers).status_code,403)
+        self.assertEqual(self.client.get(self.generation_url.replace('recipient_id=11','recipient_id=22'),headers=self.headers).status_code,403)
+        self.assertEqual(self.client.get(self.generation_url.replace('recipient_id=11','recipient_id=invalid'),headers=self.headers).status_code,400)
+    def test_missing_recipient_and_historical_month_are_reported_not_invented(self):
+        import json
+        self.session.execute(text("UPDATE bil_lease_draft SET items=CAST(:items AS jsonb) WHERE property_id=26"),dict(items=json.dumps({'_parties':{'lessees':[]}})))
+        self.session.execute(text('UPDATE bil_tenant SET property_id=NULL WHERE property_id=26'));self.session.commit();self.conn.commit()
+        with self.app.test_request_context():data=self.metsoa.build(26,'2026-10')
+        self.assertIsNone(data['pm_recipient']);self.assertIn('No registered tenant association',data['pm_recipient_issue'])
+        with self.app.test_request_context():data=self.metsoa.build(27,'2025-09')
+        self.assertIsNone(data['pm_recipient']);self.assertIn('historical billing month',data['pm_recipient_issue'])
+
+    def test_single_current_association_is_used_but_superseded_draft_is_not_assumed(self):
+        import uuid
+        with self.app.test_request_context():
+            recipient,choices,error=self.metsoa.statement_recipient(26,7,self.metsoa.month_context()[0])
+        self.assertEqual(recipient['id'],11);self.assertIsNone(error)
+        latest=uuid.uuid4()
+        self.session.execute(text("INSERT INTO bil_lease_draft(id,property_id,manager_id,status,source_version,items,version,updated_at) VALUES(:id,26,7,'draft','test','{\"_parties\":{\"lessees\":[]}}',1,now()+interval '1 day')"),dict(id=latest));self.session.commit();self.conn.commit()
+        with self.app.test_request_context():
+            recipient,choices,error=self.metsoa.statement_recipient(26,7,self.metsoa.month_context()[0])
+        self.assertIsNone(recipient);self.assertIn('historical draft',error)
 
     def test_original_pdf_rendering_is_valid_and_contains_tariff_breakdowns(self):
         from pypdf import PdfReader
@@ -163,7 +216,7 @@ class MunicipalMetsoaTests(fixture.UtilitiesCaptureTests):
         self.assertEqual(page.status_code,200,page.text if page.mimetype!='application/pdf' else '')
         self.assertEqual(page.mimetype,'application/pdf');self.assertIn('inline',page.headers['Content-Disposition'])
         reader=PdfReader(BytesIO(page.data));text_content=' '.join(p.extract_text() or '' for p in reader.pages)
-        self.assertIn('Statement For All Metro Meters',text_content);self.assertIn('Electricity Sub-Total',text_content);self.assertIn('W&S For #',text_content);self.assertIn('NOT A FINAL AMOUNT DUE',text_content)
+        self.assertIn('Natural Lessee',text_content);self.assertIn('Statement For All Metro Meters',text_content);self.assertIn('Electricity Sub-Total',text_content);self.assertIn('W&S For #',text_content);self.assertIn('NOT A FINAL AMOUNT DUE',text_content)
         self.assertNotIn('Arrears',text_content);self.assertGreaterEqual(len(reader.pages),2)
         output=__import__('pathlib').Path('tmp/metsoa-restored-review');output.mkdir(parents=True,exist_ok=True);(output/'statement.pdf').write_bytes(page.data)
         import fitz

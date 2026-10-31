@@ -44,7 +44,7 @@ class UtilitiesReadingsTests(fixture.UtilitiesConfigurationTests):
         tree=html.fromstring(page.data)
         self.assertTrue(tree.xpath('//h3[text()="Water"]'));self.assertTrue(tree.xpath('//h3[text()="Electricity"]'))
         self.assertIn('WATER-26',page.text);self.assertNotIn('No tenants',page.text)
-        self.assertEqual(tree.xpath('//input[@type="month"]/@value'),['2026-11'])
+        self.assertEqual(tree.xpath('//input[@type="month" and not(@id="metsoa-billing-month")]/@value'),['2026-11'])
         self.assertEqual(self.client.get('/readings/28',headers=self.headers).status_code,403)
     def test_append_reading_and_consumption_idempotently_preserves_history(self):
         before=self.snapshot();response=self.reading();self.assertEqual(response.status_code,200,response.text)

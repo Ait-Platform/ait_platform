@@ -18,7 +18,7 @@
         &larr; Back
       </button>
       <div class="flex gap-4">
-        {% if pm_tariff_statement|default(false) %}<a href="{{ url_for('billing_bp.generate_municipal_metsoa',property_id=property.id,billing_month=month,format='pdf') }}" class="bg-blue-600 text-white px-4 py-2 rounded">Open PDF</a>{% else %}<button onclick="sendMetsoaEmail()" class="bg-blue-600 hover:bg-blue-700 font-bold py-2 px-4 rounded shadow transition text-sm flex items-center">
+        {% if pm_tariff_statement|default(false) %}<a href="{{ url_for('billing_bp.generate_municipal_metsoa',property_id=property.id,billing_month=month,recipient_id=pm_recipient.id if pm_recipient else None,format='pdf') }}" class="bg-blue-600 text-white px-4 py-2 rounded">Open PDF</a>{% else %}<button onclick="sendMetsoaEmail()" class="bg-blue-600 hover:bg-blue-700 font-bold py-2 px-4 rounded shadow transition text-sm flex items-center">
           Email METSOA
         </button>{% endif %}
         <button onclick="window.print()" class="bg-slate-600 hover:bg-slate-700 font-bold py-2 px-4 rounded shadow transition text-sm flex items-center">
@@ -37,8 +37,8 @@
       
       <div class="grid grid-cols-2 gap-4 mb-4 text-base">
         <div>
-          <div class="flex"><span class="w-24 font-semibold">Customer</span><span>{{ pm_customer|default('') }}</span></div>
-          <div class="flex"><span class="w-24 font-semibold">Email</span><span></span></div>
+          <div class="flex"><span class="w-24 font-semibold">Customer</span><span>{{ (pm_customer or 'Recipient not identified — see missing information') if pm_tariff_statement|default(false) else '' }}</span></div>
+          <div class="flex"><span class="w-24 font-semibold">Email</span><span>{{ (pm_recipient.email or 'Not provided') if pm_tariff_statement|default(false) and pm_recipient else '' }}</span></div>
         </div>
         <div>
           <div class="flex"><span class="w-24 font-semibold">Date</span><span>{{ pm_statement_date if pm_tariff_statement|default(false) else month|replace('-', '/')+'/29' }}</span></div>

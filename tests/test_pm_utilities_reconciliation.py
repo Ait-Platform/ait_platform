@@ -44,7 +44,7 @@ class ReconciliationTests(fixture.UtilitiesReadingsTests):
         self.assertEqual(page.status_code,200,page.text)
         self.assertIn('Actual difference',page.text);self.assertIn('-20',page.text);self.assertNotIn('PRIVATE',page.text)
         tree=html.fromstring(page.data)
-        self.assertEqual(tree.xpath('//nav[@aria-label="Municipal Utilities"]/a/text()'),['Municipal Accounts','Meter Readings','Metro Reconciliation','Generate METSOA'])
+        self.assertEqual(tree.xpath('//nav[@aria-label="Municipal Utilities"]/a/text()'),['Municipal Accounts','Meter Readings','Metro Reconciliation'])
         self.assertEqual(self.client.get('/utilities/consumption_review/28/2026-10',headers=self.headers).status_code,403)
     def test_incomplete_period_is_not_silently_treated_as_zero(self):
         self.group(100,70)

@@ -3,8 +3,7 @@ import calendar,re
 from datetime import date,datetime
 from decimal import Decimal
 from zoneinfo import ZoneInfo
-from flask import abort,request,render_template,redirect,url_for,flash
-from flask_login import current_user
+from flask import abort,request,render_template
 from sqlalchemy import text
 from app.extensions import db
 from .metsoa_setup_safety import property_scope
@@ -67,11 +66,5 @@ def build(p,month):
 
 def page(p):
     property_scope(p);month,_,_=month_context(request.args.get('billing_month'))
-    prop=db.session.execute(text('SELECT manager_id FROM bil_property WHERE id=:p'),dict(p=p)).mappings().one()
-    # Preserve the original monthly METSOA entitlement. Never unlock or write payments here.
-    if not getattr(current_user,'has_role',lambda role:False)('admin'):
-        unlocked=available('bil_statement_payment',['manager_id','month','amount_paid_cents']) and db.session.execute(text('SELECT 1 FROM bil_statement_payment WHERE manager_id=:u AND month=:m AND amount_paid_cents>0'),dict(u=prop['manager_id'],m=month)).first()
-        if not unlocked:
-            flash('Please unlock statements for '+month+' before generating METSOA.','warning')
-            return redirect(url_for('billing_bp.billing_checkout',month=month,property_id=p))
+    # PM managers may view their property statements without a token purchase.
     return render_template('program_billing/municipal_metsoa.html',**build(p,month))

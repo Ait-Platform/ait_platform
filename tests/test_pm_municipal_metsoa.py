@@ -11,7 +11,7 @@ class MunicipalMetsoaTests(fixture.UtilitiesCaptureTests):
         super().setUp()
         self.app.add_url_rule('/test-checkout/<month>',endpoint='billing_bp.billing_checkout',view_func=lambda **kw:'Existing checkout')
         from app.program_billing import municipal_metsoa
-        for name,value in [('db',self.db),('current_user',self.user)]:
+        for name,value in [('db',self.db)]:
             mock=patch.object(municipal_metsoa,name,value);mock.start();self.addCleanup(mock.stop)
         self.metsoa=municipal_metsoa;self.user.has_role=lambda role:False
         self.session.execute(text('CREATE TEMP TABLE bil_statement_payment(id integer PRIMARY KEY,manager_id integer,month text,amount_paid_cents integer)'))
@@ -58,11 +58,29 @@ class MunicipalMetsoaTests(fixture.UtilitiesCaptureTests):
         page=self.client.get(self.generation_url,headers=self.headers);self.assertEqual(page.status_code,200)
         self.assertNotIn('Incomplete statement',page.text);self.assertIn('R7,200.88',page.text)
 
-    def test_permissions_month_validation_and_existing_unlock_are_preserved(self):
+    def test_permissions_month_validation_and_token_free_pm_access(self):
         self.assertEqual(self.client.get(self.generation_url.replace('/26/','/28/'),headers=self.headers).status_code,403)
         self.assertEqual(self.client.get(self.generation_url).status_code,403)
         self.assertEqual(self.client.get(self.generation_url.replace('2026-10','2026-19'),headers=self.headers).status_code,400)
-        locked=self.client.get(self.generation_url.replace('2026-10','2026-09'),headers=self.headers);self.assertEqual(locked.status_code,302);self.assertIn('property_id=26',locked.location);self.assertIn('2026-09',locked.location)
+        unpurchased=self.client.get(self.generation_url.replace('2026-10','2026-09'),headers=self.headers);self.assertEqual(unpurchased.status_code,200);self.assertIn('Incomplete statement',unpurchased.text)
+    def test_october_manager_with_zero_tokens_needs_no_unlock_or_financial_writes(self):
+        self.session.execute(text('DELETE FROM bil_statement_payment'))
+        self.session.execute(text('CREATE TEMP TABLE ait_token_wallet(id integer PRIMARY KEY,user_id integer,balance integer)'))
+        self.session.execute(text('INSERT INTO ait_token_wallet VALUES(1,7,0)'));self.session.commit();self.conn.commit()
+        before=self.snapshot();queries=[]
+        def record(conn,cursor,sql,params,context,many):queries.append(sql.lower())
+        event.listen(self.conn,'before_cursor_execute',record)
+        try:
+            for _ in range(2):
+                response=self.client.get(self.generation_url,headers=self.headers)
+                self.assertEqual(response.status_code,200,response.text);self.assertIn('Municipal Charges Statement',response.text)
+                self.assertNotIn('unlock statements',response.text);self.assertNotIn('Insufficient tokens',response.text)
+        finally:event.remove(self.conn,'before_cursor_execute',record)
+        self.assertFalse(any('bil_statement_payment' in q or 'token_wallet' in q or 'token_transaction' in q for q in queries))
+        self.assertFalse(any(q.lstrip().startswith(('insert ','update ','delete ')) for q in queries))
+        self.assertEqual(before,self.snapshot());self.assertEqual(self.session.execute(text('SELECT balance FROM ait_token_wallet WHERE id=1')).scalar(),0)
+        self.assertEqual(self.session.execute(text('SELECT count(*) FROM bil_statement_payment')).scalar(),0)
+
     def test_reading_five_row_display_and_navigation_preserve_property_month(self):
         page=self.client.get(self.readings_url+'?billing_month=2026-10',headers=self.headers);self.assertEqual(page.status_code,200,page.text)
         tree=html.fromstring(page.data);rows=tree.xpath('//tr[@data-reading-row]')

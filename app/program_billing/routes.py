@@ -1244,14 +1244,14 @@ def calculate_ws_sd_total(meter_id, month):
         "due": total
     }
 
-def build_ws_sd_rows_for_meter(meter_id, month, adjusted_consumption=None):
+def build_ws_sd_rows_for_meter(meter_id, month, adjusted_consumption=None, record_override=None, tariff_override=None):
     # Step 1: Pull the meter object
-    meter = BilMeter.query.get(meter_id)
+    meter = record_override if record_override is not None else BilMeter.query.get(meter_id)
     if not meter:
         return None  # Handle missing meter
 
     # Step 2: Pull consumption record using meter_id
-    record = BilConsumption.query.filter_by(meter_id=meter_id, month=month).first()
+    record = record_override if record_override is not None else BilConsumption.query.filter_by(meter_id=meter_id, month=month).first()
     if not record:
         return None  # Handle missing data
 
@@ -1262,13 +1262,13 @@ def build_ws_sd_rows_for_meter(meter_id, month, adjusted_consumption=None):
     days = record.days
 
     # Step 3: Tiered WS breakdown
-    ws_rows, ws_total = build_ws_breakdown(consumption, days, month, meter_id)
+    ws_rows, ws_total = build_ws_breakdown(consumption, days, month, meter_id, **(dict(tiers=tariff_override['water'],surcharge_rate=tariff_override['water_surcharge'],strict=True) if tariff_override is not None else {}))
 
     # Step 4: Tiered SD breakdown
-    sd_rows, sd_total = build_sd_breakdown(consumption, days, month, meter_id)
+    sd_rows, sd_total = build_sd_breakdown(consumption, days, month, meter_id, **(dict(tiers=tariff_override['sewerage'],surcharge_rate=tariff_override['sewerage_surcharge'],strict=True) if tariff_override is not None else {}))
 
     # Step 5: Fixed & Sundry Charges
-    fees = build_water_fee_block(record, month)
+    fees = build_water_fee_block(record, month, tariff_override=tariff_override)
 
     ws_fixed_total = round(sum(row["due"] for row in fees["ws"]), 2)
     sd_fixed_total = round(sum(row["due"] for row in fees["sd"]), 2)
@@ -1318,11 +1318,11 @@ def build_ws_sd_subtotals():
 
     return rows, ws, sd, total
     
-def build_ws_breakdown(consumption, days, month, meter_id):
-    ws_tiers = get_tariff_for_ws(meter_id, month)  # Pull from DB or tariff config
+def build_ws_breakdown(consumption, days, month, meter_id, tiers=None, surcharge_rate=None, strict=False):
+    ws_tiers = get_tariff_for_ws(meter_id, month) if tiers is None else tiers  # Pull from DB or tariff config
 
     breakdown = []
-    total_due = 0.0
+    total_due = consumption * 0
     remaining = consumption
 
     for tier in ws_tiers:
@@ -1343,7 +1343,9 @@ def build_ws_breakdown(consumption, days, month, meter_id):
             break
 
     # Add Surcharge universally
-    surcharge_rate = 1.48
+    if surcharge_rate is None and strict:
+        return breakdown, round(total_due, 2)
+    surcharge_rate = 1.48 if surcharge_rate is None else surcharge_rate
     surcharge_due = round(consumption * surcharge_rate, 2)
     breakdown.append({
         "desc": "Surcharge",
@@ -1355,11 +1357,11 @@ def build_ws_breakdown(consumption, days, month, meter_id):
 
     return breakdown, round(total_due, 2)
 
-def build_sd_breakdown(consumption, days, month, meter_id):
-    sd_tiers = get_tariff_for_sd(meter_id, month)  # Pull SD structure from DB
+def build_sd_breakdown(consumption, days, month, meter_id, tiers=None, surcharge_rate=None, strict=False):
+    sd_tiers = get_tariff_for_sd(meter_id, month) if tiers is None else tiers  # Pull SD structure from DB
 
     breakdown = []
-    total_due = 0.0
+    total_due = consumption * 0
     remaining = consumption
 
     for tier in sd_tiers:
@@ -1380,7 +1382,9 @@ def build_sd_breakdown(consumption, days, month, meter_id):
             break
 
     # Add Surcharge universally
-    surcharge_rate = 1.48
+    if surcharge_rate is None and strict:
+        return breakdown, round(total_due, 2)
+    surcharge_rate = 1.48 if surcharge_rate is None else surcharge_rate
     surcharge_due = round(consumption * surcharge_rate, 2)
     breakdown.append({
         "desc": "Surcharge",
@@ -1392,7 +1396,9 @@ def build_sd_breakdown(consumption, days, month, meter_id):
 
     return breakdown, round(total_due, 2)
 
-def build_water_fee_block(r, month):
+def build_water_fee_block(r, month, tariff_override=None):
+    if tariff_override is not None:
+        return {key:[dict(desc=f.description or f.code,cons=0,rate=0,due=f.rate) for f in tariff_override[group]] for key,group in [('ws','water_fixed'),('sd','sewerage_fixed')]}
     meter_number = r.meter_number
     consumption = r.consumption
 
@@ -1452,7 +1458,15 @@ def get_all_property_meters(property_id):
     return BilMeter.query.filter_by(property_id=property_id).all()
 
 
-def build_electrical_rows(property_id, month, is_exception=False, filter_meter_ids=None):
+def build_electrical_rows(property_id, month, is_exception=False, filter_meter_ids=None, source=None, tariffs=None):
+    if source is not None:
+        rows=[]
+        for r in source:
+            if (r.utility_type or '').lower() not in ('electricity','electrical'):continue
+            rate=tariffs['electricity'];due=round(r.consumption*rate,2)
+            rows.append(dict(meter_number=r.meter_number,last_date=r.last_date.strftime('%Y/%m/%d'),new_date=r.new_date.strftime('%Y/%m/%d'),last_read=r.last_read,new_read=r.new_read,days=r.days,avg=0,consumption=r.consumption,rate=rate,due=due))
+        return rows,sum((r['due'] for r in rows),0)
+
     rows = []
     total_due = 0
 
@@ -1546,7 +1560,16 @@ def get_tariff_for_sd(meter_id, month):
         {"start": 1001, "label": "1KL-1,5KL/29Days", "multiplier": 999.0, "rate": 27.38}
     ]
 
-def build_water_rows(property_id, month, is_exception=False, filter_meter_ids=None):
+def build_water_rows(property_id, month, is_exception=False, filter_meter_ids=None, source=None, tariffs=None):
+    if source is not None:
+        rows=[]
+        for r in source:
+            if (r.utility_type or '').lower()!='water':continue
+            details=build_ws_sd_rows_for_meter(r.meter_id,month,record_override=r,tariff_override=tariffs)
+            details['summary']=dict(meter_number=r.meter_number,last_date=r.last_date.strftime('%Y/%m/%d'),new_date=r.new_date.strftime('%Y/%m/%d'),last_read=r.last_read,new_read=r.new_read,days=str(r.days)+' KL/day',avg=round(r.consumption/r.days,3),consumption=r.consumption,rate='',due='')
+            rows.append(details)
+        return rows,sum((r['total'] for r in rows),0)
+
     water_meters = []
     total_water_due = 0
 

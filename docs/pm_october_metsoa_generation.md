@@ -1,20 +1,25 @@
-# Ordinary municipal METSOA generation
+# Original tariff METSOA reconnection
 
-Generate METSOA uses /billing/utilities/<property_id>/generate-metsoa?billing_month=YYYY-MM.
-Almond October review: /billing/utilities/26/generate-metsoa?billing_month=2026-10.
+The existing PM Generate METSOA URL remains /billing/utilities/<property_id>/generate-metsoa?billing_month=YYYY-MM. Add &format=pdf for an inline PDF generated from the same original metsoa.html template. Property access and the PM token-free policy are unchanged. Legacy statement/token routes are unchanged.
 
-No migration is required. The feature reads existing property/account/meter records, bil_meter_reading, bil_municipal_statement and bil_muni_payment. Production pm_utilities_001 was confirmed applied by the owner in the preceding task. No production records were queried or modified in this implementation.
+## Sources
 
-## Sources and period rules
+The PM adapter reads registered property meters and municipal account pointers, canonical bil_meter_reading pairs, bil_tariff and recorded municipal owner names. It does not read Metro Reconciliation statement figures or payments, and never reads/writes historical bil_consumption for generation. It never invokes generate_consumption_records_from_readings or any posting function.
 
-The selected month determines the current reading: use the latest reading dated in that month and its immediately preceding distinct reading date, regardless of the previous reading's calendar month. Actual dates and elapsed days are retained. Identical duplicate records do not count as a second reading; conflicting values on either relevant date require review. Future readings are excluded. One reading, a decreasing/invalid counter, unsupported utility, conflicting account links or an unlinked meter are reported rather than estimated.
+Existing build_electrical_rows, build_water_rows and water/sanitation detail builders accept optional scoped in-memory records and explicit tariffs. Their legacy callers keep their original defaults. PM uses Decimal values and effective database records; no hard-coded surcharge, water-loss, management or refuse fallback is used. The original electricity summary, water summary, side-by-side water/sanitation band details and final-total position are retained. PM rates are printed without the original one-decimal water-rate rounding. Missing inputs produce a prominent INCOMPLETE marker and withhold the final amount due; any displayed figures are confirmed components only. Summary and tariff details print on separate pages.
 
-Account bill figures are read from the captured municipal statement for the selected account/month. They are not tariff-calculated, combined with legacy float totals, or overwritten. Paid uses only explicit municipal account/month allocations. Paid is not subtracted again from Balance/Due because the recorded bill figures may already include credits. Consolidated bill totals are withheld if any account's selected-month bill is absent. Insufficient meter data keeps the statement visibly incomplete even when bill totals are available.
+## Effective dates and discrepancies
 
-The legacy layout's property heading, account summary and dated-reading table pattern are reused in an independent template; the legacy tariff, tenant/unit, Setup Wizard and bulk calculation paths are not invoked. No unverified utility charge rates or itemised charge amounts are invented. Authorised PM property managers can generate and view this statement without purchasing or consuming tokens. Authentication and property_scope checks remain mandatory. Existing legacy METSOA, checkout and token-controlled workflows retain their original requirements. No payment, token debit or unlock record is created by PM generation.
+For the selected billing month, the statement date is its last day. Choose the latest effective record per utility/code on or before that date; future versions are excluded. Duplicate latest versions, multiple electricity tariffs, invalid rates/dates/band metadata, insufficient band coverage, or tariff changes crossing a reading period require review rather than guessed allocation. Actual reading dates are retained.
 
-## Live verification
+The owner reported 13 live tariffs: ELEC01 R3.2795 effective 2026-01-01; W01-W05 R39.39/46.70/62.17/95.91/105.39; S01-S04 R5.45/9.20/17.54/27.38; W_LOSS R19.30, W_MGT R144.54 and S_REFUSE R206.93 effective 2026-06-05. These effective dates precede October 2026. Full live band/unit/daily-allocation metadata was not supplied in that report and remains subject to runtime validation and owner confirmation against the approved tariff schedule.
 
-Deploy through existing Render workflow, then open the Almond October URL as the authorised property manager; no statement unlock or token balance is required for this PM route. Confirm account bill figures against Metro Reconciliation and payments against existing municipal allocations. Expected supplied differences: CEL888 31 kL; CXN998 1 kL; 7150696S 15 kWh; 2188802S 547 kWh. These were verified with isolated test records, not the live database. ANG489 requires a second genuine dated reading before consumption is available. Account-specific missing-information messages link to Metro Reconciliation with property 26 and month 2026-10 preserved. Existing data must be corrected only through the appropriate capture workflow; generation is read-only.
+The report contains no explicit WSSurcharge/SDSurcharge rates. Original builders hard-code R1.48 for both. PM does not silently assume that rate, or assume zero instead. Surcharge applicability/rates must be confirmed and explicitly recorded before a final amount can be produced. Historical PDF example rates differ; its format is reused, its numerical rates are not substituted for the database. Fixed-charge rules otherwise remain those of the original builders; applicability should be checked against the approved schedule.
 
-Meter Readings initially shows five newest records (date descending, then ID descending). Show More reveals all remaining rows and Show Less collapses to five, retaining edit links and selected billing month.
+ANG489 has only one supplied reading and requires another genuine dated reading before consumption can be calculated. It is not silently matched to the legacy AGN489 fallback spelling. Other missing or conflicting readings are listed by meter.
+
+## Verification
+
+Isolated PostgreSQL tests use the owner-reported rates/dates and explicitly seeded test band metadata. They verify consumption 31 kL, 1 kL, 15 kWh and 547 kWh, effective-date selection, ambiguity/missing rates, original calculation defaults, read-only repeated generation, unchanged token/property restrictions, and exclusion of all reconciliation figures. A local original-template PDF is generated through Playwright, parsed with pypdf and rendered with PyMuPDF for visual inspection. These are test records, not a live Almond financial statement.
+
+No migration is required. No production records or tariffs were changed. After Render deploys, review /billing/utilities/26/generate-metsoa?billing_month=2026-10 and resolve only the specifically reported missing inputs through the appropriate authorised data workflow. No final live amount is certified by local tests.

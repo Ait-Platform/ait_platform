@@ -10,7 +10,7 @@
     {% include 'partials/flash_messages.html' %}
     <div class="flex items-center justify-between gap-3"><h1 class="text-xl font-semibold">METSOA — {{ property.name }} — {{ month }}</h1><a href="{{ url_for('billing_bp.utilities_hub',property_id=property.id,billing_month=month) }}" class="rounded-lg bg-slate-100 px-4 py-2">Back to Utilities</a></div>
     {% set utility_active='metsoa' %}{% set utility_month=month %}{% include 'program_billing/utilities_menu.html' %}
-    <a href="{{ url_for('billing_bp.exception_metsoa',property_id=property.id,month=month) }}" class="inline-flex rounded-lg bg-yellow-100 px-4 py-2">Exception statements</a>
+    {% if not pm_tariff_statement|default(false) %}<a href="{{ url_for('billing_bp.exception_metsoa',property_id=property.id,month=month) }}" class="inline-flex rounded-lg bg-yellow-100 px-4 py-2">Exception statements</a>{% endif %}
     </div>
     <!-- Top Action Bar (Hidden in Print) -->
     <div class="print:hidden bg-slate-800 text-white p-4 flex justify-between items-center">
@@ -18,9 +18,9 @@
         &larr; Back
       </button>
       <div class="flex gap-4">
-        <button onclick="sendMetsoaEmail()" class="bg-blue-600 hover:bg-blue-700 font-bold py-2 px-4 rounded shadow transition text-sm flex items-center">
+        {% if pm_tariff_statement|default(false) %}<a href="{{ url_for('billing_bp.generate_municipal_metsoa',property_id=property.id,billing_month=month,format='pdf') }}" class="bg-blue-600 text-white px-4 py-2 rounded">Open PDF</a>{% else %}<button onclick="sendMetsoaEmail()" class="bg-blue-600 hover:bg-blue-700 font-bold py-2 px-4 rounded shadow transition text-sm flex items-center">
           Email METSOA
-        </button>
+        </button>{% endif %}
         <button onclick="window.print()" class="bg-slate-600 hover:bg-slate-700 font-bold py-2 px-4 rounded shadow transition text-sm flex items-center">
           Print
         </button>
@@ -30,23 +30,24 @@
     <!-- START PAGE 1: Summary -->
     <div class="print-page p-10 bg-white text-black text-sm">
       
+      {% if pm_tariff_statement|default(false) and not pm_complete %}<div role="alert" class="mb-6 border border-amber-400 bg-amber-50 p-4 text-amber-900"><strong>INCOMPLETE — NOT A FINAL AMOUNT DUE</strong><p>Only verified tariff components are shown. Missing readings or rates have not been estimated.</p>{% for issue in pm_issues %}<p>{{ issue }}</p>{% endfor %}</div>{% endif %}
       <!-- Statement Header -->
       {% if tenant and tenant.tenant_reference %}<p>Tenant Reference for payments: {{ tenant.tenant_reference }}</p>{% endif %}
-      <h1 class="text-2xl font-bold text-center mb-6">Statement for Utilities for<br/>{{ property.name if property else 'Unknown Property' }}</h1>
+      <h1 class="text-2xl font-bold text-center mb-6">{{ 'Statement For All Metro Meters' if pm_tariff_statement|default(false) else 'Statement for Utilities for' }}<br/>{{ property.name if property else 'Unknown Property' }}</h1>
       
       <div class="grid grid-cols-2 gap-4 mb-4 text-base">
         <div>
-          <div class="flex"><span class="w-24 font-semibold">Customer</span><span></span></div>
+          <div class="flex"><span class="w-24 font-semibold">Customer</span><span>{{ pm_customer|default('') }}</span></div>
           <div class="flex"><span class="w-24 font-semibold">Email</span><span></span></div>
         </div>
         <div>
-          <div class="flex"><span class="w-24 font-semibold">Date</span><span>{{ month|replace('-', '/') }}/29</span></div>
-          <div class="flex"><span class="w-24 font-semibold">Address</span><span></span></div>
+          <div class="flex"><span class="w-24 font-semibold">Date</span><span>{{ pm_statement_date if pm_tariff_statement|default(false) else month|replace('-', '/')+'/29' }}</span></div>
+          <div class="flex"><span class="w-24 font-semibold">Address</span><span>{{ property.address if pm_tariff_statement|default(false) else '' }}</span></div>
         </div>
       </div>
       
       <div class="w-full border border-gray-400 py-2 text-center font-bold mb-6">
-        Amount Due R{{ "%.2f"|format(grand_total|float) }} for Utilities.
+        {% if pm_tariff_statement|default(false) and not pm_complete %}Final amount due unavailable — see missing information above.{% else %}Amount Due R{{ "%.2f"|format(grand_total|float) }} for Utilities.{% endif %}
       </div>
 
       <!-- Master Summary Table -->
@@ -87,7 +88,7 @@
           <tr class="font-bold border-t border-gray-400">
             <td></td>
             <td colspan="9" class="py-2 px-1">Electricity Sub-Total</td>
-            <td class="py-2 px-1 text-right">R{{ "%.2f"|format(electricity.subtotal) }}</td>
+            <td class="py-2 px-1 text-right">{% if pm_tariff_statement|default(false) and not pm_electricity_available %}Unavailable{% else %}R{{ "%.2f"|format(electricity.subtotal) }}{% endif %}</td>
           </tr>
         </tbody>
       </table>
@@ -151,6 +152,7 @@
       
       <div class="py-3"></div>
       
+      {% if pm_tariff_statement|default(false) %}<div class="page-break"></div>{% endif %}
       <!-- Detail Cost Breakdown -->
       <table class="w-full border-collapse mb-6 text-sm text-left">
         <tbody>
@@ -174,7 +176,7 @@
             {% if w.ws_breakdown[i].cons is defined %}
             <td class="py-1 px-1">{{ w.ws_breakdown[i].desc }}</td>
             <td class="py-1 px-1 text-right">{{ w.ws_breakdown[i].cons|round(2) }}</td>
-            <td class="py-1 px-1 text-right">{{ "%.1f"|format(w.ws_breakdown[i].rate) }}</td>
+            <td class="py-1 px-1 text-right">{{ ("%.2f" if pm_tariff_statement|default(false) else "%.1f")|format(w.ws_breakdown[i].rate) }}</td>
             {% else %}
             <td colspan="3" class="py-1 px-1">{{ w.ws_breakdown[i].desc }}</td>
             {% endif %}
@@ -188,7 +190,7 @@
             {% if w.sd_breakdown[i].cons is defined %}
             <td class="py-1 px-1 pl-4 border-l border-gray-300">{{ w.sd_breakdown[i].desc }}</td>
             <td class="py-1 px-1 text-right">{{ w.sd_breakdown[i].cons|round(2) }}</td>
-            <td class="py-1 px-1 text-right">{{ "%.1f"|format(w.sd_breakdown[i].rate) }}</td>
+            <td class="py-1 px-1 text-right">{{ ("%.2f" if pm_tariff_statement|default(false) else "%.1f")|format(w.sd_breakdown[i].rate) }}</td>
             {% else %}
             <td colspan="3" class="py-1 px-1 pl-4 border-l border-gray-300">{{ w.sd_breakdown[i].desc }}</td>
             {% endif %}
@@ -213,7 +215,7 @@
             <td colspan="3" class="py-2 px-2 text-lg">DUE TO ETHEKWINI</td>
             <td class="py-2 px-1"></td>
             <td colspan="3" class="py-2 px-1"></td>
-            <td class="py-2 px-2 text-right text-lg">R{{ "%.2f"|format(grand_total) }}</td>
+            <td class="py-2 px-2 text-right text-lg">{% if pm_tariff_statement|default(false) and not pm_complete %}Not final{% else %}R{{ "%.2f"|format(grand_total) }}{% endif %}</td>
           </tr>
         </tbody>
       </table>
@@ -251,7 +253,7 @@
   }
 </style>
 
-<script>
+{% if not pm_tariff_statement|default(false) %}<script>
 function sendMetsoaEmail() {
     const email = prompt("Enter email address to send this METSOA to:", "{{ current_user.email }}");
     if (!email) return;
@@ -280,5 +282,5 @@ function sendMetsoaEmail() {
         alert("Error sending email.");
     }
 }
-</script>
+</script>{% endif %}
 {% endblock %}

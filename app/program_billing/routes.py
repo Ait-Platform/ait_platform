@@ -1348,7 +1348,7 @@ def build_ws_breakdown(consumption, days, month, meter_id, tiers=None, surcharge
     surcharge_rate = 1.48 if surcharge_rate is None else surcharge_rate
     surcharge_due = round(consumption * surcharge_rate, 2)
     breakdown.append({
-        "desc": "Surcharge",
+        "desc": "Water surcharge" if strict else "Surcharge",
         "cons": consumption,
         "rate": surcharge_rate,
         "due": surcharge_due
@@ -1387,7 +1387,7 @@ def build_sd_breakdown(consumption, days, month, meter_id, tiers=None, surcharge
     surcharge_rate = 1.48 if surcharge_rate is None else surcharge_rate
     surcharge_due = round(consumption * surcharge_rate, 2)
     breakdown.append({
-        "desc": "Surcharge",
+        "desc": "Sewerage surcharge" if strict else "Surcharge",
         "cons": consumption,
         "rate": surcharge_rate,
         "due": surcharge_due
@@ -1398,7 +1398,7 @@ def build_sd_breakdown(consumption, days, month, meter_id, tiers=None, surcharge
 
 def build_water_fee_block(r, month, tariff_override=None):
     if tariff_override is not None:
-        return {key:[dict(desc=f.description or f.code,cons=0,rate=0,due=f.rate) for f in tariff_override[group]] for key,group in [('ws','water_fixed'),('sd','sewerage_fixed')]}
+        return {key:[dict(desc='Water Loss Levy (insurance)' if f.code.lower()=='w_loss' else f.description or f.code,cons=1 if f.code.lower()=='w_loss' else 0,rate=f.rate if f.code.lower()=='w_loss' else 0,due=f.rate) for f in tariff_override[group]] for key,group in [('ws','water_fixed'),('sd','sewerage_fixed')]}
     meter_number = r.meter_number
     consumption = r.consumption
 

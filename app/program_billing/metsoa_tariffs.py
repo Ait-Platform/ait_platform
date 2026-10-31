@@ -31,11 +31,21 @@ def select(billing_date):
     electricity=[]
     for row in selected:
         kind=row.utility_type.lower();code=row.code.lower()
+        if code=='w_loss':
+            # This is a fixed insurance levy per water meter, never a volume rate.
+            unit=(row.unit or '').strip().lower().replace(' ','')
+            fixed_units={'r/month','zar/month','r/meter','zar/meter','r/meter/month','zar/meter/month','permetermonth','permonth','monthly','fixed'}
+            if kind!='water_fixed' or unit not in fixed_units:
+                issues.append('W_LOSS requires confirmation as a fixed per-water-meter insurance levy (type water_fixed and fixed/monthly units). No consumption surcharge or unverified levy was applied.')
+                continue
+            result['water_fixed'].append(row)
+            continue
         if 'surcharge' in code or code in ('w_surcharge','s_surcharge'):
             side='water' if kind.startswith('water') or code.startswith('w') else 'sewerage' if kind in ('sewerage','sanitation','sewerage_fixed') or code.startswith('s') else None
             if side:
                 key=side+'_surcharge'
                 if result[key] is not None:issues.append('Multiple '+side+' surcharge tariffs require review.')
+                elif (row.unit or '').strip().lower().replace(' ','') not in {'r/kl','zar/kl','perkl'}:issues.append('Tariff '+row.code+' needs verified per-kL units before its consumption surcharge can be applied.')
                 else:result[key]=row.rate
         elif kind in ('electricity','electrical'):electricity.append(row)
         elif kind in ('water_fixed','sewerage_fixed','sanitation_fixed') or code in ('w_loss','w_mgt','s_refuse'):
@@ -48,6 +58,7 @@ def select(billing_date):
                 if row.block_end is not None and (not Decimal(str(row.block_end)).is_finite() or Decimal(str(row.block_end))<start):raise ValueError()
                 result[side].append(dict(start=start,label=row.description or row.code,multiplier=factor,rate=row.rate,code=row.code))
             except (ValueError,InvalidOperation):issues.append('Tariff '+row.code+' has missing or invalid band boundaries/daily allocation metadata.')
+    if not any(r.code.lower()=='w_loss' for r in result['water_fixed']):issues.append('No verified effective W_LOSS fixed per-water-meter insurance levy is available.')
     if len(electricity)==1:result['electricity']=electricity[0].rate
     elif not electricity:issues.append('No electricity tariff is effective on or before '+str(billing_date)+'.')
     else:issues.append('Multiple applicable electricity tariffs require an explicit selection; no rate was guessed.')

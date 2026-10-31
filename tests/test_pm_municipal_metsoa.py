@@ -100,6 +100,37 @@ class MunicipalMetsoaTests(fixture.UtilitiesCaptureTests):
         with self.app.test_request_context():data=self.metsoa.build(26,'2026-10')
         self.assertIn('invalid band',str(data['pm_issues']));self.assertEqual(data['water']['meters'],[])
 
+    def test_water_loss_is_fixed_per_meter_and_never_a_consumption_surcharge(self):
+        self.session.execute(text("INSERT INTO bil_tariff(utility_type,code,description,rate,unit,effective_date) VALUES('water_fixed','W_LOSS','Historical insurance',17.12,'R/month','2025-01-01')"));self.session.commit();self.conn.commit()
+        with self.app.test_request_context():data=self.metsoa.build(26,'2026-10')
+        for water in data['water']['meters']:
+            levies=[r for r in water['ws_breakdown'] if r['desc']=='Water Loss Levy (insurance)']
+            self.assertEqual(len(levies),1);self.assertEqual(levies[0]['cons'],1);self.assertEqual(levies[0]['rate'],Decimal('19.30'));self.assertEqual(levies[0]['due'],Decimal('19.30'))
+            self.assertFalse(any('surcharge' in r['desc'].lower() for r in water['ws_breakdown']+water['sd_breakdown']))
+        self.assertFalse(data['pm_complete']);self.assertIn('surcharge tariff',str(data['pm_issues']))
+    def test_confirmed_water_and_sewerage_surcharges_are_separate_per_meter(self):
+        self.session.execute(text("INSERT INTO bil_tariff(utility_type,code,description,rate,unit,effective_date) VALUES('water','WSSurcharge','Approved water consumption surcharge',1.48,'R/kL','2026-06-05'),('sewerage','SDSurcharge','Approved sewerage consumption surcharge',1.48,'R/kL','2026-06-05')"));self.session.commit();self.conn.commit()
+        with self.app.test_request_context():data=self.metsoa.build(26,'2026-10')
+        for water in data['water']['meters']:
+            expected=Decimal('45.88') if water['meter_number']=='CEL888' else Decimal('1.48')
+            ws=[r for r in water['ws_breakdown'] if r['desc']=='Water surcharge'];sd=[r for r in water['sd_breakdown'] if r['desc']=='Sewerage surcharge']
+            self.assertEqual(len(ws),1);self.assertEqual(len(sd),1);self.assertEqual(ws[0]['due'],expected);self.assertEqual(sd[0]['due'],expected)
+            levy=next(r for r in water['ws_breakdown'] if r['desc']=='Water Loss Levy (insurance)');self.assertEqual(levy['due'],Decimal('19.30'))
+    def test_ambiguous_water_loss_and_fixed_surcharge_units_are_not_silently_applied(self):
+        self.session.execute(text("UPDATE bil_tariff SET unit='R/kL' WHERE code='W_LOSS'"))
+        self.session.execute(text("INSERT INTO bil_tariff(utility_type,code,rate,unit,effective_date) VALUES('water','WSSurcharge',1.48,'R/month','2026-06-05')"));self.session.commit();self.conn.commit()
+        with self.app.test_request_context():data=self.metsoa.build(26,'2026-10')
+        self.assertFalse(data['pm_complete']);self.assertIn('fixed per-water-meter',str(data['pm_issues']));self.assertIn('verified per-kL units',str(data['pm_issues']))
+        for water in data['water']['meters']:
+            self.assertFalse(any(r['desc']=='Water Loss Levy (insurance)' or r['desc']=='Water surcharge' for r in water['ws_breakdown']))
+
+    def test_missing_insurance_levy_does_not_silently_become_a_zero_charge(self):
+        self.session.execute(text("DELETE FROM bil_tariff WHERE code='W_LOSS'"));self.session.commit();self.conn.commit()
+        with self.app.test_request_context():data=self.metsoa.build(26,'2026-10')
+        self.assertFalse(data['pm_complete']);self.assertIn('No verified effective W_LOSS',str(data['pm_issues']))
+        for water in data['water']['meters']:
+            self.assertFalse(any(r['desc']=='Water Loss Levy (insurance)' for r in water['ws_breakdown']))
+
     def test_original_pdf_rendering_is_valid_and_contains_tariff_breakdowns(self):
         from pypdf import PdfReader
         from io import BytesIO

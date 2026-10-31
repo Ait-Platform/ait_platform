@@ -61,11 +61,11 @@ def save_reading(p,form):
         abort(409,description='A reading already exists for this meter and date. Use Edit rather than creating a duplicate.')
     previous=db.session.execute(text('SELECT reading_value FROM bil_meter_reading WHERE meter_id=:m AND reading_date<:d AND (:r IS NULL OR id<>:r) ORDER BY reading_date DESC,id DESC LIMIT 1'),dict(m=meter_id,d=new_date,r=record_id)).scalar()
     following=db.session.execute(text('SELECT reading_value FROM bil_meter_reading WHERE meter_id=:m AND reading_date>:d AND (:r IS NULL OR id<>:r) ORDER BY reading_date,id LIMIT 1'),dict(m=meter_id,d=new_date,r=record_id)).scalar()
-    if (previous is not None and value<Decimal(str(previous))) or (following is not None and value>Decimal(str(following))):abort(400,description='Reading conflicts with earlier or later saved values. Meter replacement or reset needs separate review.')
+    if previous is not None and value<Decimal(str(previous)):abort(400,description='Reading cannot be below the immediately preceding saved reading ('+str(previous)+'). Existing readings are unchanged.')
+    if following is not None and value>Decimal(str(following)):abort(400,description='Reading cannot exceed the immediately following saved reading ('+str(following)+'). Existing readings are unchanged.')
     data=dict(m=meter_id,d=new_date,v=value,r=record_id)
     if original:db.session.execute(text('UPDATE bil_meter_reading SET reading_date=:d,reading_value=:v WHERE id=:r'),data)
-    elif previous is not None:
-        if following is not None:abort(409,description='A later reading already exists. Historical insertion requires separate review.')
+    elif previous is not None and following is None:
         from .utilities_readings import save as save_with_consumption
         save_with_consumption(dict(meter_id=meter_id,property_id=p,date=new_date.isoformat(),reading_month=new_date.strftime('%Y-%m'),reading=str(value)))
         record_id=db.session.execute(text('SELECT id FROM bil_meter_reading WHERE meter_id=:m AND reading_date=:d'),data).scalar()

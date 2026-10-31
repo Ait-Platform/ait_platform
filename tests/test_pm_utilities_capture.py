@@ -45,6 +45,46 @@ class UtilitiesCaptureTests(fixture.MunicipalAccountsTests):
     def bill(self,**changes):
         fields=dict(account_id=1,statement_date='2026-09-28',arrears='7043.55',balance='7190.88',due='7190.88',due_date='2026-10-07');fields.update(changes)
         return self.capture_post(self.statements_url,**fields)
+    def historical_meter(self):
+        self.session.execute(text("INSERT INTO bil_meter(id,property_id,meter_number,utility_type,status) VALUES(99,26,'ANG489','Water','active')"))
+        self.session.execute(text("INSERT INTO bil_meter_reading(meter_id,reading_date,reading_value) VALUES(99,'2026-08-31',14900),(99,'2026-10-31',15227)"))
+        self.session.commit();self.conn.commit()
+
+    def test_historical_insertion_between_readings_preserves_history(self):
+        self.historical_meter();before=self.snapshot()
+        with patch('app.program_billing.utilities_readings.save',side_effect=AssertionError('Historical insertion must not regenerate consumption')):
+            response=self.capture_post(self.readings_url,meter_id=99,reading_date='2026-09-30',reading_value='15043')
+        self.assertEqual(response.status_code,302,response.text)
+        after=self.snapshot()
+        self.assertEqual(after['bil_consumption'],before['bil_consumption'])
+        for table,rows in before.items():
+            for row in rows:self.assertIn(row,after[table])
+        saved=self.session.execute(text("SELECT reading_value FROM bil_meter_reading WHERE meter_id=99 AND reading_date='2026-09-30'")).scalar()
+        self.assertEqual(Decimal(str(saved)),Decimal('15043'))
+        self.assertEqual(self.session.execute(text("SELECT count(*) FROM bil_utilities_capture_audit WHERE kind='reading'")).scalar(),1)
+
+    def test_historical_duplicate_date_is_idempotent_or_rejected(self):
+        self.historical_meter()
+        fields=dict(meter_id=99,reading_date='2026-09-30',reading_value='15043')
+        self.assertEqual(self.capture_post(self.readings_url,**fields).status_code,302)
+        before=self.snapshot()
+        self.assertEqual(self.capture_post(self.readings_url,**fields).status_code,302)
+        fields['reading_value']='15044'
+        response=self.capture_post(self.readings_url,**fields)
+        self.assertEqual(response.status_code,409,response.text)
+        self.assertIn('already exists for this meter and date',response.text)
+        self.assertEqual(before,self.snapshot())
+        self.assertEqual(self.session.execute(text("SELECT count(*) FROM bil_meter_reading WHERE meter_id=99 AND reading_date='2026-09-30'")).scalar(),1)
+
+    def test_historical_insertion_rejects_inconsistent_adjacent_values(self):
+        self.historical_meter();before=self.snapshot()
+        for value,message in [('14899','immediately preceding'),('15228','immediately following')]:
+            response=self.capture_post(self.readings_url,meter_id=99,reading_date='2026-09-30',reading_value=value)
+            self.assertEqual(response.status_code,400,response.text)
+            self.assertIn(message,response.text)
+            self.assertEqual(before,self.snapshot())
+        self.assertEqual(self.session.execute(text('SELECT count(*) FROM bil_utilities_capture_audit')).scalar(),0)
+
     def test_reading_create_duplicate_edit_and_opening_preservation(self):
         before=self.snapshot()
         result=self.capture_post(self.readings_url,meter_id=1,reading_date='2026-09-11',reading_value='614')

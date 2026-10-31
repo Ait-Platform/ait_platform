@@ -109,6 +109,8 @@ def save_statement(p,form):
 
 def page(p,kind):
     property_scope(p)
+    from .municipal_metsoa import month_context
+    utility_month,_,_=month_context(request.values.get('billing_month'))
     prop=db.session.execute(text('SELECT id,name,address FROM bil_property WHERE id=:p'),dict(p=p)).mappings().one()
     error=None;status=200;values={};edit_id=request.args.get('edit');version=''
     if request.method=='POST':
@@ -116,7 +118,7 @@ def page(p,kind):
         try:
             (save_reading if kind=='readings' else save_statement)(p,values);db.session.commit()
             flash('Meter reading saved.' if kind=='readings' else 'Municipal statement saved.','success')
-            return redirect(url_for('billing_bp.meter_readings' if kind=='readings' else 'billing_bp.metro_reconciliation',property_id=p))
+            return redirect(url_for('billing_bp.meter_readings' if kind=='readings' else 'billing_bp.metro_reconciliation',property_id=p,billing_month=utility_month))
         except HTTPException as exc:db.session.rollback();error=exc.description;status=exc.code
         except Exception:
             db.session.rollback();current_app.logger.exception('Utilities capture failed');error='Saving failed; no changes were committed. Check the server log.';status=503
@@ -132,4 +134,4 @@ def page(p,kind):
     elif request.method=='POST':version=values.get('version','')
     if not schema_ready():error=error or ('Metro Reconciliation is temporarily unavailable. Please contact the administrator.' if kind=='statements' else 'Meter Readings is temporarily unavailable. Please contact the administrator.')
     accounts=[dict(r) for r in db.session.execute(text('SELECT id,account_number FROM bil_muni_account WHERE property_id=:p ORDER BY account_number,id'),dict(p=p)).mappings()]
-    return render_template('program_billing/utilities_capture.html',property=prop,kind=kind,rows=rows,meters=meters(p),accounts=accounts,values=values,version=version,edit_id=edit_id,error=error,capture_ready=schema_ready(),today=datetime.now(ZoneInfo('Africa/Johannesburg')).date().isoformat()),status
+    return render_template('program_billing/utilities_capture.html',property=prop,kind=kind,utility_month=utility_month,rows=rows,meters=meters(p),accounts=accounts,values=values,version=version,edit_id=edit_id,error=error,capture_ready=schema_ready(),today=datetime.now(ZoneInfo('Africa/Johannesburg')).date().isoformat()),status

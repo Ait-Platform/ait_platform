@@ -3026,6 +3026,12 @@ def municipal_accounts(property_id):
     from .municipal_accounts import page
     return page(property_id)
 
+@billing_bp.route('/billing/utilities/<int:property_id>/generate-metsoa',methods=['GET'])
+@login_required
+def generate_municipal_metsoa(property_id):
+    from .municipal_metsoa import page
+    return page(property_id)
+
 @billing_bp.route('/billing/utilities/<int:property_id>/meter-readings',methods=['GET','POST'])
 @login_required
 def meter_readings(property_id):

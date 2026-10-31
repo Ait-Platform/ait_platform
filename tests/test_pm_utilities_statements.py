@@ -42,7 +42,7 @@ class UtilitiesStatementTests(fixture.ReconciliationTests):
         for path in ('/utilities/metsoa/26/2026-10','/exceptions/26/2026-10'):
             page=self.client.get(path,headers=self.headers);self.assertEqual(page.status_code,200,page.text)
             tree=html.fromstring(page.data)
-            self.assertEqual(tree.xpath('//nav[@aria-label="Municipal Utilities"]/a/text()'),['Municipal Accounts','Meter Readings','Metro Reconciliation'])
+            self.assertEqual(tree.xpath('//nav[@aria-label="Municipal Utilities"]/a/text()'),['Municipal Accounts','Meter Readings','Metro Reconciliation','Generate METSOA'])
             self.assertIn('Synthetic property',page.text);self.assertIn('2026-10',page.text)
         self.assertEqual(before,self.snapshot());self.assertTrue(all(p==26 for p,m,kw in self.built))
         self.assertEqual(self.client.get('/exceptions/28/2026-10',headers=self.headers).status_code,403)

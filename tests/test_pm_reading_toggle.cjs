@@ -1,0 +1,5 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+const rows=Array.from({length:12},(_,i)=>({hidden:i>=5}));
+const button={listeners:{},classList:{toggle(){}},setAttribute(k,v){this[k]=v;},addEventListener(k,v){this.listeners[k]=v;}};
+vm.runInNewContext(fs.readFileSync('app/static/js/pm_reading_toggle.js','utf8'),{document:{getElementById:()=>button,querySelectorAll:()=>rows}});
+assert.equal(rows.filter(r=>!r.hidden).length,5);button.listeners.click();assert.equal(rows.filter(r=>!r.hidden).length,12);assert.equal(button.textContent,'Show Less (12 of 12)');assert.equal(button['aria-expanded'],'true');button.listeners.click();assert.equal(rows.filter(r=>!r.hidden).length,5);assert.equal(button.textContent,'Show More (5 of 12)');assert.equal(button['aria-expanded'],'false');console.log('Reading toggle expansion/collapse passed.');

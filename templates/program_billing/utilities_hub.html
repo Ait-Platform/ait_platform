@@ -16,7 +16,7 @@
 const billingMonth=document.getElementById('billing_month');
 billingMonth.addEventListener('change', () => {
   if (!billingMonth.validity.valid || !billingMonth.value) return;
-  for (const link of document.querySelectorAll('nav[aria-label="Utilities"] a')) {
+  for (const link of document.querySelectorAll('nav[aria-label="Municipal Utilities"] a')) {
     const target=new URL(link.href,window.location.origin);
     if (target.searchParams.has('billing_month')) target.searchParams.set('billing_month',billingMonth.value);
     else target.pathname=target.pathname.replace(/\/\d{4}-\d{2}$/, '/'+billingMonth.value);

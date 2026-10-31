@@ -1,4 +1,1 @@
-<nav aria-label="Utilities" class="my-5 flex flex-wrap justify-end gap-2">
-{% for key,label,endpoint in [('readings','Readings','property_hub'),('consumption','Consumption','consumption_review'),('metsoa','METSOA','metsoa'),('setup','Setup Wizard','setup_wizard'),('accounts','Municipal Accounts','municipal_accounts')] %}
-<a href="{{ url_for('billing_bp.'+endpoint,property_id=property.id,billing_month=utility_month) if key in ('readings','setup','accounts') else url_for('billing_bp.'+endpoint,property_id=property.id,month=utility_month) }}" {% if utility_active==key %}aria-current="page"{% endif %} class="rounded-lg px-4 py-2 font-semibold {% if utility_active==key %}bg-green-200 ring-2 ring-green-600{% else %}bg-slate-100{% endif %}">{{ label }}</a>
-{% endfor %}</nav>
+{% include 'program_billing/municipal_navigation.html' %}

@@ -26,8 +26,7 @@ const own={found:true,association:'selected_property',editable:true,details_avai
   const selected=harness(async url=>{requested=String(url);return response(own);});await selected.search('met-26');
   assert.match(requested,/utilities\/26\/accounts\/lookup/);assert.equal(selected.ids.owner_name.value,'Recorded Owner');
   assert.equal(selected.ids.account_number.value,'MET-26');assert.equal(selected.account.value,1);assert.equal(selected.version.value,'saved-version');
-  assert.equal(selected.ids.water_opening_reading.value,'10');assert.equal(selected.ids.water_opening_reading.readOnly,true);
-  assert.match(selected.ids.water_latest_recorded.textContent,/45 kL/);assert.equal(selected.buttons[0].disabled,false);
+  assert.equal(selected.ids['account-lookup-status'].hidden,true);assert.equal(selected.buttons[0].disabled,false);
   for (const association of ['unassigned','other_property']) {
     const review=harness(async()=>response({...own,association,editable:false,message:'Read only'}));await review.search('MET-26');
     assert.equal(review.ids.owner_name.value,'Recorded Owner');assert.equal(review.account.value,1);assert.equal(review.ids.owner_name.readOnly,true);assert.equal(review.buttons[0].disabled,true);

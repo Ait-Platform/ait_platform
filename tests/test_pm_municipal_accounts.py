@@ -46,7 +46,7 @@ class MunicipalAccountsTests(fixture.UtilitiesConfigurationTests):
         self.assertEqual(new['property_id'],26);self.assertIsNotNone(new['water_meter_id']);self.assertIsNotNone(new['elec_meter_id'])
         self.assertFalse(new['is_bulk_account'])
         for table in ('bil_consumption','bil_architecture_draft'):self.assertEqual(before[table],self.snapshot()[table])
-        self.assertEqual(self.session.execute(text('SELECT count(*) FROM bil_meter_reading')).scalar(),4)
+        self.assertEqual(self.session.execute(text('SELECT count(*) FROM bil_meter_reading')).scalar(),1)
         self.assertEqual(dict(self.session.execute(text('SELECT * FROM bil_meter_reading WHERE id=1')).mappings().one()),dict(before['bil_meter_reading'][0]))
         self.assertEqual(self.snapshot()['bil_meter'][0],before['bil_meter'][0])
         page=self.client.get(a.location,headers=self.headers);self.assertEqual(page.status_code,200)
@@ -80,6 +80,10 @@ class MunicipalAccountsTests(fixture.UtilitiesConfigurationTests):
         for account,w,wr,wd,e,er,ed in examples:
             result=self.post(dict(account_number=account,owner_name='Account Owner',water_number=w,water_opening_reading=wr,water_opening_date=wd,electricity_number=e,electricity_opening_reading=er,electricity_opening_date=ed))
             self.assertEqual(result.status_code,302,result.text)
+            for number,value,day in [(w,wr,wd),(e,er,ed)]:
+                meter=self.session.execute(text('SELECT id FROM bil_meter WHERE meter_number=:n'),dict(n=number)).scalar()
+                self.session.execute(text('INSERT INTO bil_meter_reading(meter_id,reading_date,reading_value) VALUES(:m,:d,:v)'),dict(m=meter,d=day,v=value))
+            self.session.commit();self.conn.commit()
             saved=self.lookup(account).json
             self.assertEqual(self.post(dict(saved['values'],account_id=saved['account_id'],version=saved['version'])).status_code,302)
         self.assertEqual(self.session.execute(text('SELECT count(*) FROM bil_meter_reading')).scalar(),5)
@@ -96,7 +100,7 @@ class MunicipalAccountsTests(fixture.UtilitiesConfigurationTests):
             with self.app.test_request_context('/readings/26?billing_month=2026-10'):
                 page=env['property_hub'](26)
         tree=html.fromstring(page)
-        self.assertTrue(tree.xpath('//nav[@aria-label="Utilities"]'))
+        self.assertTrue(tree.xpath('//nav[@aria-label="Municipal Utilities"]'))
         from app.program_billing import utilities_readings
         with patch.object(utilities_readings,'db',self.db):
             for account,w,wr,wd,e,er,ed in examples:
@@ -190,7 +194,7 @@ class MunicipalAccountsTests(fixture.UtilitiesConfigurationTests):
         self.assertEqual(len(meters),2)
         for meter in meters:
             self.assertIsNone(meter['sectional_unit_id']);self.assertEqual(meter['property_id'],26)
-            self.assertEqual(self.session.execute(text('SELECT count(*) FROM bil_meter_reading WHERE meter_id=:m'),dict(m=meter['id'])).scalar(),1)
+            self.assertEqual(self.session.execute(text('SELECT count(*) FROM bil_meter_reading WHERE meter_id=:m'),dict(m=meter['id'])).scalar(),0)
         self.assertEqual(before['bil_consumption'],self.snapshot()['bil_consumption'])
         self.test_next_month_consumption_uses_saved_opening_without_posting_on_capture()
 
@@ -205,6 +209,7 @@ class MunicipalAccountsTests(fixture.UtilitiesConfigurationTests):
         response=self.post(dict(account_number='NEW-ORIGINAL',owner_name='Owner',water_number='NEW-WATER'))
         self.assertEqual(response.status_code,302)
         row=self.session.execute(text("SELECT id,water_meter_id FROM bil_muni_account WHERE account_number='NEW-ORIGINAL'")).mappings().one()
+        self.session.execute(text("INSERT INTO bil_meter_reading(meter_id,reading_date,reading_value) VALUES(:m,'2020-01-31',0)"),dict(m=row['water_meter_id']));self.session.commit();self.conn.commit()
         data=self.account_form(row['id']);data.pop('csrf_token');data.pop('billing_month')
         data.update(account_number='NEW-CORRECTED',owner_name='Corrected Owner',water_number='CORRECTED-WATER')
         self.assertEqual(self.post(data).status_code,409)
@@ -225,47 +230,32 @@ class MunicipalAccountsTests(fixture.UtilitiesConfigurationTests):
 
     def test_both_baselines_and_save_destinations_are_atomic_without_consumption(self):
         before=self.snapshot()
-        data=dict(account_number='OPENING-ACCOUNT',owner_name='Owner',water_number='OPEN-W',water_opening_reading='100.25',water_opening_date='2020-01-31',electricity_number='OPEN-E',electricity_opening_reading='0',electricity_opening_date='2020-01-31',save_action='add_another')
-        response=self.post(data);self.assertEqual(response.status_code,302,response.text)
-        self.assertEqual(response.location,self.accounts_url+'?billing_month=2026-11')
-        page=self.client.get(response.location,headers=self.headers);tree=html.fromstring(page.data)
-        self.assertEqual(tree.xpath('//input[@name="account_number"]/@value'),[''])
-        self.assertEqual(tree.xpath('//button[@name="save_action"]/@value'),['finish'])
-        entries=self.session.execute(text("SELECT m.utility_type,r.reading_value,r.reading_date FROM bil_meter m JOIN bil_meter_reading r ON r.meter_id=m.id WHERE m.municipal_bill_number='OPENING-ACCOUNT' ORDER BY m.utility_type")).all()
-        self.assertEqual(len(entries),2);self.assertEqual({r.reading_value for r in entries},{0,100.25})
-        self.assertEqual(before['bil_consumption'],self.snapshot()['bil_consumption'])
-        self.assertEqual(self.post(data).status_code,409)
-        self.assertEqual(self.session.execute(text('SELECT count(*) FROM bil_meter_reading')).scalar(),3)
-        data.update(account_number='FINISH-ACCOUNT',water_number='FINISH-W',electricity_number='',electricity_opening_reading='',electricity_opening_date='',save_action='finish')
-        finished=self.post(data);self.assertEqual(finished.status_code,302)
-        listing=self.client.get(finished.location,headers=self.headers)
-        self.assertIn('view=list',finished.location);self.assertFalse(html.fromstring(listing.data).xpath('//form'))
-        self.assertIn('FINISH-ACCOUNT',listing.text)
+        result=self.post(dict(account_number='REGISTRATION-ONLY',owner_name='Owner',water_number='REG-W',electricity_number='REG-E'))
+        self.assertEqual(result.status_code,302,result.text)
+        self.assertEqual(before['bil_meter_reading'],self.snapshot()['bil_meter_reading']);self.assertEqual(before['bil_consumption'],self.snapshot()['bil_consumption'])
+        page=self.client.get(self.accounts_url,headers=self.headers);tree=html.fromstring(page.data)
+        self.assertFalse(tree.xpath('//input[contains(@name,"opening")]'));self.assertNotIn('account-lookup-details',page.text)
+        self.assertEqual(tree.xpath('//button[@name="save_action"]/text()'),['Save'])
+
     def test_missing_invalid_and_future_baselines_reject_every_write(self):
-        base=dict(account_number='INVALID-BASELINE',owner_name='Owner',water_number='BASE-W',save_action='finish')
         before=self.snapshot()
-        for reading,day in [('', ''),('10',''),('', '2020-01-31'),('-1','2020-01-31'),('NaN','2020-01-31'),('Infinity','2020-01-31'),('1000000000001','2020-01-31'),('1','2020-02-30'),('1','2999-01-01'),('1','20200131')]:
-            response=self.post(dict(base,water_opening_reading=reading,water_opening_date=day))
-            self.assertEqual(response.status_code,400,(reading,day,response.text));self.assertEqual(before,self.snapshot())
-        response=self.client.post(self.accounts_url,data=dict(base,csrf_token=self.csrf),headers=self.headers)
-        self.assertEqual(response.status_code,400)
+        result=self.post(dict(account_number='IGNORE-READINGS',owner_name='Owner',water_number='IGNORE-W',water_opening_reading='NaN',water_opening_date='2999-01-01'))
+        self.assertEqual(result.status_code,302,result.text)
+        self.assertEqual(before['bil_meter_reading'],self.snapshot()['bil_meter_reading']);self.assertEqual(before['bil_consumption'],self.snapshot()['bil_consumption'])
+
     def test_baseline_insert_database_failure_rolls_back_account_meters_and_owner(self):
-        self.session.execute(text('ALTER TABLE bil_meter_reading ADD CONSTRAINT test_opening_limit CHECK(reading_value<=200)'));self.session.commit();self.conn.commit()
+        self.session.execute(text("ALTER TABLE bil_meter ADD CONSTRAINT test_meter_failure CHECK(meter_number<>'FAIL-W')"));self.session.commit();self.conn.commit()
         before=self.snapshot();owners=self.session.execute(text('SELECT count(*) FROM ref_muni_owner')).scalar()
         with self.assertLogs(self.app.logger,level='ERROR'):
-            failed=self.post(dict(account_number='ROLLBACK',owner_name='Never committed',water_number='ROLLBACK-W',water_opening_reading='201',water_opening_date='2020-01-31'))
-        self.assertEqual(failed.status_code,503);self.assertIn('test_opening_limit',failed.text)
+            failed=self.post(dict(account_number='ROLLBACK',owner_name='Never committed',water_number='FAIL-W'))
+        self.assertEqual(failed.status_code,503)
         self.assertEqual(before,self.snapshot());self.assertEqual(self.session.execute(text('SELECT count(*) FROM ref_muni_owner')).scalar(),owners)
+
     def test_owner_edits_never_overwrite_existing_opening_readings(self):
         data=self.account_form(1);data.pop('csrf_token');data.pop('billing_month');data['owner_name']='Owner'
-        self.assertEqual(data['water_opening_reading'],'123.0')
-        page=self.client.get(self.accounts_url+'?edit=1',headers=self.headers)
-        self.assertTrue(html.fromstring(page.data).xpath('//input[@id="water_opening_reading"][@readonly]'))
-        before=self.snapshot();data['water_opening_reading']='999'
-        self.assertEqual(self.post(data).status_code,409);self.assertEqual(before,self.snapshot())
-        data['water_opening_reading']='123.0';self.assertEqual(self.post(data).status_code,302)
-        # Repeating the edit cannot create another opening marker.
-        self.post(data)
+        self.assertNotIn('water_opening_reading',data)
+        before=self.snapshot();data['water_opening_reading']='999';data['water_opening_date']='2999-01-01'
+        self.assertEqual(self.post(data).status_code,302)
         self.assertEqual(before['bil_meter_reading'],self.snapshot()['bil_meter_reading'])
 
     def test_next_month_consumption_uses_saved_opening_without_posting_on_capture(self):
@@ -274,6 +264,7 @@ class MunicipalAccountsTests(fixture.UtilitiesConfigurationTests):
         self.assertEqual(created.status_code,302)
         self.assertEqual(self.session.execute(text('SELECT count(*) FROM bil_consumption')).scalar(),original_count)
         meter=self.session.execute(text("SELECT id FROM bil_meter WHERE meter_number='NEXT-W'")).scalar()
+        self.session.execute(text("INSERT INTO bil_meter_reading(meter_id,reading_date,reading_value) VALUES(:m,'2020-01-31',100.25)"),dict(m=meter));self.session.commit();self.conn.commit()
         for name,kind in [('meter_number','text'),('last_date','date'),('new_date','date'),('last_read','double precision'),('new_read','double precision'),('days','integer')]:
             self.session.execute(text('ALTER TABLE bil_consumption ADD COLUMN '+name+' '+kind))
         self.session.execute(text('ALTER TABLE bil_consumption ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (START WITH 1000)'));self.session.commit();self.conn.commit()
@@ -310,7 +301,7 @@ class MunicipalAccountsTests(fixture.UtilitiesConfigurationTests):
         self.assertEqual(result['meters']['water'][0]['latest'],dict(value='456.75',date='2026-10-01'))
         self.assertEqual(before,self.snapshot());self.assertFalse(writes)
         page=self.client.get(self.accounts_url+'?edit=1',headers=self.headers)
-        self.assertIn('Latest recorded reading: 456.75',page.text)
+        self.assertNotIn('Latest recorded reading:',page.text)
         data={k:result['values'][k] for k in result['values']};data.update(account_id=result['account_id'],version=result['version'],owner_name='Updated Owner')
         self.assertEqual(self.post(data).status_code,302)
         self.assertEqual(before['bil_meter_reading'],self.snapshot()['bil_meter_reading'])
@@ -387,8 +378,8 @@ class MunicipalAccountsTests(fixture.UtilitiesConfigurationTests):
 
     def test_failed_save_rolls_back_association_and_meter_updates(self):
         self.historical_account();review=self.lookup('HIST-ACCOUNT').json;before=self.snapshot()
-        data=dict(review['values'],account_id=90,version=review['version'],electricity_number='INVALID-BASELINE',electricity_opening_reading='-1',electricity_opening_date='2020-01-31')
-        result=self.post(data);self.assertEqual(result.status_code,400,result.text);self.assertEqual(before,self.snapshot())
+        data=dict(review['values'],account_id=90,version=review['version'],electricity_number='WATER-26',electricity_opening_reading='-1',electricity_opening_date='2020-01-31')
+        result=self.post(data);self.assertEqual(result.status_code,409,result.text);self.assertEqual(before,self.snapshot())
         data.update(electricity_opening_reading='10')
         self.session.execute(text('UPDATE bil_meter SET property_id=27 WHERE id=2'));self.session.commit();self.conn.commit()
         before=self.snapshot();result=self.post(data)
@@ -467,4 +458,4 @@ class MunicipalAccountsTests(fixture.UtilitiesConfigurationTests):
             review=self.lookup('INCOMPLETE').json
             data=dict(review['values'],account_id=90,version=review['version'],owner_name='Completed Owner',water_number='COMPLETED-W',water_opening_reading='10',water_opening_date='2020-01-31',save_action=action)
             self.assertEqual(self.post(data).status_code,302)
-        self.assertEqual(self.session.execute(text('SELECT count(*) FROM bil_meter_reading WHERE meter_id=(SELECT water_meter_id FROM bil_muni_account WHERE id=90)')).scalar(),1)
+        self.assertEqual(self.session.execute(text('SELECT count(*) FROM bil_meter_reading WHERE meter_id=(SELECT water_meter_id FROM bil_muni_account WHERE id=90)')).scalar(),0)

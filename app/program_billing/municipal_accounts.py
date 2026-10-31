@@ -1,7 +1,6 @@
 """Independent property-scoped municipal accounts. No bulk or history mutations."""
 import hashlib,json,re
-from datetime import datetime,date
-from decimal import Decimal,InvalidOperation
+from datetime import datetime
 from zoneinfo import ZoneInfo
 from flask import request,abort,render_template,redirect,url_for,flash,current_app
 from sqlalchemy import text,inspect
@@ -88,25 +87,6 @@ def lookup(property_id,number):
         return result
     if len(results)==1:return results[0]
     return dict(found=True,association='ambiguous',editable=False,message='Multiple existing accounts match this number. No account was selected automatically; review the matching records before proceeding.',matches=results)
-
-def baseline(kind,form,meter):
-    existing=opening(meter)
-    reading=str(form.get(kind+'_opening_reading') or '').strip()
-    day=str(form.get(kind+'_opening_date') or '').strip()
-    if existing:
-        try:same=(not reading or Decimal(reading)==Decimal(str(existing['reading_value']))) and (not day or day==existing['reading_date'].isoformat())
-        except InvalidOperation:same=False
-        if not same:abort(409,description='The existing '+kind+' opening reading is protected. Editing account details cannot replace historical readings.')
-        return None
-    if meter and db.session.execute(text('SELECT 1 FROM bil_consumption WHERE meter_id=:m LIMIT 1'),dict(m=meter['id'])).first():
-        abort(409,description='This meter has consumption history but no saved reading baseline. Verify its historical opening reading before adding one.')
-    try:
-        value=Decimal(reading)
-        if not re.fullmatch(r'\d{4}-\d{2}-\d{2}',day):raise ValueError()
-        parsed=date.fromisoformat(day)
-        if not value.is_finite() or value<0 or value>Decimal('1000000000000') or parsed.year<1900 or parsed>datetime.now(ZoneInfo('Africa/Johannesburg')).date():raise ValueError()
-    except (ValueError,InvalidOperation):abort(400,description='Enter a valid non-negative '+kind+' opening reading (maximum 1,000,000,000,000) and a reading date from 1900 through today.')
-    return dict(value=value,day=parsed)
 
 def account_rows(property_id):
     return [dict(r) for r in db.session.execute(text('SELECT a.*,o.name AS owner_name FROM bil_muni_account a LEFT JOIN ref_muni_owner o ON o.id=a.owner_id WHERE a.property_id=:p ORDER BY a.id'),dict(p=property_id)).mappings()]
@@ -210,11 +190,6 @@ def save(property_id,form):
         for c in inspect(db.session.connection()).get_columns('bil_meter'):
             if c['name']=='sectional_unit_id' and not c['nullable']:
                 abort(503,description='Cannot create this meter: legacy bil_meter.sectional_unit_id is mandatory. Apply migration metsoa_setup_002 before creating property-based meters; no account or meter changes were saved.')
-    baselines={}
-    for kind,key in [('water','water_number'),('electricity','electricity_number')]:
-        if data[key]:baselines[kind]=baseline(kind,form,meters[kind])
-        elif form.get(kind+'_opening_reading') or form.get(kind+'_opening_date'):
-            abort(400,description='An opening reading requires its corresponding meter number.')
     # Owner names can be shared: never rename a shared owner record.
     db.session.execute(text('INSERT INTO ref_muni_owner(name) VALUES(:n) ON CONFLICT(name) DO NOTHING'),dict(n=data['owner_name']))
     owner_id=db.session.execute(text('SELECT id FROM ref_muni_owner WHERE name=:n'),dict(n=data['owner_name'])).scalar()
@@ -234,14 +209,6 @@ def save(property_id,form):
         db.session.execute(text('UPDATE bil_muni_account SET account_number=:n,owner_id=:o,water_meter_id=:w,elec_meter_id=:e,muni_water_meter_no=:wn,muni_elec_meter_no=:en WHERE id=:id AND property_id=:p'),values)
     else:
         account_id=db.session.execute(text('INSERT INTO bil_muni_account(property_id,account_number,owner_id,water_meter_id,elec_meter_id,muni_water_meter_no,muni_elec_meter_no,is_bulk_account) VALUES(:p,:n,:o,:w,:e,:wn,:en,false) RETURNING id'),values).scalar()
-    for kind,entry in baselines.items():
-        if entry is not None:
-            # Property-row lock serialises this page and the existing reading service.
-            # No existing reading is updated; no consumption or charge is generated.
-            meter_id=meters[kind]['id']
-            if db.session.execute(text('SELECT 1 FROM bil_meter_reading WHERE meter_id=:m LIMIT 1'),dict(m=meter_id)).first():
-                abort(409,description='A reading was recorded while saving. Reopen the account before retrying.')
-            db.session.execute(text('INSERT INTO bil_meter_reading(meter_id,reading_date,reading_value) VALUES(:m,:d,:v)'),dict(m=meter_id,d=entry['day'],v=entry['value']))
     return account_id
 
 def page(property_id):

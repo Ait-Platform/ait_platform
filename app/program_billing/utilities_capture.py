@@ -28,9 +28,10 @@ def amount(value,currency=False):
 def available(table,columns):
     catalog=inspect(db.session.connection())
     return catalog.has_table(table) and set(columns)<={c['name'] for c in catalog.get_columns(table)}
-def ready():
-    if not available('bil_municipal_statement',['id','account_id','period','statement_date','arrears','balance','due','due_date','version']) or not available('bil_utilities_capture_audit',['id','property_id','kind','record_id','actor_id','before_data','after_data']):
-        abort(503,description='Utilities capture requires migration pm_utilities_001. No records were changed.')
+def schema_ready():
+    return available('bil_municipal_statement',['id','account_id','period','statement_date','arrears','balance','due','due_date','version']) and available('bil_utilities_capture_audit',['id','property_id','kind','record_id','actor_id','before_data','after_data'])
+def ready(label='Metro Reconciliation'):
+    if not schema_ready():abort(503,description=label+' is temporarily unavailable. Please contact the administrator.')
 def audit(p,kind,record,before,after):
     db.session.execute(text('INSERT INTO bil_utilities_capture_audit(property_id,kind,record_id,actor_id,before_data,after_data) VALUES(:p,:k,:r,:u,CAST(:b AS json),CAST(:a AS json))'),dict(p=p,k=kind,r=record,u=current_user.id,b=json.dumps(dict(before),default=str) if before else None,a=json.dumps(dict(after),default=str)))
 def meters(p):
@@ -38,7 +39,7 @@ def meters(p):
 def readings(p):
     return [dict(r) for r in db.session.execute(text('SELECT r.*,m.meter_number,m.utility_type FROM bil_meter_reading r JOIN bil_meter m ON m.id=r.meter_id WHERE m.property_id=:p ORDER BY r.reading_date DESC,r.id DESC'),dict(p=p)).mappings()]
 def save_reading(p,form):
-    property_scope(p,lock=True);ready()
+    property_scope(p,lock=True);ready('Meter Readings')
     try:meter_id=int(form.get('meter_id',''));record_id=int(form['record_id']) if form.get('record_id') else None
     except ValueError:abort(400,description='Select a valid meter or reading.')
     meter=db.session.execute(text('SELECT * FROM bil_meter WHERE id=:m AND property_id=:p FOR UPDATE'),dict(m=meter_id,p=p)).mappings().first()
@@ -77,7 +78,7 @@ def paid(account,period):
     # Only explicit municipal account/period allocations qualify. Never tenant/property totals.
     return db.session.execute(text('SELECT COALESCE(SUM(CAST(amount AS numeric(18,2))),0) FROM bil_muni_payment WHERE account_id=:a AND month=:p'),dict(a=account,p=period)).scalar()
 def statements(p):
-    if not available('bil_municipal_statement',['id']):return []
+    if not available('bil_municipal_statement',['id','account_id','period','statement_date','arrears','balance','due','due_date','version']):return []
     rows=[dict(r) for r in db.session.execute(text('SELECT s.*,a.account_number FROM bil_municipal_statement s JOIN bil_muni_account a ON a.id=s.account_id WHERE a.property_id=:p ORDER BY s.statement_date DESC,s.id DESC'),dict(p=p)).mappings()]
     for row in rows:row['paid']=paid(row['account_id'],row['period'])
     return rows
@@ -129,6 +130,6 @@ def page(p,kind):
             canonical={k:row[k] for k in ('id','meter_id','reading_date','reading_value')};version=fingerprint(canonical)
         else:version=str(row['version'])
     elif request.method=='POST':version=values.get('version','')
-    if not available('bil_municipal_statement',['id']) or not available('bil_utilities_capture_audit',['id']):error=error or 'Saving requires migration pm_utilities_001.'
+    if not schema_ready():error=error or ('Metro Reconciliation is temporarily unavailable. Please contact the administrator.' if kind=='statements' else 'Meter Readings is temporarily unavailable. Please contact the administrator.')
     accounts=[dict(r) for r in db.session.execute(text('SELECT id,account_number FROM bil_muni_account WHERE property_id=:p ORDER BY account_number,id'),dict(p=p)).mappings()]
-    return render_template('program_billing/utilities_capture.html',property=prop,kind=kind,rows=rows,meters=meters(p),accounts=accounts,values=values,version=version,edit_id=edit_id,error=error,today=datetime.now(ZoneInfo('Africa/Johannesburg')).date().isoformat()),status
+    return render_template('program_billing/utilities_capture.html',property=prop,kind=kind,rows=rows,meters=meters(p),accounts=accounts,values=values,version=version,edit_id=edit_id,error=error,capture_ready=schema_ready(),today=datetime.now(ZoneInfo('Africa/Johannesburg')).date().isoformat()),status

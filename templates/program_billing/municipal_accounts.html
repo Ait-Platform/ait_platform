@@ -19,18 +19,8 @@
 {% endfor %}
 <div><label for="owner_name" class="mb-2 block font-semibold">Account Owner</label><select id="owner_name" name="owner_name" required class="w-full rounded-lg border border-slate-300 px-3 py-2"><option value="">Select registered owner</option>{% if values.owner_name and values.owner_name not in owners|map(attribute='name')|list %}<option value="{{ values.owner_name }}" selected>{{ values.owner_name }} — existing account owner</option>{% endif %}{% for owner in owners %}<option value="{{ owner.name }}" {% if values.owner_name==owner.name %}selected{% endif %}>{{ owner.name }}</option>{% endfor %}</select></div>
 </div>
-<div class="rounded-lg bg-slate-50 p-3"><p id="account-lookup-status" role="status" aria-live="polite">Enter the municipal account number to load saved details.</p><button id="account-lookup-retry" type="button" hidden class="mt-2 rounded-lg bg-yellow-100 px-3 py-2">Retry Lookup</button><div id="account-lookup-details" class="mt-2 space-y-2 text-sm"></div>
-</div>
-{% for kind,label,unit in [('water','Water','kL'),('electricity','Electricity','kWh')] %}
-<fieldset class="rounded-lg border border-slate-200 p-4" data-meter-baseline="{{ kind }}" data-established="{{ 'yes' if established[kind] else 'no' }}"><legend class="px-2 font-semibold">{{ label }} meter (optional)</legend>
-<div class="grid grid-cols-1 gap-4 md:grid-cols-3">
-<div><label for="{{ kind }}_number" class="mb-2 block font-semibold">Meter number</label><input id="{{ kind }}_number" name="{{ kind }}_number" value="{{ values[kind+'_number'] }}" maxlength="50" class="w-full rounded-lg border border-slate-300 px-3 py-2"></div>
-<div><label for="{{ kind }}_opening_reading" class="mb-2 block font-semibold">Opening reading ({{ unit }})</label><input id="{{ kind }}_opening_reading" name="{{ kind }}_opening_reading" type="number" min="0" max="1000000000000" step="any" value="{{ values[kind+'_opening_reading'] }}" {% if established[kind] %}readonly{% elif values[kind+'_number'] %}required{% endif %} class="w-full rounded-lg border border-slate-300 px-3 py-2"></div>
-<div><label for="{{ kind }}_opening_date" class="mb-2 block font-semibold">Opening reading date</label><input id="{{ kind }}_opening_date" name="{{ kind }}_opening_date" type="date" min="1900-01-01" max="{{ today }}" value="{{ values[kind+'_opening_date'] }}" {% if established[kind] %}readonly{% elif values[kind+'_number'] %}required{% endif %} class="w-full rounded-lg border border-slate-300 px-3 py-2"></div>
-</div>
-<p id="{{ kind }}_latest_recorded" class="mt-2 text-sm text-slate-700">{% if current_readings.get(kind) %}Latest recorded reading: {{ current_readings[kind].value }} {{ unit }} — {{ current_readings[kind].date }}{% endif %}</p>
-</fieldset>{% endfor %}
-
+<p id="account-lookup-status" role="alert" hidden class="text-red-800"></p><button id="account-lookup-retry" type="button" hidden class="rounded-lg bg-yellow-100 px-3 py-2">Retry Lookup</button>
+<div class="grid grid-cols-1 gap-4 md:grid-cols-2">{% for kind,label in [('water','Water'),('electricity','Electricity')] %}<div><label for="{{ kind }}_number" class="mb-2 block font-semibold">{{ label }} meter number (optional)</label><input id="{{ kind }}_number" name="{{ kind }}_number" value="{{ values[kind+'_number'] }}" maxlength="50" class="w-full rounded-lg border border-slate-300 px-3 py-2"></div>{% endfor %}</div>
 <div class="flex justify-end gap-2"><a href="{{ url_for('billing_bp.municipal_accounts',property_id=property.id,billing_month=utility_month) }}" class="rounded-lg bg-red-100 px-4 py-2">Cancel</a><button type="submit" name="save_action" value="finish" class="rounded-lg bg-green-100 px-4 py-2 font-semibold">Save</button></div>
 </form>
 {% endif %}
@@ -38,19 +28,6 @@
 {% for account in accounts %}<tr class="border-t"><td class="p-3">{{ account.account_number }}{% for issue in account.issues %}<p class="mt-1 text-sm text-amber-900">{{ issue }}</p>{% endfor %}</td><td class="p-3">{{ account.owner_name or '' }}</td>{% for kind,unit in [('water','kL'),('electricity','kWh')] %}<td class="whitespace-nowrap p-3">{{ account[kind+'_number'] }}</td>{% endfor %}<td class="p-3"><a href="{{ url_for('billing_bp.municipal_accounts',property_id=property.id,edit=account.id,billing_month=utility_month) }}" class="inline-flex rounded-lg bg-yellow-100 px-3 py-2 font-semibold">{{ 'View' if account.issues else 'Edit' }}</a></td></tr>{% else %}<tr><td colspan="5" class="p-4 text-slate-600">No municipal accounts recorded for this property.</td></tr>{% endfor %}
 </tbody></table></div>
 </div></div></div>
-<script>
-for (const group of document.querySelectorAll('[data-meter-baseline]')) {
-  const kind=group.dataset.meterBaseline;
-  const meter=document.getElementById(kind+'_number');
-  const fields=[document.getElementById(kind+'_opening_reading'),document.getElementById(kind+'_opening_date')];
-  function syncBaseline() {
-    for (const field of fields) {
-      field.required=Boolean(meter.value.trim()) && group.dataset.established!=='yes';
-      field.disabled=!meter.value.trim() && group.dataset.established!=='yes';
-    }
-  }
-  meter.addEventListener('input',syncBaseline);syncBaseline();
-}
-</script>
+
 {% if show_form %}<script src="{{ url_for('static',filename='js/pm_municipal_accounts_lookup.js') }}" defer></script>{% endif %}
 {% endblock %}

@@ -121,6 +121,19 @@ class UtilitiesCaptureTests(fixture.MunicipalAccountsTests):
                 self.session.execute(text("INSERT INTO bil_municipal_statement(account_id,period,statement_date,arrears,balance,due,due_date) VALUES(1,'2026-09','2026-09-28',1,1,1,'2026-10-07')"))
         self.assertEqual(self.session.execute(text('SELECT count(*) FROM bil_municipal_statement')).scalar(),1)
 
+    def test_migration_unavailable_message_is_plain_and_save_is_disabled(self):
+        with patch.object(self.capture,'available',return_value=False):
+            page=self.client.get(self.statements_url,headers=self.headers)
+            self.assertEqual(page.status_code,200)
+            self.assertIn('Metro Reconciliation is temporarily unavailable. Please contact the administrator.',page.text)
+            self.assertNotIn('pm_utilities_001',page.text)
+            self.assertTrue(html.fromstring(page.data).xpath('//button[@type="submit"][@disabled]'))
+            failed=self.bill();self.assertEqual(failed.status_code,503)
+            self.assertNotIn('pm_utilities_001',failed.text)
+        page=self.client.get(self.statements_url,headers=self.headers)
+        self.assertNotIn('temporarily unavailable',page.text);self.assertNotIn('pm_utilities_001',page.text)
+        self.assertFalse(html.fromstring(page.data).xpath('//button[@type="submit"][@disabled]'))
+
     def test_atomic_audit_failure_and_schema_guard(self):
         before=self.snapshot()
         self.session.execute(text("ALTER TABLE bil_utilities_capture_audit ADD CONSTRAINT audit_fail CHECK(kind<>'statement')"));self.session.commit();self.conn.commit()

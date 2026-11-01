@@ -406,7 +406,8 @@ def readings_consumption():
 # Billing home (unchanged if you already have this)
 @admin_bp.route("/billing/", endpoint="billing_home")
 def billing_home():
-    return render_template("admin/billing/index.html")
+    from app.program_billing.lease_management import render_pm_template
+    return render_pm_template("admin/programs/billing/index.html")
 
 @admin_bp.route("/billing/metsoa/water/<int:meter_id>", methods=["GET", "POST"], endpoint="metsoa_water_config")
 def metsoa_water_config(meter_id):

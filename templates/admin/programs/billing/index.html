@@ -54,6 +54,16 @@
           <p class="text-sm text-purple-700 mt-1">Update utility rates, water tiers, and fixed charges directly from municipality bills.</p>
         </a>
 
+        <a href="{{ url_for('billing_bp.utilities_hub') }}" class="block rounded-xl border border-orange-200 bg-orange-50 p-6 hover:bg-orange-100 transition-colors">
+          <h2 class="font-medium text-orange-900">METSOA</h2>
+          <p class="text-sm text-orange-700 mt-1">Open property Utilities and generate municipal statements.</p>
+        </a>
+
+        <a href="{{ url_for('billing_bp.pm_lease_management') }}" class="block rounded-xl border border-violet-200 bg-violet-50 p-6 hover:bg-violet-100 transition-colors">
+          <h2 class="font-medium text-violet-900">Lease Management</h2>
+          <p class="text-sm text-violet-700 mt-1">Open the existing property-scoped Lease Management workspace.</p>
+        </a>
+
         <!-- Metro Reconciliation -->
         <a href="{{ url_for('admin_bp.muni_recon_statement') }}" class="block rounded-xl border border-teal-200 bg-teal-50 p-6 hover:bg-teal-100 transition-colors">
           <h2 class="font-medium text-teal-900">Metro Reconciliation</h2>

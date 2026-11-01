@@ -3768,3 +3768,9 @@ from . import lease_history as _lease_history
 from . import lease_property_payments as _lease_property_payments
 
 from . import lease_core_admin as _lease_core_admin
+
+@billing_bp.route('/billing/utilities/<int:property_id>/bulk-meter-linking',methods=['GET','POST'])
+@login_required
+def bulk_meter_linking(property_id):
+    from .bulk_meter_linking import page
+    return page(property_id)

@@ -5,7 +5,7 @@ from sqlalchemy import text
 import test_pm_municipal_metsoa as fixture
 class BulkMetsoaTests(fixture.MunicipalMetsoaTests):
     def setup_bulk(self):
-        # Existing property meters, same exact period, with a future reading ignored.
+        # Existing property meters, validated monthly pairs, with a future reading ignored.
         self.session.execute(text("UPDATE bil_meter SET parent_meter_id=5 WHERE id IN(1,2)"))
         self.session.execute(text("UPDATE bil_meter_reading SET reading_date='2026-09-30' WHERE meter_id IN(1,2) AND reading_date<'2026-10-01'"))
         self.session.execute(text("UPDATE bil_meter_reading SET reading_date='2026-10-30' WHERE meter_id IN(1,2,5) AND reading_date BETWEEN '2026-10-01' AND '2026-10-31'"))
@@ -41,21 +41,59 @@ class BulkMetsoaTests(fixture.MunicipalMetsoaTests):
         contents=' '.join(p.extract_text() or '' for p in PdfReader(BytesIO(pdf.data)).pages)
         self.assertIn('minus linked individual consumption',contents);self.assertIn('100.64',contents)
         self.assertEqual(before,self.snapshot())
-    def test_electricity_adjustment_uses_matching_dates_and_ignores_future(self):
+    def test_electricity_adjustment_uses_billing_month_despite_different_dates(self):
         self.session.execute(text('UPDATE bil_meter SET parent_meter_id=4 WHERE id=3'))
+        self.session.execute(text("UPDATE bil_meter_reading SET reading_date='2026-10-24' WHERE meter_id=3 AND reading_date='2026-10-26'"))
         self.session.commit();self.conn.commit();self.confirm_bulk(4,[3],'electricity');before=self.snapshot();data=self.data()
         rows={r['meter_number']:r for r in data['electricity']['rows']}
         self.assertEqual(rows['2188802S']['consumption'],Decimal(532))
         self.assertEqual(rows['7150696S']['consumption'],Decimal(15))
         self.assertEqual(data['electricity']['subtotal'],Decimal('1793.88'))
         self.assertEqual(before,self.snapshot())
-    def test_missing_or_mismatched_child_period_is_incomplete(self):
+    def test_missing_monthly_consumption_identifies_meter_and_reason(self):
         self.setup_bulk()
-        self.session.execute(text("UPDATE bil_meter_reading SET reading_date='2026-09-29' WHERE meter_id=1 AND reading_date='2026-09-30'"));self.session.commit();self.conn.commit()
-        data=self.data();self.assertFalse(data['pm_complete']);self.assertIn('different reading period',str(data['pm_issues']))
+        self.session.execute(text("DELETE FROM bil_meter_reading WHERE meter_id=1 AND reading_date='2026-10-30'"));self.session.commit();self.conn.commit()
+        before=self.snapshot();data=self.data()
+        self.assertFalse(data['pm_complete'])
+        self.assertIn('linked meter CEL888 monthly consumption for 2026-10 cannot be established',str(data['pm_issues']))
+        self.assertIn('Only one reading',str(data['pm_issues']))
         self.assertNotIn('ANG489',[w['meter_number'] for w in data['water']['meters']])
-        self.session.execute(text("DELETE FROM bil_meter_reading WHERE meter_id=1 AND reading_date<'2026-11-01'"));self.session.commit();self.conn.commit()
-        data=self.data();self.assertFalse(data['pm_complete']);self.assertIn('missing readings',str(data['pm_issues']))
+        self.assertEqual(before,self.snapshot())
+        self.session.execute(text("INSERT INTO bil_meter_reading(meter_id,reading_date,reading_value) VALUES(1,'2026-08-30',0)"));self.session.commit();self.conn.commit()
+        data=self.data();self.assertFalse(data['pm_complete'])
+        self.assertIn('No reading captured in 2026-10',str(data['pm_issues']))
+    def test_october_100_minus_20_with_different_dates_is_80_and_pdf_agrees(self):
+        self.setup_bulk();self.confirm_bulk(5,[2])
+        self.session.execute(text("UPDATE bil_meter_reading SET reading_date='2026-09-11' WHERE meter_id=2 AND reading_date='2026-09-30'"))
+        self.session.execute(text("UPDATE bil_meter_reading SET reading_date='2026-10-11',reading_value=634 WHERE meter_id=2 AND reading_date='2026-10-30'"));self.session.commit();self.conn.commit()
+        before=self.snapshot();data=self.data();self.assertTrue(data['pm_complete'],data['pm_issues'])
+        water={w['meter_number']:w for w in data['water']['meters']}
+        self.assertEqual(water['ANG489']['summary']['consumption'],Decimal(80))
+        self.assertEqual(water['CXN998']['summary']['consumption'],Decimal(20))
+        self.assertEqual(water['ANG489']['summary']['last_read'],Decimal(0))
+        self.assertEqual(water['CXN998']['summary']['last_read'],Decimal(614))
+        self.assertEqual(water['ANG489']['summary']['consumption']+water['CXN998']['summary']['consumption'],Decimal(100))
+        self.assertNotEqual(water['ANG489']['summary']['new_date'],water['CXN998']['summary']['new_date'])
+        page=self.client.get(self.generation_url,headers=self.headers)
+        self.assertEqual(page.status_code,200);self.assertNotIn('INCOMPLETE',page.text)
+        from lxml import html
+        tree=html.fromstring(page.data)
+        total=tree.xpath('//tr[td[contains(text(),"Municipality Utility Charges")]]/td[last()]')[0].text_content().strip()
+        self.assertEqual(total,'R%.2f'%data['grand_total'])
+        from io import BytesIO
+        from pypdf import PdfReader
+        pdf=self.client.get(self.generation_url+'&format=pdf',headers=self.headers)
+        self.assertEqual(pdf.status_code,200)
+        contents=' '.join(p.extract_text() or '' for p in PdfReader(BytesIO(pdf.data)).pages)
+        self.assertIn(total,contents);self.assertNotIn('INCOMPLETE',contents)
+        self.assertEqual(before,self.snapshot())
+    def test_multiple_children_with_different_physical_dates_deduct_monthly_usage(self):
+        self.setup_bulk()
+        self.session.execute(text("UPDATE bil_meter_reading SET reading_date='2026-10-21' WHERE meter_id=1 AND reading_date='2026-10-30'"))
+        self.session.execute(text("UPDATE bil_meter_reading SET reading_date='2026-09-11' WHERE meter_id=2 AND reading_date='2026-09-30'"))
+        self.session.execute(text("UPDATE bil_meter_reading SET reading_date='2026-10-11' WHERE meter_id=2 AND reading_date='2026-10-30'"));self.session.commit();self.conn.commit()
+        data=self.data();self.assertTrue(data['pm_complete'],data['pm_issues'])
+        self.assertEqual(next(w['summary']['consumption'] for w in data['water']['meters'] if w['meter_number']=='ANG489'),Decimal(68))
     def test_negative_bulk_difference_is_shown_without_negative_charge(self):
         self.setup_bulk();self.session.execute(text("UPDATE bil_meter_reading SET reading_value=20 WHERE meter_id=5 AND reading_date='2026-10-30'"));self.session.commit();self.conn.commit()
         data=self.data();self.assertFalse(data['pm_complete']);self.assertIn('= -12.0 kL',str(data['pm_issues']))

@@ -23,7 +23,7 @@ def original_builders():
     return build_electrical_rows,build_water_rows
 
 def reading_pair(meter,start,end):
-    entry=dict(number=meter['meter_number'],previous=None,current=None,difference=None,days=None,error=None)
+    entry=dict(number=meter['meter_number'],billing_month=None,previous=None,current=None,difference=None,days=None,error=None)
     readings=db.session.execute(text('SELECT id,reading_date,reading_value FROM bil_meter_reading WHERE meter_id=:m AND reading_date<=:end ORDER BY reading_date DESC,id DESC'),dict(m=meter['id'],end=end)).mappings().all()
     by_date={}
     for reading in readings:by_date.setdefault(reading['reading_date'],[]).append(reading)
@@ -37,7 +37,7 @@ def reading_pair(meter,start,end):
         else:
             current=pair[0][0];previous=pair[1][0];new=Decimal(str(current['reading_value']));old=Decimal(str(previous['reading_value']))
             if not new.is_finite() or not old.is_finite() or old<0 or new<old:entry['error']='Readings decrease or contain invalid values; review the original records.'
-            else:entry.update(previous=dict(date=previous['reading_date'],value=old),current=dict(date=current['reading_date'],value=new),difference=new-old,days=(current['reading_date']-previous['reading_date']).days)
+            else:entry.update(billing_month=start.strftime('%Y-%m'),previous=dict(date=previous['reading_date'],value=old),current=dict(date=current['reading_date'],value=new),difference=new-old,days=(current['reading_date']-previous['reading_date']).days)
     return entry
 
 def recipient_choices(p,manager_id):
@@ -60,7 +60,7 @@ def statement_recipient(p,manager_id,month,recipient_id=None):
     return None,choices,'Select a registered property owner or tenant as the METSOA recipient.'
 
 def bulk_consumption(meter,meters,pairs,issues,notes):
-    """Subtract raw direct-child usage only over an identical dated interval."""
+    """Subtract validated direct-child usage assigned to the same billing month."""
     from .bulk_meter_linking import kind
     pair=pairs[meter['id']]
     children=[m for m in meters if m.get('parent_meter_id')==meter['id']]
@@ -75,8 +75,9 @@ def bulk_consumption(meter,meters,pairs,issues,notes):
         if kind(child['utility_type'])!=kind(meter['utility_type']):
             issues.append(meter['meter_number']+': linked meters have different utility types.');return None
         cp=pairs[child['id']]
-        if cp['error'] or cp['previous']['date']!=pair['previous']['date'] or cp['current']['date']!=pair['current']['date']:
-            issues.append(meter['meter_number']+': linked meter '+child['meter_number']+' has missing readings or a different reading period; bulk adjustment is incomplete.');return None
+        if cp['error'] or not cp['billing_month'] or cp['billing_month']!=pair['billing_month']:
+            reason=cp['error'] or 'Validated consumption is not available for the selected billing month.'
+            issues.append(meter['meter_number']+': linked meter '+child['meter_number']+' monthly consumption for '+str(pair['billing_month'])+' cannot be established: '+reason+' Bulk adjustment is incomplete.');return None
     deducted=sum((pairs[c['id']]['difference'] for c in children),Decimal(0))
     adjusted=pair['difference']-deducted
     message=meter['meter_number']+': bulk consumption '+str(pair['difference'])+' minus linked individual consumption '+str(deducted)+' = '+str(adjusted)+(' kL' if kind(meter['utility_type'])=='water' else ' kWh')+'.'

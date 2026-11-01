@@ -31,7 +31,7 @@ class ExceptionRecordTests(fixture.MeterExceptionTests):
         file=BytesIO();Image.new('RGB',(5,5),'blue').save(file,format='PNG');return file.getvalue()
     def test_stolen_without_replacement_and_replaced_requires_both(self):
         from lxml import html
-        page=self.client.get(self.exceptions_url+'?account_id=1',headers=self.headers)
+        page=self.client.get(self.exceptions_url+'?account_id=1&view=register',headers=self.headers)
         form=html.fromstring(page.data).xpath('//form[.//input[@value="create"]]')[0]
         self.assertFalse(form.xpath('.//*[@name="replacement_meter_id" or @name="replacement_date"]/@required'))
         fields=self.fields(replacement_meter_id='',replacement_date='')

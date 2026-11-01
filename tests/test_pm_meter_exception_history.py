@@ -19,7 +19,7 @@ class ExceptionHistoryTests(fixture.ExceptionChargeTests):
         self.assertEqual([r['kind'] for r in events],['created','status_changed','status_changed','status_changed'])
         self.assertEqual([r['details']['effective_date'] for r in events[1:]],['2026-09-05','2026-09-10','2026-09-20'])
         self.assertTrue(all(r['actor_id']==7 and r['recorded_at'].tzinfo for r in events))
-        detail=self.client.get(response.location,headers=self.headers);self.assertIn('SAST',detail.text);self.assertIn('Reported',detail.text);self.assertIn('Register Another Exception',detail.text)
+        detail=self.client.get(response.location,headers=self.headers);self.assertIn('SAST',detail.text);self.assertIn('Reported',detail.text);self.assertIn('Back to Exception Register',detail.text)
         self.assertEqual(before,self.snapshot());self.assertEqual(bills,self.statements_snapshot())
     def test_stale_invalid_and_cross_account_changes_are_blocked(self):
         fields=self.status_fields();self.assertEqual(self.post_exception(fields).status_code,302)
@@ -59,7 +59,8 @@ class ExceptionHistoryTests(fixture.ExceptionChargeTests):
             try:
                 tab=browser.new_page();tab.route('**/*',lambda r:r.abort());tab.set_content(all_page.text,wait_until='domcontentloaded')
                 self.assertEqual(tab.locator('form:has(input[name="action"][value="create"])').count(),0)
-                tab.set_content(selected.text,wait_until='domcontentloaded')
+                registration=self.client.get(self.exceptions_url+'?account_id=1&view=register',headers=self.headers)
+                tab.set_content(registration.text,wait_until='domcontentloaded')
                 options=tab.locator('select[name="meter_id"] option').evaluate_all('(items)=>items.map(item=>item.value)')
                 self.assertNotIn('90',options);self.assertNotIn('91',options)
                 detail=self.client.get(self.exceptions_url+'?account_id=1&exception_id='+str(self.incident),headers=self.headers)

@@ -277,6 +277,7 @@ def page(p):
     prop=db.session.execute(text('SELECT id,name FROM bil_property WHERE id=:p'),dict(p=p)).mappings().one()
     values=request.form.to_dict() if request.method=='POST' else {}
     error=None;status=200;detail=None
+    registration_requested=request.args.get('view')=='register' or (request.method=='POST' and values.get('action')=='create')
     if request.method=='POST':
         try:
             if request.args.get('account_id') and request.args['account_id']!=values.get('account_id'):abort(403)
@@ -308,7 +309,7 @@ def page(p):
         meter_name='COALESCE(m.meter_number,h.meter_number)' if historical_ready() else 'm.meter_number'
         historical_join=' LEFT JOIN bil_meter_exception_identity h ON h.id=e.historical_identity_id' if historical_ready() else ''
         entries=[dict(r) for r in db.session.execute(text('SELECT e.*,a.account_number,'+meter_name+' AS meter_number FROM bil_meter_exception e JOIN bil_muni_account a ON a.id=e.account_id LEFT JOIN bil_meter m ON m.id=e.meter_id'+historical_join+' WHERE e.property_id=:p AND a.property_id=:p AND (:a IS NULL OR e.account_id=:a) ORDER BY e.incident_date DESC,e.id DESC'),dict(p=p,a=acc['id'] if acc else None)).mappings()]
-        selected=None if request.method=='POST' and values.get('action')=='create' else request.values.get('exception_id')
+        selected=None if registration_requested else request.values.get('exception_id')
         if selected:
             detail=scoped(p,selected)
             if acc and detail['account_id']!=acc['id']:abort(404)
@@ -320,4 +321,4 @@ def page(p):
         for charge in charges:
             charge['evidence']=[dict(r) for r in db.session.execute(text('SELECT v.id,v.filename FROM bil_meter_exception_charge_evidence l JOIN bil_meter_exception_evidence v ON v.id=l.evidence_id WHERE l.charge_id=:c AND v.exception_id=:e'),dict(c=charge['id'],e=detail['id'])).mappings()]
         bills=[dict(r) for r in db.session.execute(text('SELECT id,period,statement_date,balance,due FROM bil_municipal_statement WHERE account_id=:a ORDER BY statement_date DESC,id DESC'),dict(a=detail['account_id'])).mappings()]
-    return render_template('program_billing/meter_exceptions.html',property=prop,accounts=accounts(p),account=acc,meters=meters,legacy=legacy,entries=entries,detail=detail,evidence=evidence,charges=charges,bills=bills,charges_available=charges_ready(),dispute_available=dispute_ready(),charge_submission_key=values.get('submission_key') if values.get('action')=='charge' else str(uuid.uuid4()),types=TYPES,statuses=STATUSES,events=events,today=datetime.now(ZoneInfo('Africa/Johannesburg')).date().isoformat(),available=ready(),historical_available=historical_ready(),values=values,submission_key=values.get('submission_key') or str(uuid.uuid4()),error=error,utility_month=request.values.get('billing_month','')),status
+    return render_template('program_billing/meter_exceptions.html',property=prop,accounts=accounts(p),account=acc,meters=meters,legacy=legacy,entries=entries,detail=detail,evidence=evidence,charges=charges,bills=bills,charges_available=charges_ready(),dispute_available=dispute_ready(),charge_submission_key=values.get('submission_key') if values.get('action')=='charge' else str(uuid.uuid4()),types=TYPES,statuses=STATUSES,events=events,today=datetime.now(ZoneInfo('Africa/Johannesburg')).date().isoformat(),available=ready(),registration=bool(acc and not detail and registration_requested),historical_available=historical_ready(),values=values,submission_key=values.get('submission_key') or str(uuid.uuid4()),error=error,utility_month=request.values.get('billing_month','')),status

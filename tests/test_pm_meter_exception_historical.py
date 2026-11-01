@@ -24,7 +24,7 @@ class HistoricalExceptionTests(fixture.ExceptionChargeTests):
         row=self.session.execute(text('SELECT * FROM bil_meter_exception WHERE id=:e'),dict(e=self.last_id())).mappings().one()
         self.assertIsNone(row['meter_id']);self.assertIsNotNone(row['historical_identity_id'])
         self.assertEqual(before,self.snapshot())
-        page=self.client.get(self.exceptions_url+'?account_id=1',headers=self.headers);doc=html.fromstring(page.data)
+        page=self.client.get(self.exceptions_url+'?account_id=1&view=register',headers=self.headers);doc=html.fromstring(page.data)
         self.assertTrue(doc.xpath('//select[@name="meter_id"]/option[starts-with(@value,"h:")]'))
         fields=self.fields(meter_id='h:'+str(row['historical_identity_id']))
         self.assertEqual(self.post_exception(fields).status_code,302)
@@ -41,7 +41,7 @@ class HistoricalExceptionTests(fixture.ExceptionChargeTests):
         self.assertEqual(self.post_exception(self.fields(replacement_meter_id='h:'+str(hid),replacement_date='2026-09-03')).status_code,400)
     def test_browser_historical_registration_without_replacement(self):
         from playwright.sync_api import sync_playwright
-        page=self.client.get(self.exceptions_url+'?account_id=1',headers=self.headers)
+        page=self.client.get(self.exceptions_url+'?account_id=1&view=register',headers=self.headers)
         with sync_playwright() as runtime:
             browser=runtime.chromium.launch(headless=True)
             try:
@@ -62,7 +62,7 @@ class HistoricalExceptionTests(fixture.ExceptionChargeTests):
     def test_unassigned_legacy_meter_uses_verified_account_without_reassignment(self):
         self.session.execute(text("INSERT INTO bil_meter(id,property_id,meter_number,utility_type,municipal_bill_number,status) VALUES(96,NULL,'UNASSIGNED-OLD','Water','MET-26','stolen')"));self.session.commit();self.conn.commit()
         before=self.snapshot()
-        page=self.client.get(self.exceptions_url+'?account_id=1',headers=self.headers)
+        page=self.client.get(self.exceptions_url+'?account_id=1&view=register',headers=self.headers)
         self.assertIn('UNASSIGNED-OLD',page.text)
         self.assertEqual(self.post_exception(self.fields(meter_id='96')).status_code,302)
         self.assertEqual(self.post_exception(self.fields(account_id='2',meter_id='96')).status_code,400)

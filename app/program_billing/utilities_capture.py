@@ -118,7 +118,7 @@ def page(p,kind):
         try:
             (save_reading if kind=='readings' else save_statement)(p,values);db.session.commit()
             flash('Meter reading saved.' if kind=='readings' else 'Municipal statement saved.','success')
-            return redirect(url_for('billing_bp.meter_readings' if kind=='readings' else 'billing_bp.metro_reconciliation',property_id=p,billing_month=utility_month))
+            return redirect(url_for('billing_bp.meter_readings' if kind=='readings' else 'billing_bp.metro_reconciliation',property_id=p,billing_month=utility_month,view_item=values.get('view_item','')))
         except HTTPException as exc:db.session.rollback();error=exc.description;status=exc.code
         except Exception:
             db.session.rollback();current_app.logger.exception('Utilities capture failed');error='Saving failed; no changes were committed. Check the server log.';status=503

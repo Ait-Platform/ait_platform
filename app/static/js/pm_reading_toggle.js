@@ -6,6 +6,9 @@
   let expanded=false;
   function render(){
     const selected=filter?.value || '';
+    const output=document.getElementById('reading-output');
+    if(output)output.href=output.dataset.outputBase+'&item_id='+encodeURIComponent(selected);
+    const savedFilter=document.getElementById('capture-view-item');if(savedFilter)savedFilter.value=selected;
     const matching=rows.filter(row=>!selected || row.dataset.meterId===selected);
     rows.forEach(row=>{row.hidden=true;});
     matching.forEach((row,index)=>{row.hidden=!expanded && index>=5;});

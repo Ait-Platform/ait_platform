@@ -17,8 +17,10 @@ class MeterExceptionTests(fixture.UtilitiesCaptureTests):
     def test_account_navigation_meters_and_owner_are_scoped(self):
         before=self.snapshot()
         accounts=self.client.get(self.accounts_url+'?view=list',headers=self.headers)
-        links=html.fromstring(accounts.data).xpath('//a[text()="Meter Exceptions"]/@href')
-        self.assertTrue(any('account_id=1' in link and '/meter_exceptions/26' in link for link in links))
+        document=html.fromstring(accounts.data)
+        self.assertFalse(document.xpath('//tbody//a[text()="Meter Exceptions"]'))
+        links=document.xpath('//a[text()="Meter Exceptions"]/@href')
+        self.assertTrue(any('/meter_exceptions/26' in link and 'account_id=' not in link for link in links))
         page=self.client.get(self.exceptions_url+'?account_id=1',headers=self.headers)
         self.assertEqual(page.status_code,200,page.text);self.assertIn('MET-26',page.text);self.assertIn('WATER-26',page.text)
         self.assertNotIn('OTHER-W',page.text);self.assertNotIn('FOREIGN-W',page.text);self.assertIn('Back to Municipal Accounts',page.text)

@@ -156,6 +156,43 @@ def create_charge(p,form,file=None):
         evidence_id=evidence_add(p,record,file);charge_evidence(record,charge,evidence_id)
     return record['id']
 
+STATUSES=('Open','Reported','Resolved','Closed')
+
+def update_status(p,form):
+    property_scope(p,lock=True);record=scoped(p,form.get('exception_id'),True)
+    if str(record['account_id'])!=form.get('account_id'):abort(403)
+    if str(record['version'])!=form.get('version'):abort(409,description='This incident changed after the form was opened. Review the latest history before saving; entered values remain below.')
+    status=form.get('status')
+    if status not in STATUSES:abort(400,description='Select Open, Reported, Resolved or Closed.')
+    from .utilities_capture import day
+    effective=day(form.get('status_date'));today=datetime.now(ZoneInfo('Africa/Johannesburg')).date()
+    notification=day(form['notification_date']) if form.get('notification_date') else None
+    if effective<record['incident_date'] or effective>today or (notification and (notification<record['incident_date'] or notification>today)):abort(400,description='Status and notification dates must fall between the incident date and today.')
+    reference=clean_text(form,'municipal_reference',150);remarks=clean_text(form,'status_remarks',5000)
+    if status=='Reported' and not notification:abort(400,description='Enter the municipality notification date when marking an incident Reported.')
+    if status!=record['status']:
+        last=db.session.execute(text("SELECT details->>'effective_date' FROM bil_meter_exception_event WHERE exception_id=:e AND kind='status_changed' ORDER BY id DESC LIMIT 1"),dict(e=record['id'])).scalar()
+        if last and effective<day(last):abort(400,description='The status date cannot precede the latest recorded status date.')
+    before={k:record[k] for k in ('status','notification_date','municipal_reference','version')}
+    if status==record['status'] and notification==record['notification_date'] and reference==record['municipal_reference'] and not remarks:return record['id']
+    db.session.execute(text('UPDATE bil_meter_exception SET status=:s,notification_date=:n,municipal_reference=:r,version=version+1 WHERE id=:e AND version=:v'),dict(s=status,n=notification,r=reference,e=record['id'],v=record['version']))
+    kind='status_changed' if status!=record['status'] else 'details_updated' if notification!=record['notification_date'] or reference!=record['municipal_reference'] else 'note_added'
+    event(record['id'],kind,dict(from_status=record['status'],to_status=status,effective_date=effective.isoformat(),before=before,after=dict(status=status,notification_date=notification,municipal_reference=reference,version=record['version']+1),remarks=remarks))
+    return record['id']
+
+def history(eid):
+    result=[]
+    for row in db.session.execute(text('SELECT * FROM bil_meter_exception_event WHERE exception_id=:e ORDER BY id'),dict(e=eid)).mappings():
+        row=dict(row);data=row['details'];row['recorded_local']=row['recorded_at'].astimezone(ZoneInfo('Africa/Johannesburg')).strftime('%Y-%m-%d %H:%M SAST')
+        row['effective_date']=data.get('effective_date') or (data.get('d') if row['kind']=='created' else row['recorded_at'].astimezone(ZoneInfo('Africa/Johannesburg')).date().isoformat())
+        row['from_status']=data.get('from_status','');row['to_status']=data.get('to_status','Open' if row['kind']=='created' else '')
+        row['summary']=data.get('remarks') or data.get('filename') or ('Charge '+str(data['charge_id']) if 'charge_id' in data else '')
+        if row['kind']=='details_updated':
+            before=data.get('before',{});after=data.get('after',{})
+            row['summary']+=' Notification: '+str(before.get('notification_date') or 'not recorded')+' → '+str(after.get('notification_date') or 'not recorded')+'; Reference: '+str(before.get('municipal_reference') or 'not recorded')+' → '+str(after.get('municipal_reference') or 'not recorded')
+        result.append(row)
+    return result
+
 def evidence_download(p,evidence_id):
     property_scope(p);require_ready()
     row=db.session.execute(text('SELECT v.*,e.property_id,e.account_id FROM bil_meter_exception_evidence v JOIN bil_meter_exception e ON e.id=v.exception_id JOIN bil_muni_account a ON a.id=e.account_id WHERE v.id=:v AND e.property_id=:p AND a.property_id=:p'),dict(v=evidence_id,p=p)).mappings().first()
@@ -185,6 +222,7 @@ def page(p):
                     if not charges_ready() or not db.session.execute(text('SELECT 1 FROM bil_meter_exception_charge WHERE id=:c AND exception_id=:e'),dict(c=identifier(values['charge_id'],'charge'),e=detail['id'])).first():abort(403)
                 eid=detail['id'];evidence_id=evidence_add(p,detail,request.files.get('evidence'))
                 if values.get('charge_id'):charge_evidence(detail,values['charge_id'],evidence_id)
+            elif action=='status':eid=update_status(p,values)
             elif action=='charge':eid=create_charge(p,values,request.files.get('evidence'))
             else:abort(400,description='Select a valid exception action.')
             db.session.commit();flash('Meter exception saved. Existing meters, readings and municipal balances were preserved.','success')
@@ -198,7 +236,7 @@ def page(p):
     acc=account(p,request.values['account_id']) if request.values.get('account_id') else None
     meters=account_meters(p,acc) if acc else [dict(r) for r in db.session.execute(text('SELECT * FROM bil_meter WHERE property_id=:p ORDER BY meter_number,id'),dict(p=p)).mappings()]
     legacy=[m for m in meters if (m.get('status') or 'active').lower()!='active']
-    entries=[];evidence=[];charges=[];bills=[]
+    entries=[];evidence=[];charges=[];bills=[];events=[]
     if ready():
         entries=[dict(r) for r in db.session.execute(text('SELECT e.*,a.account_number,m.meter_number FROM bil_meter_exception e JOIN bil_muni_account a ON a.id=e.account_id JOIN bil_meter m ON m.id=e.meter_id WHERE e.property_id=:p AND a.property_id=:p AND (:a IS NULL OR e.account_id=:a) ORDER BY e.incident_date DESC,e.id DESC'),dict(p=p,a=acc['id'] if acc else None)).mappings()]
         selected=request.values.get('exception_id')
@@ -207,9 +245,10 @@ def page(p):
             if acc and detail['account_id']!=acc['id']:abort(404)
             if not acc:acc=account(p,detail['account_id']);meters=account_meters(p,acc)
             evidence=[dict(r) for r in db.session.execute(text('SELECT id,filename,created_at FROM bil_meter_exception_evidence WHERE exception_id=:e ORDER BY created_at,id'),dict(e=detail['id'])).mappings()]
+    if detail:events=history(detail['id'])
     if detail and charges_ready():
         charges=[dict(r) for r in db.session.execute(text('SELECT * FROM bil_meter_exception_charge WHERE exception_id=:e ORDER BY created_at,id'),dict(e=detail['id'])).mappings()]
         for charge in charges:
             charge['evidence']=[dict(r) for r in db.session.execute(text('SELECT v.id,v.filename FROM bil_meter_exception_charge_evidence l JOIN bil_meter_exception_evidence v ON v.id=l.evidence_id WHERE l.charge_id=:c AND v.exception_id=:e'),dict(c=charge['id'],e=detail['id'])).mappings()]
         bills=[dict(r) for r in db.session.execute(text('SELECT id,period,statement_date,balance,due FROM bil_municipal_statement WHERE account_id=:a ORDER BY statement_date DESC,id DESC'),dict(a=detail['account_id'])).mappings()]
-    return render_template('program_billing/meter_exceptions.html',property=prop,accounts=accounts(p),account=acc,meters=meters,legacy=legacy,entries=entries,detail=detail,evidence=evidence,charges=charges,bills=bills,charges_available=charges_ready(),charge_submission_key=values.get('submission_key') if values.get('action')=='charge' else str(uuid.uuid4()),types=TYPES,available=ready(),values=values,submission_key=values.get('submission_key') or str(uuid.uuid4()),error=error,utility_month=request.values.get('billing_month','')),status
+    return render_template('program_billing/meter_exceptions.html',property=prop,accounts=accounts(p),account=acc,meters=meters,legacy=legacy,entries=entries,detail=detail,evidence=evidence,charges=charges,bills=bills,charges_available=charges_ready(),charge_submission_key=values.get('submission_key') if values.get('action')=='charge' else str(uuid.uuid4()),types=TYPES,statuses=STATUSES,events=events,today=datetime.now(ZoneInfo('Africa/Johannesburg')).date().isoformat(),available=ready(),values=values,submission_key=values.get('submission_key') or str(uuid.uuid4()),error=error,utility_month=request.values.get('billing_month','')),status

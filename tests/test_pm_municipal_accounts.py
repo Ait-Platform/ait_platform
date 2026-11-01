@@ -63,7 +63,7 @@ class MunicipalAccountsTests(fixture.UtilitiesConfigurationTests):
         self.assertEqual(len(cells),5);self.assertEqual(cells[2].text_content().strip(),'WATER-26')
         self.assertNotIn('456.75',table.text_content());self.assertNotIn('2026-10-01',table.text_content())
         self.assertNotIn('Opening',table.text_content());self.assertNotIn('123',table.text_content())
-        self.assertEqual(row.xpath('.//a/text()'),['Edit']);self.assertIn('edit=1',row.xpath('.//a/@href')[0])
+        self.assertEqual(row.xpath('.//a/text()'),['Edit','Meter Exceptions']);self.assertIn('edit=1',row.xpath('.//a/@href')[0])
         self.assertTrue(tree.xpath('//div[contains(@class,"overflow-x-auto")][@tabindex="0"]'))
         self.assertEqual(before,self.snapshot())
 

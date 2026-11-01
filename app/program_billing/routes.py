@@ -3020,28 +3020,8 @@ def save_reading():
 @billing_bp.route("/meter_exceptions/<int:property_id>", methods=["GET"])
 @login_required
 def meter_exceptions(property_id):
-    from app.models.billing import BilProperty, BilMeter
-    prop = BilProperty.query.get_or_404(property_id)
-    if prop.manager_id != current_user.id and not current_user.has_role('admin'):
-        from flask import abort
-        abort(403)
-        
-    all_meters = get_all_property_meters(property_id)
-    # Filter for non-active meters (like stolen)
-    exception_meters = [m for m in all_meters if (m.status or 'active').lower() != 'active']
-    
-    # We want to find the replacement meter for each exception meter
-    # Replacement meter points to the stolen meter via replacement_for_meter_id
-    replacement_map = {}
-    for ex in exception_meters:
-        rep = BilMeter.query.filter_by(replacement_for_meter_id=ex.id).first()
-        replacement_map[ex.id] = rep
-        
-    return render_template("program_billing/meter_exceptions.html", 
-                           property=prop, 
-                           exception_meters=exception_meters,
-                           replacement_map=replacement_map)
-
+    from .meter_exceptions import page
+    return page(property_id)
 
 @billing_bp.route('/billing/utilities/<int:property_id>/accounts',methods=['GET','POST'])
 @login_required

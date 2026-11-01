@@ -1,6 +1,7 @@
 <nav aria-label="Municipal Utilities" class="my-4 flex flex-wrap items-end justify-end gap-2">
 {% set metsoa_month=utility_month|default(month|default(current_month|default(''))) %}
 {% for endpoint,label in [('municipal_accounts','Municipal Accounts'),('meter_readings','Meter Readings'),('metro_reconciliation','Metro Reconciliation')] %}<a href="{{ url_for('billing_bp.'+endpoint,property_id=property.id,billing_month=metsoa_month) }}" {% if request.endpoint=='billing_bp.'+endpoint %}aria-current="page"{% endif %} class="rounded-lg bg-blue-100 px-4 py-2 font-semibold">{{ label }}</a>{% endfor %}
+<a href="{{ url_for('billing_bp.meter_exceptions',property_id=property.id,billing_month=metsoa_month) }}" class="rounded-lg bg-red-100 px-4 py-2 font-semibold">Meter Exceptions</a>
 <a href="{{ url_for('billing_bp.generate_municipal_metsoa',property_id=property.id) }}" class="rounded-lg bg-blue-100 px-4 py-2 font-semibold">Generate METSOA</a>
 <a href="{{ url_for('billing_bp.bulk_meter_linking',property_id=property.id,billing_month=metsoa_month) }}" class="rounded-lg bg-lime-100 px-4 py-2 font-semibold" {% if request.endpoint=='billing_bp.bulk_meter_linking' %}aria-current="page"{% endif %}>Bulk Meter Linking</a>
 </nav>

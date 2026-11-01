@@ -24,7 +24,7 @@ class MeterExceptionTests(fixture.UtilitiesCaptureTests):
         page=self.client.get(self.exceptions_url+'?account_id=1',headers=self.headers)
         self.assertEqual(page.status_code,200,page.text);self.assertIn('MET-26',page.text);self.assertIn('Exception Register',page.text);self.assertNotIn('exception-create-form\"',page.text)
         self.assertNotIn('OTHER-W',page.text);self.assertNotIn('FOREIGN-W',page.text);self.assertIn('Back to Municipal Accounts',page.text)
-        all_page=self.client.get(self.exceptions_url,headers=self.headers);self.assertIn('Select an account before creating',all_page.text);self.assertNotIn('OTHER-W',all_page.text)
+        all_page=self.client.get(self.exceptions_url,headers=self.headers);self.assertIn('Select account',all_page.text);self.assertNotIn('OTHER-W',all_page.text)
         self.assertEqual(before,self.snapshot())
     def test_account_property_access_and_authentication(self):
         self.assertEqual(self.client.get(self.exceptions_url+'?account_id=3',headers=self.headers).status_code,403)

@@ -49,7 +49,7 @@ class ExceptionHistoryTests(fixture.ExceptionChargeTests):
         self.assertEqual(self.post_exception(other).status_code,302)
         self.session.execute(text("INSERT INTO bil_meter_exception(property_id,account_id,meter_id,exception_type,incident_date,description,submission_key,created_by) VALUES(28,3,91,'Missing','2026-09-01','Foreign incident',:key,99)"),dict(key=uuid.uuid4()));self.session.commit();self.conn.commit()
         all_page=self.client.get(self.exceptions_url,headers=self.headers);tree=html.fromstring(all_page.data)
-        self.assertEqual(len(tree.xpath('//table[@id="exception-register"]/tbody/tr')),2)
+        self.assertFalse(tree.xpath('//table[@id="exception-register"]'));self.assertTrue(tree.xpath('//form[@id="exception-account-form"]'))
         self.assertNotIn('Foreign incident',all_page.text)
         selected=self.client.get(self.exceptions_url+'?account_id=1',headers=self.headers)
         self.assertEqual(len(html.fromstring(selected.data).xpath('//table[@id="exception-register"]/tbody/tr')),1)

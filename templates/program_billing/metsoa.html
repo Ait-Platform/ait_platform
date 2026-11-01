@@ -147,6 +147,10 @@
           </tr>
           {% endfor %}
           
+          <tr class="font-bold bg-gray-200 border-t-2 border-gray-400">
+            <td colspan="8" class="py-2 px-2 text-lg">Municipality Utility Charges</td>
+            <td class="py-2 px-2 text-right text-lg">{% if pm_tariff_statement|default(false) and not pm_complete %}Not final{% else %}R{{ "%.2f"|format(grand_total) }}{% endif %}</td>
+          </tr>
         </tbody>
       </table>
       
@@ -211,12 +215,7 @@
           </tr>
           {% endfor %}
           
-          <tr class="font-bold bg-gray-200 border-t-2 border-gray-400">
-            <td colspan="3" class="py-2 px-2 text-lg">DUE TO ETHEKWINI</td>
-            <td class="py-2 px-1"></td>
-            <td colspan="3" class="py-2 px-1"></td>
-            <td class="py-2 px-2 text-right text-lg">{% if pm_tariff_statement|default(false) and not pm_complete %}Not final{% else %}R{{ "%.2f"|format(grand_total) }}{% endif %}</td>
-          </tr>
+
         </tbody>
       </table>
 

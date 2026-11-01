@@ -150,6 +150,22 @@ class MunicipalMetsoaTests(fixture.UtilitiesCaptureTests):
         pdf=self.client.get(self.generation_url+'&format=pdf',headers=self.headers);self.assertEqual(pdf.status_code,200)
         contents=' '.join((p.extract_text() or '') for p in PdfReader(BytesIO(pdf.data)).pages)
         self.assertIn('272.32',contents);self.assertIn('Water surcharge',contents);self.assertIn('Sewerage surcharge',contents);self.assertIn('19.30',contents)
+        summary_label='Municipality Utility Charges'
+        tree=__import__('lxml.html',fromlist=['html']).fromstring(html.data)
+        summary=tree.xpath('//tr[td[contains(text(),"Municipality Utility Charges")]]')
+        self.assertEqual(len(summary),1)
+        self.assertEqual(summary[0].xpath('sum(td/@colspan)')+len(summary[0].xpath('td[not(@colspan)]')),9)
+        self.assertIn('%.2f'%data['grand_total'],summary[0].text_content())
+        for detail in ('W&S For # ANG489','S&D For #ANG489'):
+            self.assertLess(tree.text_content().index(summary_label),tree.text_content().index(detail))
+        self.assertEqual(contents.count(summary_label),1)
+        self.assertLess(contents.index(summary_label),contents.index('W&S For # ANG489'))
+        self.assertLess(contents.index(summary_label),contents.index('S&D For #ANG489'))
+        self.assertNotIn('DUE TO ETHEKWINI',contents)
+        self.assertNotIn('Due to Metro',contents)
+        pages=[p.extract_text() or '' for p in PdfReader(BytesIO(pdf.data)).pages]
+        self.assertIn(summary_label,pages[0])
+        self.assertNotIn('W&S For # ANG489',pages[0])
         self.assertEqual(before,self.snapshot())
     def test_duplicate_w_loss_metadata_does_not_double_charge_insurance(self):
         self.session.execute(text("INSERT INTO bil_tariff(utility_type,code,rate,unit,effective_date) VALUES('water','W_LOSS',19.30,NULL,'2026-06-05')"));self.session.commit();self.conn.commit()

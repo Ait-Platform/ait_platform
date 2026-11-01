@@ -162,6 +162,10 @@ def charges_ready():
     from .utilities_capture import available
     return available('bil_meter_exception_charge',['id','exception_id','statement_id','amount','bill_snapshot','submission_key']) and available('bil_meter_exception_charge_evidence',['charge_id','evidence_id'])
 
+def dispute_ready():
+    from .utilities_capture import available
+    return available('bil_meter_exception_charge',['dispute_details'])
+
 def charge_evidence(record,charge_id,evidence_id):
     if not charges_ready():abort(503,description='Continuing charge capture is temporarily unavailable. Please contact the administrator.')
     charge=db.session.execute(text('SELECT id FROM bil_meter_exception_charge WHERE id=:c AND exception_id=:e'),dict(c=identifier(charge_id,'charge'),e=record['id'])).scalar()
@@ -177,14 +181,25 @@ def create_charge(p,form,file=None):
     statement=db.session.execute(text('SELECT * FROM bil_municipal_statement WHERE id=:s AND account_id=:a FOR SHARE'),dict(s=identifier(form.get('statement_id'),'municipal bill'),a=record['account_id'])).mappings().first()
     if not statement:abort(400,description='Select a captured Metro Reconciliation bill belonging to this municipal account.')
     from .utilities_capture import amount
-    value=amount(form.get('amount'),True)
-    if value<=0:abort(400,description='The disputed amount must be positive. This record does not change municipal balances.')
+    value=amount(form.get('amount'),True) if form.get('amount') or not dispute_ready() else None
+    if value is not None and value<=0:abort(400,description='The disputed amount must be positive. This record does not change municipal balances.')
     try:key=uuid.UUID(form.get('submission_key',''))
     except (ValueError,TypeError,AttributeError):abort(400,description='Reopen the charge form before saving.')
     values=dict(e=record['id'],s=statement['id'],a=value,ref=clean_text(form,'charge_reference',150),d=clean_text(form,'charge_description',2000,True),r=clean_text(form,'charge_remarks',5000),snapshot=json.dumps(dict(statement),default=str),key=key,u=current_user.id)
+    details={}
+    if dispute_ready():
+        if record['meter_id']:
+            number=db.session.execute(text('SELECT meter_number FROM bil_meter WHERE id=:m'),dict(m=record['meter_id'])).scalar()
+        else:
+            number=db.session.execute(text('SELECT meter_number FROM bil_meter_exception_identity WHERE id=:m'),dict(m=record['historical_identity_id'])).scalar()
+        details['meter_number']=number
+        for field in ('municipal_reading','disputed_consumption'):
+            details[field]=str(amount(form[field])) if form.get(field) else None
+        values['details']=json.dumps(details)
     previous=db.session.execute(text('SELECT * FROM bil_meter_exception_charge WHERE submission_key=:k'),dict(k=key)).mappings().first()
     if previous:
         expected=dict(exception_id=values['e'],statement_id=values['s'],amount=values['a'],charge_reference=values['ref'],description=values['d'],remarks=values['r'],created_by=values['u'])
+        if dispute_ready():expected['dispute_details']=details
         if any(previous[k]!=v for k,v in expected.items()):abort(409,description='This submission already recorded a different charge. Reopen the form.')
         if file and file.filename:
             from .meter_exception_evidence import validate
@@ -192,8 +207,10 @@ def create_charge(p,form,file=None):
             except ValueError as exc:abort(400,description=str(exc))
             if not db.session.execute(text('SELECT 1 FROM bil_meter_exception_charge_evidence l JOIN bil_meter_exception_evidence v ON v.id=l.evidence_id WHERE l.charge_id=:c AND v.sha256=:h'),dict(c=previous['id'],h=meta['sha256'])).first():abort(409,description='This charge was already saved. Use Upload Evidence to add another document.')
         return record['id']
-    charge=db.session.execute(text('INSERT INTO bil_meter_exception_charge(exception_id,statement_id,amount,charge_reference,description,remarks,bill_snapshot,submission_key,created_by) VALUES(:e,:s,:a,:ref,:d,:r,CAST(:snapshot AS json),:key,:u) RETURNING id'),values).scalar()
-    event(record['id'],'charge_recorded',dict(charge_id=charge,statement_id=statement['id'],amount=str(value),bill_version=statement['version']))
+    extra_column=',dispute_details' if dispute_ready() else ''
+    extra_value=',CAST(:details AS json)' if dispute_ready() else ''
+    charge=db.session.execute(text('INSERT INTO bil_meter_exception_charge(exception_id,statement_id,amount,charge_reference,description,remarks,bill_snapshot,submission_key,created_by'+extra_column+') VALUES(:e,:s,:a,:ref,:d,:r,CAST(:snapshot AS json),:key,:u'+extra_value+') RETURNING id'),values).scalar()
+    event(record['id'],'charge_recorded',dict(charge_id=charge,statement_id=statement['id'],amount=str(value) if value is not None else None,dispute_details=details,bill_version=statement['version']))
     if file and file.filename:
         evidence_id=evidence_add(p,record,file);charge_evidence(record,charge,evidence_id)
     return record['id']
@@ -295,4 +312,4 @@ def page(p):
         for charge in charges:
             charge['evidence']=[dict(r) for r in db.session.execute(text('SELECT v.id,v.filename FROM bil_meter_exception_charge_evidence l JOIN bil_meter_exception_evidence v ON v.id=l.evidence_id WHERE l.charge_id=:c AND v.exception_id=:e'),dict(c=charge['id'],e=detail['id'])).mappings()]
         bills=[dict(r) for r in db.session.execute(text('SELECT id,period,statement_date,balance,due FROM bil_municipal_statement WHERE account_id=:a ORDER BY statement_date DESC,id DESC'),dict(a=detail['account_id'])).mappings()]
-    return render_template('program_billing/meter_exceptions.html',property=prop,accounts=accounts(p),account=acc,meters=meters,legacy=legacy,entries=entries,detail=detail,evidence=evidence,charges=charges,bills=bills,charges_available=charges_ready(),charge_submission_key=values.get('submission_key') if values.get('action')=='charge' else str(uuid.uuid4()),types=TYPES,statuses=STATUSES,events=events,today=datetime.now(ZoneInfo('Africa/Johannesburg')).date().isoformat(),available=ready(),historical_available=historical_ready(),values=values,submission_key=values.get('submission_key') or str(uuid.uuid4()),error=error,utility_month=request.values.get('billing_month','')),status
+    return render_template('program_billing/meter_exceptions.html',property=prop,accounts=accounts(p),account=acc,meters=meters,legacy=legacy,entries=entries,detail=detail,evidence=evidence,charges=charges,bills=bills,charges_available=charges_ready(),dispute_available=dispute_ready(),charge_submission_key=values.get('submission_key') if values.get('action')=='charge' else str(uuid.uuid4()),types=TYPES,statuses=STATUSES,events=events,today=datetime.now(ZoneInfo('Africa/Johannesburg')).date().isoformat(),available=ready(),historical_available=historical_ready(),values=values,submission_key=values.get('submission_key') or str(uuid.uuid4()),error=error,utility_month=request.values.get('billing_month','')),status

@@ -63,6 +63,31 @@ def statement_recipient(p,manager_id,month,recipient_id=None):
         if str(latest)!=candidate['draft_id'] and not direct:return None,choices,'Only a historical draft links this tenant. Select the verified recipient before finalising the statement.'
     return candidate,choices,None
 
+def bulk_consumption(meter,meters,pairs,issues,notes):
+    """Subtract raw direct-child usage only over an identical dated interval."""
+    from .bulk_meter_linking import kind
+    pair=pairs[meter['id']]
+    children=[m for m in meters if m.get('parent_meter_id')==meter['id']]
+    if not children:return pair['difference']
+    by_id={m['id']:m for m in meters}
+    for child in children:
+        visited=set();node=child['id']
+        while node in by_id:
+            if node in visited:
+                issues.append(meter['meter_number']+': circular bulk relationships require correction.');return None
+            visited.add(node);node=by_id[node].get('parent_meter_id')
+        if kind(child['utility_type'])!=kind(meter['utility_type']):
+            issues.append(meter['meter_number']+': linked meters have different utility types.');return None
+        cp=pairs[child['id']]
+        if cp['error'] or cp['previous']['date']!=pair['previous']['date'] or cp['current']['date']!=pair['current']['date']:
+            issues.append(meter['meter_number']+': linked meter '+child['meter_number']+' has missing readings or a different reading period; bulk adjustment is incomplete.');return None
+    deducted=sum((pairs[c['id']]['difference'] for c in children),Decimal(0))
+    adjusted=pair['difference']-deducted
+    message=meter['meter_number']+': bulk consumption '+str(pair['difference'])+' minus linked individual consumption '+str(deducted)+' = '+str(adjusted)+(' kL' if kind(meter['utility_type'])=='water' else ' kWh')+'.'
+    notes.append(message)
+    if adjusted<0:issues.append(message+' Negative difference requires investigation; consumption-based charges use zero, not a refund.')
+    return max(Decimal(0),adjusted)
+
 def build(p,month,recipient_id=None):
     property_scope(p);month,start,end=month_context(month)
     prop=db.session.execute(text('SELECT id,name,address,manager_id FROM bil_property WHERE id=:p'),dict(p=p)).mappings().one()
@@ -70,7 +95,9 @@ def build(p,month,recipient_id=None):
     meters=[dict(m) for m in db.session.execute(text('SELECT * FROM bil_meter WHERE property_id=:p ORDER BY meter_number,id'),dict(p=p)).mappings()]
     from .metsoa_tariffs import select
     tariffs,tariff_issues=select(end)
-    issues=list(tariff_issues);source=[]
+    issues=list(tariff_issues);source=[];bulk_notes=[]
+    pairs={m['id']:reading_pair(m,start,end) for m in meters}
+    foreign_parents={r[0] for r in db.session.execute(text('SELECT DISTINCT c.parent_meter_id FROM bil_meter c JOIN bil_meter p ON p.id=c.parent_meter_id WHERE p.property_id=:p AND c.property_id IS DISTINCT FROM :p'),dict(p=p))}
     if not meters:issues.append('No registered property meters are available.')
     for meter in meters:
         linked=[a for a in accounts if meter['id'] in (a['water_meter_id'],a['elec_meter_id']) or meter.get('municipal_bill_number')==a['account_number']]
@@ -81,22 +108,26 @@ def build(p,month,recipient_id=None):
         kind=(meter.get('utility_type') or '').lower()
         if kind not in ('water','electricity','electrical'):
             issues.append(meter['meter_number']+': unsupported utility type.');continue
-        pair=reading_pair(meter,start,end)
+        pair=pairs[meter['id']]
         if pair['error']:issues.append(meter['meter_number']+': '+pair['error']);continue
+        if meter['id'] in foreign_parents:
+            issues.append(meter['meter_number']+': a linked meter belongs outside this property; bulk adjustment is incomplete.');continue
+        consumption=bulk_consumption(meter,meters,pairs,issues,bulk_notes)
+        if consumption is None:continue
         if kind=='water':
             if not tariffs['water'] or not tariffs['sewerage']:continue
-            if any(sum((t['multiplier']*pair['days'] for t in tariffs[side]),Decimal(0))<pair['difference'] for side in ('water','sewerage')):
+            if any(sum((t['multiplier']*pair['days'] for t in tariffs[side]),Decimal(0))<consumption for side in ('water','sewerage')):
                 issues.append(meter['meter_number']+': tariff bands do not cover the recorded consumption; no excess rate was guessed.');continue
         elif tariffs['electricity'] is None:continue
         if any(pair['previous']['date']<r.effective_date<=pair['current']['date'] for r in tariffs['records']):
             issues.append(meter['meter_number']+': tariff effective date changes within its reading period; review rate allocation before finalisation.');continue
-        source.append(SimpleNamespace(meter_id=meter['id'],meter_number=meter['meter_number'],utility_type=meter['utility_type'],last_date=pair['previous']['date'],new_date=pair['current']['date'],last_read=pair['previous']['value'],new_read=pair['current']['value'],days=pair['days'],consumption=pair['difference']))
+        source.append(SimpleNamespace(meter_id=meter['id'],meter_number=meter['meter_number'],utility_type=meter['utility_type'],last_date=pair['previous']['date'],new_date=pair['current']['date'],last_read=pair['previous']['value'],new_read=pair['current']['value'],days=pair['days'],consumption=consumption))
     elec_builder,water_builder=original_builders()
     electricity,electricity_total=elec_builder(p,month,source=source,tariffs=tariffs)
     water,water_total=water_builder(p,month,source=source,tariffs=tariffs)
     recipient,recipient_choices,recipient_issue=statement_recipient(p,prop['manager_id'],month,recipient_id)
     if recipient_issue:issues.append(recipient_issue)
-    return dict(property=prop,month=month,tenant=recipient,electricity=dict(rows=electricity,subtotal=electricity_total),water=dict(meters=water,total=water_total),grand_total=electricity_total+water_total,pm_tariff_statement=True,pm_complete=not issues,pm_issues=issues,pm_customer=recipient['name'] if recipient else '',pm_recipient=recipient,pm_recipients=recipient_choices,pm_recipient_issue=recipient_issue,pm_electricity_available=bool(electricity),pm_statement_date=end,pm_tariff_records=tariffs['records'])
+    return dict(property=prop,month=month,tenant=recipient,electricity=dict(rows=electricity,subtotal=electricity_total),water=dict(meters=water,total=water_total),grand_total=electricity_total+water_total,pm_tariff_statement=True,pm_complete=not issues,pm_issues=issues,pm_customer=recipient['name'] if recipient else '',pm_recipient=recipient,pm_recipients=recipient_choices,pm_recipient_issue=recipient_issue,pm_electricity_available=bool(electricity),pm_statement_date=end,pm_tariff_records=tariffs['records'],pm_bulk_notes=bulk_notes)
 
 def pdf_bytes(html):
     from playwright.sync_api import sync_playwright

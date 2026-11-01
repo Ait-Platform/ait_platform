@@ -50,6 +50,7 @@
         {% if pm_tariff_statement|default(false) and not pm_complete %}Final amount due unavailable — see missing information above.{% else %}Amount Due R{{ "%.2f"|format(grand_total|float) }} for Utilities.{% endif %}
       </div>
 
+      {% for note in pm_bulk_notes|default([]) %}<p class="mb-2 text-sm">{{ note }}</p>{% endfor %}
       <!-- Master Summary Table -->
       <table class="w-full text-left border-collapse border-b border-gray-400">
         <thead>

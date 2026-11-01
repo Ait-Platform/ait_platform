@@ -11,6 +11,8 @@ def kind(value):
 
 def save(p,form):
     property_scope(p,lock=True)
+    from .utilities_capture import ready,audit
+    ready('Bulk Meter Linking')
     rows=[dict(r) for r in db.session.execute(text('SELECT id,meter_number,utility_type,parent_meter_id FROM bil_meter WHERE property_id=:p ORDER BY id FOR UPDATE'),dict(p=p)).mappings()]
     meters={r['id']:r for r in rows}
     try:parent=int(form.get('parent_id',''));children=[int(v) for v in form.getlist('children')]
@@ -35,6 +37,22 @@ def save(p,form):
             visited.add(node);node=graph[node]
     db.session.execute(text('UPDATE bil_meter SET parent_meter_id=NULL WHERE property_id=:p AND parent_meter_id=:parent'),dict(p=p,parent=parent))
     for child in children:db.session.execute(text('UPDATE bil_meter SET parent_meter_id=:parent WHERE id=:child AND property_id=:p'),dict(p=p,parent=parent,child=child))
+    audit(p,'bulk_link',parent,dict(children=[r['id'] for r in rows if r['parent_meter_id']==parent]),dict(children=children,source='bulk_meter_linking'))
+
+def confirmed_meters(p,rows):
+    """Legacy pointers alone never establish an explicitly authorised bulk link."""
+    from .utilities_capture import available
+    confirmations={}
+    if available('bil_utilities_capture_audit',['property_id','kind','record_id','after_data']):
+        for r in db.session.execute(text("SELECT DISTINCT ON (record_id) record_id,after_data FROM bil_utilities_capture_audit WHERE property_id=:p AND kind='bulk_link' ORDER BY record_id,id DESC"),dict(p=p)).mappings():
+            data=r['after_data']
+            if data.get('source')=='bulk_meter_linking':confirmations[r['record_id']]=set(data.get('children',[]))
+    result=[]
+    for row in rows:
+        meter=dict(row);parent=meter.get('parent_meter_id')
+        if meter['id'] not in confirmations.get(parent,set()):meter['parent_meter_id']=None
+        result.append(meter)
+    return result
 
 def page(p):
     property_scope(p)

@@ -40,28 +40,24 @@ def reading_pair(meter,start,end):
             else:entry.update(previous=dict(date=previous['reading_date'],value=old),current=dict(date=current['reading_date'],value=new),difference=new-old,days=(current['reading_date']-previous['reading_date']).days)
     return entry
 
-def statement_recipient(p,manager_id,month,recipient_id=None):
+def recipient_choices(p,manager_id):
     from .lease_soa import tenants_for
+    from .municipal_accounts import registered_owners
     from werkzeug.exceptions import HTTPException
-    try:choices=tenants_for(p,manager_id=manager_id)
+    choices=[]
+    try:choices=[dict(t,role='Tenant') for t in tenants_for(p,manager_id=manager_id)]
     except HTTPException as exc:
         if exc.code!=503:raise
-        return None,[],'Recipient unavailable: registered tenant ownership cannot be verified.'
+    choices.extend(dict(o,id='owner:'+str(o['id']),role='Owner',email=None) for o in registered_owners(p))
+    return choices
+
+def statement_recipient(p,manager_id,month,recipient_id=None):
+    choices=recipient_choices(p,manager_id)
     if recipient_id not in (None,''):
-        try:identifier=int(recipient_id)
-        except (ValueError,TypeError):abort(400,description='Select a valid registered tenant recipient.')
-        selected=next((t for t in choices if t['id']==identifier),None)
-        if not selected:abort(403)
+        selected=next((c for c in choices if str(c['id'])==str(recipient_id)),None)
+        if not selected:abort(403,description='Select a registered owner or tenant linked to this property.')
         return selected,choices,None
-    if not choices:return None,[],'No registered tenant association is available for this property. Confirm the tenant in the existing property/lease records.'
-    if len(choices)>1:return None,choices,'Multiple tenants are linked to this property. Select the METSOA recipient; no tenant was chosen automatically.'
-    if month<month_context()[0]:return None,choices,'Select the recipient for this historical billing month; a property association alone does not establish occupancy for that period.'
-    candidate=choices[0]
-    if candidate.get('draft_id'):
-        latest=db.session.execute(text("SELECT id FROM bil_lease_draft WHERE property_id=:p AND manager_id=:u AND status='draft' ORDER BY updated_at DESC,id DESC LIMIT 1"),dict(p=p,u=manager_id)).scalar()
-        direct=db.session.execute(text('SELECT 1 FROM bil_tenant WHERE id=:t AND property_id=:p AND manager_id=:u'),dict(t=candidate['id'],p=p,u=manager_id)).first()
-        if str(latest)!=candidate['draft_id'] and not direct:return None,choices,'Only a historical draft links this tenant. Select the verified recipient before finalising the statement.'
-    return candidate,choices,None
+    return None,choices,'Select a registered property owner or tenant as the METSOA recipient.'
 
 def bulk_consumption(meter,meters,pairs,issues,notes):
     """Subtract raw direct-child usage only over an identical dated interval."""
@@ -93,11 +89,12 @@ def build(p,month,recipient_id=None):
     prop=db.session.execute(text('SELECT id,name,address,manager_id FROM bil_property WHERE id=:p'),dict(p=p)).mappings().one()
     accounts=[dict(r) for r in db.session.execute(text('SELECT id,account_number,water_meter_id,elec_meter_id FROM bil_muni_account WHERE property_id=:p'),dict(p=p)).mappings()]
     meters=[dict(m) for m in db.session.execute(text('SELECT * FROM bil_meter WHERE property_id=:p ORDER BY meter_number,id'),dict(p=p)).mappings()]
+    from .bulk_meter_linking import confirmed_meters
+    meters=confirmed_meters(p,meters)
     from .metsoa_tariffs import select
     tariffs,tariff_issues=select(end)
     issues=list(tariff_issues);source=[];bulk_notes=[]
     pairs={m['id']:reading_pair(m,start,end) for m in meters}
-    foreign_parents={r[0] for r in db.session.execute(text('SELECT DISTINCT c.parent_meter_id FROM bil_meter c JOIN bil_meter p ON p.id=c.parent_meter_id WHERE p.property_id=:p AND c.property_id IS DISTINCT FROM :p'),dict(p=p))}
     if not meters:issues.append('No registered property meters are available.')
     for meter in meters:
         linked=[a for a in accounts if meter['id'] in (a['water_meter_id'],a['elec_meter_id']) or meter.get('municipal_bill_number')==a['account_number']]
@@ -110,8 +107,6 @@ def build(p,month,recipient_id=None):
             issues.append(meter['meter_number']+': unsupported utility type.');continue
         pair=pairs[meter['id']]
         if pair['error']:issues.append(meter['meter_number']+': '+pair['error']);continue
-        if meter['id'] in foreign_parents:
-            issues.append(meter['meter_number']+': a linked meter belongs outside this property; bulk adjustment is incomplete.');continue
         consumption=bulk_consumption(meter,meters,pairs,issues,bulk_notes)
         if consumption is None:continue
         if kind=='water':
@@ -142,9 +137,16 @@ def pdf_bytes(html):
         finally:browser.close()
 
 def page(p):
-    property_scope(p);month,_,_=month_context(request.args.get('billing_month'))
+    property_scope(p)
+    prop=db.session.execute(text('SELECT id,name,address,manager_id FROM bil_property WHERE id=:p'),dict(p=p)).mappings().one()
+    generate=request.args.get('generate')=='1'
+    month=request.args.get('billing_month','') if generate else ''
+    recipient=request.args.get('recipient_id','') if generate else ''
+    if not generate or not month or not recipient:
+        return render_template('program_billing/metsoa_select.html',property=prop,month=month,pm_recipients=recipient_choices(p,prop['manager_id']),pm_recipient=None,error='Select a billing month and recipient.' if generate else None),400 if generate else 200
+    month_context(month)
     # Existing PM token-free access remains unchanged.
-    data=build(p,month,recipient_id=request.args.get('recipient_id'))
+    data=build(p,month,recipient_id=recipient)
     html=render_template('program_billing/metsoa.html',**data)
     if request.args.get('format')=='pdf':
         return send_file(BytesIO(pdf_bytes(html)),mimetype='application/pdf',as_attachment=False,download_name=month+'-MetSoa-'+data['property']['name']+'.pdf')

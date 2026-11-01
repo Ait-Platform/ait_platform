@@ -1,0 +1,7 @@
+<form id="metsoa-generate" method="GET" action="{{ url_for('billing_bp.generate_municipal_metsoa',property_id=property.id) }}" class="my-4 flex flex-wrap items-end justify-end gap-3 print:hidden">
+<label for="metsoa-billing-month" class="text-sm font-semibold">Billing month<input id="metsoa-billing-month" name="billing_month" type="month" required value="{{ month }}" class="block rounded-lg border border-slate-300 px-3 py-2"></label>
+<label for="metsoa-recipient" class="text-sm font-semibold">METSOA recipient<select id="metsoa-recipient" name="recipient_id" required class="block rounded-lg border border-slate-300 px-3 py-2"><option value="">Select owner or tenant</option>{% for candidate in pm_recipients %}<option value="{{ candidate.id }}" {% if pm_recipient and pm_recipient.id|string==candidate.id|string %}selected{% endif %}>{{ candidate.name }} — {{ candidate.role }}</option>{% endfor %}</select></label>
+<button id="metsoa-generate-button" name="generate" value="1" type="submit" disabled class="rounded-lg bg-blue-100 px-4 py-2 font-semibold disabled:opacity-50">Generate METSOA</button></form>
+<script>
+(()=>{const form=document.getElementById('metsoa-generate');const month=form.querySelector('[name=billing_month]');const recipient=form.querySelector('[name=recipient_id]');const button=document.getElementById('metsoa-generate-button');function update(){button.disabled=!(month.value && month.validity.valid && recipient.value);}month.addEventListener('input',update);recipient.addEventListener('change',update);update();})();
+</script>

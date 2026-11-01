@@ -6,13 +6,15 @@ from sqlalchemy import text,event
 from lxml import html
 import test_pm_utilities_capture as fixture
 class MunicipalMetsoaTests(fixture.UtilitiesCaptureTests):
-    generation_url='/billing/utilities/26/generate-metsoa?billing_month=2026-10&recipient_id=11'
+    generation_url='/billing/utilities/26/generate-metsoa?billing_month=2026-10&recipient_id=11&generate=1'
     def setUp(self):
         super().setUp()
         self.app.add_url_rule('/test-checkout/<month>',endpoint='billing_bp.billing_checkout',view_func=lambda **kw:'Existing checkout')
         from app.program_billing import municipal_metsoa
         for name,value in [('db',self.db)]:
             mock=patch.object(municipal_metsoa,name,value);mock.start();self.addCleanup(mock.stop)
+        from app.program_billing import bulk_meter_linking
+        scoped=patch.object(bulk_meter_linking,'db',self.db);scoped.start();self.addCleanup(scoped.stop)
         self.metsoa=municipal_metsoa;self.user.has_role=lambda role:False
         self.session.execute(text('CREATE TEMP TABLE bil_statement_payment(id integer PRIMARY KEY,manager_id integer,month text,amount_paid_cents integer)'))
         self.session.execute(text("INSERT INTO bil_statement_payment VALUES(1,7,'2026-10',10000)"))
@@ -173,17 +175,17 @@ class MunicipalMetsoaTests(fixture.UtilitiesCaptureTests):
         self.assertFalse(data['pm_complete']);self.assertIn('W_LOSS has conflicting records',str(data['pm_issues']))
         for water in data['water']['meters']:self.assertFalse(any(r['desc']=='Water Loss Levy (insurance)' for r in water['ws_breakdown']))
 
-    def test_billing_month_selector_preserves_property_and_historical_month(self):
-        from datetime import datetime
-        from zoneinfo import ZoneInfo
+    def test_entry_requires_explicit_month_and_recipient_without_building(self):
         before=self.snapshot()
-        for suffix,expected in [('',''+datetime.now(ZoneInfo('Africa/Johannesburg')).strftime('%Y-%m')),('?billing_month=2025-09','2025-09')]:
-            page=self.client.get(self.readings_url+suffix,headers=self.headers);self.assertEqual(page.status_code,200,page.text)
+        with patch.object(self.metsoa,'build',side_effect=AssertionError('No statement should be built on entry')):
+            page=self.client.get(self.generation_url.replace('&generate=1',''),headers=self.headers)
+            self.assertEqual(page.status_code,200,page.text)
             tree=html.fromstring(page.data)
-            self.assertEqual(tree.xpath('//form[@id="metsoa-generate"]/@action'),['/billing/utilities/26/generate-metsoa'])
-            self.assertEqual(tree.xpath('//form[@id="metsoa-generate"]//input[@name="billing_month"]/@value'),[expected])
-            self.assertEqual(tree.xpath('//form[@id="metsoa-generate"]//input[@name="billing_month"]/@type'),['month'])
-            self.assertEqual(tree.xpath('//form[@id="metsoa-generate"]//button/text()'),['Generate METSOA'])
+            self.assertEqual(tree.xpath('//input[@name="billing_month"]/@value'),[''])
+            self.assertFalse(tree.xpath('//select[@name="recipient_id"]/option[@selected]'))
+            self.assertTrue(tree.xpath('//button[@id="metsoa-generate-button"][@disabled]'))
+            self.assertNotIn('INCOMPLETE',page.text);self.assertNotIn('Statement For All Metro Meters',page.text)
+            self.assertEqual(self.client.get(self.generation_url.replace('billing_month=2026-10','billing_month='),headers=self.headers).status_code,400)
         self.assertEqual(before,self.snapshot())
 
     def test_registered_tenant_recipient_does_not_replace_municipal_owner(self):
@@ -200,30 +202,30 @@ class MunicipalMetsoaTests(fixture.UtilitiesCaptureTests):
     def test_multiple_tenants_require_selection_and_cross_property_recipient_is_denied(self):
         self.session.execute(text('UPDATE bil_tenant SET property_id=26 WHERE id=44'));self.session.commit();self.conn.commit()
         with self.app.test_request_context():data=self.metsoa.build(26,'2026-10')
-        self.assertIsNone(data['pm_recipient']);self.assertIn('Multiple tenants',data['pm_recipient_issue'])
+        self.assertIsNone(data['pm_recipient']);self.assertIn('Select a registered',data['pm_recipient_issue'])
         page=self.client.get(self.generation_url,headers=self.headers);self.assertEqual(page.status_code,200)
         self.assertEqual(self.client.get(self.generation_url.replace('recipient_id=11','recipient_id=33'),headers=self.headers).status_code,403)
         self.assertEqual(self.client.get(self.generation_url.replace('recipient_id=11','recipient_id=22'),headers=self.headers).status_code,403)
-        self.assertEqual(self.client.get(self.generation_url.replace('recipient_id=11','recipient_id=invalid'),headers=self.headers).status_code,400)
+        self.assertEqual(self.client.get(self.generation_url.replace('recipient_id=11','recipient_id=invalid'),headers=self.headers).status_code,403)
     def test_missing_recipient_and_historical_month_are_reported_not_invented(self):
         import json
         self.session.execute(text("UPDATE bil_lease_draft SET items=CAST(:items AS jsonb) WHERE property_id=26"),dict(items=json.dumps({'_parties':{'lessees':[]}})))
         self.session.execute(text('UPDATE bil_tenant SET property_id=NULL WHERE property_id=26'));self.session.commit();self.conn.commit()
         with self.app.test_request_context():data=self.metsoa.build(26,'2026-10')
-        self.assertIsNone(data['pm_recipient']);self.assertIn('No registered tenant association',data['pm_recipient_issue'])
+        self.assertIsNone(data['pm_recipient']);self.assertIn('Select a registered',data['pm_recipient_issue'])
         with self.app.test_request_context():data=self.metsoa.build(27,'2025-09')
-        self.assertIsNone(data['pm_recipient']);self.assertIn('historical billing month',data['pm_recipient_issue'])
+        self.assertIsNone(data['pm_recipient']);self.assertIn('Select a registered',data['pm_recipient_issue'])
 
     def test_single_current_association_is_used_but_superseded_draft_is_not_assumed(self):
         import uuid
         with self.app.test_request_context():
             recipient,choices,error=self.metsoa.statement_recipient(26,7,self.metsoa.month_context()[0])
-        self.assertEqual(recipient['id'],11);self.assertIsNone(error)
+        self.assertIsNone(recipient);self.assertIn('Select a registered',error)
         latest=uuid.uuid4()
         self.session.execute(text("INSERT INTO bil_lease_draft(id,property_id,manager_id,status,source_version,items,version,updated_at) VALUES(:id,26,7,'draft','test','{\"_parties\":{\"lessees\":[]}}',1,now()+interval '1 day')"),dict(id=latest));self.session.commit();self.conn.commit()
         with self.app.test_request_context():
             recipient,choices,error=self.metsoa.statement_recipient(26,7,self.metsoa.month_context()[0])
-        self.assertIsNone(recipient);self.assertIn('historical draft',error)
+        self.assertIsNone(recipient);self.assertIn('Select a registered',error)
 
     def test_original_pdf_rendering_is_valid_and_contains_tariff_breakdowns(self):
         from pypdf import PdfReader

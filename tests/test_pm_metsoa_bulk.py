@@ -12,6 +12,12 @@ class BulkMetsoaTests(fixture.MunicipalMetsoaTests):
         self.session.execute(text("UPDATE bil_meter_reading SET reading_value=100 WHERE meter_id=5"))
         self.session.execute(text("INSERT INTO bil_meter_reading(meter_id,reading_date,reading_value) VALUES(5,'2026-09-30',0)"))
         self.session.commit();self.conn.commit()
+        self.confirm_bulk(5,[1,2])
+    def confirm_bulk(self,parent,children,utility='water'):
+        from app.program_billing.bulk_meter_linking import save
+        from werkzeug.datastructures import MultiDict
+        with self.app.test_request_context():save(26,MultiDict([('parent_id',str(parent)),('utility',utility)]+[('children',str(c)) for c in children]))
+        self.session.commit();self.conn.commit()
     def data(self):
         with self.app.test_request_context():return self.metsoa.build(26,'2026-10',recipient_id=11)
     def test_water_adjustment_preserves_fixed_fees_individuals_and_history(self):
@@ -37,7 +43,7 @@ class BulkMetsoaTests(fixture.MunicipalMetsoaTests):
         self.assertEqual(before,self.snapshot())
     def test_electricity_adjustment_uses_matching_dates_and_ignores_future(self):
         self.session.execute(text('UPDATE bil_meter SET parent_meter_id=4 WHERE id=3'))
-        self.session.commit();self.conn.commit();before=self.snapshot();data=self.data()
+        self.session.commit();self.conn.commit();self.confirm_bulk(4,[3],'electricity');before=self.snapshot();data=self.data()
         rows={r['meter_number']:r for r in data['electricity']['rows']}
         self.assertEqual(rows['2188802S']['consumption'],Decimal(532))
         self.assertEqual(rows['7150696S']['consumption'],Decimal(15))
@@ -57,11 +63,13 @@ class BulkMetsoaTests(fixture.MunicipalMetsoaTests):
         self.assertEqual(water['summary']['consumption'],0)
         self.assertEqual(next(r['due'] for r in water['ws_breakdown'] if r['desc']=='Water surcharge'),0)
         self.assertEqual(next(r['due'] for r in water['ws_breakdown'] if r['desc']=='Water Loss Levy (insurance)'),Decimal('19.30'))
-    def test_invalid_legacy_links_do_not_create_bulk_charges(self):
-        self.setup_bulk();self.session.execute(text('UPDATE bil_meter SET parent_meter_id=5 WHERE id=3'));self.session.commit();self.conn.commit()
-        self.assertIn('different utility types',str(self.data()['pm_issues']))
-        self.session.execute(text('UPDATE bil_meter SET parent_meter_id=NULL WHERE id=3'));self.session.execute(text('UPDATE bil_meter SET parent_meter_id=1 WHERE id=5'));self.session.commit();self.conn.commit()
-        self.assertIn('circular',str(self.data()['pm_issues']))
+    def test_unconfirmed_legacy_links_do_not_make_any_meter_bulk(self):
+        self.session.execute(text('UPDATE bil_meter SET parent_meter_id=4 WHERE id=3'))
+        self.session.commit();self.conn.commit()
+        data=self.data();rows={r['meter_number']:r for r in data['electricity']['rows']}
+        self.assertEqual(rows['2188802S']['consumption'],Decimal(547))
+        self.assertEqual(rows['7150696S']['consumption'],Decimal(15))
+        self.assertEqual(data['pm_bulk_notes'],[])
 
 def load_tests(loader,tests,pattern):
     return unittest.TestSuite(BulkMetsoaTests(name) for name in BulkMetsoaTests.__dict__ if name.startswith('test_'))

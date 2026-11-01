@@ -9,6 +9,7 @@
     <div class="print:hidden h-2 bg-green-500"></div><div class="print:hidden p-4">
     {% include 'partials/flash_messages.html' %}
     <div class="flex items-center justify-between gap-3"><h1 class="text-xl font-semibold">METSOA — {{ property.name }} — {{ month }}</h1><a href="{{ url_for('billing_bp.utilities_hub',property_id=property.id,billing_month=month) }}" class="rounded-lg bg-slate-100 px-4 py-2">Back to Utilities</a></div>
+    {% if pm_tariff_statement|default(false) %}{% include 'program_billing/metsoa_recipient_form.html' %}{% endif %}
     {% set utility_active='metsoa' %}{% set utility_month=month %}{% include 'program_billing/utilities_menu.html' %}
     {% if not pm_tariff_statement|default(false) %}<a href="{{ url_for('billing_bp.exception_metsoa',property_id=property.id,month=month) }}" class="inline-flex rounded-lg bg-yellow-100 px-4 py-2">Exception statements</a>{% endif %}
     </div>
@@ -18,7 +19,7 @@
         &larr; Back
       </button>
       <div class="flex gap-4">
-        {% if pm_tariff_statement|default(false) %}<a href="{{ url_for('billing_bp.generate_municipal_metsoa',property_id=property.id,billing_month=month,recipient_id=pm_recipient.id if pm_recipient else None,format='pdf') }}" class="bg-blue-600 text-white px-4 py-2 rounded">Open PDF</a>{% else %}<button onclick="sendMetsoaEmail()" class="bg-blue-600 hover:bg-blue-700 font-bold py-2 px-4 rounded shadow transition text-sm flex items-center">
+        {% if pm_tariff_statement|default(false) %}<a href="{{ url_for('billing_bp.generate_municipal_metsoa',property_id=property.id,billing_month=month,recipient_id=pm_recipient.id if pm_recipient else None,generate='1',format='pdf') }}" class="bg-blue-600 text-white px-4 py-2 rounded">Open PDF</a>{% else %}<button onclick="sendMetsoaEmail()" class="bg-blue-600 hover:bg-blue-700 font-bold py-2 px-4 rounded shadow transition text-sm flex items-center">
           Email METSOA
         </button>{% endif %}
         <button onclick="window.print()" class="bg-slate-600 hover:bg-slate-700 font-bold py-2 px-4 rounded shadow transition text-sm flex items-center">

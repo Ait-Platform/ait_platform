@@ -1,12 +1,23 @@
 (() => {
-  const button=document.getElementById('reading-toggle');if(!button)return;
   const rows=Array.from(document.querySelectorAll('[data-reading-row]'));
+  const button=document.getElementById('reading-toggle');
+  const filter=document.getElementById('reading-meter-filter');
+  const empty=document.getElementById('reading-filter-empty');
   let expanded=false;
-  button.addEventListener('click',()=>{
-    expanded=!expanded;
-    rows.forEach((row,index)=>{row.hidden=!expanded && index>=5;});
-    button.textContent=(expanded?'Show Less':'Show More')+' ('+(expanded?rows.length:5)+' of '+rows.length+')';
-    button.setAttribute('aria-expanded',String(expanded));
-    button.classList.toggle('bg-blue-100',!expanded);button.classList.toggle('bg-purple-100',expanded);
-  });
+  function render(){
+    const selected=filter?.value || '';
+    const matching=rows.filter(row=>!selected || row.dataset.meterId===selected);
+    rows.forEach(row=>{row.hidden=true;});
+    matching.forEach((row,index)=>{row.hidden=!expanded && index>=5;});
+    if(empty)empty.hidden=matching.length!==0;
+    if(button){
+      button.hidden=matching.length<=5;
+      button.textContent=(expanded?'Show Less':'Show More')+' ('+(expanded?matching.length:Math.min(5,matching.length))+' of '+matching.length+')';
+      button.setAttribute('aria-expanded',String(expanded));
+      button.classList.toggle('bg-blue-100',!expanded);button.classList.toggle('bg-purple-100',expanded);
+    }
+  }
+  button?.addEventListener('click',()=>{expanded=!expanded;render();});
+  filter?.addEventListener('change',()=>{expanded=false;render();});
+  render();
 })();

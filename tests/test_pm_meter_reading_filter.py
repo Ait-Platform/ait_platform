@@ -9,6 +9,7 @@ class ReadingFilterTests(fixture.UtilitiesCaptureTests):
         super().setUp()
         from app.program_billing import utilities_output
         mock=patch.object(utilities_output,'db',self.db);mock.start();self.addCleanup(mock.stop)
+        mock=patch.object(utilities_output,'current_user',self.user);mock.start();self.addCleanup(mock.stop)
         self.session.execute(text("INSERT INTO bil_meter(id,property_id,meter_number,utility_type) VALUES(99,26,'ANG489','Water'),(98,26,'EMPTY','Water'),(97,28,'FOREIGN','Water')"))
         for day in range(1,9):
             self.session.execute(text('INSERT INTO bil_meter_reading(meter_id,reading_date,reading_value) VALUES(99,CAST(:d AS date),:v)'),dict(d='2026-09-%02d'%day,v=100+day))
@@ -54,7 +55,7 @@ class ReadingFilterTests(fixture.UtilitiesCaptureTests):
         self.assertEqual(before,self.snapshot())
     def test_output_carries_meter_or_all_and_rejects_other_property(self):
         before=self.snapshot()
-        base='/billing/utilities/26/output?source=readings&item_id='
+        base='/billing/utilities/26/output?source=readings&preview=1&item_id='
         page=self.client.get(base+'99',headers=self.headers)
         self.assertEqual(page.status_code,200,page.text)
         tree=html.fromstring(page.data)

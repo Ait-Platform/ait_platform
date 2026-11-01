@@ -3775,7 +3775,7 @@ def bulk_meter_linking(property_id):
     from .bulk_meter_linking import page
     return page(property_id)
 
-@billing_bp.route('/billing/utilities/<int:property_id>/output',methods=['GET'])
+@billing_bp.route('/billing/utilities/<int:property_id>/output',methods=['GET','POST'])
 @login_required
 def utilities_output(property_id):
     from .utilities_output import page

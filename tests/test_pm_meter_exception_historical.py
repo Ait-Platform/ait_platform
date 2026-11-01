@@ -59,6 +59,15 @@ class HistoricalExceptionTests(fixture.ExceptionChargeTests):
                 result=self.post_exception(posted);self.assertEqual(result.status_code,302,result.text)
             finally:browser.close()
 
+    def test_unassigned_legacy_meter_uses_verified_account_without_reassignment(self):
+        self.session.execute(text("INSERT INTO bil_meter(id,property_id,meter_number,utility_type,municipal_bill_number,status) VALUES(96,NULL,'UNASSIGNED-OLD','Water','MET-26','stolen')"));self.session.commit();self.conn.commit()
+        before=self.snapshot()
+        page=self.client.get(self.exceptions_url+'?account_id=1',headers=self.headers)
+        self.assertIn('UNASSIGNED-OLD',page.text)
+        self.assertEqual(self.post_exception(self.fields(meter_id='96')).status_code,302)
+        self.assertEqual(self.post_exception(self.fields(account_id='2',meter_id='96')).status_code,400)
+        self.assertEqual(before,self.snapshot())
+
     def test_old_registered_meter_remains_selectable_by_verified_account_number(self):
         self.session.execute(text("INSERT INTO bil_meter(id,property_id,meter_number,utility_type,municipal_bill_number,status) VALUES(95,26,'OLD-REGISTERED','Water','MET-26','stolen')"));self.session.commit();self.conn.commit()
         before=self.snapshot()

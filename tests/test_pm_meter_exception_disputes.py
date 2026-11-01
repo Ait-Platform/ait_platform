@@ -25,6 +25,33 @@ class DisputeTests(fixture.HistoricalExceptionTests):
         page=self.client.get(result.location,headers=self.headers);self.assertEqual(page.status_code,200,page.text)
         self.assertIn('Amount not yet known',page.text);self.assertIn('15043.25',page.text)
         self.assertEqual(self.post_exception(dict(fields,municipal_reading='15044')).status_code,409)
+    def test_historical_evidence_and_status_audit_preserve_originals(self):
+        from app.program_billing import meter_exception_evidence as storage
+        objects={};before=self.snapshot();bills=self.statements_snapshot()
+        def upload(key,data,**kw):objects[key]=data;return key
+        with patch.object(storage.transport,'upload_bytes_to_r2',side_effect=upload),patch.object(storage.transport,'read_file_from_r2',side_effect=lambda key:objects[key]):
+            fields=self.historical_fields()
+            result=self.post_exception(dict(fields,evidence=(BytesIO(self.png()),'annexure.png')));self.assertEqual(result.status_code,302,result.text)
+            incident=self.last_id()
+            self.assertEqual(self.post_exception(dict(fields,evidence=(BytesIO(self.png()),'annexure.png'))).status_code,302)
+            row=self.session.execute(text('SELECT * FROM bil_meter_exception WHERE id=:e'),dict(e=incident)).mappings().one()
+            self.assertIsNone(row['replacement_meter_id']);self.assertIsNone(row['replacement_date'])
+            status=dict(action='status',account_id='1',exception_id=str(incident),version='1',status='Reported',status_date='2026-09-05',notification_date='2026-09-02',municipal_reference='ARCHIVE-REF',status_remarks='Municipality correspondence retained')
+            self.assertEqual(self.post_exception(status).status_code,302)
+            events=self.session.execute(text('SELECT kind FROM bil_meter_exception_event WHERE exception_id=:e ORDER BY id'),dict(e=incident)).scalars().all()
+            self.assertEqual(events,['created','evidence_added','status_changed'])
+            self.assertEqual(self.session.execute(text('SELECT count(*) FROM bil_meter_exception_evidence WHERE exception_id=:e'),dict(e=incident)).scalar(),1)
+        self.assertEqual(before,self.snapshot());self.assertEqual(bills,self.statements_snapshot())
+    def test_historical_identity_and_incident_rollback_on_evidence_failure(self):
+        from app.program_billing import meter_exception_evidence as storage
+        before=self.snapshot()
+        with patch.object(storage.transport,'upload_bytes_to_r2',side_effect=RuntimeError('test private storage failure')):
+            with self.assertLogs(self.app.logger,level='ERROR'):
+                result=self.post_exception(dict(self.historical_fields(),evidence=(BytesIO(self.png()),'annexure.png')))
+        self.assertEqual(result.status_code,503)
+        self.assertEqual(self.session.execute(text('SELECT count(*) FROM bil_meter_exception_identity')).scalar(),0)
+        self.assertEqual(before,self.snapshot())
+
     def test_disputed_observation_validation_and_account_isolation(self):
         for changes in [dict(municipal_reading='NaN'),dict(disputed_consumption='-1'),dict(disputed_consumption='infinity'),dict(municipal_reading='9999999999999999')]:
             result=self.post_exception(self.charge_fields(**changes));self.assertEqual(result.status_code,400,result.text)

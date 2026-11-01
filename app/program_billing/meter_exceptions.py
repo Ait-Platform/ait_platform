@@ -21,7 +21,7 @@ def account(p,value):
     return row
 
 def account_meters(p,acc):
-    rows=[dict(r) for r in db.session.execute(text('SELECT * FROM bil_meter WHERE property_id=:p AND (id=:w OR id=:e OR municipal_bill_number=:n) ORDER BY meter_number,id'),dict(p=p,w=acc['water_meter_id'],e=acc['elec_meter_id'],n=acc['account_number'])).mappings()]
+    rows=[dict(r) for r in db.session.execute(text('SELECT * FROM bil_meter WHERE (property_id=:p OR property_id IS NULL) AND (id=:w OR id=:e OR municipal_bill_number=:n) ORDER BY meter_number,id'),dict(p=p,w=acc['water_meter_id'],e=acc['elec_meter_id'],n=acc['account_number'])).mappings()]
     return rows
 
 def historical_ready():
@@ -90,6 +90,11 @@ def checked_meter(p,acc,value):
         return row
     mid=identifier(value,'meter');row=next((m for m in account_meters(p,acc) if m['id']==mid),None)
     if not row:abort(400,description='Select a meter registered to this property and municipal account.')
+    if row.get('sectional_unit_id'):
+        from .utilities_capture import available
+        if not available('bil_sectional_unit',['id','property_id']):abort(409,description='The legacy meter property association cannot be verified; no incident was saved.')
+        linked_property=db.session.execute(text('SELECT property_id FROM bil_sectional_unit WHERE id=:u'),dict(u=row['sectional_unit_id'])).scalar()
+        if linked_property!=p:abort(409,description='This meter has a conflicting legacy property association; no incident was saved.')
     if row.get('municipal_bill_number') not in (None,'',acc['account_number']):abort(409,description='Meter and account associations conflict. Resolve the historical association before recording this incident.')
     other=db.session.execute(text('SELECT 1 FROM bil_muni_account WHERE id<>:a AND (water_meter_id=:m OR elec_meter_id=:m OR account_number=:n) LIMIT 1'),dict(a=acc['id'],m=mid,n=row.get('municipal_bill_number'))).first()
     if other:abort(409,description='This meter has conflicting municipal account relationships; no incident was saved.')

@@ -31,3 +31,17 @@ The new Utilities evidence wrapper reuses the existing private PM transport in l
 Storage failure rolls back database changes. R2 and PostgreSQL are not one distributed transaction: if storage succeeds but the subsequent database transaction fails, an unreferenced private object can remain. It is not exposed as evidence; any cleanup must be an independently reviewed maintenance task. Existing evidence is never overwritten or deleted by this workflow.
 
 Code deployment, production migration and live storage verification remain separate. No production migration, data write or evidence upload was performed during implementation.
+
+## Historical stolen meters and disputed observations
+
+Stolen incidents accept blank replacement meter and date. A supplied replacement relationship must remain complete and verified; Replaced always requires both fields. A notification date never implies a replacement date. The application does not infer replacement links from dates.
+
+Migration pm_meter_exceptions_003 follows _002. It adds bil_meter_exception_identity for verified historical identities outside the physical meter inventory, and a nullable historical_identity_id on incidents. A database check requires exactly one registered meter or historical identity per incident. Existing incidents keep their meter IDs. No physical meter, allocation, reading, consumption or statement rows are backfilled or updated. Historical identities require a documented account association and explicit manager confirmation; identifiers are checked against registered meters and protected by an advisory transaction lock plus a unique normalised key. Existing same-account historical identities are reused rather than duplicated. Conflicting identities are blocked, never reassigned. Verification is an authorised user's evidence-based assertion, not automatic legal certification.
+
+Migration pm_meter_exceptions_004 follows _003. It adds immutable dispute_details JSON to continuing-charge records and permits an unknown amount (NULL). Existing positive amounts and snapshots remain unchanged. Municipality-attributed readings and disputed consumption are nonnegative decimal case observations stored as exact strings; they never enter bil_meter_reading or consumption calculations. The disputed meter is derived from the incident, and the selected bill must belong to the incident account. Bill period and original figures remain captured in the existing immutable snapshot. A known amount must remain positive. Evidence, events, status concurrency and private access checks are reused.
+
+Both migrations are additive, forward-only and NOT applied to production by this change. Follow the existing backup, restored-copy rehearsal, identity/privilege and explicit approval procedure before execution. Target the root Alembic graph, not Flask startup or upgrade heads:
+
+    PGOPTIONS="$PGOPTIONS -c search_path=public -c lock_timeout=5000 -c statement_timeout=120000" python -m alembic -c alembic.ini upgrade pm_meter_exceptions_004
+
+After approval and execution, verify the branch head, historical identity table, incident identity check/FK and charge dispute_details/nullable amount. Use read-only account-scoped page checks; do not post production test incidents. Existing registration and charges remain usable with the older _002 schema; the new historical and disputed-observation fields appear only when their corresponding schema is available. Private R2 access still requires the existing configured transport and permissions, with no public URLs.

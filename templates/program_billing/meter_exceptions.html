@@ -4,10 +4,10 @@
 {% include 'program_billing/municipal_navigation.html' %}
 <form method="GET" class="my-4 flex flex-wrap items-end gap-2"><input type="hidden" name="billing_month" value="{{ utility_month }}"><label for="exception-account" class="font-semibold">Municipal Account<select id="exception-account" name="account_id" required class="block rounded-lg border border-slate-300 px-3 py-2"><option value="">Select account</option>{% for a in accounts %}<option value="{{ a.id }}" {% if account and account.id==a.id %}selected{% endif %}>{{ a.account_number }}</option>{% endfor %}</select></label><button class="rounded-lg bg-blue-100 px-4 py-2">Open Account</button></form>
 {% if account %}<h2 class="text-lg font-semibold">Account {{ account.account_number }} — {{ account.owner_name or 'Owner not recorded' }}</h2><h3 class="mt-4 font-semibold">Registered meters</h3><ul>{% for meter in meters %}<li>{{ meter.meter_number }} — {{ meter.utility_type }}</li>{% else %}<li>No meters are associated with this account.</li>{% endfor %}</ul>{% else %}<p>Select an account before creating an exception.</p>{% endif %}
-{% if error %}<p role="alert" class="my-3 rounded-lg bg-red-50 p-3 text-red-800">{{ error }}</p>{% endif %}
+{% if error %}<div id="exception-save-error" role="alert" tabindex="-1" class="my-3 rounded-lg border border-red-200 bg-red-50 p-3 text-red-800"><strong>Not saved.</strong> {{ error }}</div>{% endif %}
 {% if not available %}<p class="my-3 text-slate-600">Meter exception registration is temporarily unavailable. Please contact the administrator.</p>{% elif account and not detail %}
 <h2 class="mt-6 text-lg font-semibold">Register Meter Exception</h2><p class="text-sm text-slate-600">For Stolen, leave both replacement fields blank when the replacement relationship is unknown. Only a completed Replaced incident requires replacement details.</p><p class="text-sm text-slate-600">Recording an incident does not deactivate or rename a meter, change readings or alter charges.</p>
-<form method="POST" enctype="multipart/form-data" class="mt-3 space-y-4"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="create"><input type="hidden" name="account_id" value="{{ account.id }}"><input type="hidden" name="submission_key" value="{{ submission_key }}"><input type="hidden" name="billing_month" value="{{ utility_month }}">
+<form id="exception-create-form" method="POST" action="{{ url_for('billing_bp.meter_exceptions',property_id=property.id,account_id=account.id,billing_month=utility_month) }}" enctype="multipart/form-data" class="mt-3 space-y-4"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="create"><input type="hidden" name="account_id" value="{{ account.id }}"><input type="hidden" name="submission_key" value="{{ submission_key }}"><input type="hidden" name="billing_month" value="{{ utility_month }}">
 <div class="grid grid-cols-1 gap-3 md:grid-cols-2"><label class="font-semibold">Affected meter<select name="meter_id" required autofocus class="block w-full rounded-lg border border-slate-300 p-2"><option value="">Select meter</option>{% for meter in meters %}<option value="{{ meter.selection_id or meter.id }}" {% if values.get('meter_id')==(meter.selection_id or meter.id|string) %}selected{% endif %}>{{ meter.meter_number }} — {{ meter.utility_type }}</option>{% endfor %}{% if historical_available %}<option value="historical:new" {% if values.get('meter_id')=='historical:new' %}selected{% endif %}>Register a verified historical identity</option>{% endif %}</select></label>
 {% if historical_available %}<details class="rounded-lg border border-slate-200 p-3" {% if values.get('meter_id')=='historical:new' %}open{% endif %}><summary>Historical meter not in the list</summary><p>This records an exception-only identity, not an active meter. First select Register a verified historical identity above. Existing identities are reused; current meter allocations remain unchanged.</p><label class="block">Historical meter number<input name="historical_number" maxlength="100" value="{{ values.get('historical_number','') }}" class="block w-full rounded-lg border border-slate-300 p-2"></label><label class="block">Utility<select name="historical_utility" class="block rounded-lg border border-slate-300 p-2">{% for utility in ['Water','Electrical'] %}<option {% if values.get('historical_utility')==utility %}selected{% endif %}>{{ utility }}</option>{% endfor %}</select></label><label class="block">Evidence establishing the historical account association<textarea name="historical_basis" maxlength="5000" class="block w-full rounded-lg border border-slate-300 p-2">{{ values.get('historical_basis','') }}</textarea></label><label><input type="checkbox" name="historical_verified" value="yes" {% if values.get('historical_verified')=='yes' %}checked{% endif %}> I have verified that this historical meter belonged to the selected account.</label></details>{% endif %}
 <label class="font-semibold">Exception type<select name="exception_type" required class="block w-full rounded-lg border border-slate-300 p-2">{% for type in types %}<option {% if values.get('exception_type')==type %}selected{% endif %}>{{ type }}</option>{% endfor %}</select></label>
@@ -37,4 +37,30 @@
 {% if detail %}<div class="mt-4 flex justify-end"><a href="{{ url_for('billing_bp.meter_exceptions',property_id=property.id,account_id=detail.account_id,billing_month=utility_month) }}" class="rounded-lg bg-blue-100 px-4 py-2 font-semibold">Register Another Exception</a></div>{% endif %}
 {% if available %}<h2 class="mt-6 text-lg font-semibold">Exception Register</h2><div class="overflow-x-auto"><table id="exception-register" class="w-full text-left text-sm"><thead><tr>{% for title in ['Account','Meter','Exception','Incident Date','Municipal Reference','Status','Action'] %}<th class="p-2">{{ title }}</th>{% endfor %}</tr></thead><tbody>{% for entry in entries %}<tr class="border-t"><td class="p-2">{{ entry.account_number }}</td><td>{{ entry.meter_number }}</td><td>{{ entry.exception_type }}</td><td>{{ entry.incident_date }}</td><td>{{ entry.municipal_reference }}</td><td>{{ entry.status }}</td><td><a class="text-blue-700 underline" href="{{ url_for('billing_bp.meter_exceptions',property_id=property.id,account_id=entry.account_id,exception_id=entry.id) }}">Open</a></td></tr>{% else %}<tr><td colspan="7" class="p-3">No incident records saved.</td></tr>{% endfor %}</tbody></table></div>{% endif %}
 <h2 class="mt-6 text-lg font-semibold">Existing meter status records</h2><p class="text-sm text-slate-600">These existing meter statuses are retained as recorded; they are not separate incident records.</p><table class="mt-3 w-full text-left"><thead><tr><th>Meter</th><th>Status</th><th>Incident date</th><th>Replacement date</th></tr></thead><tbody>{% for meter in legacy %}<tr class="border-t"><td class="p-2">{{ meter.meter_number }}</td><td>{{ meter.status }}</td><td>{{ meter.date_stolen or '' }}</td><td>{{ meter.date_replaced or '' }}</td></tr>{% else %}<tr><td colspan="4" class="p-3">No existing non-active meter statuses recorded.</td></tr>{% endfor %}</tbody></table>
+<script>
+(() => {
+  const form = document.getElementById('exception-create-form');
+  if (form) {
+    const type = form.elements.exception_type;
+    const replacement = form.elements.replacement_meter_id;
+    const date = form.elements.replacement_date;
+    const syncReplacement = () => {
+      const completed = type.value === 'Replaced';
+      replacement.required = completed;
+      date.disabled = !completed && !replacement.value;
+      date.required = completed || Boolean(replacement.value);
+      // A disabled date is never submitted for an unknown replacement.
+      // Keep its value in the form so changing the selection back does not lose input.
+    };
+    type.addEventListener('change', syncReplacement);
+    replacement.addEventListener('change', syncReplacement);
+    form.addEventListener('submit', () => {
+      form.querySelector('button[type="submit"], button:not([type])').disabled = true;
+    });
+    syncReplacement();
+  }
+  const error = document.getElementById('exception-save-error');
+  if (error) error.focus();
+})();
+</script>
 </div></div></div>{% endblock %}

@@ -122,13 +122,16 @@ def create(p,form,file=None):
     from .bulk_meter_linking import kind
     incident=day(form.get('incident_date'));today=datetime.now(ZoneInfo('Africa/Johannesburg')).date()
     notification=day(form['notification_date']) if form.get('notification_date') else None
-    replacement_date=day(form['replacement_date']) if form.get('replacement_date') else None
+    replacement_date_value=str(form.get('replacement_date') or '').strip()
+    replacement_date=day(replacement_date_value) if replacement_date_value else None
     if incident>today or any(d and (d<incident or d>today) for d in (notification,replacement_date)):abort(400,description='Incident dates cannot be in the future; notification and replacement dates must not precede the incident.')
     exception_type=form.get('exception_type')
     if exception_type not in TYPES:abort(400,description='Select a supported meter exception type.')
-    replacement=checked_meter(p,acc,form['replacement_meter_id']) if form.get('replacement_meter_id') else None
+    replacement_value=str(form.get('replacement_meter_id') or '').strip()
+    replacement=checked_meter(p,acc,replacement_value) if replacement_value else None
     if exception_type=='Replaced' and (not replacement or not replacement_date):abort(400,description='A completed replacement requires a verified replacement meter and replacement date.')
-    if bool(replacement)!=bool(replacement_date):abort(400,description='Replacement details are optional for a stolen meter. Leave both blank when unknown, or provide both to record a verified replacement.')
+    if replacement and not replacement_date:abort(400,description='A replacement meter was selected without a replacement date. Select No replacement if the relationship is unknown, or enter its verified replacement date.')
+    if replacement_date and not replacement:abort(400,description='A replacement date was submitted without a replacement meter. Clear the replacement date if the relationship is unknown, or select its verified replacement meter.')
     if replacement:
         if replacement.get('historical_identity_id'):abort(400,description='Select an existing registered physical replacement meter.')
         if replacement['id']==meter['id'] or kind(replacement['utility_type'])!=kind(meter['utility_type']):abort(400,description='A replacement must be a different meter of the same utility type.')
@@ -289,7 +292,7 @@ def page(p):
             elif action=='status':eid=update_status(p,values)
             elif action=='charge':eid=create_charge(p,values,request.files.get('evidence'))
             else:abort(400,description='Select a valid exception action.')
-            db.session.commit();flash('Meter exception saved. Existing meters, readings and municipal balances were preserved.','success')
+            db.session.commit();flash('Meter exception saved successfully.','success')
             return redirect(url_for('billing_bp.meter_exceptions',property_id=p,account_id=values.get('account_id'),exception_id=eid,billing_month=request.values.get('billing_month','')))
         except HTTPException as exc:
             db.session.rollback()
@@ -305,7 +308,7 @@ def page(p):
         meter_name='COALESCE(m.meter_number,h.meter_number)' if historical_ready() else 'm.meter_number'
         historical_join=' LEFT JOIN bil_meter_exception_identity h ON h.id=e.historical_identity_id' if historical_ready() else ''
         entries=[dict(r) for r in db.session.execute(text('SELECT e.*,a.account_number,'+meter_name+' AS meter_number FROM bil_meter_exception e JOIN bil_muni_account a ON a.id=e.account_id LEFT JOIN bil_meter m ON m.id=e.meter_id'+historical_join+' WHERE e.property_id=:p AND a.property_id=:p AND (:a IS NULL OR e.account_id=:a) ORDER BY e.incident_date DESC,e.id DESC'),dict(p=p,a=acc['id'] if acc else None)).mappings()]
-        selected=request.values.get('exception_id')
+        selected=None if request.method=='POST' and values.get('action')=='create' else request.values.get('exception_id')
         if selected:
             detail=scoped(p,selected)
             if acc and detail['account_id']!=acc['id']:abort(404)

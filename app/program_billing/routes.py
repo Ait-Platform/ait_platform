@@ -3017,7 +3017,7 @@ def save_reading():
         return dict(success=False,error='Reading could not be saved. No history was changed.'),503
 
 
-@billing_bp.route("/meter_exceptions/<int:property_id>", methods=["GET"])
+@billing_bp.route("/meter_exceptions/<int:property_id>", methods=["GET","POST"])
 @login_required
 def meter_exceptions(property_id):
     from .meter_exceptions import page
@@ -3760,3 +3760,9 @@ def bulk_meter_linking(property_id):
 def utilities_output(property_id):
     from .utilities_output import page
     return page(property_id)
+
+@billing_bp.route('/meter_exceptions/<int:property_id>/evidence/<uuid:evidence_id>',methods=['GET'])
+@login_required
+def meter_exception_evidence(property_id,evidence_id):
+    from .meter_exceptions import evidence_download
+    return evidence_download(property_id,evidence_id)

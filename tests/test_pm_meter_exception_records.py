@@ -29,6 +29,19 @@ class ExceptionRecordTests(fixture.MeterExceptionTests):
     def png(self):
         from PIL import Image
         file=BytesIO();Image.new('RGB',(5,5),'blue').save(file,format='PNG');return file.getvalue()
+    def test_stolen_without_replacement_and_replaced_requires_both(self):
+        from lxml import html
+        page=self.client.get(self.exceptions_url+'?account_id=1',headers=self.headers)
+        form=html.fromstring(page.data).xpath('//form[.//input[@value="create"]]')[0]
+        self.assertFalse(form.xpath('.//*[@name="replacement_meter_id" or @name="replacement_date"]/@required'))
+        fields=self.fields(replacement_meter_id='',replacement_date='')
+        result=self.post_exception(fields);self.assertEqual(result.status_code,302,result.text)
+        row=self.session.execute(text('SELECT * FROM bil_meter_exception WHERE id=:e'),dict(e=self.last_id())).mappings().one()
+        self.assertIsNone(row['replacement_meter_id']);self.assertIsNone(row['replacement_date'])
+        for changes in ({},{'replacement_meter_id':'92'},{'replacement_date':'2026-09-03'}):
+            result=self.post_exception(self.fields(exception_type='Replaced',**changes));self.assertEqual(result.status_code,400,result.text)
+        self.assertEqual(self.post_exception(self.fields(exception_type='Replaced',replacement_meter_id='92',replacement_date='2026-09-03')).status_code,302)
+
     def test_multiple_types_idempotency_and_original_records_unchanged(self):
         before=self.snapshot()
         for kind in self.exceptions.TYPES:

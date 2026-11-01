@@ -86,7 +86,8 @@ def create(p,form,file=None):
     exception_type=form.get('exception_type')
     if exception_type not in TYPES:abort(400,description='Select a supported meter exception type.')
     replacement=checked_meter(p,acc,form['replacement_meter_id']) if form.get('replacement_meter_id') else None
-    if bool(replacement)!=bool(replacement_date) or (exception_type=='Replaced' and not replacement):abort(400,description='A replacement requires both an existing replacement meter and its replacement date.')
+    if exception_type=='Replaced' and (not replacement or not replacement_date):abort(400,description='A completed replacement requires a verified replacement meter and replacement date.')
+    if bool(replacement)!=bool(replacement_date):abort(400,description='Replacement details are optional for a stolen meter. Leave both blank when unknown, or provide both to record a verified replacement.')
     if replacement:
         if replacement['id']==meter['id'] or kind(replacement['utility_type'])!=kind(meter['utility_type']):abort(400,description='A replacement must be a different meter of the same utility type.')
         links=[(r[0],r[1]) for r in db.session.execute(text('SELECT meter_id,replacement_meter_id FROM bil_meter_exception WHERE property_id=:p AND replacement_meter_id IS NOT NULL UNION SELECT replacement_for_meter_id,id FROM bil_meter WHERE property_id=:p AND replacement_for_meter_id IS NOT NULL'),dict(p=p))]

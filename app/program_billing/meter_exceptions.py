@@ -1,5 +1,5 @@
 """Account-scoped meter exceptions; legacy meter history remains read-only."""
-import json,uuid
+import json,uuid,re
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from io import BytesIO
@@ -23,6 +23,37 @@ def account(p,value):
 def account_meters(p,acc):
     rows=[dict(r) for r in db.session.execute(text('SELECT * FROM bil_meter WHERE property_id=:p AND (id=:w OR id=:e OR municipal_bill_number=:n) ORDER BY meter_number,id'),dict(p=p,w=acc['water_meter_id'],e=acc['elec_meter_id'],n=acc['account_number'])).mappings()]
     return rows
+
+def historical_ready():
+    from .utilities_capture import available
+    return available('bil_meter_exception_identity',['id','property_id','account_id','identity_key','verification_basis']) and available('bil_meter_exception',['historical_identity_id'])
+
+def selectable_meters(p,acc):
+    rows=account_meters(p,acc)
+    for row in rows:row['selection_id']=str(row['id'])
+    if historical_ready():
+        for row in db.session.execute(text('SELECT * FROM bil_meter_exception_identity WHERE property_id=:p AND account_id=:a ORDER BY meter_number,id'),dict(p=p,a=acc['id'])).mappings():
+            rows.append(dict(row,id=None,historical_identity_id=row['id'],selection_id='h:'+str(row['id']),status='historical identity only'))
+    return rows
+
+def historical_meter(p,acc,form):
+    if not historical_ready():abort(503,description='Historical meter registration is temporarily unavailable. Please contact the administrator.')
+    number=clean_text(form,'historical_number',100,True)
+    if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9 ./_-]{0,99}',number):abort(400,description='Enter a valid historical meter identifier.')
+    utility=form.get('historical_utility')
+    if utility not in ('Water','Electrical'):abort(400,description='Select the historical meter utility.')
+    basis=clean_text(form,'historical_basis',5000,True)
+    if form.get('historical_verified')!='yes':abort(400,description='Confirm the documented historical association with this account before registration.')
+    key=number.strip().lower()
+    # Serialise identity registration across accounts/properties, including duplicate submissions.
+    db.session.execute(text('SELECT pg_advisory_xact_lock(hashtextextended(:k,0))'),dict(k='pm-exception-identity:'+key))
+    if db.session.execute(text('SELECT 1 FROM bil_meter WHERE lower(btrim(meter_number))=:k LIMIT 1'),dict(k=key)).first():abort(409,description='This meter already has a registered identity. Select its verified account association; it cannot be duplicated or reassigned here.')
+    old=db.session.execute(text('SELECT * FROM bil_meter_exception_identity WHERE identity_key=:k'),dict(k=key)).mappings().first()
+    if old:
+        if old['property_id']!=p or old['account_id']!=acc['id'] or old['utility_type']!=utility:abort(409,description='This historical meter identity has a conflicting account, property or utility association.')
+        return dict(old,id=None,historical_identity_id=old['id'])
+    hid=db.session.execute(text('INSERT INTO bil_meter_exception_identity(property_id,account_id,meter_number,identity_key,utility_type,verification_basis,created_by) VALUES(:p,:a,:n,:k,:u,:b,:actor) RETURNING id'),dict(p=p,a=acc['id'],n=number,k=key,u=utility,b=basis,actor=current_user.id)).scalar()
+    return dict(id=None,historical_identity_id=hid,meter_number=number,utility_type=utility)
 
 TYPES=('Stolen','Missing','Removed','Disconnected','Reconnected','Replaced')
 
@@ -52,6 +83,11 @@ def scoped(p,e,lock=False):
     return dict(row)
 
 def checked_meter(p,acc,value):
+    if str(value).startswith('h:'):
+        if not historical_ready():abort(503,description='Historical meter registration is temporarily unavailable.')
+        row=next((m for m in selectable_meters(p,acc) if m.get('selection_id')==value),None)
+        if not row:abort(400,description='Select a historical meter verified for this property and account.')
+        return row
     mid=identifier(value,'meter');row=next((m for m in account_meters(p,acc) if m['id']==mid),None)
     if not row:abort(400,description='Select a meter registered to this property and municipal account.')
     if row.get('municipal_bill_number') not in (None,'',acc['account_number']):abort(409,description='Meter and account associations conflict. Resolve the historical association before recording this incident.')
@@ -76,7 +112,7 @@ def evidence_add(p,record,file):
 
 def create(p,form,file=None):
     property_scope(p,lock=True);require_ready()
-    acc=account(p,form.get('account_id'));meter=checked_meter(p,acc,form.get('meter_id'))
+    acc=account(p,form.get('account_id'));meter=historical_meter(p,acc,form) if form.get('meter_id')=='historical:new' else checked_meter(p,acc,form.get('meter_id'))
     from .utilities_capture import day
     from .bulk_meter_linking import kind
     incident=day(form.get('incident_date'));today=datetime.now(ZoneInfo('Africa/Johannesburg')).date()
@@ -89,6 +125,7 @@ def create(p,form,file=None):
     if exception_type=='Replaced' and (not replacement or not replacement_date):abort(400,description='A completed replacement requires a verified replacement meter and replacement date.')
     if bool(replacement)!=bool(replacement_date):abort(400,description='Replacement details are optional for a stolen meter. Leave both blank when unknown, or provide both to record a verified replacement.')
     if replacement:
+        if replacement.get('historical_identity_id'):abort(400,description='Select an existing registered physical replacement meter.')
         if replacement['id']==meter['id'] or kind(replacement['utility_type'])!=kind(meter['utility_type']):abort(400,description='A replacement must be a different meter of the same utility type.')
         links=[(r[0],r[1]) for r in db.session.execute(text('SELECT meter_id,replacement_meter_id FROM bil_meter_exception WHERE property_id=:p AND replacement_meter_id IS NOT NULL UNION SELECT replacement_for_meter_id,id FROM bil_meter WHERE property_id=:p AND replacement_for_meter_id IS NOT NULL'),dict(p=p))]
         if any(child==replacement['id'] and parent!=meter['id'] for parent,child in links):abort(409,description='The replacement meter already replaces a different meter.')
@@ -97,14 +134,16 @@ def create(p,form,file=None):
         def cycle(node,path):
             if node in path:return True
             return any(cycle(child,path|{node}) for child in graph.get(node,()))
-        if cycle(meter['id'],set()):abort(400,description='This replacement would create a circular meter relationship.')
+        if meter['id'] is not None and cycle(meter['id'],set()):abort(400,description='This replacement would create a circular meter relationship.')
     try:key=uuid.UUID(form.get('submission_key',''))
     except (ValueError,TypeError,AttributeError):abort(400,description='Reopen the exception form before saving.')
     values=dict(p=p,a=acc['id'],m=meter['id'],t=exception_type,d=incident,n=notification,ref=clean_text(form,'municipal_reference',150),description=clean_text(form,'description',5000,True),remarks=clean_text(form,'remarks',5000),r=replacement['id'] if replacement else None,rd=replacement_date,key=key,u=current_user.id)
+    if historical_ready():values['h']=meter.get('historical_identity_id')
     existing=db.session.execute(text('SELECT * FROM bil_meter_exception WHERE submission_key=:key'),dict(key=key)).mappings().first()
     if existing:
         if existing['property_id']!=p or existing['account_id']!=acc['id'] or existing['created_by']!=current_user.id:abort(409)
         expected=dict(meter_id=values['m'],exception_type=values['t'],incident_date=values['d'],notification_date=values['n'],municipal_reference=values['ref'],description=values['description'],remarks=values['remarks'],replacement_meter_id=values['r'],replacement_date=values['rd'])
+        if historical_ready():expected['historical_identity_id']=values['h']
         if any(existing[k]!=v for k,v in expected.items()):abort(409,description='This submission already saved a different incident. Reopen the form for a new incident.')
         if file and file.filename:
             from .meter_exception_evidence import validate
@@ -112,7 +151,9 @@ def create(p,form,file=None):
             except ValueError as exc:abort(400,description=str(exc))
             if not db.session.execute(text('SELECT 1 FROM bil_meter_exception_evidence WHERE exception_id=:e AND sha256=:h'),dict(e=existing['id'],h=uploaded['sha256'])).first():abort(409,description='This incident was already saved. Open it and use Upload Evidence to add another file.')
         return existing['id']
-    eid=db.session.execute(text('INSERT INTO bil_meter_exception(property_id,account_id,meter_id,exception_type,incident_date,notification_date,municipal_reference,description,remarks,replacement_meter_id,replacement_date,submission_key,created_by) VALUES(:p,:a,:m,:t,:d,:n,:ref,:description,:remarks,:r,:rd,:key,:u) RETURNING id'),values).scalar()
+    historical_column=',historical_identity_id' if historical_ready() else ''
+    historical_value=',:h' if historical_ready() else ''
+    eid=db.session.execute(text('INSERT INTO bil_meter_exception(property_id,account_id,meter_id,exception_type,incident_date,notification_date,municipal_reference,description,remarks,replacement_meter_id,replacement_date,submission_key,created_by'+historical_column+') VALUES(:p,:a,:m,:t,:d,:n,:ref,:description,:remarks,:r,:rd,:key,:u'+historical_value+') RETURNING id'),values).scalar()
     event(eid,'created',values)
     if file and file.filename:evidence_add(p,dict(id=eid,account_id=acc['id']),file)
     return eid
@@ -235,16 +276,18 @@ def page(p):
         except Exception:
             db.session.rollback();current_app.logger.exception('Meter exception save failed');error='The exception could not be saved. No changes were committed.';status=503
     acc=account(p,request.values['account_id']) if request.values.get('account_id') else None
-    meters=account_meters(p,acc) if acc else [dict(r) for r in db.session.execute(text('SELECT * FROM bil_meter WHERE property_id=:p ORDER BY meter_number,id'),dict(p=p)).mappings()]
+    meters=selectable_meters(p,acc) if acc else [dict(r) for r in db.session.execute(text('SELECT * FROM bil_meter WHERE property_id=:p ORDER BY meter_number,id'),dict(p=p)).mappings()]
     legacy=[m for m in meters if (m.get('status') or 'active').lower()!='active']
     entries=[];evidence=[];charges=[];bills=[];events=[]
     if ready():
-        entries=[dict(r) for r in db.session.execute(text('SELECT e.*,a.account_number,m.meter_number FROM bil_meter_exception e JOIN bil_muni_account a ON a.id=e.account_id JOIN bil_meter m ON m.id=e.meter_id WHERE e.property_id=:p AND a.property_id=:p AND (:a IS NULL OR e.account_id=:a) ORDER BY e.incident_date DESC,e.id DESC'),dict(p=p,a=acc['id'] if acc else None)).mappings()]
+        meter_name='COALESCE(m.meter_number,h.meter_number)' if historical_ready() else 'm.meter_number'
+        historical_join=' LEFT JOIN bil_meter_exception_identity h ON h.id=e.historical_identity_id' if historical_ready() else ''
+        entries=[dict(r) for r in db.session.execute(text('SELECT e.*,a.account_number,'+meter_name+' AS meter_number FROM bil_meter_exception e JOIN bil_muni_account a ON a.id=e.account_id LEFT JOIN bil_meter m ON m.id=e.meter_id'+historical_join+' WHERE e.property_id=:p AND a.property_id=:p AND (:a IS NULL OR e.account_id=:a) ORDER BY e.incident_date DESC,e.id DESC'),dict(p=p,a=acc['id'] if acc else None)).mappings()]
         selected=request.values.get('exception_id')
         if selected:
             detail=scoped(p,selected)
             if acc and detail['account_id']!=acc['id']:abort(404)
-            if not acc:acc=account(p,detail['account_id']);meters=account_meters(p,acc)
+            if not acc:acc=account(p,detail['account_id']);meters=selectable_meters(p,acc)
             evidence=[dict(r) for r in db.session.execute(text('SELECT id,filename,created_at FROM bil_meter_exception_evidence WHERE exception_id=:e ORDER BY created_at,id'),dict(e=detail['id'])).mappings()]
     if detail:events=history(detail['id'])
     if detail and charges_ready():
@@ -252,4 +295,4 @@ def page(p):
         for charge in charges:
             charge['evidence']=[dict(r) for r in db.session.execute(text('SELECT v.id,v.filename FROM bil_meter_exception_charge_evidence l JOIN bil_meter_exception_evidence v ON v.id=l.evidence_id WHERE l.charge_id=:c AND v.exception_id=:e'),dict(c=charge['id'],e=detail['id'])).mappings()]
         bills=[dict(r) for r in db.session.execute(text('SELECT id,period,statement_date,balance,due FROM bil_municipal_statement WHERE account_id=:a ORDER BY statement_date DESC,id DESC'),dict(a=detail['account_id'])).mappings()]
-    return render_template('program_billing/meter_exceptions.html',property=prop,accounts=accounts(p),account=acc,meters=meters,legacy=legacy,entries=entries,detail=detail,evidence=evidence,charges=charges,bills=bills,charges_available=charges_ready(),charge_submission_key=values.get('submission_key') if values.get('action')=='charge' else str(uuid.uuid4()),types=TYPES,statuses=STATUSES,events=events,today=datetime.now(ZoneInfo('Africa/Johannesburg')).date().isoformat(),available=ready(),values=values,submission_key=values.get('submission_key') or str(uuid.uuid4()),error=error,utility_month=request.values.get('billing_month','')),status
+    return render_template('program_billing/meter_exceptions.html',property=prop,accounts=accounts(p),account=acc,meters=meters,legacy=legacy,entries=entries,detail=detail,evidence=evidence,charges=charges,bills=bills,charges_available=charges_ready(),charge_submission_key=values.get('submission_key') if values.get('action')=='charge' else str(uuid.uuid4()),types=TYPES,statuses=STATUSES,events=events,today=datetime.now(ZoneInfo('Africa/Johannesburg')).date().isoformat(),available=ready(),historical_available=historical_ready(),values=values,submission_key=values.get('submission_key') or str(uuid.uuid4()),error=error,utility_month=request.values.get('billing_month','')),status

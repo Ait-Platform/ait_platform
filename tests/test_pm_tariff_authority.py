@@ -49,6 +49,29 @@ class AuthorityTests(ManagementTests):
         response=self.client.post('/admin/billing/tariffs/new',data=dict(utility_type='electricity',rate='4',effective_date='2026-12-01',unit='kWh',csrf_token=token))
         self.conn.commit();self.assertEqual(response.status_code,302,response.text)
         self.assertEqual(tuple(self.conn.execute(text('SELECT municipality,municipal_category,source_reference FROM bil_tariff_verification')).one()),(None,None,None))
+    def test_manually_nullable_columns_accept_blanks_without_revision_stamp(self):
+        # Reproduce the supplied production state via manual column changes only.
+        for column in ('municipality','municipal_category','source_reference'):
+            self.conn.execute(text('ALTER TABLE bil_tariff_verification ALTER COLUMN '+column+' SET NOT NULL'))
+            self.conn.execute(text('ALTER TABLE bil_tariff_verification ALTER COLUMN '+column+' DROP NOT NULL'))
+        self.conn.commit()
+        before=self.snapshot()['bil_tariff']
+        response=self.post('/admin/billing/tariffs/new',dict(self.base(),municipality='',municipal_category='',source_reference=''))
+        self.assertEqual(response.status_code,302,response.text)
+        self.assertEqual(self.snapshot()['bil_tariff'][:1],before)
+        evidence=[dict(r) for r in self.conn.execute(text('SELECT * FROM bil_tariff_verification')).mappings()]
+        self.assertEqual(len(evidence),1)
+        for key in ('municipality','municipal_category','source_reference'):self.assertIsNone(evidence[0][key])
+        import importlib.util
+        from unittest.mock import patch
+        from alembic.operations import Operations
+        from alembic.migration import MigrationContext
+        from test_pm_admin_landing import ROOT
+        spec=importlib.util.spec_from_file_location('optional_schema_compatibility',ROOT/'migrations/versions/pm_tariff_authority_002.py')
+        migration=importlib.util.module_from_spec(spec);spec.loader.exec_module(migration)
+        with patch.object(migration,'op',Operations(MigrationContext.configure(self.conn))):migration.upgrade()
+        self.conn.commit()
+        self.assertEqual([dict(r) for r in self.conn.execute(text('SELECT * FROM bil_tariff_verification')).mappings()],evidence)
     def test_server_records_verifier_timestamps_and_preserves_legacy(self):
         before=self.snapshot()['bil_tariff']
         response=self.post('/admin/billing/tariffs/new',dict(self.base(),verified_by='999',verified_at='2001-01-01',recorded_at='2001-01-01'))

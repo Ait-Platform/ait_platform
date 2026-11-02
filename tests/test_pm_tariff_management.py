@@ -219,6 +219,21 @@ class ManagementTests(AuthenticatedTemplateTests):
         response=self.client.get('/admin/billing/tariffs/new')
         doc=html.fromstring(response.data);self.assertTrue(doc.xpath('//input[@name="code"]/@readonly'))
         self.assertEqual(self.snapshot(),before)
+    def test_today_and_future_rates_save_and_history_uses_readable_open_end(self):
+        original=self.snapshot()['bil_tariff'][0]
+        blanks=dict(municipality='',municipal_category='',source_reference='')
+        response=self.post('/admin/billing/tariffs/1/edit',dict(base_id='1',rate='4',effective_date='2026-11-02',**blanks))
+        self.assertEqual(response.status_code,302,response.text)
+        current=self.snapshot()['bil_tariff'][-1]
+        response=self.post('/admin/billing/tariffs/1/edit',dict(base_id=str(current['id']),rate='5',effective_date='2026-12-01',**blanks))
+        self.assertEqual(response.status_code,302,response.text)
+        rows=self.snapshot()['bil_tariff'];self.assertEqual(rows[0],original)
+        for when,expected in ((date(2026,10,31),original['rate']),(date(2026,11,2),4),(date(2026,12,1),5)):
+            selected,issues=self.tariff_service.resolve(rows,when);self.assertFalse(issues);self.assertEqual(selected[0]['rate'],expected)
+        history=html.fromstring(self.client.get('/admin/billing/tariffs/1/history').data)
+        self.assertEqual(history.xpath('//tbody/tr/td[4]/text()'),['Previous','Current','Scheduled'])
+        self.assertEqual(history.xpath('//tbody/tr[last()]/td[2]')[0].text_content(),chr(8212))
+        self.assertEqual(history.xpath('//tbody/tr[2]/td[2]/text()'),['2026-11-30'])
     def test_list_separate_forms_history_and_read_only_gets(self):
         before=self.snapshot()
         response=self.client.get('/admin/billing/tariffs');self.assertEqual(response.status_code,200)

@@ -8,7 +8,7 @@ from threading import Barrier
 from sqlalchemy.orm import Session
 from test_pm_admin_landing import ROOT
 from datetime import date
-from sqlalchemy import text
+from sqlalchemy import text,event
 from lxml import html
 from test_pm_admin_landing import function,declared_route
 from test_pm_admin_template_paths import AuthenticatedTemplateTests
@@ -82,9 +82,9 @@ class ManagementTests(AuthenticatedTemplateTests):
         selected,_=self.tariff_service.resolve(rows,date(2026,12,1));self.assertEqual(selected[0]['rate'],4.1234)
         self.assertEqual(self.post(path,values).status_code,400)
         self.assertEqual(len(self.snapshot()['bil_tariff']),2)
-    def test_edit_rejects_backdating_duplicate_and_ambiguous_records(self):
+    def test_edit_rejects_preceding_duplicate_and_ambiguous_records(self):
         path='/admin/billing/tariffs/1/edit';before=self.snapshot()
-        for day in ('2026-01-01','2026-10-01','bad'):
+        for day in ('2025-12-31','2026-01-01','bad'):
             response=self.post(path,dict(base_id='1',rate='5',effective_date=day,description='Entered description'))
             self.assertEqual(response.status_code,400);self.assertIn('Entered description',response.text)
         self.assertEqual(before,self.snapshot())
@@ -178,8 +178,8 @@ class ManagementTests(AuthenticatedTemplateTests):
                             original_new=module.save_new;original_rate=module.save_rate
                             module.save_new=lambda values:original_new(dict(values,**evidence))
                             module.save_rate=lambda identifier,values:original_rate(identifier,dict(values,**evidence))
-                            if mode=='new':module.save_new(dict(utility_type='electricity',code='CONCURRENT',rate='2',effective_date='2026-11-02',unit='kWh'))
-                            else:module.save_rate(1,dict(base_id='1',rate='3',effective_date='2026-12-01',description='Version'))
+                            if mode=='new':module.save_new(dict(utility_type='electricity',code='CONCURRENT',rate='2',effective_date='2026-01-01',unit='kWh'))
+                            else:module.save_rate(1,dict(base_id='1',rate='3',effective_date='2026-07-01',description='Version'))
                             connection.commit();return 'saved'
                         except ValueError:
                             session.rollback();connection.rollback();return 'rejected'
@@ -234,6 +234,38 @@ class ManagementTests(AuthenticatedTemplateTests):
         self.assertEqual(history.xpath('//tbody/tr/td[4]/text()'),['Previous','Current','Scheduled'])
         self.assertEqual(history.xpath('//tbody/tr[last()]/td[2]')[0].text_content(),chr(8212))
         self.assertEqual(history.xpath('//tbody/tr[2]/td[2]/text()'),['2026-11-30'])
+    def test_past_effective_elec01_version_preserves_rows_and_only_writes_tariff_data(self):
+        self.session.execute(text("UPDATE bil_tariff SET code='ELEC01' WHERE id=1"));self.session.commit();self.conn.commit()
+        original=self.snapshot()['bil_tariff'][0]
+        statements=[]
+        def capture(conn,cursor,sql,params,context,many):statements.append(sql.strip().lower())
+        event.listen(self.conn,'before_cursor_execute',capture)
+        try:
+            response=self.post('/admin/billing/tariffs/1/edit',dict(base_id='1',rate='3.5747',effective_date='2026-07-01',municipality='',municipal_category='',source_reference=''))
+        finally:event.remove(self.conn,'before_cursor_execute',capture)
+        self.assertEqual(response.status_code,302,response.text)
+        rows=self.snapshot()['bil_tariff'];self.assertEqual(len(rows),2);self.assertEqual(rows[0],original)
+        self.assertEqual(rows[1]['code'],'ELEC01')
+        for billing,expected in ((date(2026,6,30),3.2795),(date(2026,7,1),3.5747),('2026-10',3.5747)):
+            selected,issues=self.tariff_service.resolve(rows,billing);self.assertFalse(issues);self.assertEqual(selected[0]['rate'],expected)
+        mutations=[sql for sql in statements if sql.startswith(('insert ','update ','delete '))]
+        self.assertEqual(len(mutations),2)
+        self.assertTrue(mutations[0].startswith('insert into bil_tariff ('))
+        self.assertTrue(mutations[1].startswith('insert into bil_tariff_verification ('))
+        self.assertFalse(any(name in sql for sql in statements for name in ('bil_tenant_ledger','bil_statement','bil_metsoa_meter_month','bil_metsoa_breakdown')))
+        verification=self.conn.execute(text('SELECT * FROM bil_tariff_verification')).mappings().one()
+        for key in ('municipality','municipal_category','source_reference'):self.assertIsNone(verification[key])
+        self.assertIsNotNone(verification['recorded_at'])
+        history=html.fromstring(self.client.get('/admin/billing/tariffs/1/history').data)
+        self.assertEqual(history.xpath('//tbody/tr[1]/td[2]/text()'),['2026-06-30'])
+        self.assertEqual(history.xpath('//tbody/tr/td[4]/text()'),['Previous','Current'])
+        # Chronological ordering and stale-form rules still apply to past dates.
+        before=self.snapshot()
+        for day in ('2026-06-01','2026-07-01'):
+            response=self.post('/admin/billing/tariffs/1/edit',dict(base_id=str(rows[1]['id']),rate='4',effective_date=day))
+            self.assertEqual(response.status_code,400,response.text)
+        self.assertEqual(self.post('/admin/billing/tariffs/1/edit',dict(base_id='1',rate='4',effective_date='2026-08-01')).status_code,400)
+        self.assertEqual(self.snapshot(),before)
     def test_list_separate_forms_history_and_read_only_gets(self):
         before=self.snapshot()
         response=self.client.get('/admin/billing/tariffs');self.assertEqual(response.status_code,200)

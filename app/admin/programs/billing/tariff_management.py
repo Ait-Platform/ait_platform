@@ -204,10 +204,6 @@ def save_rate(tariff_id, values):
     description = values.get('description', '').strip()
     if len(description) > 1000:
         raise ValueError('Description must contain at most 1000 characters.')
-    # Backdating a price version could alter recalculation of an already billed
-    # period. Historical corrections need a separately authorised workflow.
-    if start < today():
-        raise ValueError('Effective From cannot be in the past. Historical prices must remain unchanged.')
     lock_identity(source['utility_type'], source['code'])
     _, versions = family(tariff_id)
     _, issues = resolve(versions, date.max)

@@ -44,23 +44,13 @@ def _side_from_utility(u: str | None) -> str:
         return "SD"
     return "WS"
 
-def _tariff_latest_by_code(code: str) -> dict:
-    """Return newest tariff row for a code: {rate, rf, unit}. Missing -> zeros."""
-    row = db.session.execute(
-        text("""
-            SELECT rate,
-                   COALESCE(reduction_factor,1.0) AS rf,
-                   COALESCE(unit,'') AS unit
-            FROM bil_tariff
-            WHERE code = :c
-            ORDER BY date(effective_date) DESC
-            LIMIT 1
-        """),
-        {"c": code},
-    ).mappings().first()
-    if not row:
-        return {"rate": Decimal("0"), "rf": Decimal("1"), "unit": ""}
-    return {"rate": _D(row["rate"]), "rf": _D(row["rf"]), "unit": (row["unit"] or "")}
+def _tariff_latest_by_code(code: str, month_str: str) -> dict:
+    """Read the verified version for the selected billing month."""
+    from app.utils.tariff_versions import one
+    row=one(db.session,month_str,code)
+    if not row:return {"rate": Decimal("0"), "rf": Decimal("1"), "unit": ""}
+    return {"rate": _D(row["rate"]), "rf": _D(row["reduction_factor"] if row.get("reduction_factor") is not None else 1), "unit": row.get("unit") or ""}
+
 
 def _is_per_kl(unit: str) -> bool:
     return "kl" in (unit or "").lower()
@@ -86,19 +76,11 @@ def _enabled_map_rows(meter_id: int, month_str: str) -> list[dict]:
     ).mappings().all()
     return [dict(r) for r in rows]
 
-def t_label(code: str) -> str:
-    """Friendly label from bil_tariff.description fallback to code."""
-    m = db.session.execute(
-        text("""
-            SELECT COALESCE(description, :c) AS d
-            FROM bil_tariff
-            WHERE code=:c
-            ORDER BY date(effective_date) DESC
-            LIMIT 1
-        """),
-        {"c": code},
-    ).mappings().first()
-    return (m["d"] if m else code)
+def t_label(code: str, month_str: str) -> str:
+    from app.utils.tariff_versions import one
+    row=one(db.session,month_str,code)
+    return row.get('description') or code if row else code
+
 
 # -------------------------------------------------
 # PUBLIC: core calculator used by Page 2 and Page 1
@@ -166,7 +148,7 @@ def calc_ws_sd_totals(
     for label, qty, code, order in bands_ws:
         if qty <= 0:
             continue
-        t = _tariff_latest_by_code(code)
+        t = _tariff_latest_by_code(code, month_str)
         due = qty * t["rate"] * t["rf"]
         _add_line(ws_lines, label, qty, t["rate"], due, order)
 
@@ -175,7 +157,7 @@ def calc_ws_sd_totals(
     for (label, code, order), qty in zip(bands_sd_meta, band_qtys):
         if qty <= 0:
             continue
-        t = _tariff_latest_by_code(code)
+        t = _tariff_latest_by_code(code, month_str)
         red = t["rf"] if t["rf"] > 0 else Decimal("1")
         sd_qty = (qty * red).quantize(Decimal("0.001"), rounding=ROUND_HALF_UP)
         sd_total_qty += sd_qty
@@ -188,7 +170,7 @@ def calc_ws_sd_totals(
             code = (r.get("tariff_code_override") or "").strip() or (r.get("charge_code") or "").strip()
             if not code:
                 continue
-            t = _tariff_latest_by_code(code)
+            t = _tariff_latest_by_code(code, month_str)
             if t["rate"] <= 0:
                 continue
             side = _side_from_utility(r.get("utility_type"))
@@ -198,7 +180,7 @@ def calc_ws_sd_totals(
             else:
                 qty = Decimal("1")
                 due = t["rate"]
-            label = t_label(code)
+            label = t_label(code, month_str)
             if side == "SD":
                 _add_line(sd_lines, label, qty, t["rate"], due, 900)
             else:
@@ -415,25 +397,13 @@ def _fmt_money(x):
     return None if x is None else round(float(x), 2)
 
 def get_water_tiers(month_str: str):
-    """Return ordered tiers for WS and SD with reduction factors."""
-    start, end = _month_bounds(month_str)
-    ws = db.session.execute(text("""
-        SELECT block_start, block_end, rate
-        FROM bil_tariff
-        WHERE utility_type='water'
-          AND code LIKE 'Tier%_W&S'
-          AND date(effective_date) <= :end
-        ORDER BY block_start
-    """), {"end": end}).mappings().all()
-    sd = db.session.execute(text("""
-        SELECT block_start, block_end, rate, COALESCE(reduction_factor,1.0) AS red
-        FROM bil_tariff
-        WHERE utility_type='sanitation'
-          AND code LIKE 'Tier%_SD'
-          AND date(effective_date) <= :end
-        ORDER BY block_start
-    """), {"end": end}).mappings().all()
-    return [dict(r) for r in ws], [dict(r) for r in sd]
+    """One applicable version per existing tier; retain ordering and boundaries."""
+    from app.utils.tariff_versions import rows
+    selected=rows(db.session,month_str,utility=('water','sanitation'))
+    ws=sorted((dict(r) for r in selected if r['utility_type']=='water' and r['code'].startswith('Tier') and r['code'].endswith('_W&S')),key=lambda r:r['block_start'])
+    sd=sorted((dict(r,red=r['reduction_factor'] if r.get('reduction_factor') is not None else 1) for r in selected if r['utility_type']=='sanitation' and r['code'].startswith('Tier') and r['code'].endswith('_SD')),key=lambda r:r['block_start'])
+    return ws,sd
+
 
 def get_fixed_map_for_meter(meter_id: int, month_str: str):
     """
@@ -459,18 +429,14 @@ def get_fixed_map_for_meter(meter_id: int, month_str: str):
 
 
 def get_fixed_tariffs(month_str: str):
-    """Lookup fixed/surcharge tariff rates (code -> rate)."""
-    start, end = _month_bounds(month_str)
-    rows = db.session.execute(text("""
-        SELECT code, rate
-        FROM bil_tariff
-        WHERE utility_type IN ('water','sanitation','refuse','management')
-          AND date(effective_date) <= :end
-    """), {"end": end}).mappings().all()
-    ret = {r["code"]: float(r["rate"]) for r in rows}
-    # Consider legacy codes you shared:
-    # WaterLossLevy, WSSurcharge, SDSurcharge, RefuseBin, MgmtFee
-    return ret
+    from app.utils.tariff_versions import rows
+    selected=rows(db.session,month_str,utility=('water','sanitation','refuse','management'))
+    result={}
+    for row in selected:
+        if row['code'] in result:raise ValueError('Fixed tariff code has multiple utility identities: '+row['code'])
+        result[row['code']]=float(row['rate'])
+    return result
+
 
 def _month_bounds(month_str):
     # month_str = "YYYY-MM"

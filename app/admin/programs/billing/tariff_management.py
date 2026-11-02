@@ -78,7 +78,7 @@ def form(render, tariff_id=None):
         except SQLAlchemyError:
             db.session.rollback()
             error, status = 'The tariff could not be saved. Please retry; no existing rate was changed.', 503
-    return render('admin/programs/billing/tariff_form.html' , source=source, current=current,
+    return render('admin/programs/billing/tariff_form.html', source=source, current=current,
                   values=values, types=TYPES, error=error, issues=issues), status
 
 
@@ -96,10 +96,11 @@ def history(render, tariff_id):
         except (TypeError, ValueError):
             start = None
         valid.append((row, start))
+    unknown_dates = any(start is None for _, start in valid)
     for i, (row, start) in enumerate(valid):
         next_start = valid[i+1][1] if i+1 < len(valid) else None
         duplicate = start and sum(s == start for _, s in valid) > 1
-        status = ('Unknown' if start is None else 'Conflict' if duplicate else
+        status = ('Unknown' if unknown_dates else 'Conflict' if duplicate else
                   'Scheduled' if start > today() else 'Previous' if next_start and next_start <= today() else 'Current')
         end = next_start - timedelta(days=1) if start and next_start and next_start > start else None
         entries.append(dict(row=row, start=start, end=end, status=status))
@@ -133,6 +134,8 @@ def effective(values):
 def lock_identity(utility, code):
     # All tariff writes pass this transaction-scoped PostgreSQL lock. The second
     # request re-reads committed rows after the first releases the same lock.
+    if db.session.execute(text('SHOW transaction_isolation')).scalar() != 'read committed':
+        raise ValueError('Tariff saving requires PostgreSQL READ COMMITTED isolation. Please contact the administrator.')
     db.session.execute(text("SET LOCAL lock_timeout = '5s'"))
     db.session.execute(text("SELECT pg_advisory_xact_lock(hashtextextended(:key, 0))"),
                        {'key': 'pm-tariff:' + utility.strip().lower() + ':' + code.strip().casefold()})

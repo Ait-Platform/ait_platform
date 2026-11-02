@@ -1,5 +1,9 @@
 """Scoped authenticated tariff UI; isolated PostgreSQL temporary tables only."""
-import unittest
+import unittest,ast,types,uuid,re
+from concurrent.futures import ThreadPoolExecutor
+from threading import Barrier
+from sqlalchemy.orm import Session
+from test_pm_admin_landing import ROOT
 from datetime import date
 from sqlalchemy import text
 from lxml import html
@@ -76,6 +80,107 @@ class ManagementTests(AuthenticatedTemplateTests):
             response=self.client.post('/admin/billing/tariffs',data=dict(action=action,tariff_id='1',rate='99',csrf_token=token))
             self.assertEqual(response.status_code,405)
         self.assertEqual(before,self.snapshot())
+    def test_browser_layout_add_edit_history_and_conditional_fields(self):
+        from playwright.sync_api import sync_playwright
+        from http.server import BaseHTTPRequestHandler,HTTPServer
+        from threading import Thread
+        case=self
+        class Handler(BaseHTTPRequestHandler):
+            def log_message(self,*args):pass
+            def do_GET(self):self.respond(case.client.get(self.path))
+            def do_POST(self):
+                payload=self.rfile.read(int(self.headers['Content-Length']))
+                response=case.client.post(self.path,data=payload,content_type=self.headers.get('Content-Type'))
+                case.conn.commit();self.respond(response)
+            def respond(self,response):
+                self.send_response(response.status_code)
+                self.send_header('Content-Type',response.content_type)
+                if response.location:self.send_header('Location',response.location)
+                self.end_headers();self.wfile.write(response.data)
+        server=HTTPServer(('127.0.0.1',0),Handler);thread=Thread(target=server.serve_forever,daemon=True);thread.start()
+        self.addCleanup(lambda:(server.shutdown(),server.server_close(),thread.join(timeout=2)))
+        origin='http://127.0.0.1:'+str(server.server_port)
+        with sync_playwright() as runtime:
+            browser=runtime.chromium.launch(headless=True)
+            try:
+                page=browser.new_page(viewport={'width':1280,'height':900})
+                page.goto(origin+'/admin/billing/tariffs')
+                self.assertTrue(page.evaluate('document.documentElement.scrollWidth <= innerWidth'))
+                edit=page.get_by_role('link',name='Edit',exact=True).bounding_box()
+                history=page.get_by_role('link',name='View History',exact=True).bounding_box()
+                self.assertLess(edit['y'],history['y']);self.assertAlmostEqual(edit['x']+edit['width'],history['x']+history['width'],delta=1)
+                page.get_by_role('link',name='+ Add New Tariff / Charge',exact=True).click()
+                self.assertFalse(page.locator('input[name="block_start"]').is_visible())
+                page.locator('#charge-type').select_option('water');self.assertTrue(page.locator('input[name="block_start"]').is_visible())
+                page.locator('#charge-type').select_option('electricity')
+                for name,value in dict(code='BROWSER-E',description='Browser tariff',rate='2.5000',effective_date='2026-11-02').items():page.locator('[name="'+name+'"]').fill(value)
+                page.locator('[name="unit"]').select_option('kWh');page.get_by_role('button',name='Save Tariff',exact=True).click()
+                self.assertIn('Tariff saved successfully.',page.locator('.tariff-tile').inner_text())
+                row=page.locator('tbody tr').filter(has_text='BROWSER-E');row.get_by_role('link',name='Edit',exact=True).click()
+                self.assertEqual(page.locator('input[readonly]').count(),3)
+                page.locator('[name="rate"]').fill('3.5000');page.locator('[name="effective_date"]').fill('2026-12-01')
+                page.get_by_role('button',name='Save New Rate',exact=True).click()
+                page.locator('tbody tr').filter(has_text='BROWSER-E').get_by_role('link',name='View History').click()
+                self.assertIn('R2.5000',page.locator('table').inner_text());self.assertIn('R3.5000',page.locator('table').inner_text());self.assertIn('Scheduled',page.locator('table').inner_text())
+                page.get_by_role('link',name='Back to Tariff Management',exact=True).click()
+                page.set_viewport_size({'width':390,'height':844})
+                self.assertTrue(page.evaluate('document.documentElement.scrollWidth <= innerWidth'))
+            finally:browser.close()
+    def test_concurrent_identity_and_version_creation_serializes(self):
+        # A fresh disposable schema is visible to both independent PG sessions.
+        table='public.test_tariff_'+uuid.uuid4().hex
+        self.assertRegex(table,r'^public\.test_tariff_[a-f0-9]{32}$')
+        self.conn.execute(text('CREATE TABLE '+table+' (LIKE public.bil_tariff INCLUDING CONSTRAINTS)'))
+        self.conn.execute(text('ALTER TABLE '+table+' ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY'))
+        self.conn.commit()
+        def cleanup():
+            self.conn.rollback();self.conn.execute(text('DROP TABLE '+table));self.conn.commit()
+        self.addCleanup(cleanup)
+        source=ast.parse((ROOT/'app/admin/programs/billing/tariff_management.py').read_text())
+        source.body=[n for n in source.body if not (isinstance(n,ast.ImportFrom) and (n.module or '').startswith('app.'))]
+        def run(mode):
+            barrier=Barrier(2)
+            def save(_):
+                with self.conn.engine.connect() as connection:
+                    with Session(connection) as session:
+                        module=types.ModuleType('concurrent_tariff')
+                        module.__dict__.update(db=types.SimpleNamespace(session=session),identity=self.tariff_service.identity,resolve=self.tariff_service.resolve,is_admin=lambda:True)
+                        exec(compile(source,'tariff_management.py','exec'),module.__dict__);module.today=lambda:date(2026,11,2)
+                        module.text=lambda sql:text(re.sub(r'\bbil_tariff\b',table,sql))
+                        barrier.wait(timeout=10)
+                        try:
+                            if mode=='new':module.save_new(dict(utility_type='electricity',code='CONCURRENT',rate='2',effective_date='2026-11-02',unit='kWh'))
+                            else:module.save_rate(1,dict(base_id='1',rate='3',effective_date='2026-12-01',description='Version'))
+                            connection.commit();return 'saved'
+                        except ValueError:
+                            session.rollback();connection.rollback();return 'rejected'
+            with ThreadPoolExecutor(max_workers=2) as pool:return list(pool.map(save,range(2)))
+        self.assertCountEqual(run('new'),['saved','rejected'])
+        self.assertCountEqual(run('edit'),['saved','rejected'])
+        self.assertEqual(self.conn.execute(text('SELECT count(*) FROM '+table)).scalar(),2)
+    def test_unknown_history_dates_are_not_invented_or_current(self):
+        self.session.execute(text("UPDATE bil_tariff SET effective_date='' WHERE id=1"));self.session.commit();self.conn.commit()
+        response=self.client.get('/admin/billing/tariffs/1/history')
+        self.assertIn('Unknown',response.text);self.assertNotIn('>Current<',response.text)
+        self.assertNotIn('2026-01-01',response.text)
+    def test_thirteen_original_identities_dates_rates_and_factors_remain_intact(self):
+        rows=[('electricity','ELEC01',3.2795,0,0,None,'2026-01-01')]
+        for code,rate,lo,hi,factor in [('W01',39.39,0,200,.2),('W02',46.70,201,833,.633),('W03',62.17,834,1000,.167),('W04',95.91,1001,1500,.5),('W05',105.39,1501,99999,999)]:
+            rows.append(('water',code,rate,lo,hi,factor,'2026-06-05'))
+        for code,rate,lo,hi,factor in [('S01',5.45,0,200,.2),('S02',9.20,201,833,.633),('S03',17.54,834,1000,.167),('S04',27.38,1001,1500,999)]:
+            rows.append(('sewerage',code,rate,lo,hi,factor,'2026-06-05'))
+        rows.extend([('water_fixed','W_LOSS',19.30,0,0,1,'2026-06-05'),('water_fixed','W_MGT',144.54,0,0,1,'2026-06-05'),('sewerage_fixed','S_REFUSE',206.93,0,0,1,'2026-06-05')])
+        self.session.execute(text('DELETE FROM bil_tariff'))
+        for id,(utility,code,rate,lo,hi,factor,start) in enumerate(rows,1):
+            self.session.execute(text('INSERT INTO bil_tariff(id,utility_type,code,rate,block_start,block_end,reduction_factor,effective_date) VALUES(:id,:u,:c,:r,:lo,:hi,:f,:d)'),dict(id=id,u=utility,c=code,r=rate,lo=lo,hi=hi,f=factor,d=start))
+        self.session.commit();self.conn.commit();before=self.snapshot()['bil_tariff']
+        self.assertEqual(len(html.fromstring(self.client.get('/admin/billing/tariffs').data).xpath('//tbody/tr')),13)
+        response=self.post('/admin/billing/tariffs/6/edit',dict(base_id='6',rate='110',effective_date='2026-12-01',description='New W05 price'))
+        self.assertEqual(response.status_code,302,response.text)
+        after=self.snapshot()['bil_tariff'];self.assertEqual(after[:13],before)
+        self.assertEqual(after[-1]['reduction_factor'],999)
+        selected,issues=self.tariff_service.resolve(after,date(2026,10,31));self.assertFalse(issues)
+        self.assertEqual(len(selected),13);self.assertEqual(next(r['rate'] for r in selected if r['code']=='W05'),105.39)
     def test_list_separate_forms_history_and_read_only_gets(self):
         before=self.snapshot()
         response=self.client.get('/admin/billing/tariffs');self.assertEqual(response.status_code,200)

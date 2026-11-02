@@ -67,9 +67,10 @@ def form(render, tariff_id=None):
     if request.method == 'POST':
         try:
             if source is not None:
-                abort(405)
-            save_new(values)
-            flash('Tariff saved successfully.', 'success')
+                save_rate(tariff_id, values)
+            else:
+                save_new(values)
+            flash('New tariff rate version saved successfully.' if source else 'Tariff saved successfully.', 'success')
             return redirect(url_for('admin_bp.billing_tariffs'))
         except ValueError as exc:
             db.session.rollback()
@@ -175,3 +176,31 @@ def save_new(values):
     insert_version(dict(utility_type=utility, code=code, description=description, rate=rate,
                         block_start=lower, block_end=upper, reduction_factor=factor,
                         unit=unit or None, effective_date=start.isoformat()))
+
+
+def save_rate(tariff_id, values):
+    source, _ = family(tariff_id)
+    start = effective(values)
+    rate = number(values, 'rate', 'New Rate')
+    description = values.get('description', '').strip()
+    if len(description) > 1000:
+        raise ValueError('Description must contain at most 1000 characters.')
+    # Backdating a price version could alter recalculation of an already billed
+    # period. Historical corrections need a separately authorised workflow.
+    if start < today():
+        raise ValueError('Effective From cannot be in the past. Historical prices must remain unchanged.')
+    lock_identity(source['utility_type'], source['code'])
+    _, versions = family(tariff_id)
+    _, issues = resolve(versions, date.max)
+    if issues:
+        raise ValueError(' '.join(issues))
+    latest = max(versions, key=lambda r: r['effective_date'])
+    if str(values.get('base_id', '')) != str(latest['id']):
+        raise ValueError('A new tariff version was saved while this form was open. Reopen Edit to review it; your entered values are retained below.')
+    if start.isoformat() <= latest['effective_date']:
+        raise ValueError('Effective From must be later than the latest stored version (' + latest['effective_date'] + '). Duplicate or overlapping starts are not permitted.')
+    replacement = dict(latest)
+    replacement.update(rate=rate, description=description, effective_date=start.isoformat())
+    # Utility, code, units, boundaries and even NULL/999 factors are copied from
+    # the locked database row, never accepted from hidden/browser fields.
+    insert_version(replacement)

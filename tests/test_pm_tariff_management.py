@@ -44,6 +44,38 @@ class ManagementTests(AuthenticatedTemplateTests):
             self.assertIn('role="alert"',response.text)
         self.assertEqual(self.client.post(path,data=base).status_code,400)
         self.assertEqual(self.snapshot(),before)
+    def test_edit_appends_version_and_preserves_historical_metadata(self):
+        self.session.execute(text("UPDATE bil_tariff SET reduction_factor=999,block_start=1501,block_end=99999,unit=NULL WHERE id=1"));self.session.commit();self.conn.commit()
+        before=self.snapshot()['bil_tariff'][0]
+        path='/admin/billing/tariffs/1/edit'
+        values=dict(base_id='1',rate='4.1234',description='New description',effective_date='2026-12-01',block_start='0',reduction_factor='1',code='HACK')
+        response=self.post(path,values);self.assertEqual(response.status_code,302,response.text)
+        rows=self.snapshot()['bil_tariff'];self.assertEqual(rows[0],before)
+        for key in ('code','utility_type','block_start','block_end','reduction_factor','unit'):
+            self.assertEqual(rows[1][key],before[key])
+        self.assertEqual(rows[1]['rate'],4.1234)
+        selected,_=self.tariff_service.resolve(rows,date(2026,10,31));self.assertEqual(selected[0]['rate'],before['rate'])
+        selected,_=self.tariff_service.resolve(rows,date(2026,12,1));self.assertEqual(selected[0]['rate'],4.1234)
+        self.assertEqual(self.post(path,values).status_code,400)
+        self.assertEqual(len(self.snapshot()['bil_tariff']),2)
+    def test_edit_rejects_backdating_duplicate_and_ambiguous_records(self):
+        path='/admin/billing/tariffs/1/edit';before=self.snapshot()
+        for day in ('2026-01-01','2026-10-01','bad'):
+            response=self.post(path,dict(base_id='1',rate='5',effective_date=day,description='Entered description'))
+            self.assertEqual(response.status_code,400);self.assertIn('Entered description',response.text)
+        self.assertEqual(before,self.snapshot())
+        self.session.execute(text("INSERT INTO bil_tariff(id,utility_type,code,rate,effective_date) VALUES(2,'electricity','TEST-E',8,'2026-01-01')"));self.session.commit();self.conn.commit()
+        response=self.post(path,dict(base_id='2',rate='9',effective_date='2026-12-01'))
+        self.assertEqual(response.status_code,400);self.assertIn('conflicting records',response.text)
+    def test_old_overwrite_delete_endpoint_is_disabled(self):
+        before=self.snapshot()
+        with self.client.session_transaction() as state:
+            from flask_wtf.csrf import generate_csrf
+        token=html.fromstring(self.client.get('/admin/billing/tariffs/new').data).xpath('//input[@name="csrf_token"]/@value')[0]
+        for action in ('edit','delete','add'):
+            response=self.client.post('/admin/billing/tariffs',data=dict(action=action,tariff_id='1',rate='99',csrf_token=token))
+            self.assertEqual(response.status_code,405)
+        self.assertEqual(before,self.snapshot())
     def test_list_separate_forms_history_and_read_only_gets(self):
         before=self.snapshot()
         response=self.client.get('/admin/billing/tariffs');self.assertEqual(response.status_code,200)

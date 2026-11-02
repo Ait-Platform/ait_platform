@@ -14,7 +14,36 @@ class ManagementTests(AuthenticatedTemplateTests):
         for name in ('billing_tariff_new','billing_tariff_edit','billing_tariff_history'):
             path,endpoint=declared_route('app/admin/programs/billing/routes.py',name,'admin_bp','/admin')
             self.app.view_functions[endpoint]=function('app/admin/programs/billing/routes.py',name,env)
+        # A private temp sequence prevents touching the real local sequence.
+        self.conn.execute(text('CREATE TEMP SEQUENCE tariff_test_ids START 100'))
+        self.conn.execute(text("ALTER TABLE bil_tariff ALTER COLUMN id SET DEFAULT nextval('tariff_test_ids')"));self.conn.commit()
+        for rule in self.app.url_map.iter_rules():
+            if rule.endpoint=='admin_bp.billing_tariffs':rule.methods.add('POST')
         self.sign_in()
+    def post(self, path, data):
+        doc=html.fromstring(self.client.get(path).data)
+        data=dict(data,csrf_token=doc.xpath('//input[@name="csrf_token"]/@value')[0])
+        response=self.client.post(path,data=data)
+        self.conn.commit()  # End the fixture's externally owned request transaction.
+        return response
+    def test_add_validated_tariff_and_duplicate_identity(self):
+        before=self.snapshot()['bil_tariff']
+        data=dict(utility_type='water',code='W-NEW',description='New tier',rate='25.1234',effective_date='2026-12-01',block_start='0',block_end='200',reduction_factor='999',unit='kL')
+        path='/admin/billing/tariffs/new'
+        response=self.post(path,data);self.assertEqual(response.status_code,302,response.text)
+        rows=self.snapshot()['bil_tariff'];self.assertEqual(rows[:1],before);self.assertEqual(len(rows),2)
+        self.assertEqual(rows[-1]['reduction_factor'],999)
+        self.assertEqual(self.post(path,dict(data,code='w-new')).status_code,400)
+        self.assertEqual(len(self.snapshot()['bil_tariff']),2)
+    def test_add_invalid_dates_numbers_tiers_units_and_csrf(self):
+        path='/admin/billing/tariffs/new'
+        base=dict(utility_type='water',code='W-NEW',rate='25',effective_date='2026-12-01',block_start='0',block_end='200',reduction_factor='1',unit='kL')
+        before=self.snapshot()
+        for delta in (dict(effective_date='2026-02-30'),dict(rate='NaN'),dict(rate='-1'),dict(rate='1.12345'),dict(block_end='0'),dict(unit='kWh'),dict(reduction_factor='0')):
+            response=self.post(path,dict(base,**delta));self.assertEqual(response.status_code,400,response.text)
+            self.assertIn('role="alert"',response.text)
+        self.assertEqual(self.client.post(path,data=base).status_code,400)
+        self.assertEqual(self.snapshot(),before)
     def test_list_separate_forms_history_and_read_only_gets(self):
         before=self.snapshot()
         response=self.client.get('/admin/billing/tariffs');self.assertEqual(response.status_code,200)

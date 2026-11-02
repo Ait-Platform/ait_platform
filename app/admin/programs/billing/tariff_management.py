@@ -4,7 +4,9 @@ from decimal import Decimal, InvalidOperation
 from zoneinfo import ZoneInfo
 from flask import abort, flash, redirect, request, url_for
 from flask_login import current_user
+import re
 from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 from app.extensions import db
 from app.utils.roles import is_admin
 from app.utils.tariff_versions import identity, resolve
@@ -60,10 +62,23 @@ def form(render, tariff_id=None):
     selected, issues = resolve(versions, today()) if versions else ([], [])
     current = selected[0] if selected else None
     values = dict(request.form) if request.method == 'POST' else {}
+    error = None
+    status = 200
     if request.method == 'POST':
-        abort(405)
-    return render('admin/programs/billing/tariff_form.html', source=source, current=current,
-                  values=values, types=TYPES, error=None, issues=issues)
+        try:
+            if source is not None:
+                abort(405)
+            save_new(values)
+            flash('Tariff saved successfully.', 'success')
+            return redirect(url_for('admin_bp.billing_tariffs'))
+        except ValueError as exc:
+            db.session.rollback()
+            error, status = str(exc), 400
+        except SQLAlchemyError:
+            db.session.rollback()
+            error, status = 'The tariff could not be saved. Please retry; no existing rate was changed.', 503
+    return render('admin/programs/billing/tariff_form.html' , source=source, current=current,
+                  values=values, types=TYPES, error=error, issues=issues), status
 
 
 def history(render, tariff_id):
@@ -88,3 +103,75 @@ def history(render, tariff_id):
         end = next_start - timedelta(days=1) if start and next_start and next_start > start else None
         entries.append(dict(row=row, start=start, end=end, status=status))
     return render('admin/programs/billing/tariff_history.html', source=source, entries=entries)
+
+
+def number(values, key, label, places=4, default=None):
+    raw = values.get(key, default)
+    try:
+        value = Decimal(str(raw))
+        if not value.is_finite() or value < 0 or value > Decimal('999999999'):
+            raise InvalidOperation()
+        if value != value.quantize(Decimal(1).scaleb(-places)):
+            raise InvalidOperation()
+    except (InvalidOperation, ValueError, TypeError):
+        raise ValueError(label + ' must be a non-negative number with at most ' + str(places) + ' decimal places.')
+    return value
+
+
+def effective(values):
+    raw = values.get('effective_date', '')
+    try:
+        parsed = date.fromisoformat(raw)
+        if parsed.isoformat() != raw:
+            raise ValueError()
+    except (ValueError, TypeError):
+        raise ValueError('Enter a valid Effective From date.')
+    return parsed
+
+
+def lock_identity(utility, code):
+    # All tariff writes pass this transaction-scoped PostgreSQL lock. The second
+    # request re-reads committed rows after the first releases the same lock.
+    db.session.execute(text("SET LOCAL lock_timeout = '5s'"))
+    db.session.execute(text("SELECT pg_advisory_xact_lock(hashtextextended(:key, 0))"),
+                       {'key': 'pm-tariff:' + utility.strip().lower() + ':' + code.strip().casefold()})
+
+
+def insert_version(values):
+    keys = ('utility_type', 'code', 'description', 'rate', 'block_start', 'block_end',
+            'reduction_factor', 'unit', 'effective_date')
+    # Only INSERT is permitted: no updates/deletes of historical rows.
+    db.session.execute(text('INSERT INTO bil_tariff (' + ','.join(keys) + ') VALUES (' +
+                            ','.join(':' + key for key in keys) + ')'), {key: values[key] for key in keys})
+    db.session.commit()
+
+
+def save_new(values):
+    utility = values.get('utility_type', '')
+    code = values.get('code', '').strip()
+    if utility not in TYPES:
+        raise ValueError('Select a valid Type of Charge.')
+    if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.&/ -]{0,79}', code):
+        raise ValueError('Enter a Tariff Code of up to 80 letters, numbers or standard code punctuation.')
+    description = values.get('description', '').strip()
+    if len(description) > 1000:
+        raise ValueError('Description must contain at most 1000 characters.')
+    start = effective(values)
+    rate = number(values, 'rate', 'Rate')
+    tiered = utility in ('water', 'sewerage')
+    lower = number(values, 'block_start', 'Consumption From', 2, '0') if tiered else Decimal(0)
+    upper = number(values, 'block_end', 'Consumption To', 2, '0') if tiered else Decimal(0)
+    factor = number(values, 'reduction_factor', 'Calculation Factor', 3, '1') if tiered else Decimal(1)
+    if tiered and (upper <= lower or factor <= 0):
+        raise ValueError('Consumption To must exceed Consumption From and Calculation Factor must be positive.')
+    unit = values.get('unit', '')
+    if unit not in ('', 'kL', 'kWh', 'fixed'):
+        raise ValueError('Select a valid unit.')
+    if unit and unit != ('kL' if tiered else 'kWh' if utility == 'electricity' else 'fixed'):
+        raise ValueError('The selected unit does not match the Type of Charge.')
+    lock_identity(utility, code)
+    if any(identity(r) == (utility, code.casefold()) for r in records()):
+        raise ValueError('This tariff identity already exists. Use Edit to save a new rate version.')
+    insert_version(dict(utility_type=utility, code=code, description=description, rate=rate,
+                        block_start=lower, block_end=upper, reduction_factor=factor,
+                        unit=unit or None, effective_date=start.isoformat()))

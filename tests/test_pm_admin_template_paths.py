@@ -75,7 +75,7 @@ class AuthenticatedTemplateTests(fixture.AdminLandingTests):
             for d in node.decorator_list:
                 if not isinstance(d,ast.Call) or not isinstance(d.func,ast.Attribute) or not isinstance(d.func.value,ast.Name) or d.func.value.id!='admin_bp' or d.func.attr not in ('route','get'):continue
                 endpoint='admin_bp.'+next((ast.literal_eval(k.value) for k in d.keywords if k.arg=='endpoint'),node.name)
-                if endpoint not in self.app.view_functions:self.app.add_url_rule('/admin'+ast.literal_eval(d.args[0]),endpoint=endpoint,view_func=lambda:('Unrelated route not exercised',501))
+                if endpoint not in self.app.view_functions:self.app.add_url_rule('/admin'+ast.literal_eval(d.args[0]),endpoint=endpoint,view_func=lambda:('Unrelated route not exercised',501),methods=next((ast.literal_eval(k.value) for k in d.keywords if k.arg=='methods'),['GET']))
         self.pages={}
         for name in ('billing_tariffs','billing_units','billing_meters','billing_invoices','billing_reports','readings_dashboard','billing_data','units_new'):
             path,endpoint=fixture.declared_route('app/admin/programs/billing/routes.py',name,'admin_bp','/admin')

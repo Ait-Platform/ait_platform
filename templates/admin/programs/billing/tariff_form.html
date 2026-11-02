@@ -10,9 +10,9 @@
 <label>Tariff Code<input value="{{ source.code }}" readonly></label><label>Type of Charge<input value="{{ types.get(source.utility_type,source.utility_type) }}" readonly></label>
 {% else %}
 <label>Type of Charge<select name="utility_type" id="charge-type">{% for key,label in types.items() %}<option value="{{ key }}" {{ 'selected' if values.get('utility_type')==key else '' }}>{{ label }}</option>{% endfor %}</select></label>
-<label>Tariff Code<input name="code" value="{{ values.get('code','') }}" required maxlength="80" autofocus></label>
+<label>Tariff Code<input name="code" id="tariff-code" value="{{ code_previews.get(values.get('utility_type','electricity'),'') }}" readonly aria-describedby="code-help"><span id="code-help" class="tariff-hint">Allocated automatically when saved. The displayed code may advance if another tariff is saved first.</span></label>
 {% endif %}
-<label>Description<input name="description" value="{{ values.get('description',source.description or '' if source else '') }}" maxlength="1000" {{ 'autofocus' if source else '' }}></label>
+<label>Description<input name="description" value="{{ values.get('description',source.description or '' if source else '') }}" maxlength="1000" autofocus></label>
 {% if source %}<label>Current Rate<input value="{{ 'R%.4f'|format(current.rate) if current else 'Not yet effective' }}" readonly></label>{% endif %}
 <label>{{ 'New Rate' if source else 'Rate (R)' }}<input name="rate" type="number" min="0" max="999999999" step="0.0001" value="{{ values.get('rate','') }}" required></label>
 <label>Effective From<input name="effective_date" type="date" value="{{ values.get('effective_date','') }}" required></label>
@@ -25,6 +25,6 @@
 </div><div class="tariff-form-actions"><button class="tariff-button save" type="submit">{{ 'Save New Rate' if source else 'Save Tariff' }}</button><a class="tariff-button" href="{{ url_for('admin_bp.billing_tariffs') }}">Cancel</a></div>
 </form>
 {% if not source %}<script>
-(()=>{const type=document.getElementById('charge-type');function update(){const tier=['water','sewerage'].includes(type.value);document.querySelectorAll('[data-tier]').forEach(el=>{el.hidden=!tier;el.querySelector('input').disabled=!tier;});}type.addEventListener('change',update);update();})();
+(()=>{const type=document.getElementById('charge-type');const codes={{ code_previews|tojson }};function update(){document.getElementById('tariff-code').value=codes[type.value];const tier=['water','sewerage'].includes(type.value);document.querySelectorAll('[data-tier]').forEach(el=>{el.hidden=!tier;el.querySelector('input').disabled=!tier;});}type.addEventListener('change',update);update();})();
 </script>{% endif %}
 {% endblock %}

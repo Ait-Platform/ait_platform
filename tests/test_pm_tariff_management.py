@@ -37,8 +37,9 @@ class ManagementTests(AuthenticatedTemplateTests):
         response=self.post(path,data);self.assertEqual(response.status_code,302,response.text)
         rows=self.snapshot()['bil_tariff'];self.assertEqual(rows[:1],before);self.assertEqual(len(rows),2)
         self.assertEqual(rows[-1]['reduction_factor'],999)
-        self.assertEqual(self.post(path,dict(data,code='w-new')).status_code,400)
-        self.assertEqual(len(self.snapshot()['bil_tariff']),2)
+        self.assertEqual(rows[-1]['code'],'W01')
+        self.assertEqual(self.post(path,dict(data,code='w-new')).status_code,302)
+        self.assertEqual(self.snapshot()['bil_tariff'][-1]['code'],'W02')
     def test_add_invalid_dates_numbers_tiers_units_and_csrf(self):
         path='/admin/billing/tariffs/new'
         base=dict(utility_type='water',code='W-NEW',rate='25',effective_date='2026-12-01',block_start='0',block_end='200',reduction_factor='1',unit='kL')
@@ -113,14 +114,14 @@ class ManagementTests(AuthenticatedTemplateTests):
                 self.assertFalse(page.locator('input[name="block_start"]').is_visible())
                 page.locator('#charge-type').select_option('water');self.assertTrue(page.locator('input[name="block_start"]').is_visible())
                 page.locator('#charge-type').select_option('electricity')
-                for name,value in dict(code='BROWSER-E',description='Browser tariff',rate='2.5000',effective_date='2026-11-02').items():page.locator('[name="'+name+'"]').fill(value)
+                for name,value in dict(description='Browser tariff',rate='2.5000',effective_date='2026-11-02').items():page.locator('[name="'+name+'"]').fill(value)
                 page.locator('[name="unit"]').select_option('kWh');page.get_by_role('button',name='Save Tariff',exact=True).click()
                 self.assertIn('Tariff saved successfully.',page.locator('.tariff-tile').inner_text())
-                row=page.locator('tbody tr').filter(has_text='BROWSER-E');row.get_by_role('link',name='Edit',exact=True).click()
+                row=page.locator('tbody tr').filter(has_text='ELEC01');row.get_by_role('link',name='Edit',exact=True).click()
                 self.assertEqual(page.locator('input[readonly]').count(),3)
                 page.locator('[name="rate"]').fill('3.5000');page.locator('[name="effective_date"]').fill('2026-12-01')
                 page.get_by_role('button',name='Save New Rate',exact=True).click()
-                page.locator('tbody tr').filter(has_text='BROWSER-E').get_by_role('link',name='View History').click()
+                page.locator('tbody tr').filter(has_text='ELEC01').get_by_role('link',name='View History').click()
                 self.assertIn('R2.5000',page.locator('table').inner_text());self.assertIn('R3.5000',page.locator('table').inner_text());self.assertIn('Scheduled',page.locator('table').inner_text())
                 page.get_by_role('link',name='Back to Tariff Management',exact=True).click()
                 page.set_viewport_size({'width':390,'height':844})
@@ -155,9 +156,10 @@ class ManagementTests(AuthenticatedTemplateTests):
                         except ValueError:
                             session.rollback();connection.rollback();return 'rejected'
             with ThreadPoolExecutor(max_workers=2) as pool:return list(pool.map(save,range(2)))
-        self.assertCountEqual(run('new'),['saved','rejected'])
+        self.assertCountEqual(run('new'),['saved','saved'])
         self.assertCountEqual(run('edit'),['saved','rejected'])
-        self.assertEqual(self.conn.execute(text('SELECT count(*) FROM '+table)).scalar(),2)
+        self.assertEqual(self.conn.execute(text('SELECT count(*) FROM '+table)).scalar(),3)
+        self.assertEqual([r[0] for r in self.conn.execute(text('SELECT DISTINCT code FROM '+table+' ORDER BY code'))],['ELEC01','ELEC02'])
     def test_unknown_history_dates_are_not_invented_or_current(self):
         self.session.execute(text("UPDATE bil_tariff SET effective_date='' WHERE id=1"));self.session.commit();self.conn.commit()
         response=self.client.get('/admin/billing/tariffs/1/history')
@@ -181,6 +183,14 @@ class ManagementTests(AuthenticatedTemplateTests):
         self.assertEqual(after[-1]['reduction_factor'],999)
         selected,issues=self.tariff_service.resolve(after,date(2026,10,31));self.assertFalse(issues)
         self.assertEqual(len(selected),13);self.assertEqual(next(r['rate'] for r in selected if r['code']=='W05'),105.39)
+    def test_code_previews_ignore_versions_and_preserve_named_fixed_charges(self):
+        self.session.execute(text("INSERT INTO bil_tariff(id,utility_type,code,rate,effective_date) VALUES(2,'electricity','ELEC01',3,'2026-01-01'),(3,'electricity','ELEC01',4,'2026-12-01'),(4,'water','W05',1,'2026-06-05'),(5,'sewerage','S04',1,'2026-06-05'),(6,'water_fixed','W_LOSS',19.3,'2026-06-05')"))
+        self.session.commit();self.conn.commit();before=self.snapshot()
+        expected={'electricity':'ELEC02','water':'W06','sewerage':'S05','water_fixed':'WF01','sewerage_fixed':'SF01'}
+        for utility,code in expected.items():self.assertEqual(self.tariff_service.next_code(utility),code)
+        response=self.client.get('/admin/billing/tariffs/new')
+        doc=html.fromstring(response.data);self.assertTrue(doc.xpath('//input[@name="code"]/@readonly'))
+        self.assertEqual(self.snapshot(),before)
     def test_list_separate_forms_history_and_read_only_gets(self):
         before=self.snapshot()
         response=self.client.get('/admin/billing/tariffs');self.assertEqual(response.status_code,200)

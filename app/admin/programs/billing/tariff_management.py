@@ -79,7 +79,8 @@ def form(render, tariff_id=None):
             db.session.rollback()
             error, status = 'The tariff could not be saved. Please retry; no existing rate was changed.', 503
     return render('admin/programs/billing/tariff_form.html', source=source, current=current,
-                  values=values, types=TYPES, error=error, issues=issues), status
+                  values=values, types=TYPES, error=error, issues=issues,
+                  code_previews={utility: next_code(utility) for utility in TYPES} if source is None else {}), status
 
 
 def history(render, tariff_id):
@@ -152,11 +153,8 @@ def insert_version(values):
 
 def save_new(values):
     utility = values.get('utility_type', '')
-    code = values.get('code', '').strip()
     if utility not in TYPES:
         raise ValueError('Select a valid Type of Charge.')
-    if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.&/ -]{0,79}', code):
-        raise ValueError('Enter a Tariff Code of up to 80 letters, numbers or standard code punctuation.')
     description = values.get('description', '').strip()
     if len(description) > 1000:
         raise ValueError('Description must contain at most 1000 characters.')
@@ -173,6 +171,9 @@ def save_new(values):
         raise ValueError('Select a valid unit.')
     if unit and unit != ('kL' if tiered else 'kWh' if utility == 'electricity' else 'fixed'):
         raise ValueError('The selected unit does not match the Type of Charge.')
+    # Serialise allocation by type before generating the authoritative code.
+    lock_identity(utility, '__code_allocation__')
+    code = next_code(utility)
     lock_identity(utility, code)
     if any(identity(r) == (utility, code.casefold()) for r in records()):
         raise ValueError('This tariff identity already exists. Use Edit to save a new rate version.')
@@ -207,3 +208,24 @@ def save_rate(tariff_id, values):
     # Utility, code, units, boundaries and even NULL/999 factors are copied from
     # the locked database row, never accepted from hidden/browser fields.
     insert_version(replacement)
+
+
+CODE_PREFIXES = {'electricity': 'ELEC', 'water': 'W', 'sewerage': 'S',
+                 'water_fixed': 'WF', 'sewerage_fixed': 'SF'}
+
+
+def next_code(utility):
+    """Preview only unless called under the type-allocation transaction lock.
+
+    Historical versions share a code and do not consume additional numbers.
+    Existing named fixed charges are retained, not renamed or reinterpreted.
+    """
+    prefix = CODE_PREFIXES[utility]
+    pattern = re.compile(re.escape(prefix) + r'(\d+)', re.IGNORECASE)
+    numbers = []
+    for row in records():
+        if identity(row)[0] == utility:
+            match = pattern.fullmatch(str(row['code']).strip())
+            if match:
+                numbers.append(int(match.group(1)))
+    return prefix + str(max(numbers, default=0) + 1).zfill(2)

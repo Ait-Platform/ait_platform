@@ -3116,10 +3116,13 @@ def utilities_hub():
         if not selected_property:
             flash('Select a property before opening Utilities.','warning')
             return redirect(url_for('billing_bp.utilities_hub',billing_month=month))
-        targets={'readings':'property_hub','consumption':'consumption_review','metsoa':'metsoa','exceptions':'exception_metsoa','setup':'setup_wizard','accounts':'municipal_accounts'}
+        targets={'readings':'property_hub','consumption':'consumption_review','metsoa':'metsoa','exceptions':'exception_metsoa','setup':'setup_wizard','accounts':'municipal_accounts','arrangements':'municipal_payment_arrangements'}
         if action not in targets:abort(400)
+        if action=='arrangements':
+            from app.utils.roles import is_admin
+            if not is_admin():abort(403)
         kwargs=dict(property_id=property_id)
-        if action in ('readings','setup','accounts'):kwargs['billing_month']=month
+        if action in ('readings','setup','accounts','arrangements'):kwargs['billing_month']=month
         else:kwargs['month']=month
         return redirect(url_for('billing_bp.'+targets[action],**kwargs))
     return render_template('program_billing/utilities_hub.html',properties=properties,selected_property=selected_property,current_month=month)

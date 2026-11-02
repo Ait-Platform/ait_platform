@@ -53,9 +53,23 @@ class ArrangementTests(fixture.AdminLandingTests):
             path,endpoint=fixture.declared_route('app/program_billing/routes.py',name,'billing_bp')
             view=fixture.function('app/program_billing/routes.py',name,dict(__package__='app.program_billing'))
             self.app.add_url_rule(path,endpoint=endpoint,view_func=view,methods=['GET','POST'])
-        for name in ('municipal_accounts','meter_readings','metro_reconciliation','meter_exceptions','generate_municipal_metsoa','bulk_meter_linking'):
+        for name in ('learner_dashboard','municipal_accounts','meter_readings','metro_reconciliation','meter_exceptions','generate_municipal_metsoa','bulk_meter_linking'):
             path,endpoint=fixture.declared_route('app/program_billing/routes.py',name,'billing_bp')
             self.app.add_url_rule(path,endpoint=endpoint,view_func=lambda **kw:'Unrelated page')
+        from sqlalchemy import Table,MetaData
+        from sqlalchemy.orm import registry
+        from flask_sqlalchemy.query import Query
+        from flask import render_template,redirect,url_for,flash
+        table=Table('bil_property',MetaData(),autoload_with=self.conn)
+        mapper=registry();model=type('BilProperty',(),{});mapper.map_imperatively(model,table);model.query=Query(model,session=self.session)
+        model_module=types.ModuleType('app.models.billing');model_module.BilProperty=model
+        mock=patch.dict(sys.modules,{'app.models.billing':model_module});mock.start();self.addCleanup(mock.stop)
+        scoped_module=types.ModuleType('app.program_billing.metsoa_setup_safety');scoped_module.property_scope=self.service.property_scope
+        role_module=types.ModuleType('app.utils.roles');role_module.is_admin=self.service.is_admin
+        mock=patch.dict(sys.modules,{'app.program_billing.metsoa_setup_safety':scoped_module,'app.utils.roles':role_module});mock.start();self.addCleanup(mock.stop)
+        self.app.view_functions['billing_bp.utilities_hub']=fixture.function('app/program_billing/routes.py','utilities_hub',dict(__package__='app.program_billing',request=request,current_user=current_user,abort=abort,flash=flash,redirect=redirect,url_for=url_for,render_template=lambda name,**context:sys.modules['app.program_billing.lease_management'].render_pm_template(name,**context)))
+        for rule in self.app.url_map.iter_rules():
+            if rule.endpoint=='billing_bp.utilities_hub':rule.methods.add('POST')
         @self.app.after_request
         def finish_fixture_transaction(response):
             self.session.commit();self.conn.commit();self.session.close()
@@ -151,7 +165,11 @@ class ArrangementTests(fixture.AdminLandingTests):
         with sync_playwright() as runtime:
             browser=runtime.chromium.launch(headless=True)
             try:
-                page=browser.new_page();page.goto(origin+self.url+'?billing_month=2026-10')
+                page=browser.new_page();page.goto(origin+self.targets['billing_bp.utilities_hub']+'?billing_month=2026-10')
+                page.locator('#property_id').select_option('26')
+                page.get_by_role('button',name='Municipal Payment Arrangements',exact=True).click()
+                self.assertIn(self.url,page.url);self.assertIn('billing_month=2026-10',page.url)
+                self.assertEqual(page.locator('h1').inner_text(),'Municipal Payment Arrangements')
                 page.get_by_role('link',name='+ Create Payment Arrangement').click()
                 form=page.locator('#arrangement-create');form.locator('[name="account_id"]').select_option('1')
                 for key,value in dict(reference='BROWSER-ARR',agreement_date='2026-09-01',original_amount='250',instalment_amount='100',instalments='3',first_payment_date='2026-09-30',document_reference='Letter 123').items():form.locator('[name="'+key+'"]').fill(value)
@@ -170,7 +188,7 @@ class ArrangementTests(fixture.AdminLandingTests):
                 page.get_by_role('link',name='Back to Arrangements',exact=True).click()
                 self.assertIn('billing_month=2026-10',page.url)
                 self.assertIn('BROWSER-ARR',page.locator('#arrangement-register').inner_text())
-                self.assertEqual(page.get_by_role('link',name='Payment Arrangements',exact=True).count(),1)
+                self.assertEqual(page.get_by_role('link',name='Municipal Payment Arrangements',exact=True).count(),1)
             finally:browser.close()
         self.assertEqual(self.financial_snapshot(),before)
     def test_concurrent_payments_and_duplicate_request_cannot_overpay(self):
@@ -222,6 +240,29 @@ class ArrangementTests(fixture.AdminLandingTests):
         self.assertEqual(run([repeated,repeated]),[201,201])
         self.assertEqual(self.conn.execute(text('SELECT sum(amount) FROM '+tables['bil_municipal_arrangement_payment'])).scalar(),Decimal('100'))
         self.assertEqual(self.conn.execute(text('SELECT count(*) FROM '+tables['bil_municipal_arrangement_payment'])).scalar(),2)
+    def test_utilities_landing_menu_matches_access_and_preserves_property_month(self):
+        hub=self.targets['billing_bp.utilities_hub']
+        # Mixed-case administrators are accepted by the established server helper.
+        self.conn.execute(text("UPDATE pm_admin_test_identity SET role='Admin'"));self.conn.commit()
+        page=self.client.get(hub+'?billing_month=2026-10');self.assertEqual(page.status_code,200,page.text)
+        tree=html.fromstring(page.data)
+        self.assertEqual(tree.xpath('//button[@name="action"][@value="arrangements"]/text()'),['Municipal Payment Arrangements'])
+        token=tree.xpath('//input[@name="csrf_token"]/@value')[0]
+        response=self.client.post(hub,data=dict(csrf_token=token,action='arrangements',property_id='26',billing_month='2026-10'))
+        self.assertEqual(response.status_code,302,response.text)
+        self.assertIn(self.url,response.location);self.assertIn('billing_month=2026-10',response.location)
+        self.assertEqual(self.client.get(response.location).status_code,200)
+        page=self.client.get(hub+'?property_id=26&billing_month=2026-10')
+        self.assertEqual(page.status_code,200,page.text)
+        link=html.fromstring(page.data).xpath('//nav[@aria-label="Municipal Utilities"]/a[text()="Municipal Payment Arrangements"]')
+        self.assertEqual(len(link),1)
+        self.assertIn(self.url,link[0].get('href'));self.assertIn('billing_month=2026-10',link[0].get('href'))
+        self.assertEqual(self.client.get(link[0].get('href')).status_code,200)
+        self.conn.execute(text("UPDATE pm_admin_test_identity SET role='manager'"));self.conn.commit()
+        self.assertNotIn('Municipal Payment Arrangements',self.client.get(hub).text)
+        response=self.client.post(hub,data=dict(csrf_token=token,action='arrangements',property_id='26',billing_month='2026-10'))
+        self.assertEqual(response.status_code,403)
+        self.assertEqual(self.client.get(self.url).status_code,403)
     def test_missing_migration_safe_unavailable(self):
         token=html.fromstring(self.client.get(self.url+'?new=1').data).xpath('//input[@name="csrf_token"]/@value')[0]
         for name in reversed(self.service.TABLES):self.conn.execute(text('DROP TABLE '+name))

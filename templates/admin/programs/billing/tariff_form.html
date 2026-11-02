@@ -1,0 +1,30 @@
+{% extends "admin/programs/billing/tariff_layout.html" %}
+{% block tariff_title %}{{ 'Edit Tariff' if source else 'Add New Tariff / Charge' }}{% endblock %}
+{% block tariff_body %}
+{% if error %}<div role="alert" class="tariff-flash error">{{ error }}</div>{% endif %}
+{% for issue in issues %}<div role="alert" class="tariff-flash error">{{ issue }}</div>{% endfor %}
+<form method="post" class="tariff-form"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+{% if source %}<input type="hidden" name="base_id" value="{{ values.get('base_id',source.id) }}">{% endif %}
+<div class="tariff-fields">
+{% if source %}
+<label>Tariff Code<input value="{{ source.code }}" readonly></label><label>Type of Charge<input value="{{ types.get(source.utility_type,source.utility_type) }}" readonly></label>
+{% else %}
+<label>Type of Charge<select name="utility_type" id="charge-type">{% for key,label in types.items() %}<option value="{{ key }}" {{ 'selected' if values.get('utility_type')==key else '' }}>{{ label }}</option>{% endfor %}</select></label>
+<label>Tariff Code<input name="code" value="{{ values.get('code','') }}" required maxlength="80" autofocus></label>
+{% endif %}
+<label>Description<input name="description" value="{{ values.get('description',source.description or '' if source else '') }}" maxlength="1000" {{ 'autofocus' if source else '' }}></label>
+{% if source %}<label>Current Rate<input value="{{ 'R%.4f'|format(current.rate) if current else 'Not yet effective' }}" readonly></label>{% endif %}
+<label>{{ 'New Rate' if source else 'Rate (R)' }}<input name="rate" type="number" min="0" max="999999999" step="0.0001" value="{{ values.get('rate','') }}" required></label>
+<label>Effective From<input name="effective_date" type="date" value="{{ values.get('effective_date','') }}" required></label>
+{% if not source %}
+<label data-tier>Consumption From<input name="block_start" type="number" min="0" step="0.01" value="{{ values.get('block_start','0') }}"></label>
+<label data-tier>Consumption To<input name="block_end" type="number" min="0" step="0.01" value="{{ values.get('block_end','0') }}"></label>
+<label data-tier>Calculation Factor<input name="reduction_factor" type="number" min="0.001" step="0.001" value="{{ values.get('reduction_factor','1') }}"><span class="tariff-hint">The verified municipal tier allocation or reduction factor. 1 is neutral. Preserve documented values such as 999.</span></label>
+<label>Unit<select name="unit">{% for unit in ['', 'kWh','kL','fixed'] %}<option value="{{ unit }}" {{ 'selected' if values.get('unit','')==unit else '' }}>{{ unit or 'Not specified' }}</option>{% endfor %}</select></label>
+{% endif %}
+</div><div class="tariff-form-actions"><button class="tariff-button save" type="submit">{{ 'Save New Rate' if source else 'Save Tariff' }}</button><a class="tariff-button" href="{{ url_for('admin_bp.billing_tariffs') }}">Cancel</a></div>
+</form>
+{% if not source %}<script>
+(()=>{const type=document.getElementById('charge-type');function update(){const tier=['water','sewerage'].includes(type.value);document.querySelectorAll('[data-tier]').forEach(el=>{el.hidden=!tier;el.querySelector('input').disabled=!tier;});}type.addEventListener('change',update);update();})();
+</script>{% endif %}
+{% endblock %}

@@ -1,0 +1,4 @@
+{% extends "admin/programs/billing/tariff_layout.html" %}
+{% block tariff_title %}Tariff History &mdash; {{ source.code }}{% endblock %}
+{% block tariff_body %}<p>{{ source.description or source.code }}</p><p class="tariff-hint">Effective To is inclusive: the day before the next stored version starts. Unknown dates require administrator investigation.</p>
+<table class="tariff-table"><thead><tr><th>Effective From</th><th>Effective To</th><th>Rate</th><th>Status</th></tr></thead><tbody>{% for e in entries %}<tr><td>{{ e.start or 'Unknown' }}</td><td>{{ e.end or '&mdash;' }}</td><td>R{{ '%.4f'|format(e.row.rate) }}</td><td>{{ e.status }}</td></tr>{% endfor %}</tbody></table>{% endblock %}

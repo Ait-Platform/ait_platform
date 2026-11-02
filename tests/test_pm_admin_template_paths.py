@@ -56,6 +56,18 @@ class AuthenticatedTemplateTests(fixture.AdminLandingTests):
         CSRFProtect(self.app);self.app.jinja_env.globals['csrf_token']=generate_csrf
         env=dict(render_template=render_template,request=request,redirect=redirect,url_for=url_for,flash=flash,db=types.SimpleNamespace(session=self.session),BilTariff=models['BilTariff'])
         env['_render_billing_template']=fixture.function('app/admin/programs/billing/routes.py','_render_billing_template',{})
+        # Load only the scoped tariff module, never application startup/maintenance.
+        from flask_login import current_user
+        from flask import abort
+        resolver=types.ModuleType('isolated_tariff_versions')
+        exec(compile((ROOT/'app/utils/tariff_versions.py').read_text(), 'tariff_versions.py','exec'),resolver.__dict__)
+        service=types.ModuleType('app.admin.programs.billing.tariff_management')
+        service.__dict__.update(db=env['db'],is_admin=lambda:bool(current_user.is_admin),identity=resolver.identity,resolve=resolver.resolve)
+        parsed=ast.parse((ROOT/'app/admin/programs/billing/tariff_management.py').read_text())
+        parsed.body=[n for n in parsed.body if not (isinstance(n,ast.ImportFrom) and (n.module or '').startswith('app.'))]
+        exec(compile(parsed,'tariff_management.py','exec'),service.__dict__)
+        self.tariff_service=service
+        mocked_service=patch.dict(sys.modules,{service.__name__:service});mocked_service.start();self.addCleanup(mocked_service.stop)
         # Register URLs from actual decorators for unchanged navigation, never execute unrelated workflows.
         tree=ast.parse((ROOT/'app/admin/programs/billing/routes.py').read_text(encoding='utf-8-sig'))
         for node in tree.body:
@@ -109,7 +121,7 @@ class AuthenticatedTemplateTests(fixture.AdminLandingTests):
                     response=tab.goto(origin+self.pages[name]);self.assertEqual(response.status,200)
                     self.assertEqual(tab.locator('h1').inner_text(),heading)
                     if name=='billing_tariffs':
-                        self.assertEqual(tab.locator('input[name="csrf_token"]').first.get_attribute('value') is not None,True)
+                        self.assertEqual(tab.get_by_role('link',name='+ Add New Tariff / Charge',exact=True).count(),1)
                         self.assertIn('TEST-E',tab.locator('table').inner_text())
                     if name!='readings_dashboard':
                         tab.get_by_role('link',name='Back',exact=False).first.click()

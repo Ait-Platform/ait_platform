@@ -59,59 +59,27 @@ def billing_meters():
 
 @admin_bp.route("/billing/tariffs", methods=["GET", "POST"], endpoint="billing_tariffs")
 def billing_tariffs():
-    from app.models.billing import BilPlatformSettings
-    settings = BilPlatformSettings.query.first()
-    if not settings:
-        settings = BilPlatformSettings(base_price_cents=10000, included_meters=2, extra_meter_price_cents=1500)
-        db.session.add(settings)
-        db.session.commit()
+    from app.admin.programs.billing.tariff_management import listing
+    return listing(_render_billing_template)
 
-    if request.method == "POST":
-        action = request.form.get('action')
-        
-        if action == 'add':
-            new_tariff = BilTariff(
-                utility_type=request.form.get('utility_type'),
-                code=request.form.get('code'),
-                description=request.form.get('description'),
-                rate=float(request.form.get('rate') or 0.0),
-                block_start=float(request.form.get('block_start') or 0.0),
-                block_end=float(request.form.get('block_end') or 0.0),
-                effective_date=request.form.get('effective_date', date.today().strftime('%Y-%m-%d')),
-                reduction_factor=float(request.form.get('reduction_factor') or 1.0),
-                unit=request.form.get('unit')
-            )
-            db.session.add(new_tariff)
-            db.session.commit()
-            flash('Tariff added successfully', 'success')
-            
-        elif action == 'edit':
-            t_id = request.form.get('tariff_id')
-            t = BilTariff.query.get(t_id)
-            if t:
-                t.utility_type = request.form.get('utility_type')
-                t.code = request.form.get('code')
-                t.description = request.form.get('description')
-                t.rate = float(request.form.get('rate') or 0.0)
-                t.block_start = float(request.form.get('block_start') or 0.0)
-                t.block_end = float(request.form.get('block_end') or 0.0)
-                t.reduction_factor = float(request.form.get('reduction_factor') or 1.0)
-                t.unit = request.form.get('unit')
-                db.session.commit()
-                flash('Tariff updated successfully', 'success')
-                
-        elif action == 'delete':
-            t_id = request.form.get('tariff_id')
-            t = BilTariff.query.get(t_id)
-            if t:
-                db.session.delete(t)
-                db.session.commit()
-                flash('Tariff deleted successfully', 'success')
 
-        return redirect(url_for('admin_bp.billing_tariffs'))
+@admin_bp.route("/billing/tariffs/new", methods=["GET", "POST"])
+def billing_tariff_new():
+    from app.admin.programs.billing.tariff_management import form
+    return form(_render_billing_template)
 
-    tariffs = BilTariff.query.order_by(BilTariff.utility_type, BilTariff.block_start).all()
-    return _render_billing_template('admin/programs/billing/tariffs.html', tariffs=tariffs, settings=settings)
+
+@admin_bp.route("/billing/tariffs/<int:tariff_id>/edit", methods=["GET", "POST"])
+def billing_tariff_edit(tariff_id):
+    from app.admin.programs.billing.tariff_management import form
+    return form(_render_billing_template, tariff_id)
+
+
+@admin_bp.route("/billing/tariffs/<int:tariff_id>/history")
+def billing_tariff_history(tariff_id):
+    from app.admin.programs.billing.tariff_management import history
+    return history(_render_billing_template, tariff_id)
+
 
 @admin_bp.route("/billing/invoices", endpoint="billing_invoices")
 def billing_invoices():

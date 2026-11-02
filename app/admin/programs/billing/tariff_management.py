@@ -44,12 +44,15 @@ def listing(render):
     groups = {}
     for row in records():
         groups.setdefault(identity(row), []).append(row)
+    verification = verification_records()
     tariffs = []
     for versions in groups.values():
         selected, issues = resolve(versions, today())
         source = max(versions, key=lambda r: (r['effective_date'] or '', r['id']))
         current = selected[0] if selected else None
         tariffs.append(dict(source=source, current=current, issues=issues,
+                            verification=verification.get((current or source)['id']) if verification is not None else None,
+                            verification_available=verification is not None,
                             scheduled=any((r['effective_date'] or '') > today().isoformat() for r in versions)))
     tariffs.sort(key=lambda t: (t['source']['utility_type'], t['source']['block_start'] or 0, t['source']['code']))
     return render('admin/programs/billing/tariffs.html', tariffs=tariffs, types=TYPES)
@@ -64,8 +67,13 @@ def form(render, tariff_id=None):
     values = dict(request.form) if request.method == 'POST' else {}
     error = None
     status = 200
+    ready = verification_ready()
+    if not ready:
+        error = 'Municipal tariff verification is unavailable. Database setup must be completed before saving.'
     if request.method == 'POST':
         try:
+            if not ready:
+                raise ValueError(error)
             if source is not None:
                 save_rate(tariff_id, values)
             else:
@@ -80,7 +88,8 @@ def form(render, tariff_id=None):
             error, status = 'The tariff could not be saved. Please retry; no existing rate was changed.', 503
     return render('admin/programs/billing/tariff_form.html', source=source, current=current,
                   values=values, types=TYPES, error=error, issues=issues,
-                  code_previews={utility: next_code(utility) for utility in TYPES} if source is None else {}), status
+                  code_previews={utility: next_code(utility) for utility in TYPES} if source is None else {},
+                  verification_ready=ready, verifier_name=getattr(current_user, 'name', '') or ('Administrator ' + str(current_user.id))), status
 
 
 def history(render, tariff_id):
@@ -105,7 +114,9 @@ def history(render, tariff_id):
                   'Scheduled' if start > today() else 'Previous' if next_start and next_start <= today() else 'Current')
         end = next_start - timedelta(days=1) if start and next_start and next_start > start else None
         entries.append(dict(row=row, start=start, end=end, status=status))
-    return render('admin/programs/billing/tariff_history.html', source=source, entries=entries)
+    verification = verification_records()
+    return render('admin/programs/billing/tariff_history.html', source=source, entries=entries,
+                  verification=verification or {}, verification_available=verification is not None)
 
 
 def number(values, key, label, places=4, default=None):
@@ -142,16 +153,19 @@ def lock_identity(utility, code):
                        {'key': 'pm-tariff:' + utility.strip().lower() + ':' + code.strip().casefold()})
 
 
-def insert_version(values):
+def insert_version(values, evidence):
     keys = ('utility_type', 'code', 'description', 'rate', 'block_start', 'block_end',
             'reduction_factor', 'unit', 'effective_date')
     # Only INSERT is permitted: no updates/deletes of historical rows.
-    db.session.execute(text('INSERT INTO bil_tariff (' + ','.join(keys) + ') VALUES (' +
-                            ','.join(':' + key for key in keys) + ')'), {key: values[key] for key in keys})
+    tariff_id = db.session.execute(text('INSERT INTO bil_tariff (' + ','.join(keys) + ') VALUES (' +
+                            ','.join(':' + key for key in keys) + ') RETURNING id'), {key: values[key] for key in keys}).scalar_one()
+    db.session.execute(text('INSERT INTO bil_tariff_verification (tariff_id,municipality,municipal_category,source_reference,effective_date,verified_by) VALUES (:tariff_id,:municipality,:municipal_category,:source_reference,:effective_date,:verified_by)'),
+                       dict(evidence, tariff_id=tariff_id, effective_date=values['effective_date']))
     db.session.commit()
 
 
 def save_new(values):
+    evidence = verification_input(values)
     utility = values.get('utility_type', '')
     if utility not in TYPES:
         raise ValueError('Select a valid Type of Charge.')
@@ -179,10 +193,11 @@ def save_new(values):
         raise ValueError('This tariff identity already exists. Use Edit to save a new rate version.')
     insert_version(dict(utility_type=utility, code=code, description=description, rate=rate,
                         block_start=lower, block_end=upper, reduction_factor=factor,
-                        unit=unit or None, effective_date=start.isoformat()))
+                        unit=unit or None, effective_date=start.isoformat()), evidence)
 
 
 def save_rate(tariff_id, values):
+    evidence = verification_input(values)
     source, _ = family(tariff_id)
     start = effective(values)
     rate = number(values, 'rate', 'New Rate')
@@ -207,7 +222,7 @@ def save_rate(tariff_id, values):
     replacement.update(rate=rate, description=description, effective_date=start.isoformat())
     # Utility, code, units, boundaries and even NULL/999 factors are copied from
     # the locked database row, never accepted from hidden/browser fields.
-    insert_version(replacement)
+    insert_version(replacement, evidence)
 
 
 CODE_PREFIXES = {'electricity': 'ELEC', 'water': 'W', 'sewerage': 'S',
@@ -229,3 +244,33 @@ def next_code(utility):
             if match:
                 numbers.append(int(match.group(1)))
     return prefix + str(max(numbers, default=0) + 1).zfill(2)
+
+
+def verification_ready():
+    required = {'tariff_id','municipality','municipal_category','source_reference','effective_date',
+                'verified_by','verified_at','recorded_at'}
+    columns = set(db.session.execute(text("SELECT attname FROM pg_attribute WHERE attrelid=to_regclass('bil_tariff_verification') AND attnum > 0 AND NOT attisdropped")).scalars())
+    return required <= columns
+
+
+def verification_records():
+    if not verification_ready():
+        return None
+    return {r['tariff_id']: dict(r) for r in db.session.execute(text('SELECT * FROM bil_tariff_verification')).mappings()}
+
+
+def verification_input(values):
+    authorised()
+    if not verification_ready():
+        raise ValueError('Municipal tariff verification is unavailable. Database setup must be completed before saving.')
+    evidence = {}
+    for key, label, maximum in (('municipality','Municipality',200),
+                                ('municipal_category','Municipal tariff category',200),
+                                ('source_reference','Official source or municipal bill reference',1000)):
+        value = values.get(key, '').strip()
+        if not value or len(value) > maximum:
+            raise ValueError(label + ' is required and must contain at most ' + str(maximum) + ' characters.')
+        evidence[key] = value
+    # The actor and timestamps are authoritative server/database values, never form inputs.
+    evidence['verified_by'] = int(current_user.id)
+    return evidence

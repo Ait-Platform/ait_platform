@@ -36,6 +36,15 @@ class TariffVersionTests(fixture.AuthenticatedTemplateTests):
         for value in ('','unknown','2026-02-30','2026-1-1'):
             self.session.execute(text('DELETE FROM bil_tariff'));self.session.commit();self.conn.commit();self.add(1,effective=value)
             with self.assertRaises(self.versions.TariffSelectionError):self.versions.one(self.session,'2026-10','ELEC01')
+    def test_null_effective_date_and_future_duplicate_versions(self):
+        self.session.execute(text('ALTER TABLE bil_tariff ALTER COLUMN effective_date DROP NOT NULL'));self.session.commit();self.conn.commit()
+        self.add(1,effective=None)
+        with self.assertRaises(self.versions.TariffSelectionError):self.versions.one(self.session,'2026-10','ELEC01')
+        self.session.execute(text('DELETE FROM bil_tariff'));self.session.commit();self.conn.commit()
+        self.add(1,rate='2');self.add(2,rate='3',effective='2027-01-01');self.add(3,rate='9',effective='2027-01-01')
+        self.assertEqual(self.versions.one(self.session,'2026-10','ELEC01')['rate'],2)
+        with self.assertRaises(self.versions.TariffSelectionError):self.versions.one(self.session,'2027-01','ELEC01')
+
     def test_future_only_date_and_identity_ambiguity(self):
         self.add(1,effective='2027-01-01')
         with self.assertRaises(self.versions.TariffSelectionError):self.versions.one(self.session,'2026-10','ELEC01')

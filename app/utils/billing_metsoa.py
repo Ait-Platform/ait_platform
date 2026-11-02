@@ -8,35 +8,13 @@ def _row_to_dict(r):
     return {k: getattr(r, k) if hasattr(r, k) else r[k] for k in r.keys()}
 
 def _get_tariffs(utility_type: str, month_str: str):
-    """
-    Returns tariff rows for a utility, effective for month_str (YYYY-MM),
-    ordered by block_start (for tiered pricing).
-    Columns expected on bil_tariff:
-      utility_type, code, description, rate, block_start, block_end, effective_date, reduction_factor (nullable), unit
-    """
-    sql = text("""
-        SELECT utility_type, code, description, rate, block_start, block_end,
-               effective_date, COALESCE(reduction_factor, 1.0) AS reduction_factor, unit
-        FROM bil_tariff
-        WHERE utility_type = :u
-          AND date(substr(:m,1,4) || '-' || substr(:m,6,2) || '-01') >= date(effective_date)
-        ORDER BY CASE WHEN block_start IS NULL THEN 999999 ELSE block_start END
-    """)
-    rows = db.session.execute(sql, {"u": utility_type, "m": month_str}).fetchall()
-    return [ _row_to_dict(r) for r in rows ]
+    from app.utils.tariff_versions import rows,legacy_row
+    selected=rows(db.session,month_str,utility=utility_type)
+    return [legacy_row(r) for r in sorted(selected,key=lambda r:(r.get('block_start') is None,r.get('block_start') or 0,r['id']))]
 
 def _get_tariff_by_code(code: str, month_str: str):
-    sql = text("""
-        SELECT utility_type, code, description, rate, block_start, block_end,
-               effective_date, COALESCE(reduction_factor, 1.0) AS reduction_factor, unit
-        FROM bil_tariff
-        WHERE code = :c
-          AND date(substr(:m,1,4) || '-' || substr(:m,6,2) || '-01') >= date(effective_date)
-        ORDER BY date(effective_date) DESC
-        LIMIT 1
-    """)
-    r = db.session.execute(sql, {"c": code, "m": month_str}).fetchone()
-    return None if not r else _row_to_dict(r)
+    from app.utils.tariff_versions import one,legacy_row
+    return legacy_row(one(db.session,month_str,code))
 
 def get_electricity_rate_for_month(month_str: str):
     # Prefer explicit ElecRate by code; fallback to first electricity row.
@@ -44,6 +22,9 @@ def get_electricity_rate_for_month(month_str: str):
     if t and t.get("rate") is not None:
         return float(t["rate"])
     ts = _get_tariffs("electricity", month_str)
+    if len(ts)>1:
+        from app.utils.tariff_versions import TariffSelectionError
+        raise TariffSelectionError(description='Multiple electricity tariff identities require an explicit selection.')
     return float(ts[0]["rate"]) if ts else None
 
 def fetch_consumption_for_month(month_str: str):

@@ -16,18 +16,8 @@ def _month_bounds(month_str):
 
 # Tariff lookup by code & month (latest <= month)
 def _tariff_for_code_month(code, month_str):
-    start, end = _month_bounds(month_str)
-    row = db.session.execute(text("""
-        SELECT id, utility_type, code, description, rate, block_start, block_end,
-               effective_date, COALESCE(reduction_factor,1.0) AS reduction_factor,
-               COALESCE(unit,'') AS unit
-        FROM bil_tariff
-        WHERE code = :code
-          AND date(effective_date) < :end
-        ORDER BY date(effective_date) DESC
-        LIMIT 1
-    """), {"code": code, "end": end}).mappings().first()
-    return row
+    from app.utils.tariff_versions import one,legacy_row
+    return legacy_row(one(db.session,month_str,code))
 
 # Pull SD reduction from your table (preferred), else from bil_tariff.reduction_factor, else 1.0
 def _sd_reduction_for_code(code, month_str):
@@ -160,6 +150,9 @@ def compute_water_costs_for_meter(meter_id, cons_kl, month_str):
 # Electricity flat rate (map still screens extras if you ever add any)
 def compute_electricity_due(cons_kwh, month_str):
     t = _tariff_for_code_month("ElecRate", month_str)
+    if t is None:
+        from app.utils.tariff_versions import only
+        t=only(db.session,month_str,'electricity')
     rate = float(t["rate"]) if t else 0.0
     return {"rate": rate, "due": float(cons_kwh or 0) * rate}
 
@@ -180,42 +173,20 @@ def build_metsoa_rows(tenant_id, month_str):
         return f"{s}-31"
 
     def _tariff_by_code(code, utility_type, month_end):
-        row = db.session.execute(text("""
-            SELECT code, utility_type, description, rate, block_start, block_end, effective_date,
-                   COALESCE(reduction_factor, 1.0) AS reduction_factor,
-                   COALESCE(unit, '') AS unit
-            FROM bil_tariff
-            WHERE code = :code
-              AND utility_type = :ut
-              AND effective_date <= :me
-            ORDER BY effective_date DESC
-            LIMIT 1
-        """), {"code": code, "ut": utility_type, "me": month_end}).mappings().first()
-        return row
+        from app.utils.tariff_versions import one,legacy_row
+        return legacy_row(one(db.session,month_str,code,utility=utility_type))
 
     def _elec_rate(month_end):
-        r = db.session.execute(text("""
-            SELECT rate
-            FROM bil_tariff
-            WHERE utility_type='electricity' AND code='ElecRate'
-              AND effective_date <= :me
-            ORDER BY effective_date DESC
-            LIMIT 1
-        """), {"me": month_end}).scalar()
-        return float(r or 0)
+        from app.utils.tariff_versions import one
+        row=one(db.session,month_str,'ElecRate',utility='electricity')
+        if row is None:
+            from app.utils.tariff_versions import only
+            row=only(db.session,month_str,'electricity')
+        return float(row['rate']) if row else 0.0
 
     def _water_tiers(utility_type, month_end):
-        # Pull all Tier* rows for the utility (water or sanitation), ordered by block_end (per-day liters)
-        tiers = db.session.execute(text("""
-            SELECT code, rate, block_start, block_end,
-                   COALESCE(reduction_factor,1.0) AS reduction_factor
-            FROM bil_tariff
-            WHERE utility_type = :ut
-              AND code LIKE 'Tier%_%'
-              AND effective_date <= :me
-            ORDER BY block_end ASC
-        """), {"ut": utility_type, "me": month_end}).mappings().all()
-        return tiers
+        from app.utils.tariff_versions import rows,legacy_row
+        return [legacy_row(r) for r in sorted(rows(db.session,month_str,utility=utility_type),key=lambda r:(r.get('block_end') is None,r.get('block_end') or 0,r['id'])) if r['code'].startswith('Tier') and '_' in r['code'][4:]]
 
     def _alloc_tiers(cons_kl, days, tiers, apply_reduction=False):
         """Allocate a monthly consumption (kL) across per-day tier bands.
@@ -281,15 +252,7 @@ def build_metsoa_rows(tenant_id, month_str):
 
         extras = []
         for mrow in mm:
-            t = db.session.execute(text("""
-                SELECT code, description, rate, COALESCE(unit,'') AS unit
-                FROM bil_tariff
-                WHERE code = :code
-                  AND utility_type = :ut
-                  AND effective_date <= :me
-                ORDER BY effective_date DESC
-                LIMIT 1
-            """), {"code": mrow["charge_code"], "ut": mrow["utility_type"], "me": month_end}).mappings().first()
+            t = _tariff_by_code(mrow["charge_code"],mrow["utility_type"],month_end)
             if not t:
                 continue
             unit = (t["unit"] or "").lower()

@@ -13,24 +13,18 @@ def select(billing_date):
     required={'id','utility_type','code','description','rate','block_start','block_end','reduction_factor','unit','effective_date'}
     if not catalog.has_table('bil_tariff') or not required<={c['name'] for c in catalog.get_columns('bil_tariff')}:
         return dict(electricity=None,water=[],sewerage=[],water_fixed=[],sewerage_fixed=[],water_surcharge=RECURRING_SURCHARGE,sewerage_surcharge=RECURRING_SURCHARGE,records=[]),['Applicable tariff records are unavailable.']
-    versions={}
-    for row in db.session.execute(text('SELECT * FROM bil_tariff ORDER BY id')).mappings():
-        row=dict(row);row['code']=str(row.get('code') or '').strip();code=row['code'] or '(unnamed)'
-        try:effective=date.fromisoformat(str(row['effective_date']))
-        except (ValueError,TypeError):issues.append('Tariff '+code+' has an invalid effective date.');continue
-        if effective>billing_date:continue
-        key=('water_fixed','W_LOSS') if code.lower()=='w_loss' else ((row.get('utility_type') or '').lower(),code)
-        versions.setdefault(key,[]).append((effective,row))
-    selected=[]
-    for key,entries in versions.items():
-        latest=max(e for e,r in entries);rows=[r for e,r in entries if e==latest]
-        if len(rows)!=1:issues.append('Tariff '+key[1]+' has conflicting records for '+str(latest)+'.');continue
-        row=rows[0]
+    from app.utils.tariff_versions import resolve,identity
+    source=[]
+    for record in db.session.execute(text('SELECT * FROM bil_tariff ORDER BY id')).mappings():
+        row=dict(record);row['code']=str(row.get('code') or '').strip();source.append(row)
+    versions,version_issues=resolve(source,billing_date,key_function=lambda r:('water_fixed','w_loss') if r['code'].lower()=='w_loss' else identity(r))
+    issues.extend(version_issues);selected=[]
+    for row in versions:
         try:
             rate=Decimal(str(row['rate']))
             if not rate.is_finite() or rate<0:raise ValueError()
-        except (ValueError,InvalidOperation):issues.append('Tariff '+key[1]+' has an invalid rate.');continue
-        row['rate']=rate;row['effective_date']=latest;selected.append(SimpleNamespace(**row))
+        except (ValueError,InvalidOperation):issues.append('Tariff '+row['code']+' has an invalid rate.');continue
+        row['rate']=rate;row['effective_date']=date.fromisoformat(str(row['effective_date']));selected.append(SimpleNamespace(**row))
     result=dict(electricity=None,water=[],sewerage=[],water_fixed=[],sewerage_fixed=[],water_surcharge=RECURRING_SURCHARGE,sewerage_surcharge=RECURRING_SURCHARGE,records=selected)
     electricity=[];seen_surcharges=set()
     for row in selected:

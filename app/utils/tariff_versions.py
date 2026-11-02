@@ -22,7 +22,7 @@ def billing_date(value):
 def identity(row):
     return (str(row.get('utility_type') or '').strip().lower(),str(row.get('code') or '').strip().casefold())
 
-def resolve(rows,on):
+def resolve(rows,on,key_function=None):
     """Latest start <= billing date, one row per (utility type, code).
 
     Existing start-only records supersede earlier starts of the same identity.
@@ -31,7 +31,7 @@ def resolve(rows,on):
     """
     on=billing_date(on);groups={};issues=[]
     for original in rows:
-        row=dict(original);key=identity(row)
+        row=dict(original);key=(key_function or identity)(row)
         if not all(key):issues.append('Tariff row '+str(row.get('id','unknown'))+' has no verified utility type or code.');continue
         groups.setdefault(key,[]).append(row)
     result=[]
@@ -51,7 +51,7 @@ def resolve(rows,on):
         for effective,row in dated:starts.setdefault(effective,[]).append(row)
         duplicate=next((d for d,items in sorted(starts.items()) if len(items)>1),None)
         if duplicate is not None:
-            issues.append('Tariff '+str(versions[0]['code'])+' has conflicting versions effective '+duplicate.isoformat()+'.');continue
+            issues.append('Tariff '+str(versions[0]['code'])+' has conflicting records effective '+duplicate.isoformat()+'.');continue
         if dated:result.append(max(dated,key=lambda item:item[0])[1])
     return result,issues
 
@@ -72,4 +72,20 @@ def rows(session,on,utility=None,code=None):
 
 def one(session,on,code,utility=None):
     selected=rows(session,on,utility=utility,code=code)
+    return selected[0] if selected else None
+
+def legacy_row(row):
+    if row is None:return None
+    return dict(row,reduction_factor=row['reduction_factor'] if row.get('reduction_factor') is not None else 1,unit=row.get('unit') or '')
+
+def by_code(session,on):
+    result={}
+    for row in rows(session,on):
+        if row['code'] in result:raise TariffSelectionError(description='Tariff code '+row['code']+' has multiple utility identities.')
+        result[row['code']]=legacy_row(row)
+    return result
+
+def only(session,on,utility):
+    selected=rows(session,on,utility=utility)
+    if len(selected)>1:raise TariffSelectionError(description='Multiple applicable '+str(utility)+' tariff identities require an explicit selection.')
     return selected[0] if selected else None

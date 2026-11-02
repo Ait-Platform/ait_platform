@@ -1096,6 +1096,17 @@ def generate_consumption_records_from_readings(month):
 
     return records
 
+def _effective_tariff_rows(month, utility):
+    from types import SimpleNamespace
+    from app.utils.tariff_versions import rows
+    return [SimpleNamespace(**r) for r in sorted(rows(db.session,month,utility=utility),key=lambda r:(r.get('block_start') is None,r.get('block_start') or 0,r['id']))]
+
+def _effective_electric_tariff(month):
+    from types import SimpleNamespace
+    from app.utils.tariff_versions import only
+    row=only(db.session,month,'electricity')
+    return SimpleNamespace(**row) if row else None
+
 def build_meter_charge_block(meter_id, month):
     rows = []
 
@@ -1107,9 +1118,7 @@ def build_meter_charge_block(meter_id, month):
         return rows  # Skip if no data
 
     # Tiered water blocks
-    tariff_blocks = BilTariff.query.filter_by(
-        utility_type="water"
-    ).order_by(BilTariff.block_start.asc()).all()
+    tariff_blocks = _effective_tariff_rows(month, 'water')
     blocks = [{"start": t.block_start, "end": t.block_end, "rate": t.rate} for t in tariff_blocks]
 
     # Tiered logic
@@ -1212,9 +1221,7 @@ def calculate_ws_sd_total(meter_id, month):
         }
 
     # Tiered WS tariff blocks
-    tariff_blocks = BilTariff.query.filter_by(
-        utility_type="water"
-    ).order_by(BilTariff.block_start.asc()).all()
+    tariff_blocks = _effective_tariff_rows(month, 'water')
 
     blocks = [{"start": t.block_start, "end": t.block_end, "rate": t.rate} for t in tariff_blocks]
 
@@ -1406,7 +1413,7 @@ def build_water_fee_block(r, month, tariff_override=None):
     sd_fees = []
     
     # Query database for Fixed WS/SD charges
-    db_fixed_ws = BilTariff.query.filter_by(utility_type='water_fixed').all()
+    db_fixed_ws = _effective_tariff_rows(month, 'water_fixed')
     if db_fixed_ws:
         for f in db_fixed_ws:
             ws_fees.append({"desc": f.description or f.code, "cons": 0.00, "rate": 0.00, "due": f.rate})
@@ -1414,7 +1421,7 @@ def build_water_fee_block(r, month, tariff_override=None):
         # Fallback
         ws_fees.append({"desc": "Water Loss Charge", "cons": 0.00, "rate": 0.00, "due": 19.30})
         
-    db_fixed_sd = BilTariff.query.filter_by(utility_type='sewerage_fixed').all()
+    db_fixed_sd = _effective_tariff_rows(month, 'sewerage_fixed')
     if db_fixed_sd:
         for f in db_fixed_sd:
             sd_fees.append({"desc": f.description or f.code, "cons": 0.00, "rate": 0.00, "due": f.rate})
@@ -1488,7 +1495,7 @@ def build_electrical_rows(property_id, month, is_exception=False, filter_meter_i
     linked_meter_ids = [m.id for m in meters]
     tenant_records = [r for r in records if r.meter_id in linked_meter_ids]
 
-    rate_obj = BilTariff.query.filter_by(utility_type="electricity").first()
+    rate_obj = _effective_electric_tariff(month)
     rate = rate_obj.rate if rate_obj else 0
 
     for r in tenant_records:
@@ -1520,7 +1527,7 @@ def build_electrical_rows(property_id, month, is_exception=False, filter_meter_i
     return rows, round(total_due, 2)
 
 def get_tariff_for_ws(meter_id, month):
-    db_tariffs = BilTariff.query.filter_by(utility_type='water').order_by(BilTariff.block_start).all()
+    db_tariffs = _effective_tariff_rows(month, 'water')
     if db_tariffs:
         return [
             {
@@ -1541,7 +1548,7 @@ def get_tariff_for_ws(meter_id, month):
     ]
 
 def get_tariff_for_sd(meter_id, month):
-    db_tariffs = BilTariff.query.filter_by(utility_type='sewerage').order_by(BilTariff.block_start).all()
+    db_tariffs = _effective_tariff_rows(month, 'sewerage')
     if db_tariffs:
         return [
             {
@@ -1677,7 +1684,7 @@ def build_ws_sd_cost_block(meter_id, month):
     days = cons.days
 
     # 🔹 WS Tiered Tariff Rows
-    ws_tiers = BilTariff.query.filter_by(utility_type="water").order_by(BilTariff.block_start.asc()).all()
+    ws_tiers = _effective_tariff_rows(month, 'water')
     for tier in ws_tiers:
         block_max = tier.block_end if tier.block_end is not None else float('inf')
         slice_volume = max(0, min(consumption, block_max) - tier.block_start)
@@ -1695,7 +1702,7 @@ def build_ws_sd_cost_block(meter_id, month):
         })
 
     # 🔹 SD Tiered Tariff Rows
-    sd_tiers = BilTariff.query.filter_by(utility_type="sanitation").order_by(BilTariff.block_start.asc()).all()
+    sd_tiers = _effective_tariff_rows(month, 'sanitation')
     for tier in sd_tiers:
         block_max = tier.block_end if tier.block_end is not None else float('inf')
         slice_volume = max(0, min(consumption, block_max) - tier.block_start)

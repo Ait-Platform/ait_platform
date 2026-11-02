@@ -18,21 +18,8 @@ def _first_of_month(month_str):
     return f"{month_str}-01"
 
 def _tariffs_by_code(month_str):
-    month_day = _first_of_month(month_str)
-    rows = db.session.execute(text("""
-        SELECT t1.*
-        FROM bil_tariff t1
-        JOIN (
-            SELECT code, MAX(effective_date) AS max_eff
-            FROM bil_tariff
-            WHERE effective_date <= :md
-            GROUP BY code
-        ) t2 ON t2.code = t1.code AND t2.max_eff = t1.effective_date
-    """), {"md": month_day}).mappings().all()
-    out = {}
-    for r in rows:
-        out[r["code"]] = r
-    return out
+    from app.utils.tariff_versions import by_code
+    return by_code(db.session,month_str)
 
 def _map_rows_for_meter(meter_id, month_str):
     month_day = _first_of_month(month_str)
@@ -359,37 +346,17 @@ def _month_first(month_str: str) -> str:
     # '2025-06' -> '2025-06-01'
     return f"{month_str}-01"
 
-def get_tariffs_by_prefix(prefix: str) -> list[dict]:
-    """
-    Returns tiered tariffs ordered by block_start, e.g.
-    prefix='Tier' with utility filters done by caller.
-    Each row has: code, rate, block_start, block_end, reduction_factor
-    """
-    rows = db.session.execute(text("""
-        SELECT code, rate, block_start, block_end, COALESCE(reduction_factor, 1.0) AS reduction_factor
-        FROM bil_tariff
-        WHERE code LIKE :pfx || '%'
-        ORDER BY block_start ASC
-    """), {"pfx": prefix}).mappings().all()
-    return rows
+def get_tariffs_by_prefix(prefix: str, month_str: str) -> list[dict]:
+    from app.utils.tariff_versions import rows,legacy_row
+    return [legacy_row(r) for r in sorted(rows(db.session,month_str),key=lambda r:(r.get('block_start') is None,r.get('block_start') or 0,r['id'])) if r['code'].startswith(prefix)]
 
-def get_tariffs_for_ws() -> list[dict]:
-    # Tier1_W&S ... Tier4_W&S
-    return db.session.execute(text("""
-        SELECT code, rate, block_start, block_end
-        FROM bil_tariff
-        WHERE utility_type='water' AND code LIKE 'Tier%_W&S'
-        ORDER BY block_start ASC
-    """)).mappings().all()
+def get_tariffs_for_ws(month_str: str) -> list[dict]:
+    from app.utils.tariff_versions import rows
+    return [{key:r[key] for key in ('code','rate','block_start','block_end')} for r in sorted(rows(db.session,month_str,utility='water'),key=lambda r:(r.get('block_start') is None,r.get('block_start') or 0,r['id'])) if r['code'].startswith('Tier') and r['code'].endswith('_W&S')]
 
-def get_tariffs_for_sd() -> list[dict]:
-    # Tier1_SD ... Tier4_SD (with reduction_factor)
-    return db.session.execute(text("""
-        SELECT code, rate, block_start, block_end, COALESCE(reduction_factor,1.0) AS reduction_factor
-        FROM bil_tariff
-        WHERE utility_type='sanitation' AND code LIKE 'Tier%_SD'
-        ORDER BY block_start ASC
-    """)).mappings().all()
+def get_tariffs_for_sd(month_str: str) -> list[dict]:
+    from app.utils.tariff_versions import rows,legacy_row
+    return [legacy_row(r) for r in sorted(rows(db.session,month_str,utility='sanitation'),key=lambda r:(r.get('block_start') is None,r.get('block_start') or 0,r['id'])) if r['code'].startswith('Tier') and r['code'].endswith('_SD')]
 
 def get_meter_map_for_month(meter_id: int, month_str: str) -> list[dict]:
     """
@@ -495,7 +462,7 @@ def calc_ws_sd_totals(
 
     # ── Tiers: WS
     if has_ws_tier:
-        ws_blocks = get_tariffs_for_ws()  # Tier1_W&S..Tier4_W&S
+        ws_blocks = get_tariffs_for_ws(month_str)  # Tier1_W&S..Tier4_W&S
         ws_alloc = _split_by_blocks(cons, days, ws_blocks)
         for row in ws_alloc:
             due = round(row["cons_kl"] * row["rate"], 2)
@@ -508,7 +475,7 @@ def calc_ws_sd_totals(
 
     # ── Tiers: SD (with reduction)
     if has_sd_tier:
-        sd_blocks = get_tariffs_for_sd()  # Tier1_SD..Tier4_SD
+        sd_blocks = get_tariffs_for_sd(month_str)  # Tier1_SD..Tier4_SD
         sd_alloc = _split_by_blocks(cons, days, sd_blocks)
         for row in sd_alloc:
             eff_cons = round(row["cons_kl"] * row["reduction_factor"], 2)
@@ -522,10 +489,9 @@ def calc_ws_sd_totals(
 
     # ── Fixed charges from the map
     def _tariff_rate(code: str) -> float:
-        r = db.session.execute(text("""
-            SELECT rate FROM bil_tariff WHERE code=:c LIMIT 1
-        """), {"c": code}).scalar()
-        return float(r or 0.0)
+        from app.utils.tariff_versions import one
+        row=one(db.session,month_str,code)
+        return float(row['rate']) if row else 0.0
 
     have_ws_surcharge = any(r["charge_code"] == "WSSurcharge" for r in mm)
     have_sd_surcharge = any(r["charge_code"] == "SDSurcharge" for r in mm)

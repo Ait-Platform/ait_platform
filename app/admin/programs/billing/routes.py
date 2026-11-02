@@ -33,21 +33,27 @@ from io import BytesIO
 #from weasyprint import HTML
 
 
+def _render_billing_template(name, **context):
+    # Reuse the existing PM root-template loader; do not change the platform loader.
+    from app.program_billing.lease_management import render_pm_template
+    return render_pm_template(name, **context)
+
+
 @admin_bp.route("/billing/tenants", endpoint="billing_tenants")
 def billing_tenants():
     from app.models.billing import BilTenant
     from datetime import date
     tenants = BilTenant.query.order_by(BilTenant.name).all()
     current_month = date.today().strftime('%Y-%m')
-    return render_template("admin/billing/tenants.html", tenants=tenants, current_month=current_month)
+    return _render_billing_template('admin/programs/billing/tenants.html', tenants=tenants, current_month=current_month)
 
 @admin_bp.route("/billing/units", endpoint="billing_units")
 def billing_units():
-    return render_template("admin/billing/units.html")
+    return _render_billing_template('admin/programs/billing/units.html')
 
 @admin_bp.route("/billing/meters", endpoint="billing_meters")
 def billing_meters():
-    return render_template("admin/billing/meters.html")
+    return _render_billing_template('admin/programs/billing/meters.html')
 
 
 
@@ -105,15 +111,15 @@ def billing_tariffs():
         return redirect(url_for('admin_bp.billing_tariffs'))
 
     tariffs = BilTariff.query.order_by(BilTariff.utility_type, BilTariff.block_start).all()
-    return render_template("admin/billing/tariffs.html", tariffs=tariffs, settings=settings)
+    return _render_billing_template('admin/programs/billing/tariffs.html', tariffs=tariffs, settings=settings)
 
 @admin_bp.route("/billing/invoices", endpoint="billing_invoices")
 def billing_invoices():
-    return render_template("admin/billing/invoices.html")
+    return _render_billing_template('admin/programs/billing/invoices.html')
 
 @admin_bp.route("/billing/reports", endpoint="billing_reports")
 def billing_reports():
-    return render_template("admin/billing/reports.html")
+    return _render_billing_template('admin/programs/billing/reports.html')
 
 # Step 1: Enter
 @admin_bp.route('/readings/create', methods=['POST'])
@@ -177,8 +183,8 @@ def readings_view():
 
         rows = q.order_by(BilMeter.id, BilMeterReading.reading_date).all()
 
-    return render_template(
-        "admin/billing/readings_view.html",
+    return _render_billing_template(
+        'admin/programs/billing/readings_view.html',
         tenants=tenants,
         months=months,
         tenant=tenant,
@@ -229,7 +235,7 @@ def readings_export():
 # --- Overview: just 4 buttons ---
 @admin_bp.route("/readings", methods=["GET"], endpoint="readings_dashboard")
 def readings_dashboard():
-    return render_template("admin/billing/index.html")
+    return _render_billing_template('admin/programs/billing/index.html')
 
 # Helpers ---------------------------------------------------------------
 
@@ -278,7 +284,7 @@ def readings_enter():
             old = int(existing_same_day.reading_value)
             if reading_value < old:
                 flash(f"Incorrect reading: {reading_value} is BELOW existing value {old} on {reading_date}. Not accepted.", "error")
-                return render_template("admin/billing/readings_enter.html",
+                return _render_billing_template('admin/programs/billing/readings_enter.html',
                                        tenants=tenants, tenant=tenant, meters=meters)
             # if equal or higher, we allow update below
 
@@ -289,7 +295,7 @@ def readings_enter():
             prev_info = prev
             if reading_value < prev_val:
                 flash(f"Incorrect reading: {reading_value} is BELOW previous month {prev_val} ({prev.reading_date}). Not accepted.", "error")
-                return render_template("admin/billing/readings_enter.html",
+                return _render_billing_template('admin/programs/billing/readings_enter.html',
                                        tenants=tenants, tenant=tenant, meters=meters, prev_info=prev_info)
 
         # 3) Upsert by (meter_id, date)
@@ -303,8 +309,8 @@ def readings_enter():
         flash(msg, "success")
         return redirect(url_for("admin_bp.readings_enter", tenant_id=tenant_id))
     
-    return render_template(
-        "admin/billing/readings_enter.html",
+    return _render_billing_template(
+        'admin/programs/billing/readings_enter.html',
         tenants=tenants,
         tenant=tenant,
         meters=meters,
@@ -388,8 +394,8 @@ def readings_consumption():
                 "consumption": cons,
             })
 
-    return render_template(
-    "admin/billing/readings_consumption.html",
+    return _render_billing_template(
+    'admin/programs/billing/readings_consumption.html',
     tenants=tenants,
     months=months,
     tenant=tenant,
@@ -654,8 +660,8 @@ def tenant_soa():
             "balance": round(running, 2),
         })
 
-    return render_template(
-        "admin/billing/tenant_soa.html",
+    return _render_billing_template(
+        'admin/programs/billing/tenant_soa.html',
         tenant=tenant,
         rows=out,
         start=start,
@@ -670,7 +676,7 @@ def record_payment_form():
         abort(400)
 
     if request.method == "GET":
-        return render_template("admin/billing/payment_form.html", tenant_id=tenant_id)
+        return _render_billing_template('admin/programs/billing/payment_form.html', tenant_id=tenant_id)
 
     # POST
     amount = request.form.get("amount", type=float)
@@ -933,8 +939,8 @@ def tenant_ledger():
     today_str = date.today().isoformat()
 
     # 🔑 Render the template that *has* Payments + Recurring panels
-    return render_template(
-        "admin/billing/tenant_ledger.html",
+    return _render_billing_template(
+        'admin/programs/billing/tenant_ledger.html',
         tenant=tenant, month=month,
         items=items, balance=balance,
         recurring=recurring,
@@ -1133,7 +1139,7 @@ def tenant_ledger_item_edit(item_id):
         flash("Ledger item updated.", "success")
         return redirect(url_for("admin_bp.tenant_ledger", tenant_id=tenant_id, month=month))
 
-    return render_template("admin/billing/tenant_item_edit.html", row=row, tenant_id=tenant_id, month=month)
+    return _render_billing_template('admin/programs/billing/tenant_item_edit.html', row=row, tenant_id=tenant_id, month=month)
 
 
 def _month_bounds(ym: str):
@@ -1347,8 +1353,8 @@ def payment_new():
         return redirect(url_for("admin_bp.tenant_ledger", tenant_id=tenant_id, month=month))
 
     # GET → show form
-    return render_template(
-        "admin/billing/payment_new.html",
+    return _render_billing_template(
+        'admin/programs/billing/payment_new.html',
         tenant_id=tenant_id,
         month=month,
         today=date.today().isoformat(),
@@ -1455,8 +1461,8 @@ def recurring_index():
         {"tid": tenant_id},
     ).mappings().all()
 
-    return render_template(
-        "admin/billing/recurring_index.html",
+    return _render_billing_template(
+        'admin/programs/billing/recurring_index.html',
         tenant_id=tenant_id, month=month, rows=rows
     )
 
@@ -1505,8 +1511,8 @@ def recurring_new():
         return redirect(url_for("admin_bp.recurring_index", tenant_id=tenant_id, month=month))
 
     # GET
-    return render_template(
-        "admin/billing/recurring_form.html",
+    return _render_billing_template(
+        'admin/programs/billing/recurring_form.html',
         tenant_id=tenant_id, month=month, mode="new",
         today=date.today().isoformat()
     )
@@ -1573,8 +1579,8 @@ def recurring_edit(rec_id: int):
         return redirect(url_for("admin_bp.recurring_index", tenant_id=tenant_id, month=month))
 
     # GET
-    return render_template(
-        "admin/billing/recurring_form.html",
+    return _render_billing_template(
+        'admin/programs/billing/recurring_form.html',
         tenant_id=tenant_id, month=month, mode="edit", rec=row
     )
 
@@ -1792,8 +1798,8 @@ def muni_recon():
         """), {"sid": session_id}
     ).mappings().all()
 
-    return render_template(
-        "admin/muni/recon.html",
+    return _render_billing_template(
+        'admin/programs/billing/muni/recon.html',
         label=label, session_id=session_id,
         left=left, right=right, matches=matches
     )
@@ -1897,7 +1903,7 @@ def billing_export_picker():
     """
     from datetime import date
     default_month = date.today().strftime("%Y-%m")  # prefill
-    return render_template("admin/billing/export_picker.html", default_month=default_month)
+    return _render_billing_template('admin/programs/billing/export_picker.html', default_month=default_month)
 
 def _ensure_recon_views():
     missing = db.session.execute(text("""
@@ -1929,8 +1935,8 @@ def muni_ledger(account_number):
         ORDER BY period
     """), {"acc": account_number}).mappings().all()
 
-    return render_template(
-        "admin/billing/muni/ledger.html",
+    return _render_billing_template(
+        'admin/programs/billing/muni/ledger.html',
         account_number=account_number,
         rows=rows,
         recon=recon
@@ -2007,7 +2013,7 @@ def muni_recon_statement():
         text("SELECT name FROM ref_muni_owner ORDER BY name")
     ).scalars().all()
     
-    return render_template("admin/billing/muni/recon_statement.html", rows=rows, month=month, q_occ=q_occ, all_occupiers=all_occupiers)
+    return _render_billing_template('admin/programs/billing/muni/recon_statement.html', rows=rows, month=month, q_occ=q_occ, all_occupiers=all_occupiers)
 
 # --- Account picker ---
 @admin_bp.route("/billing/muni", methods=["GET"])
@@ -2040,7 +2046,7 @@ def muni_accounts():
         text("SELECT name FROM ref_muni_owner ORDER BY name")
     ).scalars().all()
     
-    return render_template("admin/billing/muni/index.html", 
+    return _render_billing_template('admin/programs/billing/muni/index.html',
                            accounts=accounts, 
                            q_acc=q_acc, 
                            q_occ=q_occ, 
@@ -2220,7 +2226,7 @@ def muni_print_ledger(account_number):
         WHERE account_number=:a
         ORDER BY period
     """), {"a": account_number}).mappings().all()
-    return render_template("admin/billing/muni/print_ledger.html",
+    return _render_billing_template('admin/programs/billing/muni/print_ledger.html',
                            account=info, rows=rows, recon=recon)
 
 # ---------- OPTIONAL: PDF (WeasyPrint) ----------
@@ -2259,7 +2265,7 @@ def muni_exports_hub():
     accounts = db.session.execute(
         text("SELECT account_number FROM bil_muni_account ORDER BY account_number")
     ).scalars().all()
-    return render_template("admin/billing/muni/exports.html", accounts=accounts, back=back)
+    return _render_billing_template('admin/programs/billing/muni/exports.html', accounts=accounts, back=back)
 
 def _to_number(val):
     """Return float or None from form input."""
@@ -2361,8 +2367,8 @@ def muni_capture(account_number):
          ORDER BY period DESC
     """), {"a": account_number}).mappings().all()
 
-    return render_template(
-        "admin/billing/muni/capture.html",
+    return _render_billing_template(
+        'admin/programs/billing/muni/capture.html',
         account_number=account_number,
         current_period=current_period,
         ledger=ledger,
@@ -2539,7 +2545,7 @@ def billing_occupants_edit(tenant_id: int):
         t.notes = (request.form.get("notes") or None)
         db.session.commit()
         return redirect(url_for("admin_bp.billing_occupants_index"))
-    return render_template("admin/billing/occupants/form.html", tenant=t, units=units)
+    return _render_billing_template('admin/programs/billing/occupants/form.html', tenant=t, units=units)
 
 @admin_bp.post("/billing/toccupants/<int:tenant_id>/delete", endpoint="billing_occupants_delete")
 def billing_occupants_delete(tenant_id: int):
@@ -2599,14 +2605,14 @@ admin_bp = Blueprint("admin_bp", __name__, url_prefix="/admin")
 # ---------- Data Entry hub ----------
 @admin_bp.get("/billing/data")
 def billing_data():
-    return render_template("admin/billing/data/index.html")
+    return _render_billing_template('admin/programs/billing/data/index.html')
 
 # ---------- Units ----------
 @admin_bp.get("/billing/units")
 def units_index():
     # TODO: compute occupied/free counts if you want badges
     units = BilProperty.query.order_by(BilProperty.name.asc()).all()
-    return render_template("admin/billing/units/index.html", units=units)
+    return _render_billing_template('admin/programs/billing/units/index.html', units=units)
 
 @admin_bp.route("/billing/units/new", methods=["GET", "POST"])
 def units_new():
@@ -2614,7 +2620,7 @@ def units_new():
         # TODO: create & commit a new BilProperty from form fields
         # flash("Unit added.", "success")
         return redirect(url_for("admin_bp.units_index"))
-    return render_template("admin/billing/units/new.html")
+    return _render_billing_template('admin/programs/billing/units/new.html')
 
 # ---------- Occupants (Tenants) ----------
 @admin_bp.post("/billing/occupants/new", endpoint="billing_occupants_create")
@@ -2675,7 +2681,7 @@ def billing_occupants_create():
 @admin_bp.get("/billing/occupants", endpoint="billing_occupants_index")
 def billing_occupants_index():
     tenants = BilTenant.query.order_by(BilTenant.name.asc()).all()
-    return render_template("admin/billing/occupants/index.html", tenants=tenants)
+    return _render_billing_template('admin/programs/billing/occupants/index.html', tenants=tenants)
 
 
 
@@ -2690,8 +2696,8 @@ def billing_occupants_new():
         .filter(BilTenant.property_id.isnot(None)).all()
     }
 
-    return render_template(
-        "admin/billing/occupants/form.html",
+    return _render_billing_template(
+        'admin/programs/billing/occupants/form.html',
         tenant=None,
         units=units,
         occupied_ids=occupied_ids,
@@ -2703,5 +2709,5 @@ def billing_occupants_view(tenant_id):
     tenant = db.session.get(BilTenant, tenant_id)
     if not tenant:
         abort(404)
-    return render_template("admin/billing/occupants/show.html", tenant=tenant)
+    return _render_billing_template('admin/programs/billing/occupants/show.html', tenant=tenant)
 

@@ -22,10 +22,10 @@
 <label data-tier>Calculation Factor<input name="reduction_factor" type="number" min="0.001" step="0.001" value="{{ values.get('reduction_factor','1') }}"><span class="tariff-hint">The verified municipal tier allocation or reduction factor. 1 is neutral. Preserve documented values such as 999.</span></label>
 <label>Unit<select name="unit">{% for unit in ['', 'kWh','kL','fixed'] %}<option value="{{ unit }}" {{ 'selected' if values.get('unit','')==unit else '' }}>{{ unit or 'Not specified' }}</option>{% endfor %}</select></label>
 {% endif %}
-<label>Municipality<input name="municipality" value="{{ values.get('municipality','') }}" required maxlength="200"></label>
-<label>Municipal tariff category<input name="municipal_category" value="{{ values.get('municipal_category','') }}" required maxlength="200"></label>
-<label>Official source document or municipal bill reference<input name="source_reference" value="{{ values.get('source_reference','') }}" required maxlength="1000"></label>
-</div><p class="tariff-hint">Saving records {{ verifier_name }} as the administrator who verified this rate against the official source. Verification and recording timestamps are recorded automatically. Existing legacy rates are not marked verified.</p><div class="tariff-form-actions"><button class="tariff-button save" type="submit" {% if not verification_ready %}disabled{% endif %}>{{ 'Save New Rate' if source else 'Save Tariff' }}</button><a class="tariff-button" href="{{ url_for('admin_bp.billing_tariffs') }}">Cancel</a></div>
+<label>Municipality<input name="municipality" value="{{ values.get('municipality','') }}" maxlength="200"></label>
+<label>Municipal tariff category<input name="municipal_category" value="{{ values.get('municipal_category','') }}" maxlength="200"></label>
+<label>Official source document or municipal bill reference<input name="source_reference" value="{{ values.get('source_reference','') }}" maxlength="1000"></label>
+</div><p class="tariff-hint">Municipal verification details are optional. Saving records {{ verifier_name }} and the audit timestamps automatically. Existing legacy records remain unchanged.</p><div class="tariff-form-actions"><button class="tariff-button save" type="submit" {% if not verification_ready %}disabled{% endif %}>{{ 'Save New Rate' if source else 'Save Tariff' }}</button><a class="tariff-button" href="{{ url_for('admin_bp.billing_tariffs') }}">Cancel</a></div>
 </form>
 {% if not source %}<script>
 (()=>{const type=document.getElementById('charge-type');const codes={{ code_previews|tojson }};function update(){document.getElementById('tariff-code').value=codes[type.value];const tier=['water','sewerage'].includes(type.value);document.querySelectorAll('[data-tier]').forEach(el=>{el.hidden=!tier;el.querySelector('input').disabled=!tier;});}type.addEventListener('change',update);update();})();

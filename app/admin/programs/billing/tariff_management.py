@@ -267,10 +267,10 @@ def verification_input(values):
     for key, label, maximum in (('municipality','Municipality',200),
                                 ('municipal_category','Municipal tariff category',200),
                                 ('source_reference','Official source or municipal bill reference',1000)):
-        value = values.get(key, '').strip()
-        if not value or len(value) > maximum:
-            raise ValueError(label + ' is required and must contain at most ' + str(maximum) + ' characters.')
-        evidence[key] = value
+        value = (values.get(key) or '').strip()
+        if len(value) > maximum:
+            raise ValueError(label + ' must contain at most ' + str(maximum) + ' characters.')
+        evidence[key] = value or None
     # The actor and timestamps are authoritative server/database values, never form inputs.
     evidence['verified_by'] = int(current_user.id)
     return evidence

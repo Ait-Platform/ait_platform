@@ -1,0 +1,234 @@
+"""Municipal arrangements on isolated PostgreSQL, no application startup or live writes."""
+import ast,importlib.util,json,types,sys,unittest,uuid
+from datetime import date
+from decimal import Decimal
+from unittest.mock import patch
+from sqlalchemy import text,event
+from sqlalchemy.orm import Session
+from alembic.operations import Operations
+from alembic.migration import MigrationContext
+from flask import request,session,current_app,abort
+from flask_login import current_user
+from flask_wtf.csrf import CSRFProtect,generate_csrf
+from lxml import html
+import test_pm_admin_landing as fixture
+ROOT=fixture.ROOT
+
+class ArrangementTests(fixture.AdminLandingTests):
+    url='/billing/utilities/26/payment-arrangements'
+    def setUp(self):
+        super().setUp()
+        self.session=Session(self.conn);self.addCleanup(self.session.close);self.db=types.SimpleNamespace(session=self.session)
+        self.conn.execute(text('SET search_path TO pg_temp,public'))
+        for sql in ('CREATE TEMP TABLE "user"(id integer PRIMARY KEY)',
+                    'CREATE TEMP TABLE bil_property(id integer PRIMARY KEY,manager_id integer,name text,address text)',
+                    'CREATE TEMP TABLE bil_muni_account(id integer PRIMARY KEY,property_id integer,account_number text)',
+                    'CREATE TEMP TABLE bil_muni_payment(id integer PRIMARY KEY,account_id integer,month text,payment_date date,amount double precision,reference text)',
+                    'CREATE TEMP TABLE bil_tenant_ledger(id integer PRIMARY KEY,amount numeric(18,2))',
+                    'CREATE TEMP TABLE bil_statement(id integer PRIMARY KEY,tenant_id integer)',
+                    'CREATE TEMP TABLE bil_metsoa_meter_month(id integer PRIMARY KEY,total_due numeric(18,2))'):
+            self.conn.execute(text(sql))
+        self.conn.execute(text('INSERT INTO "user" VALUES(7),(8)'))
+        self.conn.execute(text("INSERT INTO bil_property VALUES(26,7,'Almond','Test address'),(27,7,'Dale','Test address'),(28,8,'Private','Private address')"))
+        self.conn.execute(text("INSERT INTO bil_muni_account VALUES(1,26,'MET-26'),(2,27,'MET-27'),(3,28,'PRIVATE')"))
+        self.conn.execute(text("INSERT INTO bil_muni_payment VALUES(1,1,'2026-10','2026-10-15',100,'MUNI-P1'),(2,2,'2026-10','2026-10-15',100,'OTHER-P2')"))
+        self.conn.execute(text('INSERT INTO bil_tenant_ledger VALUES(1,123.45)'))
+        self.conn.execute(text('INSERT INTO bil_statement VALUES(1,12)'))
+        self.conn.execute(text('INSERT INTO bil_metsoa_meter_month VALUES(1,444.44)'));self.conn.commit()
+        before=self.financial_snapshot()
+        spec=importlib.util.spec_from_file_location('arrangement_migration',ROOT/'migrations/versions/pm_muni_arrangements_001.py')
+        migration=importlib.util.module_from_spec(spec);spec.loader.exec_module(migration)
+        with patch.object(migration,'op',Operations(MigrationContext.configure(self.conn))):migration.upgrade()
+        self.conn.commit();self.assertEqual(before,self.financial_snapshot())
+        self.assertEqual(self.conn.execute(text("SELECT relpersistence FROM pg_class WHERE oid='bil_municipal_arrangement'::regclass")).scalar(),'t');self.conn.commit()
+        self.service=types.ModuleType('app.program_billing.municipal_arrangements');self.service.__package__='app.program_billing'
+        self.service.__dict__.update(db=self.db,is_admin=fixture.function('app/utils/roles.py','is_admin',dict(current_user=current_user,session=session)))
+        self.service.property_scope=fixture.function('app/program_billing/metsoa_setup_safety.py','property_scope',dict(db=self.db,current_user=current_user,text=text,abort=abort))
+        tree=ast.parse((ROOT/'app/program_billing/municipal_arrangements.py').read_text())
+        tree.body=[n for n in tree.body if not (isinstance(n,ast.ImportFrom) and ((n.module or '').startswith('app.') or n.level))]
+        exec(compile(tree,'municipal_arrangements.py','exec'),self.service.__dict__);self.service.today=lambda:date(2026,11,2)
+        modules=patch.dict(sys.modules,{self.service.__name__:self.service});modules.start();self.addCleanup(modules.stop)
+        CSRFProtect(self.app);self.app.jinja_env.globals['csrf_token']=generate_csrf
+        for name in ('municipal_payment_arrangements','municipal_arrangement_detail'):
+            path,endpoint=fixture.declared_route('app/program_billing/routes.py',name,'billing_bp')
+            view=fixture.function('app/program_billing/routes.py',name,dict(__package__='app.program_billing'))
+            self.app.add_url_rule(path,endpoint=endpoint,view_func=view,methods=['GET','POST'])
+        for name in ('municipal_accounts','meter_readings','metro_reconciliation','meter_exceptions','generate_municipal_metsoa','bulk_meter_linking'):
+            path,endpoint=fixture.declared_route('app/program_billing/routes.py',name,'billing_bp')
+            self.app.add_url_rule(path,endpoint=endpoint,view_func=lambda **kw:'Unrelated page')
+        @self.app.after_request
+        def finish_fixture_transaction(response):
+            self.session.commit();self.conn.commit();self.session.close()
+            return response
+        self.sign_in()
+    def financial_snapshot(self):
+        return {name:[tuple(r) for r in self.conn.execute(text('SELECT * FROM '+name+' ORDER BY id'))] for name in ('bil_muni_payment','bil_tenant_ledger','bil_statement','bil_metsoa_meter_month')}
+    def form(self,**changes):
+        data=dict(action='create',request_key=str(uuid.uuid4()),account_id='1',reference='ARR-'+uuid.uuid4().hex[:8],agreement_date='2026-09-01',original_amount='250.00',instalment_amount='100.00',instalments='3',frequency='monthly',first_payment_date='2026-09-30',document_reference='Municipal contract reference')
+        data.update(changes);return data
+    def post(self,url,data):
+        response=self.client.get(self.url+'?new=1')
+        token=html.fromstring(response.data).xpath('//input[@name="csrf_token"]/@value')[0]
+        response=self.client.post(url,data=dict(data,csrf_token=token));self.conn.commit();return response
+    def create(self,**changes):
+        response=self.post(self.url,self.form(**changes));self.assertEqual(response.status_code,302,response.text)
+        return response.location
+    def payment(self,**changes):
+        data=dict(action='payment',request_key=str(uuid.uuid4()),payment_date='2026-10-15',amount='100.00',payment_reference='PAY-'+uuid.uuid4().hex[:8]);data.update(changes);return data
+    def test_create_schedule_overdue_last_instalment_and_financial_preservation(self):
+        before=self.financial_snapshot();target=self.create()
+        page=self.client.get(target);self.assertEqual(page.status_code,200,page.text)
+        rows=dict(self.conn.execute(text('SELECT * FROM bil_municipal_arrangement')).mappings().one())
+        schedule=self.service.schedule(rows)
+        self.assertEqual([r['due_date'] for r in schedule],[date(2026,9,30),date(2026,10,30),date(2026,11,30)])
+        self.assertEqual([r['amount'] for r in schedule],[Decimal('100'),Decimal('100'),Decimal('50')])
+        self.assertEqual([r['status'] for r in schedule],['Overdue','Overdue','Upcoming'])
+        self.assertIn('R 250.00',page.text);self.assertEqual(before,self.financial_snapshot())
+        self.assertEqual(self.conn.execute(text('SELECT count(*) FROM bil_municipal_arrangement_event')).scalar(),1)
+    def test_payment_idempotency_balance_overpayment_and_duplicate_reference(self):
+        target=self.create();before=self.financial_snapshot();data=self.payment()
+        self.assertEqual(self.post(target,data).status_code,302);self.assertEqual(self.post(target,data).status_code,302)
+        self.assertEqual(self.conn.execute(text('SELECT count(*) FROM bil_municipal_arrangement_payment')).scalar(),1)
+        self.assertIn('R 150.00',self.client.get(target).text)
+        self.assertEqual(self.post(target,self.payment(payment_reference=data['payment_reference'])).status_code,409)
+        self.assertEqual(self.post(target,self.payment(amount='150.01')).status_code,400)
+        self.assertEqual(self.post(target,self.payment(amount='150.00')).status_code,302)
+        self.assertIn('Completed',self.client.get(target).text);self.assertEqual(before,self.financial_snapshot())
+    def test_link_existing_payment_preserves_source_and_rejects_other_account(self):
+        target=self.create();before=self.financial_snapshot()
+        self.assertEqual(self.post(target,self.payment(source_payment_id='2')).status_code,403)
+        self.assertEqual(self.post(target,self.payment(source_payment_id='1',amount='999')).status_code,302)
+        row=self.conn.execute(text('SELECT * FROM bil_municipal_arrangement_payment')).mappings().one()
+        self.assertEqual(row['amount'],Decimal('100'));self.assertEqual(row['reference'],'MUNI-P1')
+        other=self.create();self.assertEqual(self.post(other,self.payment(source_payment_id='1')).status_code,409)
+        self.assertEqual(before,self.financial_snapshot())
+    def test_permissions_property_account_isolation_and_csrf(self):
+        self.assertEqual(self.client.get(self.url.replace('/26/','/28/')).status_code,403)
+        self.assertEqual(self.post(self.url,self.form(account_id='2')).status_code,403)
+        target=self.create();self.assertEqual(self.client.get(target.replace('/26/','/27/')).status_code,404)
+        self.assertEqual(self.client.post(self.url,data=self.form()).status_code,400)
+        self.conn.execute(text("UPDATE pm_admin_test_identity SET role='manager'"));self.conn.commit()
+        self.assertEqual(self.client.get(self.url).status_code,403)
+        self.assertEqual(self.client.get(target).status_code,403)
+    def test_invalid_amounts_terms_and_duplicate_create(self):
+        data=self.form();first=self.post(self.url,data);self.assertEqual(first.status_code,302)
+        self.assertEqual(self.post(self.url,data).location,first.location)
+        self.assertEqual(self.conn.execute(text('SELECT count(*) FROM bil_municipal_arrangement')).scalar(),1)
+        self.assertEqual(self.post(self.url,self.form(reference=data['reference'])).status_code,409)
+        for changes in (dict(original_amount='NaN'),dict(original_amount='-1'),dict(original_amount='0'),dict(instalment_amount='0'),dict(instalments='0'),dict(instalments='601'),dict(original_amount='301'),dict(first_payment_date='2026-08-01'),dict(frequency='daily')):
+            response=self.post(self.url,self.form(**changes));self.assertEqual(response.status_code,400,response.text)
+    def test_status_document_history_stale_form_and_cancelled_payment(self):
+        target=self.create();data=dict(action='status',request_key=str(uuid.uuid4()),version='1',status='on_hold',document_reference='Letter A',note='Municipality agreed a pause')
+        self.assertEqual(self.post(target,data).status_code,302);self.assertEqual(self.post(target,data).status_code,302)
+        self.assertEqual(self.post(target,dict(data,request_key=str(uuid.uuid4()))).status_code,409)
+        self.assertIn('Municipality agreed a pause',self.client.get(target).text)
+        self.assertEqual(self.post(target,dict(data,version='2',status='cancelled',request_key=str(uuid.uuid4()))).status_code,302)
+        self.assertEqual(self.post(target,self.payment()).status_code,409)
+        self.assertEqual(self.conn.execute(text('SELECT count(*) FROM bil_municipal_arrangement_event')).scalar(),3)
+    def test_weekly_fortnightly_quarterly_and_month_end(self):
+        row=dict(original_amount=Decimal('300'),instalment_amount=Decimal('100'),instalments=3,first_payment_date=date(2028,1,31))
+        for frequency,expected in [('monthly',[date(2028,1,31),date(2028,2,29),date(2028,3,31)]),('quarterly',[date(2028,1,31),date(2028,4,30),date(2028,7,31)]),('weekly',[date(2028,1,31),date(2028,2,7),date(2028,2,14)]),('fortnightly',[date(2028,1,31),date(2028,2,14),date(2028,2,28)])]:
+            result=self.service.schedule(dict(row,frequency=frequency),Decimal('150'),on=date(2028,2,1))
+            self.assertEqual([r['due_date'] for r in result],expected);self.assertEqual(result[1]['outstanding'],Decimal('50'))
+    def test_browser_create_payment_history_and_navigation(self):
+        from playwright.sync_api import sync_playwright
+        from http.server import BaseHTTPRequestHandler,HTTPServer
+        from threading import Thread
+        case=self;before=self.financial_snapshot()
+        class Handler(BaseHTTPRequestHandler):
+            def log_message(self,*args):pass
+            def do_GET(self):self.respond(case.client.get(self.path))
+            def do_POST(self):
+                payload=self.rfile.read(int(self.headers['Content-Length']))
+                self.respond(case.client.post(self.path,data=payload,content_type=self.headers.get('Content-Type')))
+            def respond(self,response):
+                self.send_response(response.status_code);self.send_header('Content-Type',response.content_type)
+                if response.location:self.send_header('Location',response.location)
+                self.end_headers();self.wfile.write(response.data)
+        server=HTTPServer(('127.0.0.1',0),Handler);thread=Thread(target=server.serve_forever,daemon=True);thread.start()
+        self.addCleanup(lambda:(server.shutdown(),server.server_close(),thread.join(timeout=2)))
+        origin='http://127.0.0.1:'+str(server.server_port)
+        with sync_playwright() as runtime:
+            browser=runtime.chromium.launch(headless=True)
+            try:
+                page=browser.new_page();page.goto(origin+self.url+'?billing_month=2026-10')
+                page.get_by_role('link',name='+ Create Payment Arrangement').click()
+                form=page.locator('#arrangement-create');form.locator('[name="account_id"]').select_option('1')
+                for key,value in dict(reference='BROWSER-ARR',agreement_date='2026-09-01',original_amount='250',instalment_amount='100',instalments='3',first_payment_date='2026-09-30',document_reference='Letter 123').items():form.locator('[name="'+key+'"]').fill(value)
+                page.get_by_role('button',name='Save Arrangement',exact=True).click()
+                self.assertEqual(page.locator('#arrangement-schedule tbody tr').count(),3)
+                self.assertIn('R 250.00',page.locator('#arrangement-outstanding').inner_text())
+                form=page.locator('#arrangement-payment')
+                for key,value in dict(payment_date='2026-10-15',amount='100',payment_reference='BROWSER-PAY').items():form.locator('[name="'+key+'"]').fill(value)
+                page.get_by_role('button',name='Record / Link Payment',exact=True).click()
+                self.assertIn('R 150.00',page.locator('#arrangement-outstanding').inner_text())
+                self.assertIn('BROWSER-PAY',page.locator('#arrangement-payments').inner_text())
+                page.reload();self.assertEqual(page.locator('#arrangement-payments tbody tr').count(),1)
+                form=page.locator('#arrangement-status');form.locator('[name="status"]').select_option('on_hold');form.locator('[name="note"]').fill('Formal pause')
+                page.get_by_role('button',name='Save Status / Note',exact=True).click()
+                self.assertIn('Formal pause',page.locator('#arrangement-history').inner_text())
+                page.get_by_role('link',name='Back to Arrangements',exact=True).click()
+                self.assertIn('billing_month=2026-10',page.url)
+                self.assertIn('BROWSER-ARR',page.locator('#arrangement-register').inner_text())
+                self.assertEqual(page.get_by_role('link',name='Payment Arrangements',exact=True).count(),1)
+            finally:browser.close()
+        self.assertEqual(self.financial_snapshot(),before)
+    def test_concurrent_payments_and_duplicate_request_cannot_overpay(self):
+        import re
+        from threading import Barrier
+        from concurrent.futures import ThreadPoolExecutor
+        from werkzeug.exceptions import HTTPException
+        self.create(original_amount='100',instalment_amount='100',instalments='1')
+        prefix='public.pm_arr_test_'+uuid.uuid4().hex+'_'
+        originals=['bil_property','bil_muni_account','bil_muni_payment']+list(self.service.TABLES)
+        tables={name:prefix+'t'+str(i) for i,name in enumerate(originals)}
+        for original,target in tables.items():
+            self.assertRegex(target,r'^public\.pm_arr_test_[a-f0-9]{32}_t[0-9]+$')
+            self.conn.execute(text('CREATE TABLE '+target+' (LIKE '+original+' INCLUDING CONSTRAINTS INCLUDING INDEXES)'))
+            self.conn.execute(text('INSERT INTO '+target+' SELECT * FROM '+original))
+            if original in self.service.TABLES:
+                self.conn.execute(text('ALTER TABLE '+target+' ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (START WITH 1000)'))
+                for column in ('recorded_at',) if original!='bil_municipal_arrangement' else ('created_at','modified_at'):
+                    self.conn.execute(text('ALTER TABLE '+target+' ALTER COLUMN '+column+' SET DEFAULT now()'))
+        self.conn.commit()
+        def cleanup():
+            self.session.rollback();self.conn.rollback()
+            for target in reversed(list(tables.values())):self.conn.execute(text('DROP TABLE '+target))
+            self.conn.commit()
+        self.addCleanup(cleanup)
+        source=ast.parse((ROOT/'app/program_billing/municipal_arrangements.py').read_text())
+        source.body=[n for n in source.body if not (isinstance(n,ast.ImportFrom) and ((n.module or '').startswith('app.') or n.level))]
+        pattern=re.compile(r'\b('+'|'.join(tables)+r')\b')
+        def run(forms):
+            barrier=Barrier(len(forms))
+            def save(values):
+                with self.conn.engine.connect() as connection:
+                    with Session(connection) as unit:
+                        module=types.ModuleType('concurrent_arrangement')
+                        module.__dict__.update(db=types.SimpleNamespace(session=unit),is_admin=lambda:True)
+                        exec(compile(source,'municipal_arrangements.py','exec'),module.__dict__)
+                        module.text=lambda sql:text(pattern.sub(lambda match:tables[match.group(0)],sql))
+                        module.TABLES=tuple(tables[name] for name in self.service.TABLES)
+                        module.current_user=types.SimpleNamespace(id=7,is_authenticated=True)
+                        module.property_scope=fixture.function('app/program_billing/metsoa_setup_safety.py','property_scope',dict(db=module.db,current_user=module.current_user,text=module.text,abort=abort))
+                        module.today=lambda:date(2026,11,2)
+                        barrier.wait(timeout=10)
+                        try:
+                            module.record_payment(26,1,values);unit.commit();connection.commit();return 201
+                        except HTTPException as exc:unit.rollback();connection.rollback();return exc.code
+            with ThreadPoolExecutor(max_workers=len(forms)) as pool:return list(pool.map(save,forms))
+        self.assertCountEqual(run([self.payment(amount='70'),self.payment(amount='70')]),[201,400])
+        repeated=self.payment(amount='30')
+        self.assertEqual(run([repeated,repeated]),[201,201])
+        self.assertEqual(self.conn.execute(text('SELECT sum(amount) FROM '+tables['bil_municipal_arrangement_payment'])).scalar(),Decimal('100'))
+        self.assertEqual(self.conn.execute(text('SELECT count(*) FROM '+tables['bil_municipal_arrangement_payment'])).scalar(),2)
+    def test_missing_migration_safe_unavailable(self):
+        token=html.fromstring(self.client.get(self.url+'?new=1').data).xpath('//input[@name="csrf_token"]/@value')[0]
+        for name in reversed(self.service.TABLES):self.conn.execute(text('DROP TABLE '+name))
+        self.conn.commit();response=self.client.get(self.url)
+        self.assertEqual(response.status_code,200);self.assertIn('temporarily unavailable',response.text)
+        response=self.client.post(self.url,data=dict(self.form(),csrf_token=token))
+        self.assertEqual(response.status_code,503)
+
+def load_tests(loader,tests,pattern):
+    return unittest.TestSuite(ArrangementTests(name) for name in ArrangementTests.__dict__ if name.startswith('test_'))

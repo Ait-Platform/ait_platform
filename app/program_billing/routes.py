@@ -3030,6 +3030,20 @@ def meter_exceptions(property_id):
     from .meter_exceptions import page
     return page(property_id)
 
+@billing_bp.route('/billing/utilities/<int:property_id>/payment-arrangements',methods=['GET','POST'])
+@login_required
+def municipal_payment_arrangements(property_id):
+    from .municipal_arrangements import page
+    return page(property_id)
+
+
+@billing_bp.route('/billing/utilities/<int:property_id>/payment-arrangements/<int:arrangement_id>',methods=['GET','POST'])
+@login_required
+def municipal_arrangement_detail(property_id,arrangement_id):
+    from .municipal_arrangements import page
+    return page(property_id,arrangement_id)
+
+
 @billing_bp.route('/billing/utilities/<int:property_id>/accounts',methods=['GET','POST'])
 @login_required
 def municipal_accounts(property_id):

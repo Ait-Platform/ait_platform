@@ -10,7 +10,7 @@ class Element {
   appendChild(child) { this.children.push(child); }
 }
 function harness(fetcher) {
-  const ids={};for (const name of ['municipal-account-form','account_number','account-lookup-status','account-lookup-details','account-lookup-retry','owner_name','water_number','electricity_number','water_opening_reading','water_opening_date','electricity_opening_reading','electricity_opening_date','water_latest_recorded','electricity_latest_recorded','account-association','association-confirmed','associate-account','association-error']) ids[name]=new Element();
+  const ids={};for (const name of ['municipal-account-form','account_number','account-lookup-status','account-lookup-details','account-lookup-retry','owner_name','water_number','electricity_number','water_municipal_reference','electricity_municipal_reference','water_opening_reading','water_opening_date','electricity_opening_reading','electricity_opening_date','water_latest_recorded','electricity_latest_recorded','account-association','association-confirmed','associate-account','association-error']) ids[name]=new Element();
   const form=ids['municipal-account-form'];form.dataset={lookupUrl:'/billing/utilities/26/accounts/lookup',existingAccount:'no',associateUrl:'/billing/utilities/26/accounts/associate'};
   const account=new Element(),version=new Element(),csrf=new Element('csrf-value'),buttons=[new Element(),new Element()];
   const groups=['water','electricity'].map(kind=>({dataset:{meterBaseline:kind,established:'no'}}));
@@ -20,16 +20,17 @@ function harness(fetcher) {
   return {ids,account,version,buttons,async search(number) { ids.account_number.value=number;ids.account_number.listeners.input();await ids.account_number.listeners.change(); }};
 }
 function response(body,type='application/json') { return {ok:true,status:200,headers:{get:()=>type},json:async()=>body}; }
-const own={found:true,association:'selected_property',editable:true,details_available:true,account_id:1,version:'saved-version',message:'Selected property',values:{account_number:'MET-26',owner_name:'Recorded Owner',water_number:'W-26',electricity_number:'',water_opening_reading:'10',water_opening_date:'2020-01-01',electricity_opening_reading:'',electricity_opening_date:''},meters:{water:[{number:'W-26',opening:{value:'10',date:'2020-01-01'},latest:{value:'45',date:'2026-10-01'}}],electricity:[]},owner_email:'recorded@example.com',owner_address:'Saved address'};
+const own={found:true,association:'selected_property',editable:true,details_available:true,account_id:1,version:'saved-version',message:'Selected property',values:{water_municipal_reference:'W-LOOKUP',electricity_municipal_reference:'E-LOOKUP',account_number:'MET-26',owner_name:'Recorded Owner',water_number:'W-26',electricity_number:'',water_opening_reading:'10',water_opening_date:'2020-01-01',electricity_opening_reading:'',electricity_opening_date:''},meters:{water:[{number:'W-26',opening:{value:'10',date:'2020-01-01'},latest:{value:'45',date:'2026-10-01'}}],electricity:[]},owner_email:'recorded@example.com',owner_address:'Saved address'};
 (async()=>{
   let requested;
   const selected=harness(async url=>{requested=String(url);return response(own);});await selected.search('met-26');
   assert.match(requested,/utilities\/26\/accounts\/lookup/);assert.equal(selected.ids.owner_name.value,'Recorded Owner');
+  assert.equal(selected.ids.water_municipal_reference.value,'W-LOOKUP');assert.equal(selected.ids.electricity_municipal_reference.value,'E-LOOKUP');
   assert.equal(selected.ids.account_number.value,'MET-26');assert.equal(selected.account.value,1);assert.equal(selected.version.value,'saved-version');
   assert.equal(selected.ids['account-lookup-status'].hidden,true);assert.equal(selected.buttons[0].disabled,false);
   for (const association of ['unassigned','other_property']) {
     const review=harness(async()=>response({...own,association,editable:false,message:'Read only'}));await review.search('MET-26');
-    assert.equal(review.ids.owner_name.value,'Recorded Owner');assert.equal(review.account.value,1);assert.equal(review.ids.owner_name.readOnly,true);assert.equal(review.buttons[0].disabled,true);
+    assert.equal(review.ids.owner_name.value,'Recorded Owner');assert.equal(review.account.value,1);assert.equal(review.ids.owner_name.readOnly,true);assert.equal(review.ids.water_municipal_reference.readOnly,true);assert.equal(review.buttons[0].disabled,true);
   }
   const denied=harness(async()=>response({found:true,association:'other_property',editable:false,details_available:false,message:'Restricted'}));denied.ids.owner_name.value='Previously typed';await denied.search('FOREIGN');
   assert.equal(denied.ids.owner_name.value,'');assert.equal(denied.buttons[0].disabled,true);

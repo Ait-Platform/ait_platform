@@ -75,12 +75,13 @@ selection, amounts, payment evidence and append-only audit history are retained.
 ## Scheduled register balance
 
 The register columns are Account, Arrangement, Agreement Date, Debt, Instalment,
-Balance, Action. Balance is max(0, original agreement amount minus monthly
+Balance. Balance is max(0, original agreement amount minus monthly
 instalment times elapsed calendar months inclusive of the agreement month and
 selected billing month). Before the agreement month the full debt is shown.
 This projection uses agreement_date, original_amount and instalment_amount;
 it never treats scheduled instalments as actual payments or changes records.
-Actual payment evidence and audit remain available separately in View / Manage.
+Actual payment evidence, audit history and underlying management routes are
+preserved separately. The register has no Action column or management links.
 The Number of Instalments input is removed. For new records its retained
 database column is derived as ceiling(debt / instalment), including a smaller
 final instalment. Existing column values and historical terms are unchanged;

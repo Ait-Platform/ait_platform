@@ -10,7 +10,8 @@ from app.extensions import db
 from .metsoa_setup_safety import property_scope
 
 BASELINE_FIELDS=('water_opening_reading','water_opening_date','electricity_opening_reading','electricity_opening_date')
-FIELDS=('account_number','owner_name','water_number','electricity_number')+BASELINE_FIELDS
+REFERENCE_FIELDS=('water_municipal_reference','electricity_municipal_reference')
+FIELDS=('account_number','owner_name','water_number','electricity_number')+BASELINE_FIELDS+REFERENCE_FIELDS
 
 def opening(meter):
     if not meter:return None
@@ -73,6 +74,7 @@ def lookup(property_id,number):
         for kind,declared in [('water','muni_water_meter_no'),('electricity','muni_elec_meter_no')]:
             records[kind]=[dict(number=m['meter_number'],opening=reading_detail(opening(m)),latest=reading_detail(latest(m))) for m in groups[kind]]
             meter=meters[kind];first=opening(meter)
+            values[kind+'_municipal_reference']=(meter.get('municipal_reference') or '') if meter else ''
             values[kind+'_number']=meter['meter_number'] if meter else account[declared] or ''
             values[kind+'_opening_reading']=str(first['reading_value']) if first else ''
             values[kind+'_opening_date']=first['reading_date'].isoformat() if first else ''
@@ -126,6 +128,9 @@ def clean(form):
     if not data['owner_name'] or len(data['owner_name'])>100 or any(ord(c)<32 for c in data['owner_name']):abort(400,description='Enter an account owner name of 1–100 characters.')
     for key in ('water_number','electricity_number'):
         if data[key] and not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9./_-]{0,49}',data[key]):abort(400,description='Meter identifiers must contain 1–50 letters, digits, dots, slashes or hyphens, without spaces.')
+    for key in REFERENCE_FIELDS:
+        if len(data[key])>100 or any(ord(c)<32 for c in data[key]):abort(400,description='Municipal Reference must be at most 100 characters without control characters.')
+        if data[key] and not data[key.replace('_municipal_reference','_number')]:abort(400,description='Enter a meter number before adding its Municipal Reference.')
     if data['water_number'] and data['water_number'].casefold()==data['electricity_number'].casefold():abort(400,description='Water and electricity meters must have different identifiers.')
     return data
 
@@ -203,6 +208,14 @@ def save(property_id,form):
             values['u']='Water' if kind=='water' else 'Electrical'
             identifier=db.session.execute(text("INSERT INTO bil_meter(property_id,meter_number,utility_type,municipal_bill_number,status) VALUES(:p,:n,:u,:a,'active') RETURNING id"),values).scalar()
             meters[kind]=dict(id=identifier)
+    for kind in ('water','electricity'):
+        key=kind+'_municipal_reference'
+        meter=meters[kind]
+        if meter and key in form and (data[key] or meter.get('municipal_reference')):
+            if not any(c['name']=='municipal_reference' for c in inspect(db.session.connection()).get_columns('bil_meter')):
+                abort(503,description='Municipal Reference requires migration pm_meter_reference_001. No changes were saved.')
+            db.session.execute(text('UPDATE bil_meter SET municipal_reference=:ref WHERE id=:id AND property_id=:p'),
+                               dict(ref=data[key] or None,id=meter['id'],p=property_id))
     values=dict(p=property_id,n=data['account_number'],o=owner_id,w=meters['water']['id'] if meters['water'] else None,e=meters['electricity']['id'] if meters['electricity'] else None,wn=data['water_number'] or None,en=data['electricity_number'] or None)
     if account:
         values['id']=account_id
@@ -241,6 +254,7 @@ def page(property_id):
         meters,issues=meters_for(account)
         item=dict(account);item['issues']=issues
         for kind in ('water','electricity'):
+            item[kind+'_municipal_reference']=(meters[kind].get('municipal_reference') or '') if meters[kind] else ''
             recorded=opening(meters[kind]);item[kind+'_opening_reading']=str(recorded['reading_value']) if recorded else ''
             item[kind+'_opening_date']=recorded['reading_date'].isoformat() if recorded else ''
             recent=latest(meters[kind]);item[kind+'_latest_reading']=str(recent['reading_value']) if recent else '';item[kind+'_latest_date']=recent['reading_date'].isoformat() if recent else ''

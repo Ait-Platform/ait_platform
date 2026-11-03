@@ -3066,6 +3066,9 @@ def generate_municipal_metsoa(property_id):
 @billing_bp.route('/billing/utilities/<int:property_id>/meter-readings',methods=['GET','POST'])
 @login_required
 def meter_readings(property_id):
+    if request.method=='GET' and request.args.get('format')=='municipal_pdf':
+        from .municipal_readings_pdf import page
+        return page(property_id)
     from .utilities_capture import page
     return page(property_id,'readings')
 

@@ -11,11 +11,11 @@
   let timer,controller,generation=0,hadRecord=form.dataset.existingAccount==='yes';
   function lock(locked) {
     for (const button of saveButtons) button.disabled=locked;
-    for (const id of ['owner_name','water_number','electricity_number']) { const field=document.getElementById(id);field.readOnly=locked;if(field.tagName==='SELECT') field.disabled=locked; }
+    for (const id of ['owner_name','water_number','electricity_number','water_municipal_reference','electricity_municipal_reference']) { const field=document.getElementById(id);if(!field) continue;field.readOnly=locked;if(field.tagName==='SELECT') field.disabled=locked; }
   }
   function clearRecord() {
     accountId.value='';version.value='';
-    if (hadRecord) for (const id of ['owner_name','water_number','electricity_number']) document.getElementById(id).value='';
+    if (hadRecord) for (const id of ['owner_name','water_number','electricity_number','water_municipal_reference','electricity_municipal_reference']) { const field=document.getElementById(id);if(field) field.value=''; }
     hadRecord=false;
   }
   async function search() {

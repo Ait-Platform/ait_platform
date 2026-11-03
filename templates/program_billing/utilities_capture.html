@@ -5,6 +5,7 @@
 <div class="mx-auto max-w-6xl px-4 py-10"><div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow"><div class="h-2 bg-green-500"></div><div class="p-6">
 {% include 'partials/flash_messages.html' %}
 <div class="flex items-center justify-between gap-3"><h1 class="text-2xl font-semibold">{{ 'Meter Readings' if kind=='readings' else 'Metro Reconciliation' }}</h1><a href="{{ url_for('billing_bp.utilities_hub',property_id=property.id,billing_month=utility_month) }}" class="rounded-lg bg-slate-100 px-4 py-2">Back to Utilities</a></div>
+{% if kind=='readings' %}<div class="my-4 flex justify-end"><a href="{{ url_for('billing_bp.meter_readings',property_id=property.id,billing_month=utility_month,format='municipal_pdf') }}" class="rounded-lg bg-blue-100 px-4 py-2 font-semibold">Generate Municipal Meter Readings PDF</a></div>{% endif %}
 {% include 'program_billing/municipal_navigation.html' %}
 <h2 class="text-lg font-semibold">{{ property.name }}</h2>
 {% if error %}<p role="alert" class="my-3 rounded-lg bg-red-50 p-3 text-red-800">{{ error }}</p>{% endif %}

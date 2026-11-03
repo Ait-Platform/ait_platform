@@ -79,6 +79,7 @@ class BilMeter(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     meter_number = db.Column(db.String(50), nullable=False)
+    municipal_reference = db.deferred(db.Column(db.String(100), nullable=True))
     utility_type = db.Column(db.String(50), nullable=False)  # ✅ Add this line
     parent_meter_id = db.Column(db.Integer, db.ForeignKey('bil_meter.id'), nullable=True)
     replacement_for_meter_id = db.Column(db.Integer, db.ForeignKey('bil_meter.id'), nullable=True)

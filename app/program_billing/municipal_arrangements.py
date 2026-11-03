@@ -20,12 +20,12 @@ def today():return datetime.now(ZoneInfo('Africa/Johannesburg')).date()
 
 
 def can_manage():
-    """Same active-user + ApprovedAdmin grant policy used by PM Core administration."""
+    """Active authenticated portfolio user; scope() checks each target property."""
     if not current_user.is_authenticated:return False
     return bool(db.session.execute(text("""SELECT EXISTS(SELECT 1 FROM "user" u
-        JOIN auth_approved_admin a ON lower(a.email)=lower(u.email)
         WHERE u.id=:u AND CAST(u.is_active AS text) IN ('true','1')
-          AND CAST(a.active AS text) IN ('true','1'))"""),dict(u=current_user.id)).scalar())
+          AND EXISTS(SELECT 1 FROM bil_property p WHERE p.manager_id=u.id))"""),
+        dict(u=current_user.id)).scalar())
 
 
 def scope(p):

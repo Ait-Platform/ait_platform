@@ -8,12 +8,12 @@
 
 ## Reused infrastructure and new records
 
-New administrator-only routes:
+Authenticated, property-scoped routes:
 
 * `/billing/utilities/<property_id>/payment-arrangements`
 * `/billing/utilities/<property_id>/payment-arrangements/<arrangement_id>`
 
-Reuse existing authenticated administrator authority, Utilities navigation, property manager scope, municipal account IDs, global CSRF protection, tile/flash styling and PM template loader. An administrator must also pass the existing property-manager scope; this feature grants no new cross-property access.
+Reuse existing Utilities navigation, property manager scope, municipal account IDs, global CSRF protection, tile/flash styling and PM template loader. Active authenticated users may manage arrangements within their authorized property portfolio. The existing target-property authorization applies; no ApprovedAdmin lookup, role label or additional grant is required. This applies to navigation, direct routes, and every arrangement write, and grants no cross-property access.
 
 Three additive tables are necessary: `bil_municipal_arrangement` (formal immutable terms and maintainable status/document reference), `bil_municipal_arrangement_payment` (decimal-safe arrangement allocations/evidence) and `bil_municipal_arrangement_event` (actor, timestamp, before/after data and persistent request receipts). This is an arrangement monitoring register, not a second financial ledger. No legacy amount is converted, backfilled, inferred or overwritten.
 
@@ -42,3 +42,20 @@ Do not run this command automatically. Confirm parent revisions and required exi
 ## Tests
 
 Real Alembic upgrade on session-temporary PostgreSQL tables, register/detail routes, schedule/date arithmetic, month-end/leap-year handling, decimal/amount validation, allocation/balance/overdue calculations, duplicate references and submission retries, existing payment linking, source/property isolation, administrator checks, CSRF, status/history/stale edits and financial sentinel preservation. A browser creates an arrangement, records payment evidence, refreshes safely, updates status and navigates back with property/month preserved. Independent PostgreSQL sessions verify concurrent overpayment prevention and same-request replay safety using randomly named disposable local tables.
+
+## Production navigation correction (3 November 2026)
+
+Render shell inspection verified deployed commit da0608ee and used a standalone
+read-only PostgreSQL transaction without importing the application. Bill (644)
+is active, has role user, manages Almond (26), and has no active ApprovedAdmin
+grant. The real Utilities route renders program_billing/utilities_hub.html and
+includes municipal_navigation.html; its can_manage_municipal_arrangements()
+condition was correctly false under the previous administrator-only policy.
+The cause was authorization policy, not a missing template or navigation context.
+
+The corrected policy uses the existing authorized-property portfolio for all
+active authenticated users, without any ApprovedAdmin dependency. No grant
+or business record was changed. Regression coverage uses Bill's access state,
+no admin registry, blueprint-scoped template context, and the real
+Utilities template; it verifies the existing seventh link, arrangement/payment
+audit actor, financial preservation, inactive denial, and cross-property denial.

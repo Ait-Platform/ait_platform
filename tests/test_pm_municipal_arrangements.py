@@ -125,7 +125,8 @@ class ArrangementTests(fixture.AdminLandingTests):
         target=self.create();self.assertEqual(self.client.get(target.replace('/26/','/27/')).status_code,404)
         self.assertEqual(self.client.post(self.url,data=self.form()).status_code,400)
         self.conn.execute(text("UPDATE pm_admin_test_identity SET role='manager'"))
-        self.conn.execute(text('UPDATE auth_approved_admin SET active=false'));self.conn.commit()
+        self.conn.execute(text('UPDATE auth_approved_admin SET active=false'))
+        self.conn.execute(text('UPDATE "user" SET is_active=0 WHERE id=7'));self.conn.commit()
         self.assertEqual(self.client.get(self.url).status_code,403)
         self.assertEqual(self.client.get(target).status_code,403)
     def test_invalid_amounts_terms_and_duplicate_create(self):
@@ -246,7 +247,7 @@ class ArrangementTests(fixture.AdminLandingTests):
         self.assertEqual(self.conn.execute(text('SELECT count(*) FROM '+tables['bil_municipal_arrangement_payment'])).scalar(),2)
     def test_utilities_landing_menu_matches_access_and_preserves_property_month(self):
         hub=self.targets['billing_bp.utilities_hub']
-        # ApprovedAdmin grants work independently of role labels.
+        # Portfolio authority works independently of role labels.
         self.conn.execute(text("UPDATE pm_admin_test_identity SET role='user'"));self.conn.commit()
         page=self.client.get(hub+'?billing_month=2026-10');self.assertEqual(page.status_code,200,page.text)
         tree=html.fromstring(page.data)
@@ -263,7 +264,8 @@ class ArrangementTests(fixture.AdminLandingTests):
         self.assertIn(self.url,link[0].get('href'));self.assertIn('billing_month=2026-10',link[0].get('href'))
         self.assertEqual(self.client.get(link[0].get('href')).status_code,200)
         self.conn.execute(text("UPDATE pm_admin_test_identity SET role='manager'"))
-        self.conn.execute(text('UPDATE auth_approved_admin SET active=false'));self.conn.commit()
+        self.conn.execute(text('UPDATE auth_approved_admin SET active=false'))
+        self.conn.execute(text('UPDATE "user" SET is_active=0 WHERE id=7'));self.conn.commit()
         self.assertNotIn('Municipal Payment Arrangements',self.client.get(hub).text)
         response=self.client.post(hub,data=dict(csrf_token=token,action='arrangements',property_id='26',billing_month='2026-10'))
         self.assertEqual(response.status_code,403)
@@ -286,6 +288,57 @@ class ArrangementTests(fixture.AdminLandingTests):
         self.assertEqual(evidence,{t:list(self.conn.execute(text('SELECT * FROM '+t+' ORDER BY id'))) for t in self.service.TABLES})
         self.conn.execute(text("UPDATE bil_muni_account SET ca_contract_number='PRIVATE-CONTRACT' WHERE id=3"));self.conn.commit()
         self.assertNotIn('PRIVATE-CONTRACT',self.client.get(self.url).text)
+
+    def test_bill_almond_production_navigation_authority(self):
+        from flask import Blueprint,render_template
+        from jinja2 import ChoiceLoader,FileSystemLoader
+        # Production: Bill (644), active user, owns Almond (26), no active grant.
+        self.conn.execute(text("UPDATE pm_admin_test_identity SET id=644,name='Bill',role='user' WHERE id=7"))
+        self.conn.execute(text('UPDATE "user" SET id=644 WHERE id=7'))
+        self.conn.execute(text('UPDATE bil_property SET manager_id=644 WHERE manager_id=7'))
+        self.conn.execute(text('ALTER TABLE auth_approved_admin ALTER COLUMN active TYPE integer USING active::integer'))
+        # No admin registry is needed for this ordinary portfolio function.
+        self.conn.execute(text('DROP TABLE auth_approved_admin'));self.conn.commit()
+        with self.client.session_transaction() as state:
+            state['_user_id']='644'
+            state['role']='admin';state['is_admin']=True
+        # Match production blueprint-scoped context, with the real Utilities template.
+        self.app.template_context_processors[None]=[f for f in self.app.template_context_processors[None] if f.__name__!='municipal_arrangement_navigation']
+        blueprint=Blueprint('billing_bp',__name__)
+        blueprint.context_processor(fixture.function('app/program_billing/routes.py','municipal_arrangement_navigation',dict(__package__='app.program_billing')))
+        self.app.register_blueprint(blueprint)
+        self.app.jinja_loader=ChoiceLoader([self.app.jinja_loader,FileSystemLoader(str(ROOT/'templates'))])
+        self.app.view_functions['billing_bp.utilities_hub']=fixture.function('app/program_billing/routes.py','utilities_hub',dict(__package__='app.program_billing',request=request,current_user=current_user,abort=abort,flash=__import__('flask').flash,redirect=__import__('flask').redirect,url_for=__import__('flask').url_for,render_template=render_template))
+        url=self.targets['billing_bp.utilities_hub']+'?property_id=26'
+        page=self.client.get(url);self.assertEqual(page.status_code,200)
+        tree=html.fromstring(page.data)
+        self.assertIn('Almond',page.text)
+        self.assertEqual(len(tree.xpath('//nav[@aria-label="Municipal Utilities"]/a')),7)
+        links=tree.xpath('//nav[@aria-label="Municipal Utilities"]/a')
+        self.assertEqual(links[-1].text,'Municipal Payment Arrangements')
+        self.assertEqual(self.client.get(links[-1].get('href')).status_code,200)
+        before=self.financial_snapshot()
+        target=self.create()
+        self.assertEqual(self.post(target,self.payment(amount='50')).status_code,302)
+        self.assertIn('R 200.00',self.client.get(target).text)
+        self.assertEqual(self.conn.execute(text('SELECT recorded_by FROM bil_municipal_arrangement_payment')).scalar(),644)
+        self.assertEqual(self.conn.execute(text('SELECT count(*) FROM bil_municipal_arrangement_event WHERE actor_id=644')).scalar(),2)
+        self.assertEqual(self.financial_snapshot(),before)
+        self.assertEqual(self.client.get(self.url.replace('/26/','/28/')).status_code,403)
+        token=html.fromstring(self.client.get(target).data).xpath('//input[@name="csrf_token"]/@value')[0]
+        # Neither forged role labels nor owning another property grants target access.
+        self.conn.execute(text('UPDATE bil_property SET manager_id=8 WHERE id=26'));self.conn.commit()
+        self.assertEqual(self.client.get(url).status_code,403)
+        self.assertEqual(self.client.get(target).status_code,403)
+        self.assertEqual(self.client.post(target,data=dict(self.payment(),csrf_token=token)).status_code,403)
+        self.conn.execute(text('UPDATE bil_property SET manager_id=8 WHERE id=27'));self.conn.commit()
+        self.assertNotIn('Municipal Payment Arrangements',self.client.get(self.targets['billing_bp.utilities_hub']).text)
+        self.assertEqual(self.client.get(target).status_code,403)
+        self.conn.execute(text('UPDATE bil_property SET manager_id=644 WHERE id=26'));self.conn.commit()
+        self.assertEqual(self.client.get(target).status_code,200)
+        self.conn.execute(text('UPDATE "user" SET is_active=0 WHERE id=644'));self.conn.commit()
+        self.assertNotIn('Municipal Payment Arrangements',self.client.get(url).text)
+        self.assertEqual(self.client.get(self.url).status_code,403)
 
     def test_missing_migration_safe_unavailable(self):
         token=html.fromstring(self.client.get(self.url+'?new=1').data).xpath('//input[@name="csrf_token"]/@value')[0]

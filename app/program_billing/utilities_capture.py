@@ -1,5 +1,5 @@
-"""Property-scoped reading and statement capture. No financial posting."""
-import json,hashlib,re
+"""Property-scoped readings, reconciliation and municipal payment capture."""
+import json,hashlib,re,uuid
 from datetime import date,datetime
 from decimal import Decimal,InvalidOperation
 from zoneinfo import ZoneInfo
@@ -77,6 +77,62 @@ def paid(account,period):
     if not available('bil_muni_payment',['account_id','month','amount']):return None
     # Only explicit municipal account/period allocations qualify. Never tenant/property totals.
     return db.session.execute(text('SELECT COALESCE(SUM(CAST(amount AS numeric(18,2))),0) FROM bil_muni_payment WHERE account_id=:a AND month=:p'),dict(a=account,p=period)).scalar()
+def payment_ready():
+    return schema_ready() and available('bil_muni_payment',['id','account_id','month','payment_date','amount','reference'])
+
+
+def record_payment(p,form):
+    property_scope(p)
+    if not payment_ready():abort(503,description='Municipal payment capture is temporarily unavailable. No changes were saved.')
+    try:
+        statement_id=int(form.get('statement_id',''))
+        key=str(uuid.UUID(form.get('request_key','')))
+        if statement_id<=0:raise ValueError()
+    except (TypeError,ValueError,AttributeError):abort(400,description='Reopen Record Payment before saving.')
+    payment_date=day(form.get('payment_date'))
+    if payment_date>datetime.now(ZoneInfo('Africa/Johannesburg')).date():abort(400,description='Payment date cannot be in the future.')
+    raw=str(form.get('payment_amount') or '')
+    if not re.fullmatch(r'[0-9]+(?:\.[0-9]{1,2})?',raw):abort(400,description='Amount Paid must be a positive rand amount with at most two decimal places.')
+    value=amount(raw,True)
+    if value<=0:abort(400,description='Amount Paid must be greater than zero.')
+    reference=str(form.get('payment_reference') or '').strip()
+    if not reference or len(reference)>100 or any(ord(c)<32 for c in reference):
+        abort(400,description='Payment Reference is required and must be at most 100 characters without control characters.')
+    if db.session.execute(text('SHOW transaction_isolation')).scalar()!='read committed':
+        abort(503,description='Municipal payment capture requires READ COMMITTED isolation.')
+    db.session.execute(text("SET LOCAL lock_timeout = '5s'"))
+    property_scope(p,lock=True)
+    # The target record is the authority for both account and allocation period.
+    statement=db.session.execute(text('''SELECT s.*,a.property_id FROM bil_municipal_statement s
+        JOIN bil_muni_account a ON a.id=s.account_id
+        WHERE s.id=:id AND a.property_id=:p FOR UPDATE OF s,a'''),dict(id=statement_id,p=p)).mappings().first()
+    if not statement:abort(404)
+    if form.get('account_id') and str(statement['account_id'])!=str(form['account_id']):
+        abort(403,description='This payment must use the reconciliation record municipal account.')
+    canonical=dict(statement_id=statement_id,account_id=statement['account_id'],period=statement['period'],
+                   payment_date=payment_date.isoformat(),amount=str(value.quantize(Decimal('.01'))),reference=reference)
+    digest=hashlib.sha256(json.dumps(canonical,sort_keys=True).encode()).hexdigest()
+    db.session.execute(text('SELECT pg_advisory_xact_lock(hashtextextended(:key,0))'),dict(key='pm-reconciliation-payment:'+key))
+    receipt=db.session.execute(text('''SELECT * FROM bil_utilities_capture_audit
+        WHERE kind='municipal_payment' AND after_data->>'request_key'=:key ORDER BY id LIMIT 1'''),dict(key=key)).mappings().first()
+    if receipt:
+        if receipt['property_id']!=p or receipt['actor_id']!=current_user.id or receipt['after_data'].get('payload_hash')!=digest:
+            abort(409,description='This payment submission was already used with different information. Reopen Record Payment.')
+        return receipt['record_id'],statement['account_id']
+    duplicate=db.session.execute(text('''SELECT id FROM bil_muni_payment
+        WHERE account_id=:a AND payment_date=:d AND CAST(amount AS numeric(18,2))=:v
+        AND lower(btrim(reference))=lower(:ref) LIMIT 1'''),
+        dict(a=statement['account_id'],d=payment_date,v=value,ref=reference)).first()
+    if duplicate:abort(409,description='This municipal payment is already recorded. Existing transactions were retained.')
+    before_paid=paid(statement['account_id'],statement['period'])
+    payment_id=db.session.execute(text('''INSERT INTO bil_muni_payment(account_id,month,payment_date,amount,reference)
+        VALUES(:a,:period,:d,:v,:ref) RETURNING id'''),
+        dict(a=statement['account_id'],period=statement['period'],d=payment_date,v=value,ref=reference)).scalar_one()
+    audit(p,'municipal_payment',payment_id,dict(paid=str(before_paid)),
+          dict(canonical,payment_id=payment_id,request_key=key,payload_hash=digest,paid=str(before_paid+value)))
+    return payment_id,statement['account_id']
+
+
 def statements(p):
     if not available('bil_municipal_statement',['id','account_id','period','statement_date','arrears','balance','due','due_date','version']):return []
     rows=[dict(r) for r in db.session.execute(text('SELECT s.*,a.account_number FROM bil_municipal_statement s JOIN bil_muni_account a ON a.id=s.account_id WHERE a.property_id=:p ORDER BY s.statement_date DESC,s.id DESC'),dict(p=p)).mappings()]
@@ -113,9 +169,15 @@ def page(p,kind):
     utility_month,period_start,period_end=month_context(request.values.get('billing_month'))
     prop=db.session.execute(text('SELECT id,name,address FROM bil_property WHERE id=:p'),dict(p=p)).mappings().one()
     error=None;status=200;values={};edit_id=request.args.get('edit');version=''
+    payment_statement_id=request.args.get('payment') if kind=='statements' else None
     if request.method=='POST':
         values=request.form.to_dict();edit_id=values.get('record_id')
+        if kind=='statements' and values.get('action')=='record_payment':payment_statement_id=values.get('statement_id')
         try:
+            if kind=='statements' and values.get('action')=='record_payment':
+                _,account_id=record_payment(p,values);db.session.commit()
+                flash('Municipal payment recorded. Existing payments and reconciliation amounts were preserved.','success')
+                return redirect(url_for('billing_bp.metro_reconciliation',property_id=p,billing_month=utility_month,view_item=account_id))
             (save_reading if kind=='readings' else save_statement)(p,values);db.session.commit()
             flash('Meter reading saved.' if kind=='readings' else 'Municipal statement saved.','success')
             return redirect(url_for('billing_bp.meter_readings' if kind=='readings' else 'billing_bp.metro_reconciliation',property_id=p,billing_month=utility_month,view_item=values.get('view_item','')))
@@ -123,6 +185,12 @@ def page(p,kind):
         except Exception:
             db.session.rollback();current_app.logger.exception('Utilities capture failed');error='Saving failed; no changes were committed. Check the server log.';status=503
     rows=readings(p) if kind=='readings' else statements(p)
+    payment_target=None
+    if kind=='statements' and payment_statement_id:
+        try:payment_id=int(payment_statement_id)
+        except (TypeError,ValueError):abort(400,description='Select a valid reconciliation record.')
+        payment_target=next((r for r in rows if r['id']==payment_id),None)
+        if not payment_target:abort(404)
     if request.method=='GET' and edit_id:
         try:row=next((r for r in rows if r['id']==int(edit_id)),None)
         except ValueError:abort(400)
@@ -144,4 +212,4 @@ def page(p,kind):
         portfolio={r['utility']:r['total'] for r in counts}
         reading_period_summary=dict(property=sum(period_start<=r['reading_date']<=period_end for r in rows),
             electricity=portfolio.get('electricity',0)+portfolio.get('electrical',0),water=portfolio.get('water',0))
-    return render_template('program_billing/utilities_capture.html',property=prop,kind=kind,utility_month=utility_month,rows=rows,meters=meters(p),accounts=accounts,values=values,version=version,edit_id=edit_id,error=error,capture_ready=schema_ready(),reading_period_summary=reading_period_summary,today=datetime.now(ZoneInfo('Africa/Johannesburg')).date().isoformat()),status
+    return render_template('program_billing/utilities_capture.html',property=prop,kind=kind,utility_month=utility_month,rows=rows,meters=meters(p),accounts=accounts,values=values,version=version,edit_id=edit_id,error=error,capture_ready=schema_ready(),reading_period_summary=reading_period_summary,payment_target=payment_target,payment_capture_ready=payment_ready() if kind=='statements' else False,payment_request_key=values.get('request_key') or str(uuid.uuid4()),today=datetime.now(ZoneInfo('Africa/Johannesburg')).date().isoformat()),status

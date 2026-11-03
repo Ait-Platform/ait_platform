@@ -13,6 +13,24 @@
 {% include 'program_billing/municipal_navigation.html' %}
 <h2 class="text-lg font-semibold">{{ property.name }}</h2>
 {% if error %}<p role="alert" class="my-3 rounded-lg bg-red-50 p-3 text-red-800">{{ error }}</p>{% endif %}
+{% if payment_target %}
+<section class="my-4 rounded-lg border border-slate-200 p-4" aria-label="Record Municipal Payment">
+<h2 class="text-lg font-semibold">Record Payment</h2>
+<p>Account: {{ payment_target.account_number }} | Reconciliation period: {{ payment_target.period }} | Paid: {{ 'R{:,.2f}'.format(payment_target.paid) if payment_target.paid is not none else 'Unavailable' }}</p>
+<form id="municipal-payment-form" method="post" action="{{ url_for('billing_bp.metro_reconciliation',property_id=property.id) }}" class="my-3 space-y-4">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="record_payment">
+<input type="hidden" name="request_key" value="{{ payment_request_key }}"><input type="hidden" name="statement_id" value="{{ payment_target.id }}">
+<input type="hidden" name="account_id" value="{{ payment_target.account_id }}"><input type="hidden" name="billing_month" value="{{ utility_month }}">
+<div class="grid gap-4 md:grid-cols-3">
+<label class="font-semibold">Payment Date<input type="date" name="payment_date" required autofocus min="1900-01-01" max="{{ today }}" value="{{ values.get('payment_date',today) }}" class="mt-2 block w-full rounded-lg border border-slate-300 px-3 py-2"></label>
+<label class="font-semibold">Amount Paid (ZAR)<input type="number" name="payment_amount" required min="0.01" step="0.01" value="{{ values.get('payment_amount','') }}" class="mt-2 block w-full rounded-lg border border-slate-300 px-3 py-2"></label>
+<label class="font-semibold">Payment Reference<input name="payment_reference" required maxlength="100" value="{{ values.get('payment_reference','') }}" class="mt-2 block w-full rounded-lg border border-slate-300 px-3 py-2"></label>
+</div>
+<p class="text-sm text-slate-600">Each payment is saved separately against this account and reconciliation period. Arrears, Balance and Due are unchanged.</p>
+<div class="flex justify-end gap-2"><a class="rounded-lg bg-red-100 px-4 py-2" href="{{ url_for('billing_bp.metro_reconciliation',property_id=property.id,billing_month=utility_month,view_item=payment_target.account_id) }}">Cancel</a><button type="submit" class="rounded-lg bg-green-100 px-4 py-2" {% if not payment_capture_ready %}disabled{% endif %}>Save Payment</button></div>
+{% if not payment_capture_ready %}<p role="alert">Municipal payment capture is temporarily unavailable. Existing transactions are unchanged.</p>{% endif %}
+</form></section>
+{% endif %}
 <form id="utilities-capture" method="POST" class="mt-4 space-y-4">
 <input id="capture-view-item" type="hidden" name="view_item" value="{{ request.values.get('view_item','') }}"><input type="hidden" name="billing_month" value="{{ utility_month }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="record_id" value="{{ edit_id or '' }}"><input type="hidden" name="version" value="{{ version }}">
 <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -34,7 +52,7 @@
 <div class="mt-6 overflow-x-auto" tabindex="0" role="region" aria-label="{{ 'Meter readings' if kind=='readings' else 'Municipal statements' }}"><table class="w-full text-left text-sm"><thead class="bg-slate-50"><tr>{% for label in (['Date','Meter','Reading','Action'] if kind=='readings' else ['Date','Account','Arrears','Balance','Due','Paid','Action']) %}<th scope="col" class="whitespace-nowrap p-3">{{ label }}</th>{% endfor %}</tr></thead><tbody>
 {% for row in rows %}<tr class="border-t" {% if kind=='readings' %}data-reading-row data-meter-id="{{ row.meter_id }}" {% if loop.index>5 %}hidden{% endif %}{% else %}data-statement-row data-account-id="{{ row.account_id }}"{% endif %}><td class="whitespace-nowrap p-3">{{ row.reading_date if kind=='readings' else row.statement_date }}</td>
 {% if kind=='readings' %}<td class="p-3">{{ row.meter_number }}</td><td class="whitespace-nowrap p-3">{{ row.reading_value }} {{ 'kL' if row.utility_type|lower=='water' else 'kWh' }}</td>{% else %}<td class="p-3">{{ row.account_number }}</td>{% for key in ['arrears','balance','due'] %}<td class="whitespace-nowrap p-3">R{{ '{:,.2f}'.format(row[key]) }}</td>{% endfor %}<td class="whitespace-nowrap p-3">{{ 'R{:,.2f}'.format(row.paid) if row.paid is not none else 'Unavailable' }}</td>{% endif %}
-<td class="p-3"><a class="inline-flex rounded-lg bg-yellow-100 px-3 py-2 font-semibold" href="{{ url_for('billing_bp.meter_readings' if kind=='readings' else 'billing_bp.metro_reconciliation',property_id=property.id,edit=row.id,billing_month=utility_month) }}">Edit</a></td></tr>{% else %}<tr><td colspan="{{ 4 if kind=='readings' else 7 }}" class="p-4 text-slate-600">No {{ 'readings' if kind=='readings' else 'statements' }} recorded.</td></tr>{% endfor %}
+<td class="p-3"><a class="inline-flex rounded-lg bg-yellow-100 px-3 py-2 font-semibold" href="{{ url_for('billing_bp.meter_readings' if kind=='readings' else 'billing_bp.metro_reconciliation',property_id=property.id,edit=row.id,billing_month=utility_month) }}">Edit</a>{% if kind=='statements' %}<a class="ml-2 inline-flex rounded-lg bg-green-100 px-3 py-2 font-semibold" href="{{ url_for('billing_bp.metro_reconciliation',property_id=property.id,payment=row.id,billing_month=utility_month) }}">Record Payment</a>{% endif %}</td></tr>{% else %}<tr><td colspan="{{ 4 if kind=='readings' else 7 }}" class="p-4 text-slate-600">No {{ 'readings' if kind=='readings' else 'statements' }} recorded.</td></tr>{% endfor %}
 </tbody></table></div>
 {% if kind=='readings' and rows|length>5 %}<div class="my-4 flex justify-end"><button type="button" id="reading-toggle" aria-expanded="false" class="rounded-lg bg-blue-100 px-4 py-2">Show More (5 of {{ rows|length }})</button></div>{% endif %}
 </div></div></div>

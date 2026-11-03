@@ -9,6 +9,20 @@
 {% include 'partials/flash_messages.html' %}
 {% include 'program_billing/municipal_navigation.html' %}
 <h2 class="my-3 text-lg font-semibold">{{ property.name }}</h2>
+{% for a in accounts if (not selected or a.id==selected.account_id) and a.ca_contract_number %}
+<section aria-label="Credit Authority Agreement" class="my-4 rounded-lg border border-slate-200 p-4">
+<h2 class="text-xl font-semibold">Credit Authority Agreement</h2>
+<p>Municipal Account: {{ a.account_number }}</p>
+<dl class="my-3 grid gap-3 md:grid-cols-3">
+<div><dt>Contract Number</dt><dd>{{ a.ca_contract_number }}</dd></div>
+{% for label,value in [('Agreement Amount',a.ca_agreement_amount),('Instalments Raised',a.ca_installments_raised),('Current Instalment',a.ca_installment_amount),('Amount Owing',a.ca_amount_owing)] %}
+<div><dt>{{ label }}</dt><dd>{{ 'R {:,.2f}'.format(value) if value is not none else 'Not recorded' }}</dd></div>
+{% endfor %}
+<div><dt>Remaining Periods</dt><dd>{{ a.ca_remaining_periods|string+' months' if a.ca_remaining_periods is not none else 'Not recorded' }}</dd></div>
+</dl>
+<p class="text-sm text-slate-600">Municipal account summary. Instalments Raised are not payments received. Amount Owing is the municipal arrangement balance. Current Instalment excludes interest charges. Payment evidence and allocations below are recorded separately.</p>
+</section>
+{% endfor %}
 {% if error %}<p role="alert" class="my-3 rounded-lg bg-red-50 p-3 text-red-800">{{ error }}</p>{% endif %}
 {% if not available %}<p role="alert">Municipal Payment Arrangements is temporarily unavailable. Please contact the administrator.</p>
 {% elif show_form and not selected %}

@@ -20,17 +20,19 @@ class ArrangementTests(fixture.AdminLandingTests):
         super().setUp()
         self.session=Session(self.conn);self.addCleanup(self.session.close);self.db=types.SimpleNamespace(session=self.session)
         self.conn.execute(text('SET search_path TO pg_temp,public'))
-        for sql in ('CREATE TEMP TABLE "user"(id integer PRIMARY KEY)',
+        for sql in ('CREATE TEMP TABLE "user"(id integer PRIMARY KEY,email text,is_active integer)',
+                    'CREATE TEMP TABLE auth_approved_admin(id integer PRIMARY KEY,email text,active boolean)',
                     'CREATE TEMP TABLE bil_property(id integer PRIMARY KEY,manager_id integer,name text,address text)',
-                    'CREATE TEMP TABLE bil_muni_account(id integer PRIMARY KEY,property_id integer,account_number text)',
+                    'CREATE TEMP TABLE bil_muni_account(id integer PRIMARY KEY,property_id integer,account_number text,ca_contract_number text,ca_agreement_amount double precision,ca_installments_raised double precision,ca_installment_amount double precision,ca_amount_owing double precision,ca_remaining_periods integer)',
                     'CREATE TEMP TABLE bil_muni_payment(id integer PRIMARY KEY,account_id integer,month text,payment_date date,amount double precision,reference text)',
                     'CREATE TEMP TABLE bil_tenant_ledger(id integer PRIMARY KEY,amount numeric(18,2))',
                     'CREATE TEMP TABLE bil_statement(id integer PRIMARY KEY,tenant_id integer)',
                     'CREATE TEMP TABLE bil_metsoa_meter_month(id integer PRIMARY KEY,total_due numeric(18,2))'):
             self.conn.execute(text(sql))
-        self.conn.execute(text('INSERT INTO "user" VALUES(7),(8)'))
+        self.conn.execute(text("INSERT INTO \"user\" VALUES(7,'admin@example.test',1),(8,'other@example.test',1)"))
+        self.conn.execute(text("INSERT INTO auth_approved_admin VALUES(1,'admin@example.test',true)"))
         self.conn.execute(text("INSERT INTO bil_property VALUES(26,7,'Almond','Test address'),(27,7,'Dale','Test address'),(28,8,'Private','Private address')"))
-        self.conn.execute(text("INSERT INTO bil_muni_account VALUES(1,26,'MET-26'),(2,27,'MET-27'),(3,28,'PRIVATE')"))
+        self.conn.execute(text("INSERT INTO bil_muni_account(id,property_id,account_number) VALUES(1,26,'MET-26'),(2,27,'MET-27'),(3,28,'PRIVATE')"))
         self.conn.execute(text("INSERT INTO bil_muni_payment VALUES(1,1,'2026-10','2026-10-15',100,'MUNI-P1'),(2,2,'2026-10','2026-10-15',100,'OTHER-P2')"))
         self.conn.execute(text('INSERT INTO bil_tenant_ledger VALUES(1,123.45)'))
         self.conn.execute(text('INSERT INTO bil_statement VALUES(1,12)'))
@@ -48,6 +50,7 @@ class ArrangementTests(fixture.AdminLandingTests):
         tree.body=[n for n in tree.body if not (isinstance(n,ast.ImportFrom) and ((n.module or '').startswith('app.') or n.level))]
         exec(compile(tree,'municipal_arrangements.py','exec'),self.service.__dict__);self.service.today=lambda:date(2026,11,2)
         modules=patch.dict(sys.modules,{self.service.__name__:self.service});modules.start();self.addCleanup(modules.stop)
+        self.app.context_processor(fixture.function('app/program_billing/routes.py','municipal_arrangement_navigation',dict(__package__='app.program_billing')))
         CSRFProtect(self.app);self.app.jinja_env.globals['csrf_token']=generate_csrf
         for name in ('municipal_payment_arrangements','municipal_arrangement_detail'):
             path,endpoint=fixture.declared_route('app/program_billing/routes.py',name,'billing_bp')
@@ -121,7 +124,8 @@ class ArrangementTests(fixture.AdminLandingTests):
         self.assertEqual(self.post(self.url,self.form(account_id='2')).status_code,403)
         target=self.create();self.assertEqual(self.client.get(target.replace('/26/','/27/')).status_code,404)
         self.assertEqual(self.client.post(self.url,data=self.form()).status_code,400)
-        self.conn.execute(text("UPDATE pm_admin_test_identity SET role='manager'"));self.conn.commit()
+        self.conn.execute(text("UPDATE pm_admin_test_identity SET role='manager'"))
+        self.conn.execute(text('UPDATE auth_approved_admin SET active=false'));self.conn.commit()
         self.assertEqual(self.client.get(self.url).status_code,403)
         self.assertEqual(self.client.get(target).status_code,403)
     def test_invalid_amounts_terms_and_duplicate_create(self):
@@ -198,12 +202,12 @@ class ArrangementTests(fixture.AdminLandingTests):
         from werkzeug.exceptions import HTTPException
         self.create(original_amount='100',instalment_amount='100',instalments='1')
         prefix='public.pm_arr_test_'+uuid.uuid4().hex+'_'
-        originals=['bil_property','bil_muni_account','bil_muni_payment']+list(self.service.TABLES)
+        originals=['user','auth_approved_admin','bil_property','bil_muni_account','bil_muni_payment']+list(self.service.TABLES)
         tables={name:prefix+'t'+str(i) for i,name in enumerate(originals)}
         for original,target in tables.items():
             self.assertRegex(target,r'^public\.pm_arr_test_[a-f0-9]{32}_t[0-9]+$')
-            self.conn.execute(text('CREATE TABLE '+target+' (LIKE '+original+' INCLUDING CONSTRAINTS INCLUDING INDEXES)'))
-            self.conn.execute(text('INSERT INTO '+target+' SELECT * FROM '+original))
+            self.conn.execute(text('CREATE TABLE '+target+' (LIKE '+('\"user\"' if original=='user' else original)+' INCLUDING CONSTRAINTS INCLUDING INDEXES)'))
+            self.conn.execute(text('INSERT INTO '+target+' SELECT * FROM '+('\"user\"' if original=='user' else original)))
             if original in self.service.TABLES:
                 self.conn.execute(text('ALTER TABLE '+target+' ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (START WITH 1000)'))
                 for column in ('recorded_at',) if original!='bil_municipal_arrangement' else ('created_at','modified_at'):
@@ -225,7 +229,7 @@ class ArrangementTests(fixture.AdminLandingTests):
                         module=types.ModuleType('concurrent_arrangement')
                         module.__dict__.update(db=types.SimpleNamespace(session=unit),is_admin=lambda:True)
                         exec(compile(source,'municipal_arrangements.py','exec'),module.__dict__)
-                        module.text=lambda sql:text(pattern.sub(lambda match:tables[match.group(0)],sql))
+                        module.text=lambda sql:text(pattern.sub(lambda match:tables[match.group(0)],sql.replace(chr(34)+'user'+chr(34),'user')))
                         module.TABLES=tuple(tables[name] for name in self.service.TABLES)
                         module.current_user=types.SimpleNamespace(id=7,is_authenticated=True)
                         module.property_scope=fixture.function('app/program_billing/metsoa_setup_safety.py','property_scope',dict(db=module.db,current_user=module.current_user,text=module.text,abort=abort))
@@ -242,8 +246,8 @@ class ArrangementTests(fixture.AdminLandingTests):
         self.assertEqual(self.conn.execute(text('SELECT count(*) FROM '+tables['bil_municipal_arrangement_payment'])).scalar(),2)
     def test_utilities_landing_menu_matches_access_and_preserves_property_month(self):
         hub=self.targets['billing_bp.utilities_hub']
-        # Mixed-case administrators are accepted by the established server helper.
-        self.conn.execute(text("UPDATE pm_admin_test_identity SET role='Admin'"));self.conn.commit()
+        # ApprovedAdmin grants work independently of role labels.
+        self.conn.execute(text("UPDATE pm_admin_test_identity SET role='user'"));self.conn.commit()
         page=self.client.get(hub+'?billing_month=2026-10');self.assertEqual(page.status_code,200,page.text)
         tree=html.fromstring(page.data)
         self.assertEqual(tree.xpath('//button[@name="action"][@value="arrangements"]/text()'),['Municipal Payment Arrangements'])
@@ -258,11 +262,31 @@ class ArrangementTests(fixture.AdminLandingTests):
         self.assertEqual(len(link),1)
         self.assertIn(self.url,link[0].get('href'));self.assertIn('billing_month=2026-10',link[0].get('href'))
         self.assertEqual(self.client.get(link[0].get('href')).status_code,200)
-        self.conn.execute(text("UPDATE pm_admin_test_identity SET role='manager'"));self.conn.commit()
+        self.conn.execute(text("UPDATE pm_admin_test_identity SET role='manager'"))
+        self.conn.execute(text('UPDATE auth_approved_admin SET active=false'));self.conn.commit()
         self.assertNotIn('Municipal Payment Arrangements',self.client.get(hub).text)
         response=self.client.post(hub,data=dict(csrf_token=token,action='arrangements',property_id='26',billing_month='2026-10'))
         self.assertEqual(response.status_code,403)
         self.assertEqual(self.client.get(self.url).status_code,403)
+    def test_municipal_bill_summary_is_separate_from_payment_evidence(self):
+        target=self.create()
+        before=self.financial_snapshot()
+        evidence={t:list(self.conn.execute(text('SELECT * FROM '+t+' ORDER BY id'))) for t in self.service.TABLES}
+        self.conn.execute(text("UPDATE bil_muni_account SET account_number='83187242565',ca_contract_number='CA0815202400000098',ca_agreement_amount=12677.56,ca_installments_raised=6890,ca_installment_amount=530,ca_amount_owing=5787.56,ca_remaining_periods=11 WHERE id=1"))
+        self.conn.commit()
+        for url in (self.url,target):
+            page=self.client.get(url);self.assertEqual(page.status_code,200)
+            tree=html.fromstring(page.data)
+            section=tree.xpath('//section[@aria-label="Credit Authority Agreement"]')[0]
+            fields={d.xpath('./dt/text()')[0]:d.xpath('./dd/text()')[0] for d in section.xpath('.//dl/div')}
+            self.assertEqual(fields,{'Contract Number':'CA0815202400000098','Agreement Amount':'R 12,677.56','Instalments Raised':'R 6,890.00','Current Instalment':'R 530.00','Amount Owing':'R 5,787.56','Remaining Periods':'11 months'})
+            self.assertIn('83187242565',section.text_content())
+            self.assertNotIn('570.74',section.text_content())
+        self.assertEqual(self.financial_snapshot(),before)
+        self.assertEqual(evidence,{t:list(self.conn.execute(text('SELECT * FROM '+t+' ORDER BY id'))) for t in self.service.TABLES})
+        self.conn.execute(text("UPDATE bil_muni_account SET ca_contract_number='PRIVATE-CONTRACT' WHERE id=3"));self.conn.commit()
+        self.assertNotIn('PRIVATE-CONTRACT',self.client.get(self.url).text)
+
     def test_missing_migration_safe_unavailable(self):
         token=html.fromstring(self.client.get(self.url+'?new=1').data).xpath('//input[@name="csrf_token"]/@value')[0]
         for name in reversed(self.service.TABLES):self.conn.execute(text('DROP TABLE '+name))

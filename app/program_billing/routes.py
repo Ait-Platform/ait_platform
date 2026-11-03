@@ -3030,6 +3030,13 @@ def meter_exceptions(property_id):
     from .meter_exceptions import page
     return page(property_id)
 
+@billing_bp.context_processor
+def municipal_arrangement_navigation():
+    # Lazily evaluated only by Utilities templates; never trust session role labels.
+    from .municipal_arrangements import can_manage
+    return dict(can_manage_municipal_arrangements=can_manage)
+
+
 @billing_bp.route('/billing/utilities/<int:property_id>/payment-arrangements',methods=['GET','POST'])
 @login_required
 def municipal_payment_arrangements(property_id):
@@ -3119,8 +3126,8 @@ def utilities_hub():
         targets={'readings':'property_hub','consumption':'consumption_review','metsoa':'metsoa','exceptions':'exception_metsoa','setup':'setup_wizard','accounts':'municipal_accounts','arrangements':'municipal_payment_arrangements'}
         if action not in targets:abort(400)
         if action=='arrangements':
-            from app.utils.roles import is_admin
-            if not is_admin():abort(403)
+            from .municipal_arrangements import scope
+            scope(property_id)
         kwargs=dict(property_id=property_id)
         if action in ('readings','setup','accounts','arrangements'):kwargs['billing_month']=month
         else:kwargs['month']=month

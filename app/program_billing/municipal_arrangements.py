@@ -9,7 +9,6 @@ from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError,SQLAlchemyError
 from werkzeug.exceptions import HTTPException
 from app.extensions import db
-from app.utils.roles import is_admin
 from .metsoa_setup_safety import property_scope
 
 FREQUENCIES={'weekly':'Weekly','fortnightly':'Fortnightly','monthly':'Monthly','quarterly':'Quarterly'}
@@ -20,8 +19,17 @@ TABLES=('bil_municipal_arrangement','bil_municipal_arrangement_payment','bil_mun
 def today():return datetime.now(ZoneInfo('Africa/Johannesburg')).date()
 
 
+def can_manage():
+    """Same active-user + ApprovedAdmin grant policy used by PM Core administration."""
+    if not current_user.is_authenticated:return False
+    return bool(db.session.execute(text("""SELECT EXISTS(SELECT 1 FROM "user" u
+        JOIN auth_approved_admin a ON lower(a.email)=lower(u.email)
+        WHERE u.id=:u AND CAST(u.is_active AS text) IN ('true','1')
+          AND CAST(a.active AS text) IN ('true','1'))"""),dict(u=current_user.id)).scalar())
+
+
 def scope(p):
-    if not current_user.is_authenticated or not is_admin():abort(403)
+    if not can_manage():abort(403)
     return property_scope(p)
 
 
@@ -62,7 +70,7 @@ def identifier(value):
 
 
 def accounts(p):
-    return [dict(r) for r in db.session.execute(text('SELECT id,account_number FROM bil_muni_account WHERE property_id=:p ORDER BY account_number,id'),dict(p=p)).mappings()]
+    return [dict(r) for r in db.session.execute(text('SELECT id,account_number,ca_contract_number,ca_agreement_amount,ca_installments_raised,ca_installment_amount,ca_amount_owing,ca_remaining_periods FROM bil_muni_account WHERE property_id=:p ORDER BY account_number,id'),dict(p=p)).mappings()]
 
 
 def account(p,account_id):

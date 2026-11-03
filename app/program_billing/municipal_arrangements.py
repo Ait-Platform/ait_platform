@@ -133,9 +133,11 @@ def create(p,values):
     if replay:return replay
     acc=account(p,values.get('account_id'))
     reference=clean(values,'reference','Municipal arrangement reference')
-    agreement=day(values.get('agreement_date'),'agreement date');first=day(values.get('first_payment_date'),'first payment date')
+    agreement=day(values.get('agreement_date'),'agreement date')
+    # Compatibility defaults for retained NOT NULL schedule columns; never rewrite saved terms.
+    first=day(values.get('first_payment_date') or agreement.isoformat(),'first payment date')
     amount=money(values.get('original_amount'),'Original arrangement amount');instalment=money(values.get('instalment_amount'),'Instalment amount')
-    count=identifier(values.get('instalments'));frequency=values.get('frequency')
+    count=identifier(values.get('instalments'));frequency=values.get('frequency') or 'monthly'
     if count>600 or frequency not in FREQUENCIES or first<agreement:abort(400,description='Check the instalment count (1-600), payment frequency and first payment date.')
     if not instalment*(count-1)<amount<=instalment*count:abort(400,description='The amount and number of instalments must cover the arrangement exactly. Only the final instalment may be smaller.')
     data=dict(property_id=p,account_id=acc['id'],reference=reference,reference_key=reference.casefold(),agreement_date=agreement,original_amount=amount,instalment_amount=instalment,instalments=count,frequency=frequency,first_payment_date=first,document_reference=clean(values,'document_reference','Supporting document reference',1000,False),actor=current_user.id)
@@ -178,7 +180,7 @@ def update_status(p,arrangement_id,values):
     if str(row['version'])!=values.get('version'):abort(409,description='The arrangement changed. Review the latest details before saving; your entered values are retained.')
     status=values.get('status')
     if status not in STATUSES:abort(400,description='Select a valid status.')
-    document=clean(values,'document_reference','Supporting document reference',1000,False)
+    document=row['document_reference']  # Removed UI field must not erase historical evidence.
     note=clean(values,'note','History note',5000,False)
     db.session.execute(text('UPDATE bil_municipal_arrangement SET status=:status,document_reference=:doc,version=version+1,modified_by=:actor,modified_at=statement_timestamp() WHERE id=:id'),dict(status=status,doc=document,actor=current_user.id,id=arrangement_id))
     event(arrangement_id,'status',key,digest,dict(status=row['status'],document_reference=row['document_reference']),dict(status=status,document_reference=document),note)

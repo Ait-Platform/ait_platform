@@ -59,3 +59,15 @@ or business record was changed. Regression coverage uses Bill's access state,
 no admin registry, blueprint-scoped template context, and the real
 Utilities template; it verifies the existing seventh link, arrangement/payment
 audit actor, financial preservation, inactive denial, and cross-property denial.
+
+## Simplified arrangement entry
+
+Create no longer asks for First Payment Date, Payment Frequency, or Supporting
+Document Reference. Existing database columns and historical values remain.
+For omitted schedule terms on new records, the retained NOT NULL columns use
+the agreement date and monthly frequency; the schedule/allocation arithmetic is
+unchanged. Existing explicit terms remain valid for compatibility. Status/note
+updates preserve the saved document reference rather than clearing it when the
+removed field is absent. The detail summary omits frequency and first/final
+payment dates, and the status form no longer edits document references. Account
+selection, amounts, payment evidence and append-only audit history are retained.

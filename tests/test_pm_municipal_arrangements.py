@@ -423,8 +423,10 @@ class ArrangementTests(fixture.AdminLandingTests):
             page=self.client.get(self.url+'?account_id=1&billing_month='+month)
             self.assertEqual(page.status_code,200)
             register=html.fromstring(page.data).xpath('//table[@id="arrangement-register"]')[0]
-            self.assertEqual(register.xpath('.//th/text()'),['Account','Arrangement','Agreement Date','Debt','Instalment','Balance','Action'])
+            self.assertEqual(register.xpath('.//th/text()'),['Account','Arrangement','Agreement Date','Debt','Instalment','Balance'])
+            self.assertFalse(register.xpath('.//a'))
             cells=register.xpath('.//tbody/tr/td')
+            self.assertEqual(len(cells),6)
             self.assertEqual([c.text_content() for c in cells[:6]],['MET-26','SCHEDULED','2025-09-28','R 12677.56','R 530.00','R '+balance])
         self.assertEqual(self.service.scheduled_balance(dict(agreement_date=date(2024,1,31),original_amount=Decimal('100.01'),instalment_amount=Decimal('50')), '2024-02'),Decimal('0.01'))
         self.assertEqual(self.service.scheduled_balance(dict(agreement_date=date(2024,1,31),original_amount=Decimal('100.01'),instalment_amount=Decimal('50')), '2024-03'),Decimal('0.00'))

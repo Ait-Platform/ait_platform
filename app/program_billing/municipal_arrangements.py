@@ -1,7 +1,7 @@
 """Municipal arrangement monitoring only; never posts or reprices financial records."""
 import calendar,hashlib,json,re,uuid
 from datetime import date,datetime,timedelta
-from decimal import Decimal,InvalidOperation
+from decimal import Decimal,InvalidOperation,ROUND_CEILING
 from zoneinfo import ZoneInfo
 from flask import abort,request,flash,redirect,url_for,current_app
 from flask_login import current_user
@@ -103,6 +103,13 @@ def schedule(row,paid=Decimal('0.00'),on=None):
     return result
 
 
+def scheduled_balance(row,billing_month):
+    selected=date.fromisoformat(billing_month+'-01')
+    agreement=row['agreement_date']
+    periods=max(0,(selected.year-agreement.year)*12+selected.month-agreement.month+1)
+    return max(Decimal('0.00'),row['original_amount']-row['instalment_amount']*periods)
+
+
 def summary(row):
     paid=sum((r['amount'] for r in payments(row['id'])),Decimal('0.00'))
     return dict(paid=paid,outstanding=row['original_amount']-paid,status='Completed' if paid==row['original_amount'] else STATUSES[row['status']],schedule=schedule(row,paid))
@@ -137,9 +144,9 @@ def create(p,values):
     # Compatibility defaults for retained NOT NULL schedule columns; never rewrite saved terms.
     first=day(values.get('first_payment_date') or agreement.isoformat(),'first payment date')
     amount=money(values.get('original_amount'),'Original arrangement amount');instalment=money(values.get('instalment_amount'),'Instalment amount')
-    count=identifier(values.get('instalments'));frequency=values.get('frequency') or 'monthly'
-    if count>600 or frequency not in FREQUENCIES or first<agreement:abort(400,description='Check the instalment count (1-600), payment frequency and first payment date.')
-    if not instalment*(count-1)<amount<=instalment*count:abort(400,description='The amount and number of instalments must cover the arrangement exactly. Only the final instalment may be smaller.')
+    count=int((amount/instalment).to_integral_value(rounding=ROUND_CEILING));frequency=values.get('frequency') or 'monthly'
+    if count>600:abort(400,description='The debt and instalment amount require more than the supported 600 scheduled instalments.')
+    if frequency not in FREQUENCIES or first<agreement:abort(400,description='Check the payment frequency and first payment date.')
     data=dict(property_id=p,account_id=acc['id'],reference=reference,reference_key=reference.casefold(),agreement_date=agreement,original_amount=amount,instalment_amount=instalment,instalments=count,frequency=frequency,first_payment_date=first,document_reference=clean(values,'document_reference','Supporting document reference',1000,False),actor=current_user.id)
     try:schedule(data)
     except (ValueError,OverflowError):abort(400,description='The instalment schedule exceeds the supported date range.')
@@ -192,7 +199,10 @@ def page(p,arrangement_id=None):
     from .lease_management import render_pm_template
     prop=db.session.execute(text('SELECT id,name,address FROM bil_property WHERE id=:p'),dict(p=p)).mappings().one()
     available=ready();error=None;status_code=200;values=request.form.to_dict() if request.method=='POST' else {}
-    utility_month=request.values.get('billing_month','')
+    utility_month=request.values.get('billing_month') or today().strftime('%Y-%m')
+    if not re.fullmatch(r'[0-9]{4}-(0[1-9]|1[0-2])',utility_month):abort(400,description='Select a valid billing month.')
+    try:date.fromisoformat(utility_month+'-01')
+    except ValueError:abort(400,description='Select a valid billing month.')
     account_rows=accounts(p)
     if any(len(source.getlist('account_id'))>1 for source in (request.args,request.form)):abort(400)
     requested_account=values.get('account_id') if request.method=='POST' and arrangement_id is None else request.args.get('account_id')
@@ -218,7 +228,7 @@ def page(p,arrangement_id=None):
     rows=[];selected=None;details=None;history=[];sources=[]
     if available:
         rows=[dict(r) for r in db.session.execute(text('SELECT a.*,m.account_number FROM bil_municipal_arrangement a JOIN bil_muni_account m ON m.id=a.account_id AND m.property_id=a.property_id WHERE a.property_id=:p AND a.account_id=:account ORDER BY a.created_at DESC,a.id DESC'),dict(p=p,account=selected_account_id)).mappings()]
-        for row in rows:row.update(summary(row))
+        for row in rows:row['scheduled_balance']=scheduled_balance(row,utility_month)
         if arrangement_id is not None:
             selected=record(p,arrangement_id);selected_account_id=selected['account_id'];details=summary(selected)
             history=[dict(r) for r in db.session.execute(text('SELECT * FROM bil_municipal_arrangement_event WHERE arrangement_id=:id ORDER BY recorded_at,id'),dict(id=arrangement_id)).mappings()]

@@ -134,7 +134,7 @@ class ArrangementTests(fixture.AdminLandingTests):
         self.assertEqual(self.post(self.url,data).location,first.location)
         self.assertEqual(self.conn.execute(text('SELECT count(*) FROM bil_municipal_arrangement')).scalar(),1)
         self.assertEqual(self.post(self.url,self.form(reference=data['reference'])).status_code,409)
-        for changes in (dict(original_amount='NaN'),dict(original_amount='-1'),dict(original_amount='0'),dict(instalment_amount='0'),dict(instalments='0'),dict(instalments='601'),dict(original_amount='301'),dict(first_payment_date='2026-08-01'),dict(frequency='daily')):
+        for changes in (dict(original_amount='NaN'),dict(original_amount='-1'),dict(original_amount='0'),dict(instalment_amount='0'),dict(original_amount='60100'),dict(first_payment_date='2026-08-01'),dict(frequency='daily')):
             response=self.post(self.url,self.form(**changes));self.assertEqual(response.status_code,400,response.text)
     def test_status_document_history_stale_form_and_cancelled_payment(self):
         target=self.create();data=dict(action='status',request_key=str(uuid.uuid4()),version='1',status='on_hold',document_reference='Letter A',note='Municipality agreed a pause')
@@ -180,7 +180,7 @@ class ArrangementTests(fixture.AdminLandingTests):
                 page.wait_for_url('**account_id=4')
                 page.get_by_role('link',name='+ Create Payment Arrangement').click()
                 form=page.locator('#arrangement-create');self.assertEqual(form.locator('[name="account_id"]').input_value(),'4')
-                for key,value in dict(reference='BROWSER-ARR',agreement_date='2026-09-01',original_amount='250',instalment_amount='100',instalments='3').items():form.locator('[name="'+key+'"]').fill(value)
+                for key,value in dict(reference='BROWSER-ARR',agreement_date='2026-09-01',original_amount='250',instalment_amount='100').items():form.locator('[name="'+key+'"]').fill(value)
                 page.get_by_role('button',name='Save Arrangement',exact=True).click()
                 self.assertEqual(page.locator('#arrangement-schedule tbody tr').count(),3)
                 self.assertIn('R 250.00',page.locator('#arrangement-outstanding').inner_text())
@@ -410,6 +410,40 @@ class ArrangementTests(fixture.AdminLandingTests):
         self.assertEqual(list(self.conn.execute(text('SELECT * FROM bil_municipal_arrangement_event ORDER BY id LIMIT :n'),dict(n=len(history)))),history)
         self.assertEqual(list(self.conn.execute(text('SELECT * FROM bil_municipal_arrangement_payment ORDER BY id'))),payments)
         self.assertEqual(self.financial_snapshot(),before)
+
+    def test_scheduled_register_columns_months_and_payment_independence(self):
+        data=self.form(reference='SCHEDULED',agreement_date='2025-09-28',original_amount='12677.56',instalment_amount='530')
+        for field in ('instalments','first_payment_date','frequency','document_reference'):data.pop(field)
+        form=html.fromstring(self.client.get(self.url+'?new=1').data)
+        self.assertFalse(form.xpath('//*[@name="instalments"]'))
+        result=self.post(self.url,data);self.assertEqual(result.status_code,302,result.text)
+        row=dict(self.conn.execute(text('SELECT * FROM bil_municipal_arrangement')).mappings().one())
+        self.assertEqual(row['instalments'],24)
+        for month,balance in [('2025-08','12677.56'),('2025-09','12147.56'),('2025-10','11617.56'),('2026-01','10027.56'),('2027-08','0.00'),('2030-01','0.00')]:
+            page=self.client.get(self.url+'?account_id=1&billing_month='+month)
+            self.assertEqual(page.status_code,200)
+            register=html.fromstring(page.data).xpath('//table[@id="arrangement-register"]')[0]
+            self.assertEqual(register.xpath('.//th/text()'),['Account','Arrangement','Agreement Date','Debt','Instalment','Balance','Action'])
+            cells=register.xpath('.//tbody/tr/td')
+            self.assertEqual([c.text_content() for c in cells[:6]],['MET-26','SCHEDULED','2025-09-28','R 12677.56','R 530.00','R '+balance])
+        self.assertEqual(self.service.scheduled_balance(dict(agreement_date=date(2024,1,31),original_amount=Decimal('100.01'),instalment_amount=Decimal('50')), '2024-02'),Decimal('0.01'))
+        self.assertEqual(self.service.scheduled_balance(dict(agreement_date=date(2024,1,31),original_amount=Decimal('100.01'),instalment_amount=Decimal('50')), '2024-03'),Decimal('0.00'))
+        before=self.financial_snapshot()
+        self.assertEqual(self.post(result.location,self.payment(amount='100')).status_code,302)
+        snapshot={t:list(self.conn.execute(text('SELECT * FROM '+t+' ORDER BY id'))) for t in self.service.TABLES}
+        for month in ('2025-08','2025-10','2030-01'):
+            self.assertEqual(self.client.get(self.url+'?billing_month='+month).status_code,200)
+        register=html.fromstring(self.client.get(self.url+'?billing_month=2025-10').data).xpath('//table[@id="arrangement-register"]')[0]
+        self.assertEqual(register.xpath('.//tbody/tr/td')[5].text_content(),'R 11617.56')
+        self.assertIn('R 12577.56',self.client.get(result.location).text)
+        self.assertEqual(snapshot,{t:list(self.conn.execute(text('SELECT * FROM '+t+' ORDER BY id'))) for t in self.service.TABLES})
+        self.assertEqual(self.financial_snapshot(),before)
+        for invalid in ('bad','2025-13','0000-01'):
+            self.assertEqual(self.client.get(self.url+'?billing_month='+invalid).status_code,400)
+        # Removed count input is ignored; stored count is always derived from money.
+        extra=self.form(reference='DERIVED-COUNT',instalments='not-a-count')
+        self.assertEqual(self.post(self.url,extra).status_code,302)
+        self.assertEqual(self.conn.execute(text("SELECT instalments FROM bil_municipal_arrangement WHERE reference='DERIVED-COUNT'")).scalar(),3)
 
     def test_missing_migration_safe_unavailable(self):
         token=html.fromstring(self.client.get(self.url+'?new=1').data).xpath('//input[@name="csrf_token"]/@value')[0]

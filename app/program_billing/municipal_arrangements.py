@@ -180,6 +180,41 @@ def record_payment(p,arrangement_id,values):
     return arrangement_id
 
 
+def update_agreement(p,arrangement_id,values):
+    key,digest,replay=begin(p,values,'corrected',arrangement_id)
+    if replay:return replay
+    row=record(p,arrangement_id,True)
+    if str(row['version'])!=values.get('version'):abort(409,description='The arrangement changed. Reopen Edit before saving; your entered values are retained.')
+    if values.get('account_id') and identifier(values['account_id'])!=row['account_id']:
+        abort(403,description='An agreement correction cannot change the municipal account.')
+    reference=clean(values,'reference','Municipal arrangement reference')
+    agreement=day(values.get('agreement_date'),'agreement date')
+    amount=money(values.get('original_amount'),'Debt')
+    instalment=money(values.get('instalment_amount'),'Monthly instalment')
+    recorded=payments(arrangement_id)
+    paid=sum((r['amount'] for r in recorded),Decimal('0.00'))
+    if amount<paid:abort(400,description='Debt cannot be less than payment evidence already recorded against this arrangement.')
+    if any(r['payment_date']<agreement for r in recorded):
+        abort(400,description='Agreement date cannot be after an existing arrangement payment date. Payment history is unchanged.')
+    count=int((amount/instalment).to_integral_value(rounding=ROUND_CEILING))
+    if count>600:abort(400,description='The debt and instalment amount require more than the supported 600 scheduled instalments.')
+    # Keep custom historical schedule anchors unless the retained date constraint requires a shift.
+    first=agreement if row['first_payment_date']==row['agreement_date'] else max(row['first_payment_date'],agreement)
+    changes=dict(reference=reference,reference_key=reference.casefold(),agreement_date=agreement,
+                 original_amount=amount,instalment_amount=instalment,instalments=count,first_payment_date=first)
+    try:schedule(dict(row,**changes))
+    except (ValueError,OverflowError):abort(400,description='The instalment schedule exceeds the supported date range.')
+    db.session.execute(text('''UPDATE bil_municipal_arrangement SET reference=:reference,reference_key=:reference_key,
+        agreement_date=:agreement_date,original_amount=:original_amount,instalment_amount=:instalment_amount,
+        instalments=:instalments,first_payment_date=:first_payment_date,version=version+1,
+        modified_by=:actor,modified_at=statement_timestamp() WHERE id=:id'''),
+        dict(changes,id=arrangement_id,actor=current_user.id))
+    before={k:row[k] for k in changes}
+    event(arrangement_id,'corrected',key,digest,dict(before,account_id=row['account_id']),
+          dict(changes,account_id=row['account_id']),'Agreement terms corrected; payment evidence is unchanged.')
+    return arrangement_id
+
+
 def update_status(p,arrangement_id,values):
     key,digest,replay=begin(p,values,'status',arrangement_id)
     if replay:return replay
@@ -218,8 +253,11 @@ def page(p,arrangement_id=None):
             if arrangement_id is None and action=='create':saved=create(p,values)
             elif arrangement_id is not None and action=='payment':saved=record_payment(p,arrangement_id,values)
             elif arrangement_id is not None and action=='status':saved=update_status(p,arrangement_id,values)
+            elif arrangement_id is not None and action=='edit':saved=update_agreement(p,arrangement_id,values)
             else:abort(400,description='Select a valid arrangement action.')
             db.session.commit();flash('Municipal payment arrangement saved.' if action!='payment' else 'Arrangement payment recorded. No ledger transaction was created.','success')
+            if action=='edit':
+                return redirect(url_for('billing_bp.municipal_payment_arrangements',property_id=p,billing_month=utility_month,account_id=selected_account_id))
             return redirect(url_for('billing_bp.municipal_arrangement_detail',property_id=p,arrangement_id=saved,billing_month=utility_month,account_id=selected_account_id))
         except HTTPException as exc:db.session.rollback();error=exc.description;status_code=exc.code
         except IntegrityError:db.session.rollback();error='This arrangement or payment reference is already recorded. Review the existing records before retrying.';status_code=409
@@ -235,4 +273,4 @@ def page(p,arrangement_id=None):
             catalog_exists=db.session.execute(text("SELECT to_regclass('bil_muni_payment')")).scalar()
             if catalog_exists:
                 sources=[dict(r) for r in db.session.execute(text('SELECT p.* FROM bil_muni_payment p WHERE p.account_id=:a AND NOT EXISTS(SELECT 1 FROM bil_municipal_arrangement_payment x WHERE x.source_payment_id=p.id) ORDER BY p.payment_date DESC,p.id DESC'),dict(a=selected['account_id'])).mappings()]
-    return render_pm_template('program_billing/municipal_arrangements.html',property=prop,utility_month=utility_month,available=available,error=error,rows=rows,selected=selected,details=details,history=history,sources=sources,payments=payments(arrangement_id) if selected else [],accounts=account_rows,selected_account_id=selected_account_id,values=values,show_form=request.args.get('new')=='1' or (request.method=='POST' and arrangement_id is None),frequencies=FREQUENCIES,statuses=STATUSES,request_key=values.get('request_key') or str(uuid.uuid4())),status_code
+    return render_pm_template('program_billing/municipal_arrangements.html',property=prop,utility_month=utility_month,available=available,error=error,rows=rows,selected=selected,details=details,history=history,sources=sources,payments=payments(arrangement_id) if selected else [],accounts=account_rows,selected_account_id=selected_account_id,values=values,show_form=request.args.get('new')=='1' or (request.method=='POST' and arrangement_id is None),editing=bool(selected) and (request.args.get('edit')=='1' or values.get('action')=='edit'),edit_balance=scheduled_balance(selected,utility_month) if selected else None,frequencies=FREQUENCIES,statuses=STATUSES,request_key=values.get('request_key') or str(uuid.uuid4())),status_code

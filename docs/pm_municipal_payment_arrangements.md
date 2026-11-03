@@ -15,9 +15,9 @@ Authenticated, property-scoped routes:
 
 Reuse existing Utilities navigation, property manager scope, municipal account IDs, global CSRF protection, tile/flash styling and PM template loader. Active authenticated users may manage arrangements within their authorized property portfolio. The existing target-property authorization applies; no ApprovedAdmin lookup, role label or additional grant is required. This applies to navigation, direct routes, and every arrangement write, and grants no cross-property access.
 
-Three additive tables are necessary: `bil_municipal_arrangement` (formal immutable terms and maintainable status/document reference), `bil_municipal_arrangement_payment` (decimal-safe arrangement allocations/evidence) and `bil_municipal_arrangement_event` (actor, timestamp, before/after data and persistent request receipts). This is an arrangement monitoring register, not a second financial ledger. No legacy amount is converted, backfilled, inferred or overwritten.
+Three additive tables are necessary: `bil_municipal_arrangement` (formal agreement terms and maintainable status/document reference), `bil_municipal_arrangement_payment` (decimal-safe arrangement allocations/evidence) and `bil_municipal_arrangement_event` (actor, timestamp, before/after data and persistent request receipts). This is an arrangement monitoring register, not a second financial ledger. No legacy amount is converted, backfilled, inferred or overwritten.
 
-Amounts use Numeric(18,2)/Decimal. Schedules are derived from immutable formal terms; no separate schedule table is needed. Weekly, fortnightly, monthly and quarterly frequencies are supported, up to 600 instalments. Monthly/quarterly dates retain the original day, clamped to each month-end. The final instalment may be smaller; all instalments sum exactly to the original amount. Instalments are allocated oldest first. Overdue means due before today with an unpaid amount. Fully allocated arrangements display Completed. Financial terms are not edited in place; renegotiated terms require a separately identified arrangement, preserving history.
+Amounts use Numeric(18,2)/Decimal. Schedules are derived from saved formal terms; no separate schedule table is needed. Weekly, fortnightly, monthly and quarterly frequencies are supported, up to 600 instalments. Monthly/quarterly dates retain the original day, clamped to each month-end. The final instalment may be smaller; all instalments sum exactly to the original amount. Instalments are allocated oldest first. Overdue means due before today with an unpaid amount. Fully allocated arrangements display Completed. Entry corrections use version-checked Edit with before/after audit history. A distinct renegotiated agreement can be recorded separately to preserve its agreement identity.
 
 Administrators can record external payment evidence or link an existing account-level municipal payment in full. Linking reads its saved date, exact cent amount and reference; source payments with unsupported precision are rejected rather than rounded. Each source payment can be allocated only once. A payment reference is unique within its municipal account. Payment dates cannot precede the agreement or be in the future. Overpayment is rejected. Partial splitting of an existing municipal payment is outside this initial workflow; partial manual instalment payments are supported. Supporting documentation is a reference field, not a new upload/storage facility.
 
@@ -75,14 +75,30 @@ selection, amounts, payment evidence and append-only audit history are retained.
 ## Scheduled register balance
 
 The register columns are Account, Arrangement, Agreement Date, Debt, Instalment,
-Balance. Balance is max(0, original agreement amount minus monthly
+Balance, Action. Balance is max(0, original agreement amount minus monthly
 instalment times elapsed calendar months inclusive of the agreement month and
 selected billing month). Before the agreement month the full debt is shown.
 This projection uses agreement_date, original_amount and instalment_amount;
 it never treats scheduled instalments as actual payments or changes records.
 Actual payment evidence, audit history and underlying management routes are
-preserved separately. The register has no Action column or management links.
+preserved separately. The register exposes only the agreement-correction Edit action, without payment management.
 The Number of Instalments input is removed. For new records its retained
 database column is derived as ceiling(debt / instalment), including a smaller
 final instalment. Existing column values and historical terms are unchanged;
 the existing 600-period storage constraint remains enforced against the amounts.
+
+## Audited agreement correction
+
+The register's only action is Edit, opening an agreement-only form. It can
+correct reference, agreement date, debt and monthly instalment. Account/property
+association is immutable; it cannot be reassigned through correction.
+A row lock and version token protect concurrent edits; UUID receipts retain
+retry safety. Changes append a corrected event containing before/after terms
+and actor. Existing audit rows, payment evidence and source financial tables
+are unchanged. Debt cannot be reduced below saved payment evidence and an
+agreement cannot be dated after an existing payment. Retained schedule count
+is rederived from the amounts; any required schedule-anchor adjustment is
+included in the before/after audit. The register balance is still a read-only
+monthly projection, independent of actual payment evidence. The Edit form
+contains no payment-management or status form. Existing management routes
+remain available independently.

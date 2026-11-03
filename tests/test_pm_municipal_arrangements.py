@@ -198,6 +198,14 @@ class ArrangementTests(fixture.AdminLandingTests):
                 self.assertEqual(page.locator('#arrangement-account').input_value(),'4')
                 self.assertIn('BROWSER-ARR',page.locator('#arrangement-register').inner_text())
                 self.assertEqual(page.get_by_role('link',name='Municipal Payment Arrangements',exact=True).count(),1)
+                page.get_by_role('link',name='Edit',exact=True).click()
+                form=page.locator('#arrangement-edit')
+                self.assertEqual(page.locator('#arrangement-payment').count(),0)
+                for key,value in dict(reference='BROWSER-CORRECTED',agreement_date='2026-09-15',original_amount='350',instalment_amount='80').items():form.locator('[name="'+key+'"]').fill(value)
+                page.get_by_role('button',name='Save Changes',exact=True).click()
+                self.assertIn('BROWSER-CORRECTED',page.locator('#arrangement-register').inner_text())
+                self.assertIn('R 190.00',page.locator('#arrangement-register').inner_text())
+                self.assertEqual(page.locator('#arrangement-account').input_value(),'4')
             finally:browser.close()
         self.assertEqual(self.financial_snapshot(),before)
     def test_concurrent_payments_and_duplicate_request_cannot_overpay(self):
@@ -423,10 +431,10 @@ class ArrangementTests(fixture.AdminLandingTests):
             page=self.client.get(self.url+'?account_id=1&billing_month='+month)
             self.assertEqual(page.status_code,200)
             register=html.fromstring(page.data).xpath('//table[@id="arrangement-register"]')[0]
-            self.assertEqual(register.xpath('.//th/text()'),['Account','Arrangement','Agreement Date','Debt','Instalment','Balance'])
-            self.assertFalse(register.xpath('.//a'))
+            self.assertEqual(register.xpath('.//th/text()'),['Account','Arrangement','Agreement Date','Debt','Instalment','Balance','Action'])
+            self.assertEqual(register.xpath('.//a/text()'),['Edit'])
             cells=register.xpath('.//tbody/tr/td')
-            self.assertEqual(len(cells),6)
+            self.assertEqual(len(cells),7)
             self.assertEqual([c.text_content() for c in cells[:6]],['MET-26','SCHEDULED','2025-09-28','R 12677.56','R 530.00','R '+balance])
         self.assertEqual(self.service.scheduled_balance(dict(agreement_date=date(2024,1,31),original_amount=Decimal('100.01'),instalment_amount=Decimal('50')), '2024-02'),Decimal('0.01'))
         self.assertEqual(self.service.scheduled_balance(dict(agreement_date=date(2024,1,31),original_amount=Decimal('100.01'),instalment_amount=Decimal('50')), '2024-03'),Decimal('0.00'))
@@ -446,6 +454,64 @@ class ArrangementTests(fixture.AdminLandingTests):
         extra=self.form(reference='DERIVED-COUNT',instalments='not-a-count')
         self.assertEqual(self.post(self.url,extra).status_code,302)
         self.assertEqual(self.conn.execute(text("SELECT instalments FROM bil_municipal_arrangement WHERE reference='DERIVED-COUNT'")).scalar(),3)
+
+    def test_edit_agreement_audits_corrections_and_preserves_account_and_payments(self):
+        target=self.create()
+        self.assertEqual(self.post(target,self.payment(amount='50')).status_code,302)
+        before=self.financial_snapshot()
+        payment_rows=list(self.conn.execute(text('SELECT * FROM bil_municipal_arrangement_payment ORDER BY id')))
+        events=list(self.conn.execute(text('SELECT * FROM bil_municipal_arrangement_event ORDER BY id')))
+        old=dict(self.conn.execute(text('SELECT * FROM bil_municipal_arrangement')).mappings().one())
+        register=self.client.get(self.url+'?account_id=1&billing_month=2026-10')
+        link=html.fromstring(register.data).xpath('//table[@id="arrangement-register"]//a')[0]
+        self.assertEqual(link.text,'Edit');self.assertIn('edit=1',link.get('href'))
+        page=self.client.get(link.get('href'));self.assertEqual(page.status_code,200)
+        tree=html.fromstring(page.data)
+        self.assertTrue(tree.xpath('//form[@id="arrangement-edit"]'))
+        self.assertFalse(tree.xpath('//form[@id="arrangement-payment"]'))
+        self.assertFalse(tree.xpath('//form[@id="arrangement-status"]'))
+        data=dict(action='edit',request_key=str(uuid.uuid4()),version=str(old['version']),account_id='1',reference='CORRECTED',agreement_date='2026-08-15',original_amount='350.00',instalment_amount='80.00',billing_month='2026-10')
+        response=self.post(link.get('href'),data);self.assertEqual(response.status_code,302,response.text)
+        self.assertIn('account_id=1',response.location);self.assertIn('billing_month=2026-10',response.location)
+        self.assertNotIn('/payment-arrangements/',response.location.split('?')[0])
+        self.assertEqual(self.post(link.get('href'),data).status_code,302)
+        saved=dict(self.conn.execute(text('SELECT * FROM bil_municipal_arrangement')).mappings().one())
+        for field in ('account_id','property_id','created_at','created_by','frequency','document_reference'):
+            self.assertEqual(saved[field],old[field])
+        self.assertEqual(saved['reference'],'CORRECTED')
+        self.assertEqual(saved['instalments'],5);self.assertEqual(saved['version'],old['version']+1)
+        self.assertEqual(self.service.scheduled_balance(saved,'2026-10'),Decimal('110.00'))
+        contents=html.fromstring(self.client.get(response.location).data).xpath('//table[@id="arrangement-register"]')[0]
+        self.assertIn('R 110.00',contents.text_content());self.assertEqual(contents.xpath('.//a/text()'),['Edit'])
+        audit=self.conn.execute(text("SELECT * FROM bil_municipal_arrangement_event WHERE kind='corrected'")).mappings().one()
+        self.assertEqual(audit['before_data']['reference'],old['reference'])
+        self.assertEqual(audit['after_data']['reference'],'CORRECTED')
+        self.assertEqual(audit['actor_id'],7);self.assertEqual(audit['after_data']['account_id'],1)
+        self.assertEqual(events,list(self.conn.execute(text('SELECT * FROM bil_municipal_arrangement_event ORDER BY id LIMIT :n'),dict(n=len(events)))))
+        self.assertEqual(payment_rows,list(self.conn.execute(text('SELECT * FROM bil_municipal_arrangement_payment ORDER BY id'))))
+        self.assertEqual(before,self.financial_snapshot())
+        self.assertEqual(self.post(link.get('href'),dict(data,request_key=str(uuid.uuid4()))).status_code,409)
+
+    def test_edit_rejects_account_moves_invalid_terms_and_inconsistent_payment_history(self):
+        target=self.create()
+        self.assertEqual(self.post(target,self.payment(amount='100')).status_code,302)
+        data=dict(action='edit',request_key=str(uuid.uuid4()),version='2',account_id='1',reference='EDIT',agreement_date='2026-09-01',original_amount='250',instalment_amount='100')
+        before={t:list(self.conn.execute(text('SELECT * FROM '+t+' ORDER BY id'))) for t in self.service.TABLES}
+        for changes,code in [(dict(account_id='2'),403),(dict(original_amount='99'),400),(dict(agreement_date='2026-10-16'),400),(dict(instalment_amount='0'),400),(dict(reference=''),400)]:
+            response=self.post(target,dict(data,**changes));self.assertEqual(response.status_code,code,response.text)
+            self.assertEqual(before,{t:list(self.conn.execute(text('SELECT * FROM '+t+' ORDER BY id'))) for t in self.service.TABLES})
+        self.assertEqual(self.client.post(target,data=data).status_code,400)
+        self.assertEqual(self.post(target.replace('/26/','/28/'),data).status_code,403)
+
+    def test_edit_audit_failure_rolls_back_terms_and_preserves_history(self):
+        from sqlalchemy.exc import SQLAlchemyError
+        target=self.create()
+        before={t:list(self.conn.execute(text('SELECT * FROM '+t+' ORDER BY id'))) for t in self.service.TABLES}
+        data=dict(action='edit',request_key=str(uuid.uuid4()),version='1',reference='MUST-ROLLBACK',agreement_date='2026-09-01',original_amount='350',instalment_amount='80')
+        with patch.object(self.service,'event',side_effect=SQLAlchemyError('synthetic audit failure')),patch.object(self.app.logger,'exception'):
+            response=self.post(target,data)
+        self.assertEqual(response.status_code,503)
+        self.assertEqual(before,{t:list(self.conn.execute(text('SELECT * FROM '+t+' ORDER BY id'))) for t in self.service.TABLES})
 
     def test_missing_migration_safe_unavailable(self):
         token=html.fromstring(self.client.get(self.url+'?new=1').data).xpath('//input[@name="csrf_token"]/@value')[0]

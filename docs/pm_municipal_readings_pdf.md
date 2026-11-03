@@ -36,8 +36,8 @@ identity checks, apply the targeted revision in the service Shell:
 Apply the migration before using Municipal Reference or generating this report.
 The model field is deferred so ordinary legacy meter loads do not select the
 new column before deployment of the migration.
-Until the column exists, reference saves and the new PDF report return a clear
-migration-required message. Existing reference-free SQL account workflows remain
+Until the column exists, reference saves return a clear migration-required
+message. The PDF still exports recorded readings with blank Reference cells. Existing reference-free SQL account workflows remain
 compatible. Review the production revision chain before applying the command.
 
 ## Validation
@@ -48,3 +48,20 @@ read-only export query monitoring; real A4 PDF content, blank-reference,
 pagination and receipt checks; Poppler-rendered short and long synthetic proofs
 visually inspected. Existing arrangement, account, capture and filter workflows
 are tested separately.
+
+## Reporting period investigation (3 November 2026)
+
+A read-only inspection found that the existing Meter Readings table displayed
+all history for the selected property, while municipal PDF selection correctly
+used recorded dates within the selected month across the authorized portfolio.
+The external September submission contained more readings than the database:
+the inspected portfolio had no September electricity rows and three September
+water rows, with additional rows dated October. Several submitted meter
+identities were absent and some saved meter/account identities differed from
+the submission. No document values were imported and no dates or links changed.
+
+The page now provides an explicit reporting-month selector and property versus
+portfolio period counts; its historical table remains clearly labelled.
+The PDF no longer blocks recorded readings when the optional reference column
+has not yet been migrated; those Reference cells remain blank. It never falls
+back to a neighbouring month's readings or a document's reported values.

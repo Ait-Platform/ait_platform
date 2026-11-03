@@ -95,8 +95,11 @@ class MunicipalReadingsPDFTests(fixture.UtilitiesCaptureTests):
     def test_workflow_link_empty_period_auth_and_association_checks(self):
         page=self.client.get(self.readings_url+'?billing_month=2026-10',headers=self.headers)
         tree=html.fromstring(page.data)
-        links=tree.xpath('//a[text()="Generate Municipal Meter Readings PDF"]/@href')
-        self.assertEqual(links,[self.url.replace('format=municipal_pdf&billing_month=2026-10','billing_month=2026-10&format=municipal_pdf')])
+        selector=tree.xpath('//form[@id="municipal-reading-period"]')[0]
+        self.assertEqual(selector.get('action'),self.readings_url)
+        self.assertEqual(selector.xpath('.//input[@name="billing_month"]/@value'),['2026-10'])
+        self.assertEqual(selector.xpath('.//button[@name="format"]/@value'),['municipal_pdf'])
+        self.assertIn('2 electricity and 1 water',tree.xpath('//*[@id="municipal-reading-scope"]')[0].text_content())
         self.assertEqual(self.client.get(self.url).status_code,403)
         self.assertEqual(self.client.get(self.url.replace('/26/','/28/'),headers=self.headers).status_code,403)
         for month in ('bad','2026-13'):
@@ -111,13 +114,38 @@ class MunicipalReadingsPDFTests(fixture.UtilitiesCaptureTests):
         self.assertEqual(self.client.get(self.url,headers=self.headers).status_code,409)
         self.assertEqual(before,self.snapshot())
 
-    def test_pdf_missing_reference_migration_is_explicit_and_read_only(self):
+    def test_pdf_without_reference_column_exports_recorded_readings_with_blank_reference(self):
         import types
         before=self.snapshot()
         with patch.object(self.pdf,'inspect',return_value=types.SimpleNamespace(get_columns=lambda table:[])):
             response=self.client.get(self.url,headers=self.headers)
-        self.assertEqual(response.status_code,503)
-        self.assertIn('pm_meter_reference_001',response.text)
+        self.assertEqual(response.status_code,200)
+        contents=' '.join(p.extract_text() for p in PdfReader(BytesIO(response.data)).pages)
+        self.assertIn('111.25',contents);self.assertIn('223.0',contents)
+        self.assertNotIn('E-REFERENCE-27',contents)
+        self.assertEqual(before,self.snapshot())
+
+    def test_full_seven_electricity_six_water_portfolio_is_not_limited_to_current_property(self):
+        # Existing fixture has 2 electricity rows and 1 water row in October.
+        for i in range(10):
+            meter=100+i;property_id=26 if i%2 else 27
+            utility='Electrical' if i<5 else 'Water';account='PORTFOLIO-'+str(i)
+            self.session.execute(text('INSERT INTO bil_muni_account(id,property_id,account_number) VALUES(:id,:p,:account)'),dict(id=meter,p=property_id,account=account))
+            self.session.execute(text('INSERT INTO bil_meter(id,property_id,meter_number,utility_type,municipal_bill_number) VALUES(:id,:p,:number,:utility,:account)'),dict(id=meter,p=property_id,number='PERIOD-METER-'+str(i),utility=utility,account=account))
+            self.session.execute(text("INSERT INTO bil_meter_reading(meter_id,reading_date,reading_value) VALUES(:id,'2026-10-30',:value)"),dict(id=meter,value=1000+i))
+        self.session.commit();self.conn.commit()
+        before=self.snapshot()
+        with self.app.test_request_context():data=self.pdf.report(26,'2026-10')
+        self.assertEqual(len(data['groups']['electricity']),7)
+        self.assertEqual(len(data['groups']['water']),6)
+        page=self.client.get(self.readings_url+'?billing_month=2026-10',headers=self.headers)
+        self.assertIn('7 electricity and 6 water',page.text)
+        response=self.client.get(self.url,headers=self.headers)
+        contents=' '.join(p.extract_text() for p in PdfReader(BytesIO(response.data)).pages)
+        for i in range(10):self.assertIn('PERIOD-METER-'+str(i),contents)
+        with self.app.test_request_context():september=self.pdf.report(26,'2026-09')
+        self.assertEqual(len(september['groups']['electricity']),0)
+        self.assertEqual(len(september['groups']['water']),1)
         self.assertEqual(before,self.snapshot())
 
     def test_multipage_pdf_keeps_all_rows_and_receipt_together(self):

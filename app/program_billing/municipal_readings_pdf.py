@@ -13,16 +13,17 @@ from .municipal_metsoa import month_context
 def report(property_id,period):
     property_scope(property_id)
     month,start,end=month_context(period)
-    if not any(c['name']=='municipal_reference' for c in inspect(db.session.connection()).get_columns('bil_meter')):
-        abort(503,description='Municipal Reference requires migration pm_meter_reference_001 before this report can be generated.')
+    reference_available=any(c['name']=='municipal_reference' for c in inspect(db.session.connection()).get_columns('bil_meter'))
+    reference_column='m.municipal_reference' if reference_available else 'CAST(NULL AS text)'
     # Ownership is enforced for every source row and every possible account link.
-    meters=db.session.execute(text("""SELECT p.id AS property_id,p.name AS property_name,
-        m.id AS meter_id,m.meter_number,m.municipal_reference,m.municipal_bill_number,
+    reading_sql="""SELECT p.id AS property_id,p.name AS property_name,
+        m.id AS meter_id,m.meter_number,REFERENCE_COLUMN AS municipal_reference,m.municipal_bill_number,
         m.utility_type,r.id AS reading_id,r.reading_date,r.reading_value
         FROM bil_property p JOIN bil_meter m ON m.property_id=p.id
         JOIN bil_meter_reading r ON r.meter_id=m.id
         WHERE p.manager_id=:user AND r.reading_date BETWEEN :start AND :end
-        ORDER BY p.name,p.id,m.meter_number,m.id,r.reading_date,r.id"""),
+        ORDER BY p.name,p.id,m.meter_number,m.id,r.reading_date,r.id"""
+    meters=db.session.execute(text(reading_sql.replace('REFERENCE_COLUMN',reference_column)),
         dict(user=current_user.id,start=start,end=end)).mappings().all()
     accounts=db.session.execute(text("""SELECT a.id,a.property_id,a.account_number,a.water_meter_id,a.elec_meter_id
         FROM bil_muni_account a JOIN bil_property p ON p.id=a.property_id

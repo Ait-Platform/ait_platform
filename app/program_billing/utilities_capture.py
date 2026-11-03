@@ -110,7 +110,7 @@ def save_statement(p,form):
 def page(p,kind):
     property_scope(p)
     from .municipal_metsoa import month_context
-    utility_month,_,_=month_context(request.values.get('billing_month'))
+    utility_month,period_start,period_end=month_context(request.values.get('billing_month'))
     prop=db.session.execute(text('SELECT id,name,address FROM bil_property WHERE id=:p'),dict(p=p)).mappings().one()
     error=None;status=200;values={};edit_id=request.args.get('edit');version=''
     if request.method=='POST':
@@ -134,4 +134,14 @@ def page(p,kind):
     elif request.method=='POST':version=values.get('version','')
     if not schema_ready():error=error or ('Metro Reconciliation is temporarily unavailable. Please contact the administrator.' if kind=='statements' else 'Meter Readings is temporarily unavailable. Please contact the administrator.')
     accounts=[dict(r) for r in db.session.execute(text('SELECT id,account_number FROM bil_muni_account WHERE property_id=:p ORDER BY account_number,id'),dict(p=p)).mappings()]
-    return render_template('program_billing/utilities_capture.html',property=prop,kind=kind,utility_month=utility_month,rows=rows,meters=meters(p),accounts=accounts,values=values,version=version,edit_id=edit_id,error=error,capture_ready=schema_ready(),today=datetime.now(ZoneInfo('Africa/Johannesburg')).date().isoformat()),status
+    reading_period_summary=None
+    if kind=='readings':
+        counts=db.session.execute(text('''SELECT lower(m.utility_type) AS utility,count(*) AS total
+            FROM bil_meter_reading r JOIN bil_meter m ON m.id=r.meter_id
+            JOIN bil_property p ON p.id=m.property_id
+            WHERE p.manager_id=:user AND r.reading_date BETWEEN :start AND :end
+            GROUP BY lower(m.utility_type)'''),dict(user=current_user.id,start=period_start,end=period_end)).mappings()
+        portfolio={r['utility']:r['total'] for r in counts}
+        reading_period_summary=dict(property=sum(period_start<=r['reading_date']<=period_end for r in rows),
+            electricity=portfolio.get('electricity',0)+portfolio.get('electrical',0),water=portfolio.get('water',0))
+    return render_template('program_billing/utilities_capture.html',property=prop,kind=kind,utility_month=utility_month,rows=rows,meters=meters(p),accounts=accounts,values=values,version=version,edit_id=edit_id,error=error,capture_ready=schema_ready(),reading_period_summary=reading_period_summary,today=datetime.now(ZoneInfo('Africa/Johannesburg')).date().isoformat()),status

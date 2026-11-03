@@ -191,6 +191,15 @@ def page(p,arrangement_id=None):
     prop=db.session.execute(text('SELECT id,name,address FROM bil_property WHERE id=:p'),dict(p=p)).mappings().one()
     available=ready();error=None;status_code=200;values=request.form.to_dict() if request.method=='POST' else {}
     utility_month=request.values.get('billing_month','')
+    account_rows=accounts(p)
+    if any(len(source.getlist('account_id'))>1 for source in (request.args,request.form)):abort(400)
+    requested_account=values.get('account_id') if request.method=='POST' and arrangement_id is None else request.args.get('account_id')
+    if arrangement_id is not None and available:
+        selected_account_id=record(p,arrangement_id)['account_id']
+    else:
+        selected_account_id=account(p,requested_account)['id'] if requested_account else (account_rows[0]['id'] if account_rows else None)
+    if request.method=='POST' and arrangement_id is None and request.args.get('account_id') and identifier(request.args['account_id'])!=selected_account_id:
+        abort(400,description='The selected municipal account changed. Reopen the create form.')
     if request.method=='POST':
         try:
             action=values.get('action')
@@ -199,19 +208,19 @@ def page(p,arrangement_id=None):
             elif arrangement_id is not None and action=='status':saved=update_status(p,arrangement_id,values)
             else:abort(400,description='Select a valid arrangement action.')
             db.session.commit();flash('Municipal payment arrangement saved.' if action!='payment' else 'Arrangement payment recorded. No ledger transaction was created.','success')
-            return redirect(url_for('billing_bp.municipal_arrangement_detail',property_id=p,arrangement_id=saved,billing_month=utility_month))
+            return redirect(url_for('billing_bp.municipal_arrangement_detail',property_id=p,arrangement_id=saved,billing_month=utility_month,account_id=selected_account_id))
         except HTTPException as exc:db.session.rollback();error=exc.description;status_code=exc.code
         except IntegrityError:db.session.rollback();error='This arrangement or payment reference is already recorded. Review the existing records before retrying.';status_code=409
         except SQLAlchemyError:
             db.session.rollback();current_app.logger.exception('Municipal arrangement save failed');error='Saving failed; no changes were committed. Please contact the administrator.';status_code=503
     rows=[];selected=None;details=None;history=[];sources=[]
     if available:
-        rows=[dict(r) for r in db.session.execute(text('SELECT a.*,m.account_number FROM bil_municipal_arrangement a JOIN bil_muni_account m ON m.id=a.account_id AND m.property_id=a.property_id WHERE a.property_id=:p ORDER BY a.created_at DESC,a.id DESC'),dict(p=p)).mappings()]
+        rows=[dict(r) for r in db.session.execute(text('SELECT a.*,m.account_number FROM bil_municipal_arrangement a JOIN bil_muni_account m ON m.id=a.account_id AND m.property_id=a.property_id WHERE a.property_id=:p AND a.account_id=:account ORDER BY a.created_at DESC,a.id DESC'),dict(p=p,account=selected_account_id)).mappings()]
         for row in rows:row.update(summary(row))
         if arrangement_id is not None:
-            selected=record(p,arrangement_id);details=summary(selected)
+            selected=record(p,arrangement_id);selected_account_id=selected['account_id'];details=summary(selected)
             history=[dict(r) for r in db.session.execute(text('SELECT * FROM bil_municipal_arrangement_event WHERE arrangement_id=:id ORDER BY recorded_at,id'),dict(id=arrangement_id)).mappings()]
             catalog_exists=db.session.execute(text("SELECT to_regclass('bil_muni_payment')")).scalar()
             if catalog_exists:
                 sources=[dict(r) for r in db.session.execute(text('SELECT p.* FROM bil_muni_payment p WHERE p.account_id=:a AND NOT EXISTS(SELECT 1 FROM bil_municipal_arrangement_payment x WHERE x.source_payment_id=p.id) ORDER BY p.payment_date DESC,p.id DESC'),dict(a=selected['account_id'])).mappings()]
-    return render_pm_template('program_billing/municipal_arrangements.html',property=prop,utility_month=utility_month,available=available,error=error,rows=rows,selected=selected,details=details,history=history,sources=sources,payments=payments(arrangement_id) if selected else [],accounts=accounts(p),values=values,show_form=request.args.get('new')=='1' or (request.method=='POST' and arrangement_id is None),frequencies=FREQUENCIES,statuses=STATUSES,request_key=values.get('request_key') or str(uuid.uuid4())),status_code
+    return render_pm_template('program_billing/municipal_arrangements.html',property=prop,utility_month=utility_month,available=available,error=error,rows=rows,selected=selected,details=details,history=history,sources=sources,payments=payments(arrangement_id) if selected else [],accounts=account_rows,selected_account_id=selected_account_id,values=values,show_form=request.args.get('new')=='1' or (request.method=='POST' and arrangement_id is None),frequencies=FREQUENCIES,statuses=STATUSES,request_key=values.get('request_key') or str(uuid.uuid4())),status_code

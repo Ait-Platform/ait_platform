@@ -153,6 +153,7 @@ class ArrangementTests(fixture.AdminLandingTests):
         from playwright.sync_api import sync_playwright
         from http.server import BaseHTTPRequestHandler,HTTPServer
         from threading import Thread
+        self.conn.execute(text("INSERT INTO bil_muni_account(id,property_id,account_number) VALUES(4,26,'SECOND-26')"));self.conn.commit()
         case=self;before=self.financial_snapshot()
         class Handler(BaseHTTPRequestHandler):
             def log_message(self,*args):pass
@@ -175,8 +176,10 @@ class ArrangementTests(fixture.AdminLandingTests):
                 page.get_by_role('button',name='Municipal Payment Arrangements',exact=True).click()
                 self.assertIn(self.url,page.url);self.assertIn('billing_month=2026-10',page.url)
                 self.assertEqual(page.locator('h1').inner_text(),'Municipal Payment Arrangements')
+                page.locator('#arrangement-account').select_option('4')
+                page.wait_for_url('**account_id=4')
                 page.get_by_role('link',name='+ Create Payment Arrangement').click()
-                form=page.locator('#arrangement-create');form.locator('[name="account_id"]').select_option('1')
+                form=page.locator('#arrangement-create');self.assertEqual(form.locator('[name="account_id"]').input_value(),'4')
                 for key,value in dict(reference='BROWSER-ARR',agreement_date='2026-09-01',original_amount='250',instalment_amount='100',instalments='3',first_payment_date='2026-09-30',document_reference='Letter 123').items():form.locator('[name="'+key+'"]').fill(value)
                 page.get_by_role('button',name='Save Arrangement',exact=True).click()
                 self.assertEqual(page.locator('#arrangement-schedule tbody tr').count(),3)
@@ -192,6 +195,7 @@ class ArrangementTests(fixture.AdminLandingTests):
                 self.assertIn('Formal pause',page.locator('#arrangement-history').inner_text())
                 page.get_by_role('link',name='Back to Arrangements',exact=True).click()
                 self.assertIn('billing_month=2026-10',page.url)
+                self.assertEqual(page.locator('#arrangement-account').input_value(),'4')
                 self.assertIn('BROWSER-ARR',page.locator('#arrangement-register').inner_text())
                 self.assertEqual(page.get_by_role('link',name='Municipal Payment Arrangements',exact=True).count(),1)
             finally:browser.close()
@@ -339,6 +343,41 @@ class ArrangementTests(fixture.AdminLandingTests):
         self.conn.execute(text('UPDATE "user" SET is_active=0 WHERE id=644'));self.conn.commit()
         self.assertNotIn('Municipal Payment Arrangements',self.client.get(url).text)
         self.assertEqual(self.client.get(self.url).status_code,403)
+
+    def test_account_selector_filters_and_carries_account_into_creation(self):
+        from urllib.parse import urlsplit,parse_qs
+        self.conn.execute(text("INSERT INTO bil_muni_account(id,property_id,account_number) VALUES(4,26,'SECOND-26')"));self.conn.commit()
+        first=self.create(reference='FIRST-ACCOUNT')
+        second=self.create(account_id='4',reference='SECOND-ACCOUNT')
+        before=self.financial_snapshot()
+        evidence={t:list(self.conn.execute(text('SELECT * FROM '+t+' ORDER BY id'))) for t in self.service.TABLES}
+        page=self.client.get(self.url+'?account_id=4&billing_month=2026-10')
+        self.assertEqual(page.status_code,200)
+        tree=html.fromstring(page.data)
+        self.assertEqual(tree.xpath('//select[@id="arrangement-account"]/option/@value'),['1','4'])
+        self.assertEqual(tree.xpath('//select[@id="arrangement-account"]/option[@selected]/@value'),['4'])
+        register=tree.xpath('//table[@id="arrangement-register"]')[0].text_content()
+        self.assertIn('SECOND-ACCOUNT',register);self.assertNotIn('FIRST-ACCOUNT',register)
+        create_url=tree.xpath('//a[text()="+ Create Payment Arrangement"]/@href')[0]
+        self.assertEqual(parse_qs(urlsplit(create_url).query)['account_id'],['4'])
+        form=self.client.get(create_url)
+        form_tree=html.fromstring(form.data)
+        self.assertEqual(form_tree.xpath('//form[@id="arrangement-create"]/input[@name="account_id"]/@value'),['4'])
+        token=form_tree.xpath('//input[@name="csrf_token"]/@value')[0]
+        result=self.client.post(create_url,data=dict(self.form(account_id='4',reference='SELECTED-CREATE'),csrf_token=token))
+        self.assertEqual(result.status_code,302)
+        self.assertEqual(self.conn.execute(text("SELECT account_id FROM bil_municipal_arrangement WHERE reference='SELECTED-CREATE'")).scalar(),4)
+        back=html.fromstring(self.client.get(result.location).data).xpath('//a[text()="Back to Arrangements"]/@href')[0]
+        self.assertEqual(parse_qs(urlsplit(back).query)['account_id'],['4'])
+        self.assertEqual(parse_qs(urlsplit(back).query)['billing_month'],['2026-10'])
+        self.assertEqual(self.client.post(create_url,data=dict(self.form(account_id='1'),csrf_token=token)).status_code,400)
+        for account_id in ('2','3','999'):
+            self.assertEqual(self.client.get(self.url+'?account_id='+account_id).status_code,403)
+            self.assertEqual(self.client.post(self.url,data=dict(self.form(account_id=account_id),csrf_token=token)).status_code,403)
+        self.assertEqual(self.client.get(self.url+'?account_id=1&account_id=4').status_code,400)
+        self.assertEqual(self.financial_snapshot(),before)
+        for t,rows in evidence.items():
+            self.assertEqual(list(self.conn.execute(text('SELECT * FROM '+t+' ORDER BY id LIMIT :n'),dict(n=len(rows)))),rows)
 
     def test_missing_migration_safe_unavailable(self):
         token=html.fromstring(self.client.get(self.url+'?new=1').data).xpath('//input[@name="csrf_token"]/@value')[0]

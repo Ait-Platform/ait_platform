@@ -1,10 +1,12 @@
 """Municipal reconciliation payment capture using existing tables, isolated PostgreSQL."""
-import unittest,uuid
+import unittest,uuid,importlib.util
 from pathlib import Path
 from decimal import Decimal
 from unittest.mock import patch
 from sqlalchemy import text
 from lxml import html
+from alembic.operations import Operations
+from alembic.migration import MigrationContext
 import test_pm_utilities_capture as fixture
 
 
@@ -25,6 +27,13 @@ class ReconciliationPaymentTests(fixture.UtilitiesCaptureTests):
             VALUES(1,'2026-09','2026-09-30',25.50,'LEGACY-PRESERVED'),(1,'2026-10','2026-10-31',900,'OTHER-PERIOD'),
                   (2,'2026-09','2026-09-30',700,'OTHER-ACCOUNT')"""))
         self.session.commit();self.conn.commit()
+        before=self.snapshot_payments()
+        spec=importlib.util.spec_from_file_location('mar_reference_migration',Path('migrations/versions/pm_mar_payment_reference_001.py'))
+        self.reference_migration=importlib.util.module_from_spec(spec);spec.loader.exec_module(self.reference_migration)
+        with patch.object(self.reference_migration,'op',Operations(MigrationContext.configure(self.conn))):self.reference_migration.upgrade()
+        self.session.commit();self.conn.commit()
+        self.assertEqual(before,self.snapshot_payments())
+        self.assertEqual(self.session.execute(text("SELECT relpersistence FROM pg_class WHERE oid='bil_mar_payment_reference_seq'::regclass")).scalar(),'t')
         self.url=self.statements_url+'?payment='+str(self.statement['id'])+'&billing_month=2026-11'
 
     def snapshot_payments(self):
@@ -49,6 +58,7 @@ class ReconciliationPaymentTests(fixture.UtilitiesCaptureTests):
         self.assertEqual(len(rows),3)
         self.assertEqual(rows[0]['reference'],'LEGACY-PRESERVED')
         self.assertEqual([Decimal(str(r['amount'])) for r in rows],[Decimal('25.5'),Decimal('100.25'),Decimal('49.75')])
+        self.assertEqual([r['reference'] for r in rows],['LEGACY-PRESERVED','001','002'])
         self.assertEqual(self.capture.paid(1,'2026-09'),Decimal('175.50'))
         self.assertEqual(self.capture.paid(1,'2026-10'),Decimal('900'))
         self.assertEqual(self.capture.paid(2,'2026-09'),Decimal('700'))
@@ -74,7 +84,7 @@ class ReconciliationPaymentTests(fixture.UtilitiesCaptureTests):
         self.assertEqual(before,self.snapshot_payments())
         # A recurring reference on another date represents a separate real transaction.
         self.assertEqual(self.submit(dict(data,request_key=str(uuid.uuid4()),payment_date='2026-10-16')).status_code,302)
-        self.assertEqual(self.session.execute(text("SELECT count(*) FROM bil_muni_payment WHERE reference='MET-26'")).scalar(),2)
+        self.assertEqual(self.session.execute(text("SELECT count(*) FROM bil_muni_payment WHERE reference IN ('001','002')")).scalar(),2)
 
     def test_invalid_amounts_dates_and_reference_never_write(self):
         base=self.payment_form();before=self.snapshot_payments()
@@ -82,25 +92,50 @@ class ReconciliationPaymentTests(fixture.UtilitiesCaptureTests):
             response=self.submit(dict(base,**changes));self.assertEqual(response.status_code,400,response.text)
             self.assertEqual(before,self.snapshot_payments())
 
-    def test_payment_reference_is_read_only_and_comes_from_the_reconciliation_account(self):
+    def test_reference_is_generated_and_shown_in_history_without_an_input(self):
         page=self.client.get(self.url,headers=self.headers)
         tree=html.fromstring(page.data);form=tree.xpath('//form[@id="municipal-payment-form"]')[0]
-        self.assertEqual(form.xpath('.//input[@name="payment_reference"]/@value'),['MET-26'])
-        self.assertTrue(form.xpath('.//input[@name="payment_reference"][@readonly]'))
+        self.assertFalse(form.xpath('.//input[@name="payment_reference"]'))
         for field in ('payment_date','payment_amount'):self.assertFalse(form.xpath('.//input[@name="'+field+'"][@readonly]'))
         data=self.payment_form(payment_reference='BROWSER-FORGED')
         self.assertEqual(self.submit(data).status_code,302)
         payment=self.session.execute(text('SELECT * FROM bil_muni_payment ORDER BY id DESC LIMIT 1')).mappings().one()
-        self.assertEqual(payment['reference'],'MET-26')
+        self.assertEqual(payment['reference'],'001');self.assertEqual(payment['account_id'],1)
         audit=self.session.execute(text("SELECT after_data FROM bil_utilities_capture_audit WHERE kind='municipal_payment'")).scalar()
-        self.assertEqual(audit['reference'],'MET-26')
+        self.assertEqual(audit['reference'],'001')
         snapshot=self.snapshot_payments()
         self.assertEqual(self.submit(dict(data,payment_reference='')).status_code,302)
         self.assertEqual(snapshot,self.snapshot_payments())
-        # The existing reference validation still applies to the authoritative stored value.
-        self.session.execute(text("UPDATE bil_muni_account SET account_number='' WHERE id=1"));self.session.commit();self.conn.commit()
-        self.assertEqual(self.submit(dict(data,request_key=str(uuid.uuid4()))).status_code,400)
-        self.assertEqual(snapshot,self.snapshot_payments())
+        self.assertEqual(self.session.execute(text('SELECT last_value FROM bil_mar_payment_reference_seq')).scalar(),1)
+        history=html.fromstring(self.client.get(self.url,headers=self.headers).data).xpath('//table[@id="mar-payment-history"]')[0]
+        self.assertEqual(history.xpath('.//th/text()'),['Payment Date','Amount Paid','Payment Reference'])
+        self.assertIn('001',history.text_content());self.assertIn('LEGACY-PRESERVED',history.text_content())
+
+    def test_sequence_migration_preserves_history_and_skips_numeric_collisions(self):
+        self.session.execute(text('ALTER SEQUENCE bil_mar_payment_reference_seq RENAME TO previous_local_reference_seq'))
+        self.session.execute(text("INSERT INTO bil_muni_payment(account_id,month,payment_date,amount,reference) VALUES(1,'2026-09','2026-09-29',7,'007'),(1,'2026-09','2026-09-28',8,'1000'),(1,'2026-09','2026-09-27',9,'83327938998')"))
+        self.session.commit();self.conn.commit()
+        before=self.snapshot_payments()
+        with patch.object(self.reference_migration,'op',Operations(MigrationContext.configure(self.conn))):self.reference_migration.upgrade()
+        self.session.commit();self.conn.commit()
+        self.assertEqual(before,self.snapshot_payments())
+        self.assertEqual(self.session.execute(text('SELECT last_value FROM bil_mar_payment_reference_seq')).scalar(),8)
+        self.session.execute(text("SELECT setval('bil_mar_payment_reference_seq',1000,false)"));self.session.commit();self.conn.commit()
+        self.assertEqual(self.submit(self.payment_form()).status_code,302)
+        self.assertEqual(self.session.execute(text('SELECT reference FROM bil_muni_payment ORDER BY id DESC LIMIT 1')).scalar(),'1001')
+        for row in before['bil_muni_payment']:self.assertIn(row,list(self.session.execute(text('SELECT * FROM bil_muni_payment'))))
+
+    def test_historical_audit_receipts_replay_without_new_reference_or_row(self):
+        import json,hashlib
+        data=self.payment_form(payment_date='2026-09-30',payment_amount='25.50',payment_reference='ignored')
+        canonical=dict(statement_id=self.statement['id'],account_id=1,period='2026-09',payment_date='2026-09-30',amount='25.50',reference='LEGACY-PRESERVED')
+        digest=hashlib.sha256(json.dumps(canonical,sort_keys=True).encode()).hexdigest()
+        self.capture.audit(26,'municipal_payment',1,None,dict(canonical,payment_id=1,request_key=data['request_key'],payload_hash=digest))
+        self.session.commit();self.conn.commit()
+        before=self.snapshot_payments()
+        self.assertEqual(self.submit(data).status_code,302)
+        self.assertEqual(before,self.snapshot_payments())
+        self.assertFalse(self.session.execute(text('SELECT is_called FROM bil_mar_payment_reference_seq')).scalar())
 
     def test_property_account_record_csrf_and_missing_schema_guards(self):
         data=self.payment_form();before=self.snapshot_payments()
@@ -143,10 +178,13 @@ class ReconciliationPaymentTests(fixture.UtilitiesCaptureTests):
         for name in ('bil_muni_payment','bil_utilities_capture_audit'):
             self.session.execute(text('ALTER TABLE public.'+tables[name]+' ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (START WITH 1000)'))
         self.session.execute(text('ALTER TABLE public.'+tables['bil_utilities_capture_audit']+' ALTER COLUMN recorded_at SET DEFAULT now()'))
+        sequence=prefix+'seq'
+        self.session.execute(text('CREATE SEQUENCE public.'+sequence))
         self.session.commit();self.conn.commit()
         def cleanup():
             self.session.rollback();self.conn.rollback()
             self.assertEqual(self.conn.execute(text('SELECT current_database()')).scalar(),'ait_local_db')
+            self.conn.execute(text('DROP SEQUENCE public.'+sequence))
             for table in reversed(list(tables.values())):self.conn.execute(text('DROP TABLE public.'+table))
             self.conn.commit()
         self.addCleanup(cleanup)
@@ -162,6 +200,7 @@ class ReconciliationPaymentTests(fixture.UtilitiesCaptureTests):
                         service.db=types.SimpleNamespace(session=session)
                         exec(compile(source,'utilities_capture.py','exec'),service.__dict__)
                         service.current_user=types.SimpleNamespace(id=7)
+                        service.PAYMENT_REFERENCE_SEQUENCE='public.'+sequence
                         service.text=lambda sql:text(pattern.sub(lambda m:'public.'+tables[m.group(0)],sql))
                         def available(table,columns):
                             target=tables[table];catalog=inspect(connection)
@@ -170,7 +209,7 @@ class ReconciliationPaymentTests(fixture.UtilitiesCaptureTests):
                         service.property_scope=loader.function('app/program_billing/metsoa_setup_safety.py','property_scope',dict(db=service.db,current_user=service.current_user,text=service.text,abort=abort))
                         barrier.wait(timeout=10)
                         try:
-                            result=service.record_payment(26,form);session.commit();connection.commit()
+                            result=service.record_payment(int(form.get('_property',26)),form);session.commit();connection.commit()
                             return result[0]
                         except HTTPException as exc:
                             session.rollback();connection.rollback();return -exc.code
@@ -185,6 +224,13 @@ class ReconciliationPaymentTests(fixture.UtilitiesCaptureTests):
         self.assertEqual(sum(r>0 for r in results),1);self.assertIn(-409,results)
         count=self.session.execute(text('SELECT count(*) FROM public.'+tables['bil_muni_payment']+" WHERE id>=1000")).scalar()
         self.assertEqual(count,2)
+        distinct1=dict(form,request_key=str(uuid.uuid4()),payment_date='2026-10-17',payment_amount='31')
+        other=self.session.execute(text('SELECT id FROM '+tables['bil_municipal_statement']+' WHERE account_id=2')).scalar()
+        distinct2=dict(distinct1,statement_id=str(other),request_key=str(uuid.uuid4()),payment_amount='32',_property='27')
+        results=concurrent([distinct1,distinct2]);self.assertTrue(all(r>0 for r in results))
+        references=list(self.session.execute(text('SELECT reference FROM public.'+tables['bil_muni_payment']+' WHERE id>=1000 ORDER BY id')).scalars())
+        self.assertEqual(set(references),{'001','002','003','004'})
+        self.assertEqual(len(references),len(set(references)))
 
     def test_browser_record_payment_alongside_edit_and_refresh(self):
         from playwright.sync_api import sync_playwright
@@ -216,7 +262,7 @@ class ReconciliationPaymentTests(fixture.UtilitiesCaptureTests):
                 form.get_by_role('button',name='Save Payment',exact=True).click()
                 self.assertIn('R125.75',page.locator('tr[data-statement-row]').filter(has_text='2026-09-28').first.inner_text())
                 page.reload()
-                self.assertEqual(case.session.execute(text("SELECT count(*) FROM bil_muni_payment WHERE reference='MET-26'")).scalar(),1)
+                self.assertEqual(case.session.execute(text("SELECT count(*) FROM bil_muni_payment WHERE reference IN ('001','002')")).scalar(),1)
             finally:browser.close()
 
 

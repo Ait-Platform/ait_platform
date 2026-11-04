@@ -104,6 +104,17 @@ class UtilitiesOutputTests(fixture.StatementFilterTests):
         self.session.execute(text("INSERT INTO bil_meter_reading(meter_id,reading_date,reading_value) VALUES(99,'2026-09-20',25)"));self.session.commit();self.conn.commit()
         with patch.object(self.output,'email_pdf') as sender:
             stale=self.client.post(self.base,data=fields,headers=self.headers);self.assertEqual(stale.status_code,409);self.assertIn('records changed after preview',stale.text);sender.assert_not_called()
+    def test_output_actions_are_right_aligned_in_existing_filter_row(self):
+        page=self.preview()
+        tree=html.fromstring(page.data)
+        actions=tree.xpath('//*[@id="output-actions"]')[0]
+        self.assertEqual(actions.getparent().get('id'),'output-filters')
+        self.assertIn('ml-auto',actions.get('class'))
+        self.assertIn('justify-end',actions.get('class'))
+        self.assertEqual(actions.xpath('./button/text()'),['Preview','Print','Email'])
+        self.assertEqual(tree.xpath('//form[@id="output-filters"]//select/@name'),['source','item_id'])
+        self.assertEqual(tree.xpath('//form[@id="output-filters"]//input[@type="date"]/@name'),['date_from','date_to'])
+
     def test_browser_print_email_controls_and_dirty_filter_protection(self):
         from playwright.sync_api import sync_playwright
         page=self.preview()

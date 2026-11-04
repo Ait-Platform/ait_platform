@@ -10,6 +10,8 @@ from werkzeug.exceptions import HTTPException
 from app.extensions import db
 from .metsoa_setup_safety import property_scope
 
+PAYMENT_REFERENCE_SEQUENCE='bil_mar_payment_reference_seq'
+
 def fingerprint(row):return hashlib.sha256(json.dumps(dict(row),sort_keys=True,default=str).encode()).hexdigest()
 def day(value):
     try:
@@ -78,7 +80,7 @@ def paid(account,period):
     # Only explicit municipal account/period allocations qualify. Never tenant/property totals.
     return db.session.execute(text('SELECT COALESCE(SUM(CAST(amount AS numeric(18,2))),0) FROM bil_muni_payment WHERE account_id=:a AND month=:p'),dict(a=account,p=period)).scalar()
 def payment_ready():
-    return schema_ready() and available('bil_muni_payment',['id','account_id','month','payment_date','amount','reference'])
+    return schema_ready() and available('bil_muni_payment',['id','account_id','month','payment_date','amount','reference']) and db.session.execute(text('SELECT to_regclass(:seq)'),dict(seq=PAYMENT_REFERENCE_SEQUENCE)).scalar() is not None
 
 
 def record_payment(p,form):
@@ -106,30 +108,35 @@ def record_payment(p,form):
     if not statement:abort(404)
     if form.get('account_id') and str(statement['account_id'])!=str(form['account_id']):
         abort(403,description='This payment must use the reconciliation record municipal account.')
-    reference=str(statement['account_number'] or '').strip()
-    if not reference or len(reference)>100 or any(ord(c)<32 for c in reference):
-        abort(400,description='Payment Reference is required and must be at most 100 characters without control characters.')
     canonical=dict(statement_id=statement_id,account_id=statement['account_id'],period=statement['period'],
-                   payment_date=payment_date.isoformat(),amount=str(value.quantize(Decimal('.01'))),reference=reference)
+                   payment_date=payment_date.isoformat(),amount=str(value.quantize(Decimal('.01'))))
     digest=hashlib.sha256(json.dumps(canonical,sort_keys=True).encode()).hexdigest()
     db.session.execute(text('SELECT pg_advisory_xact_lock(hashtextextended(:key,0))'),dict(key='pm-reconciliation-payment:'+key))
     receipt=db.session.execute(text('''SELECT * FROM bil_utilities_capture_audit
         WHERE kind='municipal_payment' AND after_data->>'request_key'=:key ORDER BY id LIMIT 1'''),dict(key=key)).mappings().first()
     if receipt:
-        if receipt['property_id']!=p or receipt['actor_id']!=current_user.id or receipt['after_data'].get('payload_hash')!=digest:
+        # Retain replay compatibility with historical receipts which hashed an entered/account reference.
+        legacy_digest=hashlib.sha256(json.dumps(dict(canonical,reference=receipt['after_data'].get('reference')),sort_keys=True).encode()).hexdigest()
+        if receipt['property_id']!=p or receipt['actor_id']!=current_user.id or receipt['after_data'].get('payload_hash') not in (digest,legacy_digest):
             abort(409,description='This payment submission was already used with different information. Reopen Record Payment.')
         return receipt['record_id'],statement['account_id']
     duplicate=db.session.execute(text('''SELECT id FROM bil_muni_payment
         WHERE account_id=:a AND payment_date=:d AND CAST(amount AS numeric(18,2))=:v
-        AND lower(btrim(reference))=lower(:ref) LIMIT 1'''),
-        dict(a=statement['account_id'],d=payment_date,v=value,ref=reference)).first()
+        LIMIT 1'''),
+        dict(a=statement['account_id'],d=payment_date,v=value)).first()
     if duplicate:abort(409,description='This municipal payment is already recorded. Existing transactions were retained.')
+    # PostgreSQL nextval is atomic across sessions and never reuses a rolled-back allocation.
+    # Skip any historical reference which already happens to use this padded numeric form.
+    while True:
+        number=db.session.execute(text('SELECT nextval(:seq)'),dict(seq=PAYMENT_REFERENCE_SEQUENCE)).scalar_one()
+        reference=format(number,'03d')
+        if not db.session.execute(text('SELECT 1 FROM bil_muni_payment WHERE reference=:ref LIMIT 1'),dict(ref=reference)).first():break
     before_paid=paid(statement['account_id'],statement['period'])
     payment_id=db.session.execute(text('''INSERT INTO bil_muni_payment(account_id,month,payment_date,amount,reference)
         VALUES(:a,:period,:d,:v,:ref) RETURNING id'''),
         dict(a=statement['account_id'],period=statement['period'],d=payment_date,v=value,ref=reference)).scalar_one()
     audit(p,'municipal_payment',payment_id,dict(paid=str(before_paid)),
-          dict(canonical,payment_id=payment_id,request_key=key,payload_hash=digest,paid=str(before_paid+value)))
+          dict(canonical,reference=reference,payment_id=payment_id,request_key=key,payload_hash=digest,paid=str(before_paid+value)))
     return payment_id,statement['account_id']
 
 
@@ -191,6 +198,11 @@ def page(p,kind):
         except (TypeError,ValueError):abort(400,description='Select a valid reconciliation record.')
         payment_target=next((r for r in rows if r['id']==payment_id),None)
         if not payment_target:abort(404)
+    payment_history=[]
+    if payment_target and available('bil_muni_payment',['id','account_id','month','payment_date','amount','reference']):
+        payment_history=[dict(r) for r in db.session.execute(text('''SELECT id,payment_date,amount,reference
+            FROM bil_muni_payment WHERE account_id=:account AND month=:period ORDER BY payment_date,id'''),
+            dict(account=payment_target['account_id'],period=payment_target['period'])).mappings()]
     if request.method=='GET' and edit_id:
         try:row=next((r for r in rows if r['id']==int(edit_id)),None)
         except ValueError:abort(400)
@@ -212,4 +224,4 @@ def page(p,kind):
         portfolio={r['utility']:r['total'] for r in counts}
         reading_period_summary=dict(property=sum(period_start<=r['reading_date']<=period_end for r in rows),
             electricity=portfolio.get('electricity',0)+portfolio.get('electrical',0),water=portfolio.get('water',0))
-    return render_template('program_billing/utilities_capture.html',property=prop,kind=kind,utility_month=utility_month,rows=rows,meters=meters(p),accounts=accounts,values=values,version=version,edit_id=edit_id,error=error,capture_ready=schema_ready(),reading_period_summary=reading_period_summary,payment_target=payment_target,payment_capture_ready=payment_ready() if kind=='statements' else False,payment_request_key=values.get('request_key') or str(uuid.uuid4()),today=datetime.now(ZoneInfo('Africa/Johannesburg')).date().isoformat()),status
+    return render_template('program_billing/utilities_capture.html',property=prop,kind=kind,utility_month=utility_month,rows=rows,meters=meters(p),accounts=accounts,values=values,version=version,edit_id=edit_id,error=error,capture_ready=schema_ready(),reading_period_summary=reading_period_summary,payment_target=payment_target,payment_history=payment_history,payment_capture_ready=payment_ready() if kind=='statements' else False,payment_request_key=values.get('request_key') or str(uuid.uuid4()),today=datetime.now(ZoneInfo('Africa/Johannesburg')).date().isoformat()),status

@@ -11,12 +11,13 @@
 <button name="format" value="municipal_pdf" class="rounded-lg bg-blue-100 px-4 py-2 font-semibold">Generate Municipal Meter Readings PDF</button></form>
 <p id="municipal-reading-scope" class="my-3 text-sm text-slate-600">Recorded in {{ utility_month }}: {{ reading_period_summary.property }} readings for {{ property.name }}; authorized portfolio: {{ reading_period_summary.electricity }} electricity and {{ reading_period_summary.water }} water readings. The PDF includes recorded readings dated within this month across your authorized portfolio. The table below shows this property's saved history, including other months. Capture dates are saved as entered.</p>{% endif %}
 {% if kind=='readings' %}{% include 'program_billing/municipal_navigation.html' %}{% else %}
-<nav id="mar-menu" aria-label="Municipal Account Reconciliation" class="my-4 flex justify-end gap-2">
+<div id="mar-context-row" class="my-4 flex items-center justify-between gap-3"><h2 class="text-lg font-semibold">{{ property.name }}</h2>
+<nav id="mar-menu" aria-label="Municipal Account Reconciliation" class="flex shrink-0 justify-end gap-2">
 <a data-mar-open="form" href="{{ url_for('billing_bp.metro_reconciliation',property_id=property.id,billing_month=utility_month,view_item=request.values.get('view_item',''),workspace='add') }}" aria-controls="mar-form" class="rounded-lg bg-green-100 px-4 py-2 font-semibold">Add</a>
 <a data-mar-open="register" href="{{ url_for('billing_bp.metro_reconciliation',property_id=property.id,billing_month=utility_month,view_item=request.values.get('view_item',''),workspace='register') }}" aria-controls="mar-register" class="rounded-lg bg-blue-100 px-4 py-2 font-semibold">View Register</a>
-</nav>
+</nav></div>
 {% endif %}
-<h2 class="text-lg font-semibold">{{ property.name }}</h2>
+{% if kind=='readings' %}<h2 class="text-lg font-semibold">{{ property.name }}</h2>{% endif %}
 {% if error %}<p role="alert" class="my-3 rounded-lg bg-red-50 p-3 text-red-800">{{ error }}</p>{% endif %}
 {% if kind=='statements' %}
 {% set mar_initial='payment' if payment_target else ('form' if edit_id or request.method=='POST' else ('form' if request.args.get('workspace')=='add' else ('register' if request.args.get('workspace')=='register' or ('view_item' in request.args and request.args.get('workspace')!='closed') else ''))) %}
@@ -34,12 +35,16 @@
 <div class="grid gap-4 md:grid-cols-3">
 <label class="font-semibold">Payment Date<input type="date" name="payment_date" required autofocus min="1900-01-01" max="{{ today }}" value="{{ values.get('payment_date',today) }}" class="mt-2 block w-full rounded-lg border border-slate-300 px-3 py-2"></label>
 <label class="font-semibold">Amount Paid (ZAR)<input type="number" name="payment_amount" required min="0.01" step="0.01" value="{{ values.get('payment_amount','') }}" class="mt-2 block w-full rounded-lg border border-slate-300 px-3 py-2"></label>
-<label class="font-semibold">Payment Reference<input name="payment_reference" required readonly maxlength="100" value="{{ payment_target.account_number }}" class="mt-2 block w-full rounded-lg border border-slate-300 px-3 py-2"></label>
+<p class="self-end text-sm text-slate-600">A payment reference is generated automatically when you save.</p>
 </div>
 <p class="text-sm text-slate-600">Each payment is saved separately against this account and reconciliation period. Arrears, Balance and Due are unchanged.</p>
 <div class="flex justify-end gap-2"><a data-mar-close class="rounded-lg bg-red-100 px-4 py-2" href="{{ url_for('billing_bp.metro_reconciliation',property_id=property.id,billing_month=utility_month,view_item=payment_target.account_id,workspace='closed') }}">Cancel</a><button type="submit" class="rounded-lg bg-green-100 px-4 py-2" {% if not payment_capture_ready %}disabled{% endif %}>Save Payment</button></div>
 {% if not payment_capture_ready %}<p role="alert">Municipal payment capture is temporarily unavailable. Existing transactions are unchanged.</p>{% endif %}
-</form></section>
+</form>
+<h3 class="mt-5 text-lg font-semibold">Payment History</h3>
+<div class="overflow-x-auto"><table id="mar-payment-history" class="my-3 w-full text-left text-sm"><thead class="bg-slate-50"><tr><th class="p-3">Payment Date</th><th class="p-3">Amount Paid</th><th class="p-3">Payment Reference</th></tr></thead><tbody>
+{% for payment in payment_history %}<tr class="border-t"><td class="p-3">{{ payment.payment_date }}</td><td class="p-3">R{{ '{:,.2f}'.format(payment.amount) }}</td><td class="p-3">{{ payment.reference or '' }}</td></tr>{% else %}<tr><td colspan="3" class="p-3">No payments recorded for this reconciliation entry.</td></tr>{% endfor %}
+</tbody></table></div></section>
 {% endif %}
 {% if kind=='statements' %}<section id="mar-form" data-mar-section="form" {% if mar_initial!='form' %}hidden{% endif %}><h2 class="my-3 text-lg font-semibold">{{ 'Edit Reconciliation' if edit_id else 'Add Reconciliation' }}</h2>{% endif %}
 <form id="utilities-capture" method="POST" class="mt-4 space-y-4">

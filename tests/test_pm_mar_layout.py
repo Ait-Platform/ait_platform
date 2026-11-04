@@ -18,6 +18,11 @@ class MARLayoutTests(fixture.ReconciliationPaymentTests):
         self.assertIn('billing_month=2026-09',title.getparent().xpath('./a/@href')[0])
         self.assertEqual(tree.xpath('//nav[@id="mar-menu"]/a/text()'),['Add','View Register'])
         self.assertFalse(tree.xpath('//nav[@aria-label="Municipal Utilities"]'))
+        context=tree.xpath('//*[@id="mar-context-row"]')[0]
+        self.assertEqual(context.xpath('./h2/text()'),['Synthetic property'])
+        self.assertEqual(context.xpath('./nav/@id'),['mar-menu'])
+        self.assertIn('justify-between',context.get('class'))
+        self.assertEqual(len(tree.xpath('//h2[text()="Synthetic property"]')),1)
         self.assertTrue(tree.xpath('//*[@id="mar-workspaces"][@hidden]'))
         self.assertEqual(len(tree.xpath('//*[@data-mar-section][not(@hidden)]')),0)
         self.assertTrue(tree.xpath('//*[@id="mar-register"]//a[@id="statement-output"]'))
@@ -33,7 +38,7 @@ class MARLayoutTests(fixture.ReconciliationPaymentTests):
         self.assertEqual(response.status_code,400)
         tree=html.fromstring(response.data)
         self.assertEqual(tree.xpath('//*[@data-mar-section][not(@hidden)]/@data-mar-section'),['payment'])
-        self.assertEqual(tree.xpath('//input[@name="payment_reference"]/@value'),['MET-26'])
+        self.assertFalse(tree.xpath('//input[@name="payment_reference"]'))
 
     def test_meter_readings_keep_the_existing_layout_and_navigation(self):
         page=self.client.get(self.readings_url,headers=self.headers)
@@ -98,9 +103,7 @@ class MARLayoutTests(fixture.ReconciliationPaymentTests):
                 page.locator('[data-statement-row]').filter(has_text='2026-09-28').first.get_by_role('link',name='Record Payment',exact=True).click()
                 self.assertTrue(page.locator('#mar-payment').is_visible())
                 self.assertEqual(page.locator('[data-mar-section]:visible').count(),1)
-                reference=page.locator('#municipal-payment-form [name="payment_reference"]')
-                self.assertEqual(reference.input_value(),'MET-26')
-                self.assertTrue(reference.is_editable() is False)
+                self.assertEqual(page.locator('#municipal-payment-form [name="payment_reference"]').count(),0)
                 self.assertTrue(page.locator('#municipal-payment-form [name="payment_date"]').is_editable())
                 self.assertTrue(page.locator('#municipal-payment-form [name="payment_amount"]').is_editable())
                 page.locator('#municipal-payment-form').get_by_role('link',name='Cancel',exact=True).click()

@@ -40,6 +40,22 @@ class MARLayoutTests(fixture.ReconciliationPaymentTests):
         self.assertEqual(tree.xpath('//*[@data-mar-section][not(@hidden)]/@data-mar-section'),['payment'])
         self.assertFalse(tree.xpath('//input[@name="payment_reference"]'))
 
+    def test_payment_summary_uses_selected_record_and_keeps_partial_amount_blank(self):
+        before=self.snapshot_payments()
+        tree=html.fromstring(self.client.get(self.url,headers=self.headers).data)
+        section=tree.xpath('//*[@id="mar-payment"]')[0]
+        self.assertIn('Account: MET-26',section.text_content())
+        self.assertIn('Reconciliation Period: September 2026',section.text_content())
+        summary=section.xpath('.//table[@id="mar-payment-summary"]')[0]
+        self.assertEqual(summary.xpath('./thead/tr/th/text()'),['Arrears','Balance','Amount Due','Already Paid'])
+        expected=['R{:,.2f}'.format(self.statement[key]) for key in ['arrears','balance','due']]+['R25.50']
+        self.assertEqual(summary.xpath('./tbody/tr/td/text()'),expected)
+        self.assertEqual(section.xpath('.//input[@name="payment_amount"]/@value'),[''])
+        self.assertNotIn('A payment reference is generated automatically',section.text_content())
+        self.assertNotIn('Each payment is saved separately',section.text_content())
+        self.assertEqual(section.xpath('.//form/div[last()]/*/text()'),['Save Payment','Cancel'])
+        self.assertEqual(before,self.snapshot_payments())
+
     def test_meter_readings_keep_the_existing_layout_and_navigation(self):
         page=self.client.get(self.readings_url,headers=self.headers)
         tree=html.fromstring(page.data)
@@ -47,6 +63,7 @@ class MARLayoutTests(fixture.ReconciliationPaymentTests):
         self.assertTrue(tree.xpath('//nav[@aria-label="Municipal Utilities"]'))
         self.assertFalse(tree.xpath('//*[@id="mar-menu" or @id="mar-workspaces"]'))
         self.assertFalse(tree.xpath('//script[contains(@src,"pm_mar_workspace")]'))
+        self.assertFalse(tree.xpath('//*[@id="mar-page" or @id="mar-input-styles"]'))
         self.assertTrue(tree.xpath('//form[@id="utilities-capture"]'))
         self.assertTrue(tree.xpath('//a[@id="reading-output"]'))
 
@@ -76,6 +93,12 @@ class MARLayoutTests(fixture.ReconciliationPaymentTests):
                 self.assertEqual(page.locator('[data-mar-section]:visible').count(),0)
                 page.get_by_role('link',name='Add',exact=True).click()
                 self.assertTrue(page.locator('#mar-form').is_visible())
+                page.locator('#statement_date').evaluate('(el) => el.blur()')
+                for selector in ['#statement_date','#account_id','#arrears','#balance','#due','#due_date']:
+                    self.assertEqual(page.locator(selector).evaluate('(el) => getComputedStyle(el).borderTopColor'),'rgb(184, 205, 230)')
+                page.locator('#balance').focus()
+                self.assertEqual(page.locator('#balance').evaluate('(el) => getComputedStyle(el).borderTopColor'),'rgb(74, 144, 217)')
+                self.assertEqual(page.locator('#balance').evaluate('(el) => getComputedStyle(el).outlineStyle'),'solid')
                 self.assertEqual(page.locator('[data-mar-section]:visible').count(),1)
                 page.locator('#capture-cancel').click()
                 self.assertFalse(page.locator('#mar-workspaces').is_visible())
@@ -106,6 +129,10 @@ class MARLayoutTests(fixture.ReconciliationPaymentTests):
                 self.assertEqual(page.locator('#municipal-payment-form [name="payment_reference"]').count(),0)
                 self.assertTrue(page.locator('#municipal-payment-form [name="payment_date"]').is_editable())
                 self.assertTrue(page.locator('#municipal-payment-form [name="payment_amount"]').is_editable())
+                self.assertEqual(page.locator('#municipal-payment-form [name="payment_amount"]').input_value(),'')
+                self.assertTrue(page.locator('#mar-payment-summary').is_visible())
+                self.assertEqual(page.locator('#mar-payment-summary th').all_text_contents(),['Arrears','Balance','Amount Due','Already Paid'])
+                self.assertEqual(page.locator('#municipal-payment-form [name="payment_amount"]').evaluate('(el) => getComputedStyle(el).borderTopColor'),'rgb(184, 205, 230)')
                 page.locator('#municipal-payment-form').get_by_role('link',name='Cancel',exact=True).click()
                 self.assertFalse(page.locator('#mar-workspaces').is_visible())
                 page.reload()

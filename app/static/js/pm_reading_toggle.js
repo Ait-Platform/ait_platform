@@ -6,8 +6,7 @@
   let expanded=false;
   function render(){
     const selected=filter?.value || '';
-    const output=document.getElementById('reading-output');
-    if(output)output.href=output.dataset.outputBase+'&item_id='+encodeURIComponent(selected);
+    const periodFilter=document.getElementById('reading-period-filter');if(periodFilter)periodFilter.value=selected;
     const savedFilter=document.getElementById('capture-view-item');if(savedFilter)savedFilter.value=selected;
     const matching=rows.filter(row=>!selected || row.dataset.meterId===selected);
     rows.forEach(row=>{row.hidden=true;});

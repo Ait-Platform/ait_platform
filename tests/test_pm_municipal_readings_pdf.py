@@ -98,7 +98,7 @@ class MunicipalReadingsPDFTests(fixture.UtilitiesCaptureTests):
         selector=tree.xpath('//form[@id="municipal-reading-period"]')[0]
         self.assertEqual(selector.get('action'),self.readings_url)
         self.assertEqual(selector.xpath('.//input[@name="billing_month"]/@value'),['2026-10'])
-        self.assertEqual(selector.xpath('.//button[@name="format"]/@value'),['municipal_pdf'])
+        self.assertEqual(tree.xpath('//button[@form="municipal-reading-period"][@name="format"]/@value'),['municipal_pdf'])
         self.assertIn('2 electricity and 1 water',tree.xpath('//*[@id="municipal-reading-scope"]')[0].text_content())
         self.assertEqual(self.client.get(self.url).status_code,403)
         self.assertEqual(self.client.get(self.url.replace('/26/','/28/'),headers=self.headers).status_code,403)

@@ -65,7 +65,7 @@ class MARLayoutTests(fixture.ReconciliationPaymentTests):
         self.assertFalse(tree.xpath('//script[contains(@src,"pm_mar_workspace")]'))
         self.assertFalse(tree.xpath('//*[@id="mar-page" or @id="mar-input-styles"]'))
         self.assertTrue(tree.xpath('//form[@id="utilities-capture"]'))
-        self.assertTrue(tree.xpath('//a[@id="reading-output"]'))
+        self.assertTrue(tree.xpath('//button[@id="reading-output"][@value="municipal_pdf"]'))
 
     def test_browser_add_register_edit_payment_close_and_context(self):
         from playwright.sync_api import sync_playwright

@@ -18,7 +18,8 @@ class StatementFilterTests(fixture.UtilitiesCaptureTests):
         before=self.snapshot();page=self.client.get(self.statements_url,headers=self.headers);self.assertEqual(page.status_code,200,page.text)
         tree=html.fromstring(page.data)
         self.assertEqual(tree.xpath('//select[@id="statement-account-filter"]/option/@value'),['','1','2'])
-        self.assertEqual(tree.xpath('//*[@id="capture-actions"]//a/text()'),['Cancel','Output'])
+        self.assertEqual(tree.xpath('//*[@id="capture-actions"]//a/text()'),['Cancel'])
+        self.assertEqual(tree.xpath('//*[@id="mar-register-actions"]//a/text()'),['Output'])
         dates=tree.xpath('//tr[@data-statement-row]/td[1]/text()');self.assertEqual(dates,sorted(dates,reverse=True));self.assertEqual(len(dates),9)
         out=self.client.get('/billing/utilities/26/output?source=reconciliation&preview=1&item_id=1',headers=self.headers)
         self.assertEqual(out.status_code,200,out.text);self.assertEqual(len(html.fromstring(out.data).xpath('//tbody/tr')),7)
@@ -31,8 +32,10 @@ class StatementFilterTests(fixture.UtilitiesCaptureTests):
         with sync_playwright() as runtime:
             browser=runtime.chromium.launch(headless=True)
             try:
-                tab=browser.new_page();tab.route('**/*',lambda r:r.abort());tab.set_content(page.text,wait_until='domcontentloaded')
+                tab=browser.new_page();tab.route('**/*',lambda r:r.abort());tab.set_content('<base href="https://ait.example/">'+page.text,wait_until='domcontentloaded')
                 tab.add_script_tag(path='app/static/js/pm_statement_filter.js')
+                tab.add_script_tag(path='app/static/js/pm_mar_workspace.js')
+                tab.get_by_role('link',name='View Register',exact=True).click()
                 rows=tab.locator('[data-statement-row]:visible');self.assertEqual(rows.count(),9)
                 tab.select_option('#statement-account-filter','1');self.assertEqual(rows.count(),7)
                 self.assertEqual(tab.locator('[data-statement-row]:visible:not([data-account-id="1"])').count(),0)

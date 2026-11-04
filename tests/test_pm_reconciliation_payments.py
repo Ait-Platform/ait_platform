@@ -33,7 +33,7 @@ class ReconciliationPaymentTests(fixture.UtilitiesCaptureTests):
     def payment_form(self,**changes):
         page=self.client.get(self.url,headers=self.headers);self.assertEqual(page.status_code,200,page.text)
         values={e.get('name'):e.get('value','') for e in html.fromstring(page.data).xpath('//form[@id="municipal-payment-form"]//input[@name]')}
-        values.update(payment_date='2026-10-15',payment_amount='100.25',payment_reference='BANK-123')
+        values.update(payment_date='2026-10-15',payment_amount='100.25')
         values.update(changes);return values
 
     def submit(self,data,url=None):
@@ -74,13 +74,33 @@ class ReconciliationPaymentTests(fixture.UtilitiesCaptureTests):
         self.assertEqual(before,self.snapshot_payments())
         # A recurring reference on another date represents a separate real transaction.
         self.assertEqual(self.submit(dict(data,request_key=str(uuid.uuid4()),payment_date='2026-10-16')).status_code,302)
-        self.assertEqual(self.session.execute(text("SELECT count(*) FROM bil_muni_payment WHERE reference='BANK-123'")).scalar(),2)
+        self.assertEqual(self.session.execute(text("SELECT count(*) FROM bil_muni_payment WHERE reference='MET-26'")).scalar(),2)
 
     def test_invalid_amounts_dates_and_reference_never_write(self):
         base=self.payment_form();before=self.snapshot_payments()
-        for changes in [dict(payment_amount=a) for a in ('0','-1','NaN','Infinity','1.001','1e2','9999999999999')]+[dict(payment_date='invalid'),dict(payment_date='2999-01-01'),dict(payment_reference=''),dict(payment_reference='x'*101),dict(request_key='not-a-uuid')]:
+        for changes in [dict(payment_amount=a) for a in ('0','-1','NaN','Infinity','1.001','1e2','9999999999999')]+[dict(payment_date='invalid'),dict(payment_date='2999-01-01'),dict(request_key='not-a-uuid')]:
             response=self.submit(dict(base,**changes));self.assertEqual(response.status_code,400,response.text)
             self.assertEqual(before,self.snapshot_payments())
+
+    def test_payment_reference_is_read_only_and_comes_from_the_reconciliation_account(self):
+        page=self.client.get(self.url,headers=self.headers)
+        tree=html.fromstring(page.data);form=tree.xpath('//form[@id="municipal-payment-form"]')[0]
+        self.assertEqual(form.xpath('.//input[@name="payment_reference"]/@value'),['MET-26'])
+        self.assertTrue(form.xpath('.//input[@name="payment_reference"][@readonly]'))
+        for field in ('payment_date','payment_amount'):self.assertFalse(form.xpath('.//input[@name="'+field+'"][@readonly]'))
+        data=self.payment_form(payment_reference='BROWSER-FORGED')
+        self.assertEqual(self.submit(data).status_code,302)
+        payment=self.session.execute(text('SELECT * FROM bil_muni_payment ORDER BY id DESC LIMIT 1')).mappings().one()
+        self.assertEqual(payment['reference'],'MET-26')
+        audit=self.session.execute(text("SELECT after_data FROM bil_utilities_capture_audit WHERE kind='municipal_payment'")).scalar()
+        self.assertEqual(audit['reference'],'MET-26')
+        snapshot=self.snapshot_payments()
+        self.assertEqual(self.submit(dict(data,payment_reference='')).status_code,302)
+        self.assertEqual(snapshot,self.snapshot_payments())
+        # The existing reference validation still applies to the authoritative stored value.
+        self.session.execute(text("UPDATE bil_muni_account SET account_number='' WHERE id=1"));self.session.commit();self.conn.commit()
+        self.assertEqual(self.submit(dict(data,request_key=str(uuid.uuid4()))).status_code,400)
+        self.assertEqual(snapshot,self.snapshot_payments())
 
     def test_property_account_record_csrf_and_missing_schema_guards(self):
         data=self.payment_form();before=self.snapshot_payments()
@@ -159,10 +179,11 @@ class ReconciliationPaymentTests(fixture.UtilitiesCaptureTests):
         results=concurrent([form,form])
         self.assertEqual(results[0],results[1]);self.assertGreater(results[0],0)
         first=dict(form,request_key=str(uuid.uuid4()),payment_reference='CONCURRENT-FRESH')
+        first['payment_date']='2026-10-16'
         second=dict(first,request_key=str(uuid.uuid4()))
         results=concurrent([first,second])
         self.assertEqual(sum(r>0 for r in results),1);self.assertIn(-409,results)
-        count=self.session.execute(text('SELECT count(*) FROM public.'+tables['bil_muni_payment']+" WHERE reference LIKE 'CONCURRENT-%'")).scalar()
+        count=self.session.execute(text('SELECT count(*) FROM public.'+tables['bil_muni_payment']+" WHERE id>=1000")).scalar()
         self.assertEqual(count,2)
 
     def test_browser_record_payment_alongside_edit_and_refresh(self):
@@ -186,15 +207,16 @@ class ReconciliationPaymentTests(fixture.UtilitiesCaptureTests):
             browser=runtime.chromium.launch(headless=True)
             try:
                 page=browser.new_page();page.goto('http://127.0.0.1:'+str(server.server_port)+self.statements_url)
+                page.get_by_role('link',name='View Register',exact=True).click()
                 row=page.locator('tr[data-statement-row]').filter(has=page.get_by_role('link',name='Record Payment',exact=True)).filter(has_text='2026-09-28').first
                 self.assertEqual(row.get_by_role('link',name='Edit',exact=True).count(),1)
                 row.get_by_role('link',name='Record Payment',exact=True).click()
                 form=page.locator('#municipal-payment-form')
-                for key,value in dict(payment_date='2026-10-15',payment_amount='100.25',payment_reference='BROWSER-BANK').items():form.locator('[name="'+key+'"]').fill(value)
+                for key,value in dict(payment_date='2026-10-15',payment_amount='100.25').items():form.locator('[name="'+key+'"]').fill(value)
                 form.get_by_role('button',name='Save Payment',exact=True).click()
                 self.assertIn('R125.75',page.locator('tr[data-statement-row]').filter(has_text='2026-09-28').first.inner_text())
                 page.reload()
-                self.assertEqual(case.session.execute(text("SELECT count(*) FROM bil_muni_payment WHERE reference='BROWSER-BANK'")).scalar(),1)
+                self.assertEqual(case.session.execute(text("SELECT count(*) FROM bil_muni_payment WHERE reference='MET-26'")).scalar(),1)
             finally:browser.close()
 
 

@@ -95,20 +95,20 @@ def record_payment(p,form):
     if not re.fullmatch(r'[0-9]+(?:\.[0-9]{1,2})?',raw):abort(400,description='Amount Paid must be a positive rand amount with at most two decimal places.')
     value=amount(raw,True)
     if value<=0:abort(400,description='Amount Paid must be greater than zero.')
-    reference=str(form.get('payment_reference') or '').strip()
-    if not reference or len(reference)>100 or any(ord(c)<32 for c in reference):
-        abort(400,description='Payment Reference is required and must be at most 100 characters without control characters.')
     if db.session.execute(text('SHOW transaction_isolation')).scalar()!='read committed':
         abort(503,description='Municipal payment capture requires READ COMMITTED isolation.')
     db.session.execute(text("SET LOCAL lock_timeout = '5s'"))
     property_scope(p,lock=True)
     # The target record is the authority for both account and allocation period.
-    statement=db.session.execute(text('''SELECT s.*,a.property_id FROM bil_municipal_statement s
+    statement=db.session.execute(text('''SELECT s.*,a.property_id,a.account_number FROM bil_municipal_statement s
         JOIN bil_muni_account a ON a.id=s.account_id
         WHERE s.id=:id AND a.property_id=:p FOR UPDATE OF s,a'''),dict(id=statement_id,p=p)).mappings().first()
     if not statement:abort(404)
     if form.get('account_id') and str(statement['account_id'])!=str(form['account_id']):
         abort(403,description='This payment must use the reconciliation record municipal account.')
+    reference=str(statement['account_number'] or '').strip()
+    if not reference or len(reference)>100 or any(ord(c)<32 for c in reference):
+        abort(400,description='Payment Reference is required and must be at most 100 characters without control characters.')
     canonical=dict(statement_id=statement_id,account_id=statement['account_id'],period=statement['period'],
                    payment_date=payment_date.isoformat(),amount=str(value.quantize(Decimal('.01'))),reference=reference)
     digest=hashlib.sha256(json.dumps(canonical,sort_keys=True).encode()).hexdigest()

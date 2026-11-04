@@ -10,7 +10,7 @@
     {% include 'partials/flash_messages.html' %}
     <div class="flex items-center justify-between gap-3"><h1 class="text-xl font-semibold">METSOA — {{ property.name }} — {{ month }}</h1><a href="{{ url_for('billing_bp.utilities_hub',property_id=property.id,billing_month=month) }}" class="rounded-lg bg-slate-100 px-4 py-2">Back to Utilities</a></div>
     {% if pm_tariff_statement|default(false) %}{% include 'program_billing/metsoa_recipient_form.html' %}{% endif %}
-    {% set utility_active='metsoa' %}{% set utility_month=month %}{% include 'program_billing/utilities_menu.html' %}
+    {% set utility_active='metsoa' %}{% set utility_month=month %}
     {% if not pm_tariff_statement|default(false) %}<a href="{{ url_for('billing_bp.exception_metsoa',property_id=property.id,month=month) }}" class="inline-flex rounded-lg bg-yellow-100 px-4 py-2">Exception statements</a>{% endif %}
     </div>
     <!-- Top Action Bar (Hidden in Print) -->

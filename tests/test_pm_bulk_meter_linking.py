@@ -36,13 +36,18 @@ class BulkLinkTests(fixture.UtilitiesCaptureTests):
         self.assertEqual(self.link(parent=95).status_code,409)
         self.assertEqual(self.link(parent=91,children=(90,)).status_code,400)
         self.assertEqual(self.session.execute(text('SELECT parent_meter_id FROM bil_meter WHERE id=91')).scalar(),90)
-    def test_permissions_csrf_and_menu_order(self):
+    def test_permissions_csrf_and_navigation_cleanup(self):
         self.assertEqual(self.client.get(self.bulk_url).status_code,403)
         self.assertEqual(self.client.get(self.bulk_url.replace('/26/','/28/'),headers=self.headers).status_code,403)
         self.assertEqual(self.client.post(self.bulk_url,data={},headers=self.headers).status_code,400)
         page=self.client.get(self.bulk_url,headers=self.headers);self.assertEqual(page.status_code,200)
-        nav=html.fromstring(page.data).xpath('//nav[@aria-label="Municipal Utilities"]')[0]
-        self.assertEqual(nav.xpath('./*[last()]/text()'),['Bulk Meter Linking'])
+        tree=html.fromstring(page.data)
+        self.assertFalse(tree.xpath('//nav[@aria-label="Municipal Utilities"]'))
+        self.assertTrue(tree.xpath('//h1[starts-with(text(),"Link Meters")]'))
+        back=tree.xpath('//a[text()="Back to Utilities"]/@href')[0]
+        self.assertIn('property_id=26',back);self.assertIn('billing_month=2026-10',back)
+        self.assertEqual(len(tree.xpath('//select[@name="edit"]')),2)
+        self.assertEqual(len(tree.xpath('//table')),2)
 
 def load_tests(loader,tests,pattern):
     return unittest.TestSuite(BulkLinkTests(name) for name in BulkLinkTests.__dict__ if name.startswith('test_'))

@@ -1,10 +1,10 @@
 {% extends 'layout.html' %}
-{% block title %}Bulk Meter Linking{% endblock %}
+{% block title %}Link Meters{% endblock %}
 {% block flashes %}{% endblock %}
 {% block content %}<div class="mx-auto max-w-6xl px-4 py-10"><div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow"><div class="h-2 bg-green-500"></div><div class="p-6">
 {% include 'partials/flash_messages.html' %}
-<div class="flex items-center justify-between gap-3"><h1 class="text-2xl font-semibold">Bulk Meter Linking — {{ property.name }}</h1><a class="rounded-lg bg-slate-100 px-4 py-2" href="{{ url_for('billing_bp.utilities_hub',property_id=property.id,billing_month=utility_month) }}">Back to Utilities</a></div>
-{% include 'program_billing/municipal_navigation.html' %}
+<div class="flex items-center justify-between gap-3"><h1 class="text-2xl font-semibold">Link Meters — {{ property.name }}</h1><a class="rounded-lg bg-slate-100 px-4 py-2" href="{{ url_for('billing_bp.utilities_hub',property_id=property.id,billing_month=utility_month) }}">Back to Utilities</a></div>
+
 <p class="my-3 text-sm text-slate-600">METSOA uses only links explicitly saved here. Review and save any older links here to confirm them for METSOA.</p>
 {% if error %}<p role="alert" class="my-3 rounded-lg bg-red-50 p-3 text-red-800">{{ error }}</p>{% endif %}
 {% for utility,label in [('water','Water'),('electricity','Electricity')] %}<section class="mt-6 border-t pt-4"><h2 class="text-lg font-semibold">{{ label }} Bulk Meter Linking</h2>

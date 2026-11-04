@@ -83,7 +83,8 @@ class SaveWorkflowTests(fixture.DisputeTests):
         doc=html.fromstring(selected.data)
         self.assertFalse(doc.xpath('//form[@id="exception-account-form"]'))
         self.assertIn('Municipal Account: MET-26',doc.text_content())
-        menu=doc.xpath('//nav[@aria-label="Municipal Utilities"]/a[text()="Meter Exceptions"]/@href')[0]
+        self.assertFalse(doc.xpath('//nav[@aria-label="Municipal Utilities"]'))
+        menu=doc.xpath('//a[@id="change-exception-account"]/@href')[0]
         self.assertNotIn('account_id',menu);self.assertIn('billing_month=2026-10',menu)
         choice=self.client.get(menu,headers=self.headers);tree=html.fromstring(choice.data)
         self.assertFalse(tree.xpath('//table[@id="exception-register"]'))
@@ -139,8 +140,8 @@ class SaveWorkflowTests(fixture.DisputeTests):
                 tab.locator('#back-to-exception-register').click()
                 self.assertEqual(parse_qs(urlsplit(tab.url).query)['account_id'],['1'])
                 self.assertEqual(parse_qs(urlsplit(tab.url).query)['billing_month'],['2026-10'])
-                # Menu navigation must start a fresh explicit selection, even after viewing account 1.
-                tab.locator('nav[aria-label="Municipal Utilities"]').get_by_text('Meter Exceptions',exact=True).click()
+                # Change Account must retain its explicit selection workflow after menu removal.
+                tab.locator('#change-exception-account').click()
                 self.assertNotIn('account_id=',tab.url)
                 self.assertEqual(tab.locator('#exception-account').input_value(),'')
                 self.assertEqual(tab.locator('#exception-register').count(),0)

@@ -17,19 +17,18 @@
 <div {% if kind=='statements' %}id="mar-page" {% endif %}class="mx-auto max-w-6xl px-4 py-10"><div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow"><div class="h-2 bg-green-500"></div><div class="p-6">
 {% include 'partials/flash_messages.html' %}
 <div class="flex items-center justify-between gap-3"><h1 class="text-2xl font-semibold">{{ 'Meter Readings' if kind=='readings' else 'Municipal Account Reconciliation (MAR)' }}</h1><a href="{{ url_for('billing_bp.utilities_hub',property_id=property.id,billing_month=utility_month) }}" class="{{ 'shrink-0 ' if kind=='statements' else '' }}rounded-lg bg-slate-100 px-4 py-2">Back to Utilities</a></div>
-{% if kind=='readings' %}<form id="municipal-reading-period" method="get" action="{{ url_for('billing_bp.meter_readings',property_id=property.id) }}" class="my-4 flex flex-wrap items-end justify-end gap-2">
+{% if kind=='readings' %}<p class="mt-3 font-semibold">{{ property.name }}</p><section id="reading-reporting" aria-labelledby="reading-reporting-title" class="my-4 rounded-lg border border-slate-200 p-4"><h2 id="reading-reporting-title" class="text-lg font-semibold">Reporting Month</h2><form id="municipal-reading-period" method="get" action="{{ url_for('billing_bp.meter_readings',property_id=property.id) }}" class="my-4 flex flex-wrap items-end justify-end gap-2">
 <label for="municipal-reading-month" class="font-semibold">Reporting month<input id="municipal-reading-month" type="month" name="billing_month" value="{{ utility_month }}" required class="block rounded-lg border border-slate-300 px-3 py-2"></label>
 <button class="rounded-lg bg-slate-100 px-4 py-2">Show Period</button>
 <button name="format" value="municipal_pdf" class="rounded-lg bg-blue-100 px-4 py-2 font-semibold">Generate Municipal Meter Readings PDF</button></form>
-<p id="municipal-reading-scope" class="my-3 text-sm text-slate-600">Recorded in {{ utility_month }}: {{ reading_period_summary.property }} readings for {{ property.name }}; authorized portfolio: {{ reading_period_summary.electricity }} electricity and {{ reading_period_summary.water }} water readings. The PDF includes recorded readings dated within this month across your authorized portfolio. The table below shows this property's saved history, including other months. Capture dates are saved as entered.</p>{% endif %}
-{% if kind=='readings' %}{% include 'program_billing/municipal_navigation.html' %}{% else %}
+<p id="municipal-reading-scope" class="my-3 text-sm text-slate-600">Recorded in {{ utility_month }}: {{ reading_period_summary.property }} readings for {{ property.name }}; authorized portfolio: {{ reading_period_summary.electricity }} electricity and {{ reading_period_summary.water }} water readings. The PDF includes recorded readings dated within this month across your authorized portfolio. The table below shows this property's saved history, including other months. Capture dates are saved as entered.</p></section>{% endif %}
+{% if kind=='statements' %}
 <div id="mar-context-row" class="my-4 flex items-center justify-between gap-3"><h2 class="text-lg font-semibold">{{ property.name }}</h2>
 <nav id="mar-menu" aria-label="Municipal Account Reconciliation" class="flex shrink-0 justify-end gap-2">
 <a data-mar-open="form" href="{{ url_for('billing_bp.metro_reconciliation',property_id=property.id,billing_month=utility_month,view_item=request.values.get('view_item',''),workspace='add') }}" aria-controls="mar-form" class="rounded-lg bg-green-100 px-4 py-2 font-semibold">Add</a>
 <a data-mar-open="register" href="{{ url_for('billing_bp.metro_reconciliation',property_id=property.id,billing_month=utility_month,view_item=request.values.get('view_item',''),workspace='register') }}" aria-controls="mar-register" class="rounded-lg bg-blue-100 px-4 py-2 font-semibold">View Register</a>
 </nav></div>
 {% endif %}
-{% if kind=='readings' %}<h2 class="text-lg font-semibold">{{ property.name }}</h2>{% endif %}
 {% if error %}<p role="alert" class="my-3 rounded-lg bg-red-50 p-3 text-red-800">{{ error }}</p>{% endif %}
 {% if kind=='statements' %}
 {% set mar_initial='payment' if payment_target else ('form' if edit_id or request.method=='POST' else ('form' if request.args.get('workspace')=='add' else ('register' if request.args.get('workspace')=='register' or ('view_item' in request.args and request.args.get('workspace')!='closed') else ''))) %}
@@ -62,12 +61,13 @@
 </tbody></table></div></section>
 {% endif %}
 {% if kind=='statements' %}<section id="mar-form" data-mar-section="form" {% if mar_initial!='form' %}hidden{% endif %}><h2 class="my-3 text-lg font-semibold">{{ 'Edit Reconciliation' if edit_id else 'Add Reconciliation' }}</h2>{% endif %}
+{% set capture_form %}
 <form id="utilities-capture" method="POST" class="mt-4 space-y-4">
 <input id="capture-view-item" type="hidden" name="view_item" value="{{ request.values.get('view_item','') }}"><input type="hidden" name="billing_month" value="{{ utility_month }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="record_id" value="{{ edit_id or '' }}"><input type="hidden" name="version" value="{{ version }}">
 <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
 {% if kind=='readings' %}
-<div><label for="reading_date" class="block font-semibold">Date</label><input id="reading_date" name="reading_date" type="date" min="1900-01-01" max="{{ today }}" required autofocus value="{{ values.get('reading_date',today) }}" class="w-full rounded-lg border border-slate-300 px-3 py-2"></div>
-<div><label for="meter_id" class="block font-semibold">Meter</label><select id="meter_id" name="meter_id" required class="w-full rounded-lg border border-slate-300 px-3 py-2"><option value="">Select meter</option>{% for meter in meters %}{% if not edit_id or values.get('meter_id')|string==meter.id|string %}<option value="{{ meter.id }}" data-unit="{{ 'kL' if meter.utility_type|lower=='water' else 'kWh' }}" {% if values.get('meter_id')|string==meter.id|string %}selected{% endif %}>{{ meter.meter_number }}</option>{% endif %}{% endfor %}</select></div>
+<div><label for="reading_date" class="block font-semibold">Reading Date</label><input id="reading_date" name="reading_date" type="date" min="1900-01-01" max="{{ today }}" required autofocus value="{{ values.get('reading_date',today) }}" class="w-full rounded-lg border border-slate-300 px-3 py-2"></div>
+<div><label for="meter_id" class="block font-semibold">Meter</label><select id="meter_id" name="meter_id" required class="w-full rounded-lg border border-slate-300 px-3 py-2"><option value="">Select meter</option>{% for meter in meters %}{% if not edit_id or values.get('meter_id')|string==meter.id|string %}<option value="{{ meter.id }}" data-meter-number="{{ meter.meter_number }}" data-utility="{{ meter.utility_type }}" data-unit="{{ 'kL' if meter.utility_type|lower=='water' else 'kWh' }}" {% if values.get('meter_id')|string==meter.id|string %}selected{% endif %}>{{ meter.meter_number }}</option>{% endif %}{% endfor %}</select></div>
 <div><label for="reading_value" class="block font-semibold">Reading <span id="reading-unit"></span></label><input id="reading_value" name="reading_value" type="number" min="0" step="any" required value="{{ values.get('reading_value','') }}" class="w-full rounded-lg border border-slate-300 px-3 py-2"></div>
 {% else %}
 <div><label for="statement_date" class="block font-semibold">Statement date</label><input id="statement_date" name="statement_date" type="date" min="1900-01-01" required autofocus value="{{ values.get('statement_date',today) }}" class="w-full rounded-lg border border-slate-300 px-3 py-2"></div>
@@ -75,8 +75,15 @@
 {% for key,label in [('arrears','Arrears'),('balance','Balance'),('due','Due')] %}<div><label for="{{ key }}" class="block font-semibold">{{ label }} (ZAR)</label><input id="{{ key }}" name="{{ key }}" type="number" step="0.01" required value="{{ values.get(key,'') }}" class="w-full rounded-lg border border-slate-300 px-3 py-2"></div>{% endfor %}
 <div><label for="due_date" class="block font-semibold">Due date</label><input id="due_date" name="due_date" type="date" min="1900-01-01" required value="{{ values.get('due_date','') }}" class="w-full rounded-lg border border-slate-300 px-3 py-2"></div>
 {% endif %}</div>
-<div id="capture-actions" class="flex flex-wrap items-center justify-end gap-2">{% if kind=='readings' %}<div class="mr-auto flex flex-wrap items-center gap-2"><label for="reading-meter-filter" class="font-semibold">View Meter</label><select id="reading-meter-filter" class="ml-2 rounded-lg border border-slate-300 px-3 py-2"><option value="">All Meters</option>{% for meter in meters %}<option value="{{ meter.id }}" {% if request.values.get('view_item','')==meter.id|string %}selected{% endif %}>{{ meter.meter_number }}</option>{% endfor %}</select></div>{% endif %}<a id="capture-cancel" {% if kind=='statements' %}data-mar-close{% endif %} href="{{ url_for('billing_bp.meter_readings' if kind=='readings' else 'billing_bp.metro_reconciliation',property_id=property.id,billing_month=utility_month,view_item=request.values.get('view_item',''),**({'workspace':'closed'} if kind=='statements' else {})) }}" class="rounded-lg bg-red-100 px-4 py-2">Cancel</a><button {% if not capture_ready %}disabled aria-disabled="true"{% endif %} class="rounded-lg bg-green-100 px-4 py-2 font-semibold" type="submit">Save</button>{% if kind=='readings' %}<a id="reading-output" data-output-base="{{ url_for('billing_bp.utilities_output',property_id=property.id,source='readings',billing_month=utility_month,preview='1') }}" href="{{ url_for('billing_bp.utilities_output',property_id=property.id,source='readings',item_id=request.values.get('view_item',''),billing_month=utility_month,preview='1') }}" class="rounded-lg bg-purple-100 px-4 py-2 font-semibold">Output</a>{% endif %}</div>
+<div id="capture-actions" class="flex flex-wrap items-center justify-end gap-2"><a id="capture-cancel" {% if kind=='statements' %}data-mar-close{% endif %} href="{{ url_for('billing_bp.meter_readings' if kind=='readings' else 'billing_bp.metro_reconciliation',property_id=property.id,billing_month=utility_month,view_item=request.values.get('view_item',''),**({'workspace':'closed'} if kind=='statements' else {})) }}" class="rounded-lg bg-red-100 px-4 py-2">Cancel</a><button {% if not capture_ready %}disabled aria-disabled="true"{% endif %} class="rounded-lg bg-green-100 px-4 py-2 font-semibold" type="submit">Save</button></div>
 </form>
+{% endset %}
+{% if kind=='statements' %}{{ capture_form }}{% else %}
+<section id="reading-capture" aria-labelledby="reading-capture-title" class="my-4 rounded-lg border border-slate-200 p-4"><h2 id="reading-capture-title" class="text-lg font-semibold">Capture Meter Reading</h2>
+{% if edit_id %}<a href="{{ url_for('billing_bp.meter_readings',property_id=property.id,billing_month=utility_month,view_item=request.values.get('view_item','')) }}" class="mt-3 inline-flex rounded-lg bg-green-100 px-4 py-2">Capture a new reading</a>{% else %}{{ capture_form }}{% endif %}</section>
+<section id="reading-register" aria-labelledby="reading-register-title" class="my-4 rounded-lg border border-slate-200 p-4"><h2 id="reading-register-title" class="text-lg font-semibold">Recorded Meter Readings</h2>
+<div id="reading-register-actions" class="my-3 flex flex-wrap items-center justify-end gap-2">{% if kind=='readings' %}<div class="mr-auto flex flex-wrap items-center gap-2"><label for="reading-meter-filter" class="font-semibold">View Meter</label><select id="reading-meter-filter" class="ml-2 rounded-lg border border-slate-300 px-3 py-2"><option value="">All Meters</option>{% for meter in meters %}<option value="{{ meter.id }}" {% if request.values.get('view_item','')==meter.id|string %}selected{% endif %}>{{ meter.meter_number }}</option>{% endfor %}</select></div>{% endif %}{% if kind=='readings' %}<a id="reading-output" data-output-base="{{ url_for('billing_bp.utilities_output',property_id=property.id,source='readings',billing_month=utility_month,preview='1') }}" href="{{ url_for('billing_bp.utilities_output',property_id=property.id,source='readings',item_id=request.values.get('view_item',''),billing_month=utility_month,preview='1') }}" class="rounded-lg bg-purple-100 px-4 py-2 font-semibold">Output</a>{% endif %}</div>
+{% endif %}
 {% if kind=='statements' %}</section>
 <section id="mar-register" data-mar-section="register" {% if mar_initial!='register' %}hidden{% endif %}>
 <h2 class="my-3 text-lg font-semibold">Reconciliation Register</h2>
@@ -91,11 +98,23 @@
 <td class="p-3"><a class="inline-flex rounded-lg bg-yellow-100 px-3 py-2 font-semibold" {% if kind=='statements' %}data-mar-record{% endif %} href="{{ url_for('billing_bp.meter_readings' if kind=='readings' else 'billing_bp.metro_reconciliation',property_id=property.id,edit=row.id,billing_month=utility_month) }}">Edit</a>{% if kind=='statements' %}<a data-mar-record class="ml-2 inline-flex rounded-lg bg-green-100 px-3 py-2 font-semibold" href="{{ url_for('billing_bp.metro_reconciliation',property_id=property.id,payment=row.id,billing_month=utility_month) }}">Record Payment</a>{% endif %}</td></tr>{% else %}<tr><td colspan="{{ 4 if kind=='readings' else 7 }}" class="p-4 text-slate-600">No {{ 'readings' if kind=='readings' else 'statements' }} recorded.</td></tr>{% endfor %}
 </tbody></table></div>
 {% if kind=='readings' and rows|length>5 %}<div class="my-4 flex justify-end"><button type="button" id="reading-toggle" aria-expanded="false" class="rounded-lg bg-blue-100 px-4 py-2">Show More (5 of {{ rows|length }})</button></div>{% endif %}
-{% if kind=='statements' %}</section></div>{% endif %}
+{% if kind=='statements' %}</section></div>{% else %}</section>
+<section id="reading-work-area" aria-labelledby="reading-work-title" class="my-4 rounded-lg border border-slate-200 p-4" {% if not values.get('meter_id') %}hidden{% endif %}>
+<h2 id="reading-work-title" class="text-lg font-semibold">Work Area</h2>
+<dl class="my-3 flex flex-wrap gap-x-8 gap-y-2 text-sm"><div><dt class="font-semibold">Selected Meter</dt><dd id="reading-selected-meter"></dd></div><div><dt class="font-semibold">Utility</dt><dd id="reading-selected-utility"></dd></div><div><dt class="font-semibold">Reading Unit</dt><dd id="reading-selected-unit"></dd></div></dl>
+{% if edit_id %}<h3 class="font-semibold">Edit Meter Reading</h3>{{ capture_form }}{% endif %}
+</section>{% endif %}
 </div></div></div>
 {% if kind=='readings' %}<script src="{{ url_for('static',filename='js/pm_reading_toggle.js') }}" defer></script><script>
 const meterSelect=document.getElementById('meter_id');
-function showUnit(){document.getElementById('reading-unit').textContent=meterSelect.selectedOptions[0]?.dataset.unit || '';}
+function showUnit(){
+  const selected=meterSelect.selectedOptions[0];
+  document.getElementById('reading-unit').textContent=selected?.dataset.unit || '';
+  document.getElementById('reading-selected-meter').textContent=selected?.dataset.meterNumber || '';
+  document.getElementById('reading-selected-utility').textContent=selected?.dataset.utility || '';
+  document.getElementById('reading-selected-unit').textContent=selected?.dataset.unit || '';
+  document.getElementById('reading-work-area').hidden=!meterSelect.value;
+}
 meterSelect.addEventListener('change',showUnit);showUnit();
 </script>{% else %}<script src="{{ url_for('static',filename='js/pm_statement_filter.js') }}" defer></script><script src="{{ url_for('static',filename='js/pm_mar_workspace.js') }}" defer></script>{% endif %}
 {% endblock %}

@@ -56,11 +56,11 @@ class MARLayoutTests(fixture.ReconciliationPaymentTests):
         self.assertEqual(section.xpath('.//form/div[last()]/*/text()'),['Save Payment','Cancel'])
         self.assertEqual(before,self.snapshot_payments())
 
-    def test_meter_readings_keep_the_existing_layout_and_navigation(self):
+    def test_meter_readings_layout_is_separate_from_mar(self):
         page=self.client.get(self.readings_url,headers=self.headers)
         tree=html.fromstring(page.data)
         self.assertEqual(tree.xpath('//h1/text()'),['Meter Readings'])
-        self.assertTrue(tree.xpath('//nav[@aria-label="Municipal Utilities"]'))
+        self.assertFalse(tree.xpath('//nav[@aria-label="Municipal Utilities"]'))
         self.assertFalse(tree.xpath('//*[@id="mar-menu" or @id="mar-workspaces"]'))
         self.assertFalse(tree.xpath('//script[contains(@src,"pm_mar_workspace")]'))
         self.assertFalse(tree.xpath('//*[@id="mar-page" or @id="mar-input-styles"]'))

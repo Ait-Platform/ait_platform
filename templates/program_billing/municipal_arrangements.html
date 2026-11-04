@@ -1,17 +1,40 @@
 {% extends 'layout.html' %}
-{% block title %}Municipal Payment Arrangements{% endblock %}
+{% block title %}Payment Arrangements{% endblock %}
 {% block flashes %}{% endblock %}
 {% block page_wrap_classes %}mx-auto w-full max-w-6xl px-4 py-8{% endblock %}
 {% block content %}
-<div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow"><div class="h-2 bg-green-500"></div><div class="p-6">
-<div class="flex items-center justify-between gap-3"><h1 class="text-2xl font-semibold">Municipal Payment Arrangements</h1><a class="rounded-lg bg-slate-100 px-4 py-2" href="{{ url_for('billing_bp.municipal_payment_arrangements' if selected else 'billing_bp.utilities_hub',property_id=property.id,billing_month=utility_month,account_id=selected_account_id if selected else none) }}">{{ 'Back to Arrangements' if selected else 'Back to Utilities' }}</a></div>
-{% if available and not selected and selected_account_id %}<div class="my-4 flex justify-end"><a class="rounded-lg bg-blue-100 px-4 py-2 font-semibold" href="{{ url_for('billing_bp.municipal_payment_arrangements',property_id=property.id,new=1,billing_month=utility_month,account_id=selected_account_id) }}">+ Create Payment Arrangement</a></div>{% endif %}
+<style id="arrangement-input-styles">
+#arrangements-page input:not([type="hidden"]), #arrangements-page select, #arrangements-page textarea {
+  border: 1px solid #b8cde6;
+  border-radius: 6px;
+  background-color: white;
+  min-height: 42px;
+  padding: 8px 12px;
+  font-size: 1rem;
+}
+#arrangements-page input:not([type="hidden"]):focus, #arrangements-page select:focus, #arrangements-page textarea:focus {
+  border-color: #4a90d9;
+  outline: 2px solid #b8cde6;
+  outline-offset: 2px;
+}
+</style>
+<div id="arrangements-page" class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow"><div class="h-2 bg-green-500"></div><div class="p-6">
+<div class="flex flex-wrap items-center justify-between gap-3"><h1 class="text-2xl font-semibold">Payment Arrangements</h1><a class="rounded-lg bg-slate-100 px-4 py-2" href="{{ url_for('billing_bp.utilities_hub',property_id=property.id,billing_month=utility_month) }}">Back to Utilities</a></div>
 {% include 'partials/flash_messages.html' %}
-{% include 'program_billing/municipal_navigation.html' %}
-<h2 class="my-3 text-lg font-semibold">{{ property.name }}</h2>
+<div id="arrangement-context-row" class="my-4 flex flex-wrap items-center justify-between gap-3"><h2 class="text-lg font-semibold">{{ property.name }}</h2>
+<nav id="arrangement-menu" aria-label="Payment Arrangements" class="flex shrink-0 justify-end gap-2">
+<a data-arrangement-open="form" aria-controls="arrangement-form-area" {% if available and selected_account_id %}href="{{ url_for('billing_bp.municipal_payment_arrangements',property_id=property.id,new=1,billing_month=utility_month,account_id=selected_account_id) }}"{% else %}aria-disabled="true"{% endif %} class="rounded-lg bg-green-100 px-4 py-2 font-semibold">Add Arrangement</a>
+<a data-arrangement-open="register" aria-controls="arrangement-register-area" href="{{ url_for('billing_bp.municipal_payment_arrangements',property_id=property.id,billing_month=utility_month,account_id=selected_account_id,workspace='register') }}" class="rounded-lg bg-blue-100 px-4 py-2 font-semibold">View Register</a>
+</nav></div>
+{% set arrangement_section='form' if (show_form and not selected) or editing else ('detail' if selected else 'register') %}
+{% set arrangement_initial=arrangement_section if selected or show_form or request.method=='POST' or request.args.get('workspace')=='register' or ('account_id' in request.args and request.args.get('workspace')!='closed') else '' %}
+<div id="arrangement-workspaces" data-initial-workspace="{{ arrangement_initial }}" {% if not arrangement_initial %}hidden{% endif %}>
+<div class="my-3 flex justify-end"><a data-arrangement-close href="{{ url_for('billing_bp.municipal_payment_arrangements',property_id=property.id,billing_month=utility_month,account_id=selected_account_id,workspace='closed') }}" class="rounded-lg bg-slate-100 px-4 py-2">Close</a></div>
+<section id="arrangement-{{ 'form-area' if arrangement_section=='form' else ('register-area' if arrangement_section=='register' else 'detail-area') }}" data-arrangement-section="{{ arrangement_section }}" {% if not arrangement_initial %}hidden{% endif %}>
+{% if selected %}<div class="my-3 flex justify-end"><a href="{{ url_for('billing_bp.municipal_payment_arrangements',property_id=property.id,billing_month=utility_month,account_id=selected_account_id,workspace='register') }}" class="rounded-lg bg-slate-100 px-4 py-2">Back to Arrangements</a></div>{% endif %}
 {% if not selected and not show_form %}
 <form id="arrangement-account-filter" method="get" class="my-4">
-<input type="hidden" name="billing_month" value="{{ utility_month }}">
+<input type="hidden" name="billing_month" value="{{ utility_month }}"><input type="hidden" name="workspace" value="register">
 <label for="arrangement-account" class="block font-semibold">Municipal Account</label>
 <select id="arrangement-account" name="account_id" required autofocus onchange="this.form.submit()" class="mt-2 rounded-lg border border-slate-300 p-2">
 {% for a in accounts %}<option value="{{ a.id }}" {{ 'selected' if a.id==selected_account_id else '' }}>{{ a.account_number }}</option>{% else %}<option value="">No municipal accounts for this property</option>{% endfor %}
@@ -73,4 +96,7 @@
 <label class="block font-semibold">History note<textarea name="note" maxlength="5000" class="mt-2 w-full rounded-lg border border-slate-300 p-2">{{ values.get('note','') }}</textarea></label><div class="flex justify-end"><button class="rounded-lg bg-green-100 px-4 py-2" type="submit">Save Status / Note</button></div></form>
 <h3 class="mt-6 text-lg font-semibold">Arrangement History</h3><p class="text-sm text-slate-600">Created: {{ selected.created_at }} by administrator {{ selected.created_by }}. Last modified: {{ selected.modified_at }} by administrator {{ selected.modified_by }}.</p><div class="overflow-x-auto"><table id="arrangement-history" class="my-3 w-full text-left text-sm"><thead><tr><th class="p-2">Recorded</th><th class="p-2">Action</th><th class="p-2">Administrator</th><th class="p-2">Details</th></tr></thead><tbody>{% for e in history %}<tr class="border-t"><td class="p-2">{{ e.recorded_at }}</td><td class="p-2">{{ e.kind }}</td><td class="p-2">{{ e.actor_id }}</td><td class="p-2">{{ e.note or '' }}<details><summary>Audit details</summary><pre class="whitespace-pre-wrap break-words">{{ e.after_data|tojson(indent=2) }}</pre></details></td></tr>{% endfor %}</tbody></table></div>
 {% else %}<p class="text-sm text-slate-600">Balance is the scheduled balance through {{ utility_month }}, counting one monthly instalment from the agreement month and never falling below zero. It does not confirm payments received. Existing payment evidence and audit history are preserved separately. No manual payment recording is required for this balance.</p><div class="overflow-x-auto"><table id="arrangement-register" class="my-4 w-full text-left text-sm"><thead class="bg-slate-50"><tr>{% for label in ['Account','Arrangement','Agreement Date','Debt','Instalment','Balance','Action'] %}<th class="p-2">{{ label }}</th>{% endfor %}</tr></thead><tbody>{% for row in rows %}<tr class="border-t"><td class="p-2">{{ row.account_number }}</td><td class="p-2">{{ row.reference }}</td><td class="p-2">{{ row.agreement_date }}</td><td class="p-2">R {{ '%.2f'|format(row.original_amount) }}</td><td class="p-2">R {{ '%.2f'|format(row.instalment_amount) }}</td><td class="p-2">R {{ '%.2f'|format(row.scheduled_balance) }}</td><td class="p-2"><a class="rounded-lg bg-yellow-100 px-3 py-2 font-semibold" href="{{ url_for('billing_bp.municipal_arrangement_detail',property_id=property.id,arrangement_id=row.id,billing_month=utility_month,edit='1') }}">Edit</a></td></tr>{% else %}<tr><td colspan="7" class="p-3">No municipal payment arrangements recorded for this account.</td></tr>{% endfor %}</tbody></table></div>{% endif %}
-</div></div>{% endblock %}
+</section></div>
+</div></div>
+<script src="{{ url_for('static',filename='js/pm_arrangement_workspace.js') }}" defer></script>
+{% endblock %}

@@ -5,23 +5,12 @@
 <div class="mx-auto max-w-5xl px-4 py-10"><div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow"><div class="h-2 bg-green-500"></div><div class="p-6">
 {% include 'partials/flash_messages.html' %}
 <div class="flex items-center justify-between gap-3"><h1 class="text-2xl font-semibold">Utilities</h1><a href="{{ url_for('billing_bp.learner_dashboard') }}" class="rounded-lg bg-slate-100 px-4 py-2">Back</a></div>
-{% if selected_property %}{% with property=selected_property %}{% include 'program_billing/municipal_navigation.html' %}{% endwith %}<h2 class="text-xl font-semibold">{{ selected_property.name }}</h2><p class="mt-1 break-words text-slate-600">{{ selected_property.address or '' }}</p>{% else %}<p class="text-slate-600">Select a property to open its Utilities workspace.</p><div class="flex justify-end"><button form="utilities-context" name="action" value="accounts" class="rounded-lg bg-blue-100 px-4 py-2">Municipal Accounts</button>{% if can_manage_municipal_arrangements is defined and can_manage_municipal_arrangements() %}<button form="utilities-context" name="action" value="arrangements" class="ml-2 rounded-lg bg-amber-100 px-4 py-2">Municipal Payment Arrangements</button>{% endif %}</div>{% endif %}
+{% if selected_property %}{% with property=selected_property, municipal_menu_labels={'Municipal Accounts':'Accounts','Meter Readings':'Readings','Metro Reconciliation':'Reconciliation','Meter Exceptions':'Exceptions','Bulk Meter Linking':'Link Meters','Municipal Payment Arrangements':'Payment Arrangements'} %}{% include 'program_billing/municipal_navigation.html' %}{% endwith %}<h2 class="text-xl font-semibold">{{ selected_property.name }}</h2><p class="mt-1 break-words text-slate-600">{{ selected_property.address or '' }}</p>{% else %}<p class="text-slate-600">Select a property to open its Utilities workspace.</p><div class="flex justify-end"><button form="utilities-context" name="action" value="accounts" class="rounded-lg bg-blue-100 px-4 py-2">Accounts</button>{% if can_manage_municipal_arrangements is defined and can_manage_municipal_arrangements() %}<button form="utilities-context" name="action" value="arrangements" class="ml-2 rounded-lg bg-amber-100 px-4 py-2">Payment Arrangements</button>{% endif %}</div>{% endif %}
 <form id="utilities-context" method="POST" class="mt-5 space-y-5">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 {% if selected_property %}<input type="hidden" name="property_id" value="{{ selected_property.id }}">{% else %}
 <label class="block font-semibold" for="property_id">Select Property</label><select id="property_id" name="property_id" required autofocus class="w-full rounded-lg border border-slate-300 px-3 py-2"><option value="">Select Property</option>{% for p in properties %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}</select>{% endif %}
-<div><label for="billing_month" class="block font-semibold">Billing month</label><input id="billing_month" name="billing_month" type="month" value="{{ current_month }}" required class="mt-2 rounded-lg border border-slate-300 px-3 py-2"></div>
+<input type="hidden" name="billing_month" value="{{ current_month }}">
 </form></div></div></div>
-<script>
-const billingMonth=document.getElementById('billing_month');
-billingMonth.addEventListener('change', () => {
-  if (!billingMonth.validity.valid || !billingMonth.value) return;
-  for (const link of document.querySelectorAll('nav[aria-label="Municipal Utilities"] a')) {
-    const target=new URL(link.href,window.location.origin);
-    if (target.searchParams.has('billing_month')) target.searchParams.set('billing_month',billingMonth.value);
-    else target.pathname=target.pathname.replace(/\/\d{4}-\d{2}$/, '/'+billingMonth.value);
-    link.href=target.href;
-  }
-});
-</script>
+
 {% endblock %}

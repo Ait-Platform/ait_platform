@@ -117,8 +117,8 @@ class MunicipalAccountsTests(fixture.UtilitiesConfigurationTests):
         for row in before['bil_meter_reading']:self.assertIn(row,self.snapshot()['bil_meter_reading'])
         page=self.client.get(self.accounts_url,headers=self.headers);tree=html.fromstring(page.data)
         self.assertFalse(tree.xpath('//nav[@aria-label="Utilities"]'))
-        controls=tree.xpath('//h1/parent::div/following-sibling::*')[0]
-        self.assertIn('Add Municipal Account',controls.text_content());self.assertIn('justify-end',controls.get('class'))
+        controls=tree.xpath('//nav[@id="account-menu"]')[0]
+        self.assertIn('Add Account',controls.text_content());self.assertIn('justify-end',controls.get('class'))
 
     def test_independent_edit_uses_stable_ids_preserves_history_and_rejects_stale_form(self):
         before=self.snapshot();data=self.account_form(1);data.pop('csrf_token');data['billing_month']='2026-11';data['owner_name']='Correct Owner'

@@ -1,15 +1,36 @@
 {% extends 'layout.html' %}
-{% block title %}Municipal Accounts{% endblock %}
+{% block title %}Accounts{% endblock %}
 {% block flashes %}{% endblock %}
 {% block content %}
-<div class="mx-auto max-w-6xl px-4 py-10"><div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow"><div class="h-2 bg-green-500"></div><div class="p-6">
+<style id="account-input-styles">
+#accounts-page input:not([type="hidden"]), #accounts-page select {
+  border: 1px solid #b8cde6;
+  border-radius: 6px;
+  background-color: white;
+  min-height: 42px;
+  padding: 8px 12px;
+  font-size: 1rem;
+}
+#accounts-page input:not([type="hidden"]):focus, #accounts-page select:focus {
+  border-color: #4a90d9;
+  outline: 2px solid #b8cde6;
+  outline-offset: 2px;
+}
+</style>
+<div id="accounts-page" class="mx-auto max-w-6xl px-4 py-10"><div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow"><div class="h-2 bg-green-500"></div><div class="p-6">
 {% include 'partials/flash_messages.html' %}
-<div class="flex items-center justify-between gap-3"><h1 class="text-2xl font-semibold">Municipal Accounts</h1><a href="{{ url_for('billing_bp.utilities_hub',property_id=property.id,billing_month=utility_month) }}" class="rounded-lg bg-slate-100 px-4 py-2">Back to Utilities</a></div>
-<div class="my-4 flex justify-end"><a href="{{ url_for('billing_bp.municipal_accounts',property_id=property.id,billing_month=utility_month) }}" class="rounded-lg bg-blue-100 px-4 py-2 font-semibold">Add Municipal Account</a></div>
-{% include 'program_billing/municipal_navigation.html' %}
-<h2 class="text-lg font-semibold">{{ property.name }}</h2><p class="break-words text-slate-600">{{ property.address or '' }}</p>
+<div class="flex flex-wrap items-center justify-between gap-3"><h1 class="text-2xl font-semibold">Accounts</h1><a href="{{ url_for('billing_bp.utilities_hub',property_id=property.id,billing_month=utility_month) }}" class="rounded-lg bg-slate-100 px-4 py-2">Back to Utilities</a></div>
+<div id="account-context-row" class="my-4 flex flex-wrap items-center justify-between gap-3"><h2 class="text-lg font-semibold">{{ property.name }}</h2>
+<nav id="account-menu" aria-label="Accounts" class="flex shrink-0 justify-end gap-2">
+<a data-account-open="form" aria-controls="account-form-area" href="{{ url_for('billing_bp.municipal_accounts',property_id=property.id,billing_month=utility_month,workspace='add') }}" class="rounded-lg bg-green-100 px-4 py-2 font-semibold">Add Account</a>
+<a data-account-open="register" aria-controls="account-register" href="{{ url_for('billing_bp.municipal_accounts',property_id=property.id,billing_month=utility_month,view='list') }}" class="rounded-lg bg-blue-100 px-4 py-2 font-semibold">View Register</a>
+</nav></div><p class="break-words text-slate-600">{{ property.address or '' }}</p>
+{% set account_initial='form' if account_id or request.method=='POST' else ('form' if request.args.get('workspace')=='add' else ('register' if request.args.get('view')=='list' else '')) %}
+<div id="account-workspaces" data-form-mode="{{ 'edit' if account_id else 'add' }}" data-initial-workspace="{{ account_initial }}" {% if not account_initial %}hidden{% endif %}>
+<div class="my-3 flex justify-end"><a data-account-close href="{{ url_for('billing_bp.municipal_accounts',property_id=property.id,billing_month=utility_month) }}" class="rounded-lg bg-slate-100 px-4 py-2">Close</a></div>
+<section id="account-form-area" data-account-section="form" {% if account_initial!='form' %}hidden{% endif %}>
 {% if show_form %}
-<h2 class="text-lg font-semibold">{{ 'Edit Municipal Account' if account_id else 'New Municipal Account' }}</h2>
+<h2 class="my-3 text-lg font-semibold">{{ 'Edit Municipal Account' if account_id else 'Add Account' }}</h2>
 {% if error %}<p role="alert" class="my-3 rounded-lg bg-red-50 p-3 text-red-800">{{ error }}</p>{% endif %}
 <form id="municipal-account-form" data-lookup-url="{{ url_for('billing_bp.municipal_account_lookup',property_id=property.id) }}" data-existing-account="{{ 'yes' if account_id else 'no' }}" method="POST" action="{{ url_for('billing_bp.municipal_accounts',property_id=property.id) }}" class="mt-4 space-y-4">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="billing_month" value="{{ utility_month }}"><input type="hidden" name="account_id" value="{{ account_id or '' }}"><input type="hidden" name="version" value="{{ version }}">
@@ -21,13 +42,16 @@
 </div>
 <p id="account-lookup-status" role="alert" hidden class="text-red-800"></p><button id="account-lookup-retry" type="button" hidden class="rounded-lg bg-yellow-100 px-3 py-2">Retry Lookup</button>
 <div class="grid grid-cols-1 gap-4 md:grid-cols-2">{% for kind,label in [('water','Water'),('electricity','Electricity')] %}<div><label for="{{ kind }}_number" class="mb-2 block font-semibold">{{ label }} meter number (optional)</label><input id="{{ kind }}_number" name="{{ kind }}_number" value="{{ values[kind+'_number'] }}" maxlength="50" class="w-full rounded-lg border border-slate-300 px-3 py-2"></div><div><label for="{{ kind }}_municipal_reference" class="mb-2 block font-semibold">{{ label }} Municipal Reference (optional)</label><input id="{{ kind }}_municipal_reference" name="{{ kind }}_municipal_reference" value="{{ values[kind+'_municipal_reference'] }}" maxlength="100" placeholder="{{ 'W-reference' if kind=='water' else 'E-reference' }}" class="w-full rounded-lg border border-slate-300 px-3 py-2"></div>{% endfor %}</div>
-<div class="flex justify-end gap-2"><a href="{{ url_for('billing_bp.municipal_accounts',property_id=property.id,billing_month=utility_month) }}" class="rounded-lg bg-red-100 px-4 py-2">Cancel</a><button type="submit" name="save_action" value="finish" class="rounded-lg bg-green-100 px-4 py-2 font-semibold">Save</button></div>
+<div class="flex justify-end gap-2"><a data-account-close href="{{ url_for('billing_bp.municipal_accounts',property_id=property.id,billing_month=utility_month) }}" class="rounded-lg bg-red-100 px-4 py-2">Cancel</a><button type="submit" name="save_action" value="finish" class="rounded-lg bg-green-100 px-4 py-2 font-semibold">Save</button></div>
 </form>
-{% endif %}
+{% endif %}</section>
+<section id="account-register" data-account-section="register" {% if account_initial!='register' %}hidden{% endif %}><h2 class="my-3 text-lg font-semibold">Municipal Accounts Register</h2>
 <div class="mt-6 overflow-x-auto" role="region" aria-label="Municipal accounts" tabindex="0"><table class="w-full text-left text-sm"><thead class="bg-slate-50"><tr>{% for label in ['Municipal Account','Account Owner','Water Meter','Electricity Meter','Action'] %}<th scope="col" class="whitespace-nowrap p-3">{{ label }}</th>{% endfor %}</tr></thead><tbody>
 {% for account in accounts %}<tr class="border-t"><td class="p-3">{{ account.account_number }}{% for issue in account.issues %}<p class="mt-1 text-sm text-amber-900">{{ issue }}</p>{% endfor %}</td><td class="p-3">{{ account.owner_name or '' }}</td>{% for kind,unit in [('water','kL'),('electricity','kWh')] %}<td class="whitespace-nowrap p-3">{{ account[kind+'_number'] }}</td>{% endfor %}<td class="p-3"><a href="{{ url_for('billing_bp.municipal_accounts',property_id=property.id,edit=account.id,billing_month=utility_month) }}" class="inline-flex rounded-lg bg-yellow-100 px-3 py-2 font-semibold">{{ 'View' if account.issues else 'Edit' }}</a></td></tr>{% else %}<tr><td colspan="5" class="p-4 text-slate-600">No municipal accounts recorded for this property.</td></tr>{% endfor %}
 </tbody></table></div>
+</section></div>
 </div></div></div>
 
 {% if show_form %}<script src="{{ url_for('static',filename='js/pm_municipal_accounts_lookup.js') }}" defer></script>{% endif %}
+<script src="{{ url_for('static',filename='js/pm_account_workspace.js') }}" defer></script>
 {% endblock %}

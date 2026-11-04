@@ -125,9 +125,9 @@ class MetsoaSetupProtectionTests(unittest.TestCase):
         self.assertFalse(tree.xpath('//input[@type="month"]'))
         self.assertEqual(tree.xpath('//input[@type="hidden"][@name="billing_month"]/@value'),['2026-10'])
         self.assertTrue(tree.xpath('//h2[normalize-space()]'))
-        working=self.client.get('/billing/utilities/26/accounts?billing_month=2026-10',headers=self.headers)
-        self.assertEqual(working.status_code,200)
-        self.assertEqual(html.fromstring(working.data).xpath('//nav[@aria-label="Municipal Utilities"]/a/text()')[:3],['Municipal Accounts','Meter Readings','Metro Reconciliation'])
+        with self.app.test_request_context('/'):
+            working=self.app.jinja_env.get_template('program_billing/municipal_navigation.html').render(property=types.SimpleNamespace(id=26),current_month='2026-10')
+        self.assertEqual(html.fromstring(working).xpath('//nav[@aria-label="Municipal Utilities"]/a/text()')[:3],['Municipal Accounts','Meter Readings','Metro Reconciliation'])
         self.assertEqual(self.client.get('/soa-test/utilities_hub?property_id=28',headers=self.headers).status_code,403)
         self.assertEqual(self.client.get('/soa-test/utilities_hub?property_id=26&property_id=27',headers=self.headers).status_code,400)
         self.assertEqual(self.client.get('/soa-test/utilities_hub?property_id=26&billing_month=2026-19',headers=self.headers).status_code,400)

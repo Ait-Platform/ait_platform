@@ -187,6 +187,8 @@ def page(p,kind):
                 return redirect(url_for('billing_bp.metro_reconciliation',property_id=p,billing_month=utility_month,view_item=account_id))
             (save_reading if kind=='readings' else save_statement)(p,values);db.session.commit()
             flash('Meter reading saved.' if kind=='readings' else 'Municipal statement saved.','success')
+            if kind=='readings' and not values.get('record_id'):
+                return redirect(url_for('billing_bp.meter_readings',property_id=p,billing_month=utility_month,view_item=values.get('view_item',''),workspace='capture',reading_date=day(values.get('reading_date')).isoformat()))
             return redirect(url_for('billing_bp.meter_readings' if kind=='readings' else 'billing_bp.metro_reconciliation',property_id=p,billing_month=utility_month,view_item=values.get('view_item','')))
         except HTTPException as exc:db.session.rollback();error=exc.description;status=exc.code
         except Exception:
@@ -212,6 +214,8 @@ def page(p,kind):
             canonical={k:row[k] for k in ('id','meter_id','reading_date','reading_value')};version=fingerprint(canonical)
         else:version=str(row['version'])
     elif request.method=='POST':version=values.get('version','')
+    if kind=='readings' and request.method=='GET' and not edit_id and request.args.get('workspace')=='capture' and request.args.get('reading_date'):
+        values['reading_date']=day(request.args['reading_date']).isoformat()
     if not schema_ready():error=error or ('Metro Reconciliation is temporarily unavailable. Please contact the administrator.' if kind=='statements' else 'Meter Readings is temporarily unavailable. Please contact the administrator.')
     accounts=[dict(r) for r in db.session.execute(text('SELECT id,account_number FROM bil_muni_account WHERE property_id=:p ORDER BY account_number,id'),dict(p=p)).mappings()]
     reading_period_summary=None

@@ -164,6 +164,63 @@ class ReadingFilterTests(fixture.UtilitiesCaptureTests):
             finally:browser.close()
         self.assertEqual(before,self.snapshot())
 
+    def test_browser_success_stays_in_capture_retains_date_and_validation_draft(self):
+        from playwright.sync_api import sync_playwright
+        from http.server import HTTPServer,BaseHTTPRequestHandler
+        from threading import Thread
+        case=self;before=self.snapshot()
+        class Handler(BaseHTTPRequestHandler):
+            def log_message(self,*args):pass
+            def do_GET(self):self.respond(case.client.get(self.path,headers=case.headers))
+            def do_POST(self):self.respond(case.client.post(self.path,data=self.rfile.read(int(self.headers['Content-Length'])),content_type=self.headers.get('Content-Type'),headers=case.headers))
+            def respond(self,response):
+                self.send_response(response.status_code);self.send_header('Content-Type',response.content_type)
+                if response.location:self.send_header('Location',response.location)
+                self.end_headers();self.wfile.write(response.data);response.close()
+        server=HTTPServer(('127.0.0.1',0),Handler);thread=Thread(target=server.serve_forever,daemon=True);thread.start()
+        self.addCleanup(lambda:(server.shutdown(),server.server_close(),thread.join(timeout=2)))
+        origin='http://127.0.0.1:'+str(server.server_port)
+        with sync_playwright() as runtime:
+            browser=runtime.chromium.launch(headless=True)
+            try:
+                tab=browser.new_page();tab.goto(origin+self.readings_url+'?billing_month=2026-09')
+                tab.get_by_role('link',name='Capture Reading',exact=True).click()
+                tab.locator('#reading_date').fill('2026-09-09')
+                for meter,value in [('96','123.45'),('98','50')]:
+                    tab.select_option('#meter_id',meter);tab.locator('#reading_value').fill(value)
+                    tab.locator('#utilities-capture').get_by_role('button',name='Save',exact=True).click()
+                    self.assertTrue(tab.locator('#reading-capture').is_visible())
+                    self.assertFalse(tab.locator('#reading-register').is_visible())
+                    self.assertEqual(tab.locator('[data-reading-section]:visible').count(),1)
+                    self.assertEqual(tab.locator('#reading_date').input_value(),'2026-09-09')
+                    self.assertEqual(tab.locator('#meter_id').input_value(),'')
+                    self.assertEqual(tab.locator('#reading_value').input_value(),'')
+                    self.assertIn('Meter reading saved.',tab.content())
+                    self.assertEqual(self.session.execute(text('SELECT count(*) FROM bil_meter_reading WHERE meter_id=:m AND reading_date=CAST(:d AS date)'),dict(m=int(meter),d='2026-09-09')).scalar(),1)
+                tab.reload()
+                self.assertEqual(tab.locator('#reading_date').input_value(),'2026-09-09')
+                self.assertTrue(tab.locator('#reading-capture').is_visible())
+                saved=self.snapshot()
+                tab.select_option('#meter_id','96');tab.locator('#reading_date').fill('2026-09-10');tab.locator('#reading_value').fill('-1')
+                tab.locator('#utilities-capture').evaluate('(form)=>{form.noValidate=true;form.requestSubmit();}')
+                tab.wait_for_load_state('networkidle')
+                self.assertTrue(tab.locator('#reading-capture').is_visible())
+                self.assertFalse(tab.locator('#reading-register').is_visible())
+                self.assertEqual(tab.locator('#meter_id').input_value(),'96')
+                self.assertEqual(tab.locator('#reading_date').input_value(),'2026-09-10')
+                self.assertEqual(tab.locator('#reading_value').input_value(),'-1')
+                self.assertTrue(tab.locator('p[role="alert"]').is_visible())
+                self.assertEqual(saved,self.snapshot())
+                tab.get_by_role('link',name='Close',exact=True).click()
+                self.assertFalse(tab.locator('#reading-workspaces').is_visible())
+                tab.get_by_role('link',name='View Register',exact=True).click()
+                self.assertTrue(tab.locator('#reading-register').is_visible())
+            finally:browser.close()
+        after=self.snapshot()
+        for table in ('bil_muni_account','bil_consumption','bil_architecture_draft','bil_meter'):self.assertEqual(before[table],after[table])
+        for row in before['bil_meter_reading']:self.assertIn(row,after['bil_meter_reading'])
+        self.assertEqual(len(after['bil_meter_reading']),len(before['bil_meter_reading'])+2)
+
     def test_output_carries_meter_or_all_and_rejects_other_property(self):
         before=self.snapshot()
         base='/billing/utilities/26/output?source=readings&preview=1&item_id='

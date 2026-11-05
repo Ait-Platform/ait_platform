@@ -114,6 +114,36 @@ def save_reading(p,form):
     audit(p,'reading',record_id,original,recorded)
     return record_id
 
+class ReadingDeleteConfirmation(Exception):
+    def __init__(self,reading,token):self.reading=reading;self.token=token
+
+
+def delete_reading(p,form):
+    property_scope(p,lock=True);ready('Meter Readings')
+    try:meter_id=int(form.get('meter_id',''));record_id=int(form.get('record_id',''))
+    except (ValueError,TypeError):abort(400,description='Reopen Edit before deleting a reading.')
+    meter=db.session.execute(text('SELECT * FROM bil_meter WHERE id=:m AND property_id=:p FOR UPDATE'),dict(m=meter_id,p=p)).mappings().first()
+    if not meter:abort(403)
+    original=db.session.execute(text('SELECT * FROM bil_meter_reading WHERE id=:r AND meter_id=:m FOR UPDATE'),dict(r=record_id,m=meter_id)).mappings().first()
+    if not original:abort(404,description='This reading is no longer available.')
+    if form.get('version')!=fingerprint(original):abort(409,description='Reading changed. Reopen Edit before deleting it.')
+    serializer=URLSafeTimedSerializer(current_app.secret_key,salt='pm-delete-meter-reading')
+    payload=dict(property_id=p,meter_id=meter_id,record_id=record_id,actor_id=current_user.id,version=fingerprint(original))
+    confirmed=False
+    if form.get('action')=='confirm_delete_reading':
+        try:confirmed=serializer.loads(form.get('reading_delete_token',''),max_age=900)==payload
+        except BadData:pass
+    if not confirmed:raise ReadingDeleteConfirmation(dict(original,meter_number=meter['meter_number']),serializer.dumps(payload))
+    before=[dict(r) for r in db.session.execute(text('SELECT id,reading_date,reading_value FROM bil_meter_reading WHERE meter_id=:m ORDER BY reading_date,id'),dict(m=meter_id)).mappings()]
+    db.session.execute(text('DELETE FROM bil_meter_reading WHERE id=:r AND meter_id=:m'),dict(r=record_id,m=meter_id))
+    after=[r for r in before if r['id']!=record_id]
+    start=original['reading_date'].replace(day=1)
+    periods={start.strftime('%Y-%m'),date(start.year+start.month//12,start.month%12+1,1).strftime('%Y-%m')}
+    from .reading_consumption import refresh
+    for consumption_id,old,new in refresh(db.session,meter,before,after,periods):audit(p,'reading_consumption',consumption_id,old,new)
+    audit(p,'reading',record_id,original,dict(deleted=True,meter_id=meter_id,meter_number=meter['meter_number'],reading_date=original['reading_date'],reading_value=str(original['reading_value'])))
+
+
 def paid(account,period):
     if not available('bil_muni_payment',['account_id','month','amount']):return None
     # Only explicit municipal account/period allocations qualify. Never tenant/property totals.
@@ -215,12 +245,17 @@ def page(p,kind):
     utility_month,period_start,period_end=month_context(request.values.get('billing_month'))
     prop=db.session.execute(text('SELECT id,name,address FROM bil_property WHERE id=:p'),dict(p=p)).mappings().one()
     error=None;status=200;values={};edit_id=request.args.get('edit');version=''
-    reading_duplicates=[];reading_duplicate_token='';reading_duplicate_mode='';reading_replace_id=None
+    reading_duplicates=[];reading_duplicate_token='';reading_duplicate_mode='';reading_replace_id=None;reading_delete=None;reading_delete_token=''
     payment_statement_id=request.args.get('payment') if kind=='statements' else None
     if request.method=='POST':
         values=request.form.to_dict();edit_id=values.get('record_id')
         if kind=='statements' and values.get('action')=='record_payment':payment_statement_id=values.get('statement_id')
         try:
+            if kind=='readings' and values.get('action')=='cancel_delete_reading':raise ReadingCaptureCancelled()
+            if kind=='readings' and values.get('action') in ('delete_reading','confirm_delete_reading'):
+                delete_reading(p,values);db.session.commit()
+                flash('Meter reading deleted.','success')
+                return redirect(url_for('billing_bp.meter_readings',property_id=p,billing_month=utility_month,view_item=values.get('view_item',''),workspace='register'))
             if kind=='readings' and not edit_id and values.get('reading_duplicate_action')=='cancel':raise ReadingCaptureCancelled()
             if kind=='statements' and values.get('action')=='record_payment':
                 _,account_id=record_payment(p,values);db.session.commit()
@@ -232,6 +267,8 @@ def page(p,kind):
                 return redirect(url_for('billing_bp.meter_readings',property_id=p,billing_month=utility_month,view_item=values.get('view_item',''),workspace='capture',reading_date=day(values.get('reading_date')).isoformat()))
             return redirect(url_for('billing_bp.meter_readings' if kind=='readings' else 'billing_bp.metro_reconciliation',property_id=p,billing_month=utility_month,view_item=values.get('view_item','')))
         except ReadingCaptureCancelled:db.session.rollback()
+        except ReadingDeleteConfirmation as exc:
+            db.session.rollback();reading_delete=exc.reading;reading_delete_token=exc.token
         except ReadingConfirmationRequired as exc:
             db.session.rollback();reading_duplicates=exc.rows;reading_duplicate_token=exc.token;reading_duplicate_mode=exc.mode;reading_replace_id=exc.target
         except HTTPException as exc:db.session.rollback();error=exc.description;status=exc.code
@@ -272,4 +309,4 @@ def page(p,kind):
         portfolio={r['utility']:r['total'] for r in counts}
         reading_period_summary=dict(property=sum(period_start<=r['reading_date']<=period_end for r in rows),
             electricity=portfolio.get('electricity',0)+portfolio.get('electrical',0),water=portfolio.get('water',0))
-    return render_template('program_billing/utilities_capture.html',property=prop,kind=kind,utility_month=utility_month,rows=rows,meters=meters(p),accounts=accounts,values=values,version=version,edit_id=edit_id,error=error,capture_ready=schema_ready(),reading_duplicates=reading_duplicates,reading_duplicate_token=reading_duplicate_token,reading_duplicate_mode=reading_duplicate_mode,reading_replace_id=reading_replace_id,reading_period_summary=reading_period_summary,payment_target=payment_target,payment_history=payment_history,payment_capture_ready=payment_ready() if kind=='statements' else False,payment_request_key=values.get('request_key') or str(uuid.uuid4()),today=datetime.now(ZoneInfo('Africa/Johannesburg')).date().isoformat()),status
+    return render_template('program_billing/utilities_capture.html',property=prop,kind=kind,utility_month=utility_month,rows=rows,meters=meters(p),accounts=accounts,values=values,version=version,edit_id=edit_id,error=error,capture_ready=schema_ready(),reading_delete=reading_delete,reading_delete_token=reading_delete_token,reading_duplicates=reading_duplicates,reading_duplicate_token=reading_duplicate_token,reading_duplicate_mode=reading_duplicate_mode,reading_replace_id=reading_replace_id,reading_period_summary=reading_period_summary,payment_target=payment_target,payment_history=payment_history,payment_capture_ready=payment_ready() if kind=='statements' else False,payment_request_key=values.get('request_key') or str(uuid.uuid4()),today=datetime.now(ZoneInfo('Africa/Johannesburg')).date().isoformat()),status

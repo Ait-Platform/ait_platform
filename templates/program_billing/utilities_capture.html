@@ -94,7 +94,14 @@
 {% for key,label in [('arrears','Arrears'),('balance','Balance'),('due','Due')] %}<div><label for="{{ key }}" class="block font-semibold">{{ label }} (ZAR)</label><input id="{{ key }}" name="{{ key }}" type="number" step="0.01" required value="{{ values.get(key,'') }}" class="w-full rounded-lg border border-slate-300 px-3 py-2"></div>{% endfor %}
 <div><label for="due_date" class="block font-semibold">Due date</label><input id="due_date" name="due_date" type="date" min="1900-01-01" required value="{{ values.get('due_date','') }}" class="w-full rounded-lg border border-slate-300 px-3 py-2"></div>
 {% endif %}</div>
-{% if kind=='readings' and reading_duplicates %}
+{% if kind=='readings' and reading_delete %}
+<div id="reading-delete-confirmation" role="alert" class="rounded-lg border border-red-200 bg-red-50 p-4">
+<p class="font-semibold">Are you sure you want to delete this meter reading?</p>
+<dl class="my-3 grid grid-cols-1 gap-2 md:grid-cols-3"><div><dt>Meter</dt><dd>{{ reading_delete.meter_number }}</dd></div><div><dt>Reading Date</dt><dd>{{ reading_delete.reading_date }}</dd></div><div><dt>Recorded Value</dt><dd>{{ reading_delete.reading_value }}</dd></div></dl>
+<input type="hidden" name="reading_delete_token" value="{{ reading_delete_token }}">
+<div class="flex justify-end gap-2"><button type="submit" name="action" value="cancel_delete_reading" formnovalidate class="rounded-lg bg-red-100 px-4 py-2">Cancel</button><button type="submit" name="action" value="confirm_delete_reading" formnovalidate class="rounded-lg bg-red-600 px-4 py-2 font-semibold text-white">Confirm Delete</button></div>
+</div>
+{% elif kind=='readings' and reading_duplicates %}
 <div id="reading-duplicate-warning" role="alert" class="rounded-lg border border-amber-200 bg-amber-50 p-4">
 <p class="font-semibold">A reading already exists for this meter for the selected month. Choose Replace Reading or Save Additional Reading.</p>
 <p class="my-2">New reading: {{ values.get('reading_date') }} &mdash; {{ values.get('reading_value') }}</p>
@@ -106,7 +113,7 @@
 {% else %}<button name="reading_duplicate_action" value="review_replace" type="submit" class="rounded-lg bg-yellow-100 px-4 py-2 font-semibold">Replace Reading</button><button name="reading_duplicate_action" value="review_additional" type="submit" class="rounded-lg bg-green-100 px-4 py-2 font-semibold">Save Additional Reading</button>{% endif %}</div>
 </div>
 {% else %}
-<div id="capture-actions" class="flex flex-wrap items-center justify-end gap-2"><a id="capture-cancel" {% if kind=='statements' %}data-mar-close{% else %}data-reading-close{% endif %} href="{{ url_for('billing_bp.meter_readings' if kind=='readings' else 'billing_bp.metro_reconciliation',property_id=property.id,billing_month=utility_month,view_item=request.values.get('view_item',''),workspace='closed') }}" class="rounded-lg bg-red-100 px-4 py-2">Cancel</a><button {% if not capture_ready %}disabled aria-disabled="true"{% endif %} class="rounded-lg bg-green-100 px-4 py-2 font-semibold" type="submit">Save</button></div>
+<div id="capture-actions" class="flex flex-wrap items-center justify-end gap-2">{% if kind=='readings' and edit_id %}<button type="submit" name="action" value="delete_reading" formnovalidate {% if not capture_ready %}disabled{% endif %} class="rounded-lg bg-red-600 px-4 py-2 font-semibold text-white">Delete Reading</button>{% endif %}<a id="capture-cancel" {% if kind=='statements' %}data-mar-close{% else %}data-reading-close{% endif %} href="{{ url_for('billing_bp.meter_readings' if kind=='readings' else 'billing_bp.metro_reconciliation',property_id=property.id,billing_month=utility_month,view_item=request.values.get('view_item',''),workspace='closed') }}" class="rounded-lg bg-red-100 px-4 py-2">Cancel</a><button {% if not capture_ready %}disabled aria-disabled="true"{% endif %} class="rounded-lg bg-green-100 px-4 py-2 font-semibold" type="submit">Save</button></div>
 {% endif %}
 </form>
 {% endset %}

@@ -193,7 +193,7 @@ from app.models.billing import BilLease, BilPayment
 @login_required
 def delete_property(property_id):
     prop = BilProperty.query.get_or_404(property_id)
-    if prop.manager_id != current_user.id and not current_user.has_role('admin'):
+    if prop.manager_id != current_user.id:
         abort(403)
         
     try:
@@ -227,7 +227,7 @@ def delete_property(property_id):
 @login_required
 def view_property(property_id):
     prop = BilProperty.query.get_or_404(property_id)
-    if prop.manager_id != current_user.id and not current_user.has_role('admin'):
+    if prop.manager_id != current_user.id:
         abort(403)
         
     return render_template("program_billing/view_property.html", property=prop, account_meters=account_meters)
@@ -236,7 +236,7 @@ def view_property(property_id):
 @login_required
 def edit_property(property_id):
     prop = BilProperty.query.get_or_404(property_id)
-    if prop.manager_id != current_user.id and not current_user.has_role('admin'):
+    if prop.manager_id != current_user.id:
         abort(403)
         
     from app.models.billing import BilBankDetail
@@ -316,7 +316,7 @@ def edit_property(property_id):
                         from app.models.billing import BilConsumption
                         
                         # Unlink sub-meters to prevent ForeignKeyViolation
-                        sub_meters = BilMeter.query.filter_by(parent_meter_id=meter.id).all()
+                        sub_meters = BilMeter.query.filter_by(parent_meter_id=meter.id,property_id=prop.id).all()
                         for sm in sub_meters:
                             sm.parent_meter_id = None
                             
@@ -451,7 +451,7 @@ def delete_consumption(consumption_id):
     meter = BilMeter.query.get(cons.meter_id)
     if meter and meter.property and meter.property_id:
         prop = BilProperty.query.get(meter.property_id)
-        if prop.manager_id != current_user.id and not current_user.has_role('admin'):
+        if prop.manager_id != current_user.id:
             abort(403)
             
         # Delete the associated new reading as well to completely revert
@@ -485,23 +485,18 @@ def admin_dashboard():
 @login_required
 def muni_recon_statement():
     from datetime import datetime
-    from app.program_billing.helpers import sync_muni_accounts
     
-    # Auto-sync accounts before querying
-    sync_muni_accounts()
     
     # 1. Get user's accounts
     acc_sql = """
-        SELECT DISTINCT a.id, a.account_number, 
+        SELECT DISTINCT a.id, a.account_number, a.property_id,
                wm.meter_number as muni_water_meter_no, 
                em.meter_number as muni_elec_meter_no, 
                o.name as owner_name, p.name as property_name
         FROM bil_muni_account a
-        LEFT JOIN bil_meter wm ON wm.id = a.water_meter_id
-        LEFT JOIN bil_meter em ON em.id = a.elec_meter_id
-        JOIN bil_meter m ON (m.id = a.water_meter_id OR m.id = a.elec_meter_id)
-        JOIN bil_property u ON property.id = m.property_id
-        JOIN bil_property p ON p.id = u.property_id
+        LEFT JOIN bil_meter wm ON wm.id = a.water_meter_id AND wm.property_id=a.property_id
+        LEFT JOIN bil_meter em ON em.id = a.elec_meter_id AND em.property_id=a.property_id
+        JOIN bil_property p ON p.id = a.property_id
         LEFT JOIN ref_muni_owner o ON o.id = a.owner_id
         WHERE p.manager_id = :manager_id
         ORDER BY a.account_number
@@ -514,7 +509,11 @@ def muni_recon_statement():
     if not selected_account_num and len(user_accounts) == 1:
         selected_account_num = user_accounts[0]["account_number"]
         
-    selected_account = next((acc for acc in user_accounts if acc["account_number"] == selected_account_num), None)
+    selected_account=None
+    if selected_account_num:
+        from .metsoa_setup_safety import owned_account_id
+        selected_id=owned_account_id(selected_account_num,request.args.get('property_id'))
+        selected_account=next((acc for acc in user_accounts if acc['id']==selected_id),None)
     
     rows = []
     default_metsoa = 0.0
@@ -538,7 +537,7 @@ def muni_recon_statement():
                 SELECT DISTINCT l.month as period 
                 FROM bil_tenant_ledger l
                 JOIN bil_tenant t ON t.id = l.tenant_id
-                WHERE l.ref = 'METSOA-AUTO' AND EXISTS (
+                WHERE l.ref = 'METSOA-AUTO' AND t.property_id=:property_id AND t.manager_id=:manager_id AND EXISTS (
                     SELECT 1 FROM bil_meter m WHERE m.property_id = t.property_id AND m.municipal_bill_number = :acc_num
                 )
             ) p
@@ -548,7 +547,7 @@ def muni_recon_statement():
                 SELECT l.month, SUM(l.amount) as total_due
                 FROM bil_tenant_ledger l
                 JOIN bil_tenant t ON t.id = l.tenant_id
-                WHERE l.ref = 'METSOA-AUTO' AND EXISTS (
+                WHERE l.ref = 'METSOA-AUTO' AND t.property_id=:property_id AND t.manager_id=:manager_id AND EXISTS (
                     SELECT 1 FROM bil_meter m WHERE m.property_id = t.property_id AND m.municipal_bill_number = :acc_num
                 )
                 GROUP BY l.month
@@ -563,21 +562,21 @@ def muni_recon_statement():
         """
         rows = db.session.execute(db.text(period_sql), {
             "acc_id": acc_id,
-            "acc_num": selected_account.get("account_number")
+            "acc_num": selected_account.get("account_number"),
+            "property_id": selected_account["property_id"],
+            "manager_id": current_user.id
         }).mappings().all()
         
         # Calculate default metsoa from property
         prop_sql = """
             SELECT p.metro_rates_amount, p.metro_arrangement_amount
-            FROM bil_meter m
-            JOIN bil_property u ON property.id = m.property_id
-            JOIN bil_property p ON p.id = u.property_id
-            WHERE m.id = :water_id OR m.id = :elec_id
+            FROM bil_property p
+            WHERE p.id=:property_id AND p.manager_id=:manager_id
             LIMIT 1
         """
         prop_data = db.session.execute(text(prop_sql), {
-            "water_id": selected_account.get("water_meter_id"), 
-            "elec_id": selected_account.get("elec_meter_id")
+            "property_id": selected_account["property_id"],
+            "manager_id": current_user.id
         }).mappings().first()
         
         if prop_data:
@@ -614,7 +613,9 @@ def muni_payment_submit():
     except ValueError:
         payment_date_obj = datetime.now().date()
         
-    acc = BilMuniAccount.query.filter_by(account_number=account_number).first()
+    from .metsoa_setup_safety import owned_account_id
+    acc = BilMuniAccount.query.get_or_404(owned_account_id(account_number,request.values.get('property_id')))
+    account_number=acc.account_number
     if not acc:
         flash("Account not found", "danger")
         return redirect(url_for("billing_bp.muni_recon_statement", account_number=account_number))
@@ -676,7 +677,9 @@ def muni_payment_delete():
     account_number = request.form.get("account_number")
     month = request.form.get("month")
     
-    acc = BilMuniAccount.query.filter_by(account_number=account_number).first()
+    from .metsoa_setup_safety import owned_account_id
+    acc = BilMuniAccount.query.get_or_404(owned_account_id(account_number,request.values.get('property_id')))
+    account_number=acc.account_number
     if acc:
         payments = BilMuniPayment.query.filter_by(account_id=acc.id, month=month).all()
         for p in payments:
@@ -705,7 +708,9 @@ def muni_recon_edit():
         flash("Account required", "danger")
         return redirect(url_for("billing_bp.muni_recon_statement"))
         
-    acc = BilMuniAccount.query.filter_by(account_number=account_number).first()
+    from .metsoa_setup_safety import owned_account_id
+    acc = BilMuniAccount.query.get_or_404(owned_account_id(account_number,request.values.get('property_id')))
+    account_number=acc.account_number
     if not acc:
         flash("Account not found", "danger")
         return redirect(url_for("billing_bp.muni_recon_statement"))
@@ -722,11 +727,11 @@ def muni_recon_edit():
             SELECT SUM(l.amount) 
             FROM bil_tenant_ledger l
             JOIN bil_tenant t ON t.id = l.tenant_id
-            WHERE l.ref = 'METSOA-AUTO' AND l.month = :month AND EXISTS (
+            WHERE l.ref = 'METSOA-AUTO' AND l.month = :month AND t.property_id=:property_id AND t.manager_id=:manager_id AND EXISTS (
                 SELECT 1 FROM bil_meter m WHERE m.property_id = t.property_id AND m.municipal_bill_number = :acc_num
             )
         """
-        val = db.session.execute(text(ledger_sql), {"month": month, "acc_num": account_number}).scalar()
+        val = db.session.execute(text(ledger_sql), {"month": month, "acc_num": account_number, "property_id": acc.property_id, "manager_id": current_user.id}).scalar()
         if val:
             metsoa_charges = float(val)
             
@@ -761,25 +766,27 @@ def muni_recon_email():
     month = request.args.get("month")
     
     if not account_number or not month:
-        accounts = BilMuniAccount.query.all()
+        accounts = BilMuniAccount.query.join(BilProperty,BilProperty.id==BilMuniAccount.property_id).filter(BilProperty.manager_id==current_user.id).all()
         current_month = datetime.now().strftime("%Y-%m")
         return render_template("program_billing/recon_email_select.html", accounts=accounts, current_month=current_month)
         
-    acc = BilMuniAccount.query.filter_by(account_number=account_number).first()
+    from .metsoa_setup_safety import owned_account_id
+    acc = BilMuniAccount.query.get_or_404(owned_account_id(account_number,request.values.get('property_id')))
+    account_number=acc.account_number
     if not acc:
         flash("Account not found.", "danger")
         return redirect(url_for("billing_bp.muni_recon_email"))
         
     meters = []
     if acc.water_meter_id:
-        wm = BilMeter.query.get(acc.water_meter_id)
+        wm = BilMeter.query.filter_by(id=acc.water_meter_id,property_id=acc.property_id).first()
         if wm: meters.append(wm)
     if acc.elec_meter_id:
-        em = BilMeter.query.get(acc.elec_meter_id)
+        em = BilMeter.query.filter_by(id=acc.elec_meter_id,property_id=acc.property_id).first()
         if em: meters.append(em)
         
     # Fallback to check if meters have the account number directly attached
-    fallback_meters = BilMeter.query.filter_by(municipal_bill_number=account_number).all()
+    fallback_meters = BilMeter.query.filter_by(municipal_bill_number=account_number,property_id=acc.property_id).all()
     for m in fallback_meters:
         if m not in meters:
             meters.append(m)
@@ -841,7 +848,9 @@ def muni_recon_email_send():
         flash("All fields are required to send the email.", "danger")
         return redirect(url_for("billing_bp.muni_recon_email", account_number=account_number, month=month))
         
-    acc = BilMuniAccount.query.filter_by(account_number=account_number).first()
+    from .metsoa_setup_safety import owned_account_id
+    acc = BilMuniAccount.query.get_or_404(owned_account_id(account_number,request.values.get('property_id')))
+    account_number=acc.account_number
     if not acc:
         flash("Account not found.", "danger")
         return redirect(url_for("billing_bp.muni_recon_email"))
@@ -849,13 +858,13 @@ def muni_recon_email_send():
     # Re-fetch meters to log the readings
     meters = []
     if acc.water_meter_id:
-        wm = BilMeter.query.get(acc.water_meter_id)
+        wm = BilMeter.query.filter_by(id=acc.water_meter_id,property_id=acc.property_id).first()
         if wm: meters.append(wm)
     if acc.elec_meter_id:
-        em = BilMeter.query.get(acc.elec_meter_id)
+        em = BilMeter.query.filter_by(id=acc.elec_meter_id,property_id=acc.property_id).first()
         if em: meters.append(em)
         
-    fallback_meters = BilMeter.query.filter_by(municipal_bill_number=account_number).all()
+    fallback_meters = BilMeter.query.filter_by(municipal_bill_number=account_number,property_id=acc.property_id).all()
     for m in fallback_meters:
         if m not in meters:
             meters.append(m)
@@ -940,7 +949,9 @@ def generate_month_list(n=6):
     return sorted(set(months))
 
 @billing_bp.route("/setup-property/<int:user_id>", methods=["GET", "POST"])
+@login_required
 def setup_property(user_id):
+    if user_id!=current_user.id:abort(403)
     form = ManagerPropertyForm()
     manager = User.query.get_or_404(user_id)
 
@@ -958,7 +969,7 @@ def setup_property(user_id):
     return render_template("setup_property.html", form=form)
 
 def get_available_months():
-    rows = db.session.query(BilMeterReading.reading_date).all()
+    rows = db.session.query(BilMeterReading.reading_date).join(BilMeter,BilMeter.id==BilMeterReading.meter_id).join(BilProperty,BilProperty.id==BilMeter.property_id).filter(BilProperty.manager_id==current_user.id).all()
     months = sorted({r[0].strftime('%Y-%m') for r in rows if r[0]}, reverse=True)
     return months
 
@@ -997,10 +1008,8 @@ def get_billing_months(num_months=6):
 @billing_bp.route('/admin/wipe_data', methods=['POST'])
 @login_required
 def wipe_tables():
-    delete_all_consumption()
-    delete_all_consumption_copy()
-    flash("Consumption tables wiped clean.", "warning")
-    return redirect(url_for("billing.admin_dashboard"))
+    # Global destructive maintenance is outside a per-user PM portfolio.
+    abort(403)
  
 
 # 🌐 Onboarding Route — stays in app/routes.py
@@ -1018,7 +1027,7 @@ def onboard_property():
             location=form.location.data,
             type=form.type.data,
             is_external=True,
-            managed_by_user_id=current_user.id
+            manager_id=current_user.id
         )
 
         try:
@@ -1043,11 +1052,11 @@ def generate_consumption_records_from_readings(month):
     - Creating one consumption entry per meter based on consecutive readings
     """
     # 🚫 Clear existing records for the month
-    BilConsumption.query.filter_by(month=month).delete()
+    db.session.execute(text('DELETE FROM bil_consumption c USING bil_meter m,bil_property p WHERE c.meter_id=m.id AND m.property_id=p.id AND p.manager_id=:u AND c.month=:month'),dict(u=current_user.id,month=month))
     db.session.commit()
 
     records = []
-    meters = BilMeter.query.all()
+    meters = BilMeter.query.join(BilProperty,BilProperty.id==BilMeter.property_id).filter(BilProperty.manager_id==current_user.id).all()
 
     if not meters:
         print("No meters found — skipping generation.")
@@ -1485,7 +1494,7 @@ def build_electrical_rows(property_id, month, is_exception=False, filter_meter_i
     meter_types = {m.id: m.utility_type for m in meters}
     
     # Pre-calculate sub-meter deductions for bulk meters
-    records = BilConsumption.query.filter_by(month=month).all()
+    records = BilConsumption.query.filter(BilConsumption.month==month,BilConsumption.meter_id.in_([m.id for m in meters])).all()
     bulk_deductions = {}
     for r in records:
         m = next((meter for meter in meters if meter.id == r.meter_id), None)
@@ -1588,7 +1597,7 @@ def build_water_rows(property_id, month, is_exception=False, filter_meter_ids=No
     meter_types = {m.id: m.utility_type for m in meters}
     
     # Pre-calculate sub-meter deductions for bulk meters
-    records = BilConsumption.query.filter_by(month=month).all()
+    records = BilConsumption.query.filter(BilConsumption.month==month,BilConsumption.meter_id.in_([m.id for m in meters])).all()
     bulk_deductions = {}
     for r in records:
         m = next((meter for meter in meters if meter.id == r.meter_id), None)
@@ -1940,7 +1949,7 @@ def email_exception_metsoa(property_id, month):
         return {"success": False, "error": "Email address is required"}, 400
         
     prop = BilProperty.query.get_or_404(property_id)
-    if prop.manager_id != current_user.id and not current_user.has_role('admin'):
+    if prop.manager_id != current_user.id:
         return {"success": False, "error": "Unauthorized"}, 403
 
     elec_rows, elec_total = build_electrical_rows(prop.id, month, is_exception=True)
@@ -2016,7 +2025,7 @@ def metsoa(property_id, month):
     property_scope(property_id)
     from app.models.billing import BilProperty
     prop = BilProperty.query.get_or_404(property_id)
-    if prop.manager_id != current_user.id and not current_user.has_role('admin'):
+    if prop.manager_id != current_user.id:
         abort(403)
         
     manager_id = prop.manager_id
@@ -2054,7 +2063,11 @@ def metsoa(property_id, month):
     return render_template("program_billing/metsoa.html", **data)
 
 @billing_bp.route('/tenant/<int:tenant_id>')
+@login_required
 def tenant_mapping(tenant_id):
+    from .metsoa_setup_safety import property_scope
+    tenant_record=BilTenant.query.get_or_404(tenant_id)
+    property_scope(tenant_record.property_id)
     tenant_list = get_mapped_tenant_by_id(tenant_id)
     tenant = tenant_list[0] if tenant_list else None
     return render_template("tenant_mapping.html", tenant=tenant)
@@ -2444,7 +2457,7 @@ def email_metsoa(property_id, month):
         return {"success": False, "error": "Email address is required"}, 400
         
     prop = BilProperty.query.get_or_404(property_id)
-    if prop.manager_id != current_user.id and not current_user.has_role('admin'):
+    if prop.manager_id != current_user.id:
         return {"success": False, "error": "Unauthorized"}, 403
 
     elec_rows, elec_total = build_electrical_rows(prop.id, month)
@@ -2930,6 +2943,8 @@ def save_global_architecture(property_id):
 @billing_bp.route('/property/<int:property_id>/email_architecture_summary', methods=['GET', 'POST'])
 @login_required
 def email_architecture_summary(property_id):
+    from .metsoa_setup_safety import property_scope
+    property_scope(property_id)
     flash("Email feature coming soon!", "info")
     return redirect(url_for('billing_bp.architecture_summary', property_id=property_id))
 

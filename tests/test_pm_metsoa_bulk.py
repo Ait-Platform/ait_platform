@@ -56,7 +56,7 @@ class BulkMetsoaTests(fixture.MunicipalMetsoaTests):
         before=self.snapshot();data=self.data()
         self.assertFalse(data['pm_complete'])
         self.assertIn('linked meter CEL888 monthly consumption for 2026-10 cannot be established',str(data['pm_issues']))
-        self.assertIn('Only one reading',str(data['pm_issues']))
+        self.assertIn('No reading captured in 2026-10.',str(data['pm_issues']))
         self.assertNotIn('ANG489',[w['meter_number'] for w in data['water']['meters']])
         self.assertEqual(before,self.snapshot())
         self.session.execute(text("INSERT INTO bil_meter_reading(meter_id,reading_date,reading_value) VALUES(1,'2026-08-30',0)"));self.session.commit();self.conn.commit()

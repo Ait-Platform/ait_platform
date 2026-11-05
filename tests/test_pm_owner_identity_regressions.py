@@ -3,6 +3,7 @@ import unittest
 from sqlalchemy import text
 from test_pm_property_management import PropertyManagementTests
 from test_pm_meter_exception_historical import HistoricalExceptionTests
+from test_pm_municipal_arrangements import ArrangementTests
 
 class PropertyNamesTests(PropertyManagementTests):
     def test_two_authenticated_users_create_almond_independently(self):
@@ -24,5 +25,22 @@ class ExceptionIdentityUsersTests(HistoricalExceptionTests):
         rows=list(self.session.execute(text('SELECT property_id,meter_number,identity_key FROM bil_meter_exception_identity ORDER BY property_id')))
         self.assertEqual([r.property_id for r in rows],[26,28]);self.assertEqual(rows[0].meter_number,rows[1].meter_number);self.assertNotEqual(rows[0].identity_key,rows[1].identity_key)
 
+class ArrangementUsersTests(ArrangementTests):
+    def test_two_users_with_same_account_and_reference_cannot_access_each_others_arrangements(self):
+        self.conn.execute(text("INSERT INTO pm_admin_test_identity VALUES(8,'Second Manager','manager')"))
+        self.conn.execute(text("UPDATE bil_property SET name='Almond' WHERE id=28"))
+        self.conn.execute(text("UPDATE bil_muni_account SET account_number='MET-26' WHERE id=3"));self.conn.commit()
+        first=self.create(reference='SAME-REFERENCE')
+        with self.client.session_transaction() as session:session['_user_id']='8'
+        self.url='/billing/utilities/28/payment-arrangements'
+        second=self.create(account_id='3',reference='SAME-REFERENCE')
+        self.assertEqual(self.client.get(first).status_code,403)
+        self.assertEqual(self.client.get(first.replace('/26/','/28/')).status_code,404)
+        self.assertEqual(self.client.get(second).status_code,200)
+        with self.client.session_transaction() as session:session['_user_id']='7'
+        self.assertEqual(self.client.get(second).status_code,403)
+        self.assertEqual(self.client.get(second.replace('/28/','/26/')).status_code,404)
+        self.assertEqual(self.conn.execute(text('SELECT count(*) FROM bil_municipal_arrangement')).scalar(),2)
+
 def load_tests(loader,tests,pattern):
-    return unittest.TestSuite(cls(name) for cls in (PropertyNamesTests,ExceptionIdentityUsersTests) for name in cls.__dict__ if name.startswith('test_'))
+    return unittest.TestSuite(cls(name) for cls in (PropertyNamesTests,ExceptionIdentityUsersTests,ArrangementUsersTests) for name in cls.__dict__ if name.startswith('test_'))

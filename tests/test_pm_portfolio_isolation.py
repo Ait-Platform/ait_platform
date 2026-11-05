@@ -1,5 +1,5 @@
 """Two independent PM users may reuse names and identifiers; isolated PostgreSQL."""
-import unittest
+import unittest,sys,uuid,json
 from sqlalchemy import text
 from lxml import html
 from test_pm_utilities_capture import UtilitiesCaptureTests
@@ -30,6 +30,11 @@ class PortfolioIdentityTests(UtilitiesCaptureTests):
         meters=self.session.execute(text("SELECT id,property_id FROM bil_meter WHERE meter_number='000SAME-W' ORDER BY property_id")).all()
         self.assertEqual([r.property_id for r in meters],[26,28]);self.assertNotEqual(meters[0].id,meters[1].id)
         self.assertEqual(self.session.execute(text("SELECT count(*) FROM bil_meter_reading WHERE meter_id=ANY(:ids)"),dict(ids=[r.id for r in meters])).scalar(),2)
+        self.user.id=7
+        first=self.session.execute(text("SELECT id FROM bil_muni_account WHERE property_id=26 AND account_number='SHARED-001'")).scalar()
+        data=self.account_form_for(26,first);data.pop('csrf_token')
+        self.assertEqual(self.capture_post('/billing/utilities/26/accounts',**data).status_code,302)
+
     def account_form_for(self,p,a):
         self.accounts_url='/billing/utilities/'+str(p)+'/accounts'
         return self.account_form(a)
@@ -55,6 +60,24 @@ class PortfolioIdentityTests(UtilitiesCaptureTests):
             data.update(accounts=[dict(id='a',number='SAME-CONFIG')],subWater=[dict(id='w',number='SAME-CONFIG-W')],subElec=[],mapping=[dict(account_id='a',water='w')],owners=[])
             response=self.save(data,p);self.assertEqual(response.status_code,200,response.text)
         self.assertEqual(self.session.execute(text("SELECT count(*) FROM bil_meter WHERE meter_number='SAME-CONFIG-W'")).scalar(),2)
+    def test_lease_property_and_draft_ids_are_private_to_each_user(self):
+        foreign=uuid.uuid4()
+        self.session.execute(text("INSERT INTO bil_lease_draft(id,property_id,manager_id,status,source_version,items,version,updated_at) VALUES(:d,28,8,'draft',:source,CAST(:items AS jsonb),1,now())"),dict(d=foreign,source=self.catalog['version'],items=json.dumps(self.initial)))
+        self.session.commit();self.conn.commit()
+        snapshot=sys.modules['app.program_billing.lease_snapshot']
+        from werkzeug.exceptions import NotFound
+        before=list(self.session.execute(text('SELECT * FROM bil_lease_draft ORDER BY id')))
+        with self.app.test_request_context():
+            with self.assertRaises(NotFound):snapshot.authorised_property(28)
+            with self.assertRaises(NotFound):snapshot.draft_row(26,foreign)
+        self.assertEqual(self.client.get('/certificate/28',headers=self.headers).status_code,404)
+        self.user.id=8
+        with self.app.test_request_context():
+            self.assertEqual(snapshot.authorised_property(28)['id'],28)
+            self.assertEqual(snapshot.draft_row(28,foreign)['id'],foreign)
+            with self.assertRaises(NotFound):snapshot.draft_row(28,self.identifier)
+        self.assertEqual(self.client.get('/certificate/26',headers=self.headers).status_code,404)
+        self.assertEqual(before,list(self.session.execute(text('SELECT * FROM bil_lease_draft ORDER BY id'))))
     def test_cross_property_reading_and_account_ids_are_rejected_without_writes(self):
         self.user.id=8;self.assertEqual(self.create(28,'Owner Y').status_code,302)
         a,m=self.session.execute(text("SELECT id,water_meter_id FROM bil_muni_account WHERE property_id=28")).one()

@@ -26,7 +26,7 @@ class MunicipalMetsoaTests(fixture.UtilitiesCaptureTests):
         self.session.execute(text("UPDATE bil_meter_reading SET reading_date='2026-09-23',reading_value=0 WHERE id=1"))
         self.session.execute(text("INSERT INTO bil_muni_account(id,property_id,account_number,water_meter_id,elec_meter_id) VALUES(2,26,'83347721969',2,3)"))
         self.session.execute(text("INSERT INTO bil_meter(id,property_id,meter_number,utility_type,municipal_bill_number) VALUES(2,26,'CXN998','Water','83347721969'),(3,26,'7150696S','Electrical','83347721969'),(4,26,'2188802S','Electrical','83192896040'),(5,26,'ANG489','Water','83192896040')"))
-        for meter,day,value in [(1,'2026-10-23',31),(1,'2026-11-23',9999),(2,'2026-09-11',614),(2,'2026-10-11',615),(3,'2026-08-26',49577),(3,'2026-10-26',49592),(4,'2026-08-26',30025),(4,'2026-10-26',30572),(5,'2026-10-25',20)]:
+        for meter,day,value in [(3,'2026-09-26',49577),(4,'2026-09-26',30025),(1,'2026-10-23',31),(1,'2026-11-23',9999),(2,'2026-09-11',614),(2,'2026-10-11',615),(3,'2026-08-26',49577),(3,'2026-10-26',49592),(4,'2026-08-26',30025),(4,'2026-10-26',30572),(5,'2026-10-25',20)]:
             self.session.execute(text('INSERT INTO bil_meter_reading(meter_id,reading_date,reading_value) VALUES(:m,:d,:v)'),dict(m=meter,d=day,v=value))
         self.session.execute(text("INSERT INTO bil_municipal_statement(account_id,period,statement_date,arrears,balance,due,due_date) VALUES(1,'2026-10','2026-10-28',7043.55,7190.88,7190.88,'2026-11-07')"));self.session.commit();self.conn.commit()
         self.session.execute(text('UPDATE bil_tenant SET property_id=NULL WHERE id=44'));self.session.commit();self.conn.commit()
@@ -56,9 +56,9 @@ class MunicipalMetsoaTests(fixture.UtilitiesCaptureTests):
         elec={r['meter_number']:r for r in data['electricity']['rows']};water={r['meter_number']:r for r in data['water']['meters']}
         self.assertEqual(elec['7150696S']['consumption'],15);self.assertEqual(elec['2188802S']['consumption'],547)
         self.assertEqual(water['CEL888']['summary']['consumption'],31);self.assertEqual(water['CXN998']['summary']['consumption'],1)
-        self.assertEqual(elec['7150696S']['last_date'],'2026/08/26');self.assertEqual(water['CEL888']['summary']['new_date'],'2026/10/23')
+        self.assertEqual(elec['7150696S']['last_date'],'2026/09/26');self.assertEqual(water['CEL888']['summary']['new_date'],'2026/10/23')
         self.assertEqual(data['electricity']['subtotal'],Decimal('1843.08'));self.assertFalse(data['pm_complete'])
-        self.assertIn('ANG489: Only one reading',str(data['pm_issues']));self.assertNotIn('surcharge tariff',str(data['pm_issues']))
+        self.assertIn('ANG489: No reading captured in previous month',str(data['pm_issues']));self.assertNotIn('surcharge tariff',str(data['pm_issues']))
         self.assertIn('Statement For All Metro Meters',page.text);self.assertIn('Electricity Sub-Total',page.text);self.assertIn('W&S For #',page.text);self.assertIn('S & D Cost',page.text)
         self.assertIn('NOT A FINAL AMOUNT DUE',page.text);self.assertNotIn('Arrears',page.text);self.assertNotIn('7,190.88',page.text)
         self.assertFalse(any(q.lstrip().startswith(('insert ','update ','delete ')) for q in queries))
@@ -85,10 +85,10 @@ class MunicipalMetsoaTests(fixture.UtilitiesCaptureTests):
         self.assertEqual(self.client.get(self.generation_url.replace('/26/','/28/'),headers=self.headers).status_code,403)
         self.assertEqual(self.client.get(self.generation_url).status_code,403)
         self.assertEqual(self.client.get(self.generation_url.replace('2026-10','2026-19'),headers=self.headers).status_code,400)
-    def test_conflicting_readings_produce_no_guessed_water_charge(self):
+    def test_multiple_same_date_readings_use_monthly_water_maximum(self):
         self.session.execute(text("INSERT INTO bil_meter_reading(meter_id,reading_date,reading_value) VALUES(1,'2026-10-23',40)"));self.session.commit();self.conn.commit()
         with self.app.test_request_context():data=self.metsoa.build(26,'2026-10',recipient_id=11)
-        self.assertNotIn('CEL888',[r['meter_number'] for r in data['water']['meters']]);self.assertIn('Conflicting readings',str(data['pm_issues']))
+        self.assertEqual({r['meter_number']:r for r in data['water']['meters']}['CEL888']['summary']['consumption'],40)
     def test_legacy_builder_defaults_remain_unchanged(self):
         tiers=[dict(multiplier=999.0,rate=39.39,label='test band')]
         lines,total=self.original_env['build_ws_breakdown'](1.0,30,'2026-10',1,tiers=tiers)

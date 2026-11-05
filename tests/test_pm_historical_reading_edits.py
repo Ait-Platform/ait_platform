@@ -45,8 +45,8 @@ class HistoricalReadingEditTests(fixture.UtilitiesCaptureTests):
         before=self.state();record,data=self.edit(day='2025-09-20',reading_date='2025-10-15',reading_value='220')
         self.assertEqual(self.capture_post(self.readings_url,**data).status_code,302)
         self.assertEqual(self.session.execute(text("SELECT count(*) FROM bil_consumption WHERE meter_id=98 AND month='2025-09'")).scalar(),0)
-        self.assertEqual(self.session.execute(text("SELECT consumption FROM bil_consumption WHERE meter_id=98 AND month='2025-10'")).scalar(),80)
-        audit=self.session.execute(text("SELECT before_data,after_data FROM bil_utilities_capture_audit WHERE kind='reading_consumption' AND after_data->>'invalidated'='true'")).one()
+        self.assertIsNone(self.session.execute(text("SELECT consumption FROM bil_consumption WHERE meter_id=98 AND month='2025-10'")).scalar())
+        audit=self.session.execute(text("SELECT before_data,after_data FROM bil_utilities_capture_audit WHERE kind='reading_consumption' AND after_data->>'invalidated'='true' AND before_data->>'month'='2025-09'")).one()
         self.assertEqual(audit[0]['month'],'2025-09');self.assertTrue(audit[1]['invalidated'])
         self.assertEqual(before[1],self.state()[1])
 
@@ -69,7 +69,7 @@ class HistoricalReadingEditTests(fixture.UtilitiesCaptureTests):
         # An unresolved conflict must not leave the former corrected endpoint cached.
         data=self.capture_form(self.readings_url+'?edit='+str(record));data.pop('csrf_token');data['reading_value']='230'
         self.assertEqual(self.capture_post(self.readings_url,**data).status_code,302)
-        self.assertEqual(self.session.execute(text("SELECT count(*) FROM bil_consumption WHERE meter_id=98 AND month IN ('2025-09','2025-10')")).scalar(),0)
+        self.assertEqual(list(self.session.execute(text("SELECT month,consumption FROM bil_consumption WHERE meter_id=98 AND month IN ('2025-09','2025-10') ORDER BY month"))),[('2025-09',130),('2025-10',70)])
         data=self.capture_form(self.readings_url+'?edit='+str(record));data.pop('csrf_token');data['reading_value']='210'
         self.assertEqual(self.capture_post(self.readings_url,**data).status_code,302)
         self.assertEqual(list(self.session.execute(text("SELECT month,consumption FROM bil_consumption WHERE meter_id=98 AND month IN ('2025-09','2025-10') ORDER BY month"))),[('2025-09',110),('2025-10',90)])
@@ -100,7 +100,7 @@ class CorrectedMetsoaTests(metsoa_fixture.MunicipalMetsoaTests):
         before_financial={table:list(self.session.execute(text('SELECT * FROM '+table+' ORDER BY id'))) for table in ['bil_municipal_statement','bil_muni_payment','bil_statement_payment']}
         with self.app.test_request_context():before=self.metsoa.build(26,'2026-10',recipient_id=11)
         for meter,new in [(3,'49580'),(1,'1')]:
-            record=self.session.execute(text('SELECT id FROM bil_meter_reading WHERE meter_id=:m ORDER BY reading_date LIMIT 1'),dict(m=meter)).scalar()
+            record=self.session.execute(text("SELECT id FROM bil_meter_reading WHERE meter_id=:m AND reading_date>='2026-09-01' ORDER BY reading_date LIMIT 1"),dict(m=meter)).scalar()
             data=self.capture_form(self.readings_url+'?edit='+str(record));data.pop('csrf_token');data['reading_value']=new
             self.assertEqual(self.capture_post(self.readings_url,**data).status_code,302)
         with self.app.test_request_context():after=self.metsoa.build(26,'2026-10',recipient_id=11)

@@ -32,7 +32,7 @@ def refresh(session,meter,before_rows,after_rows,changed_periods):
     for row in stored:groups.setdefault(row['month'],[]).append(row)
     changes=[]
     periods=[]
-    for period in set(groups)|set(changed_periods):
+    for period in set(changed_periods):
         try:
             if not isinstance(period,str) or len(period)!=7:continue
             date.fromisoformat(period+'-01')
@@ -40,12 +40,11 @@ def refresh(session,meter,before_rows,after_rows,changed_periods):
         periods.append(period)
     for period in sorted(periods):
         # Leave legacy/estimated consumption with no verifiable reading provenance untouched.
-        try:old=derived(meter,period,before_rows);new=derived(meter,period,after_rows)
+        try:new=derived(meter,period,after_rows)
         except (ValueError,TypeError):continue
         existing=groups.get(period,[])
         for row in existing:
             if not from_saved_readings(row,before_rows) or matches(row,new):continue
-            if old==new and from_saved_readings(row,after_rows):continue
             if new is None:
                 session.execute(text('DELETE FROM bil_consumption WHERE id=:id AND meter_id=:m'),dict(id=row['id'],m=meter['id']))
                 changes.append((row['id'],row,dict(invalidated=True,reason='No unambiguous saved reading pair remains for this month.')))

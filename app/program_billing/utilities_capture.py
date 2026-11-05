@@ -42,7 +42,7 @@ def meters(p):
 def readings(p):
     return [dict(r) for r in db.session.execute(text('SELECT r.*,m.meter_number,m.utility_type FROM bil_meter_reading r JOIN bil_meter m ON m.id=r.meter_id WHERE m.property_id=:p ORDER BY r.reading_date DESC,r.id DESC'),dict(p=p)).mappings()]
 class ReadingConfirmationRequired(Exception):
-    def __init__(self,rows,token):self.rows=rows;self.token=token
+    def __init__(self,rows,token,mode='',target=None):self.rows=rows;self.token=token;self.mode=mode;self.target=target
 
 class ReadingCaptureCancelled(Exception):pass
 
@@ -54,14 +54,22 @@ def confirm_additional_reading(p,meter_id,new_date,value,form):
         FROM bil_meter_reading r JOIN bil_meter m ON m.id=r.meter_id
         WHERE m.property_id=:p AND r.meter_id=:m AND r.reading_date>=:start AND r.reading_date<:end
         ORDER BY r.reading_date,r.id"""),dict(p=p,m=meter_id,start=start,end=end)).mappings()]
-    if not rows:return False
-    payload=dict(property_id=p,meter_id=meter_id,reading_date=new_date.isoformat(),reading_value=str(value),actor_id=current_user.id,existing=fingerprint(dict(rows=rows)))
+    requested=form.get('reading_duplicate_action','')
+    if not rows:
+        if requested in ('replace','confirm','review_replace','review_additional'):abort(409,description='The selected reading or month changed. Review the entered reading before saving.')
+        return '',None
+    mode='replace' if requested in ('review_replace','replace') else ('additional' if requested in ('review_additional','confirm') else '')
+    try:target_id=int(form.get('reading_replace_id') or rows[-1]['id'])
+    except (ValueError,TypeError):abort(400,description='Select a displayed reading to replace.')
+    target=next((r for r in rows if r['id']==target_id),None)
+    if not target:mode='';target=rows[-1];target_id=target['id']
+    payload=dict(property_id=p,meter_id=meter_id,reading_date=new_date.isoformat(),reading_value=str(value),actor_id=current_user.id,existing=fingerprint(dict(rows=rows)),mode=mode,target_id=target_id if mode=='replace' else None)
     serializer=URLSafeTimedSerializer(current_app.secret_key,salt='pm-additional-meter-reading')
-    if form.get('reading_duplicate_action')=='confirm':
+    if requested in ('replace','confirm'):
         try:
-            if serializer.loads(form.get('reading_duplicate_token',''),max_age=900)==payload:return True
+            if mode and serializer.loads(form.get('reading_duplicate_token',''),max_age=900)==payload:return mode,target
         except BadData:pass
-    raise ReadingConfirmationRequired(rows,serializer.dumps(payload))
+    raise ReadingConfirmationRequired(rows,serializer.dumps(payload),mode,target_id)
 
 
 def save_reading(p,form):
@@ -78,34 +86,31 @@ def save_reading(p,form):
         if not original:abort(404)
         if form.get('version')!=fingerprint(original):abort(409,description='Reading changed. Reopen Edit; entered values are preserved below.')
         if original['reading_date']==new_date and Decimal(str(original['reading_value']))==value:return record_id
-    duplicate=db.session.execute(text('SELECT * FROM bil_meter_reading WHERE meter_id=:m AND reading_date=:d AND (:r IS NULL OR id<>:r)'),dict(m=meter_id,d=new_date,r=record_id)).mappings().all()
-    if duplicate and record_id and new_date!=original['reading_date']:
-        abort(409,description='A reading already exists for this meter and date. Use Edit rather than creating a duplicate.')
-    previous=db.session.execute(text('SELECT reading_value FROM bil_meter_reading WHERE meter_id=:m AND reading_date<:d AND (:r IS NULL OR id<>:r) ORDER BY reading_date DESC,id DESC LIMIT 1'),dict(m=meter_id,d=new_date,r=record_id)).scalar()
-    following=db.session.execute(text('SELECT reading_value FROM bil_meter_reading WHERE meter_id=:m AND reading_date>:d AND (:r IS NULL OR id<>:r) ORDER BY reading_date,id LIMIT 1'),dict(m=meter_id,d=new_date,r=record_id)).scalar()
-    if previous is not None and value<Decimal(str(previous)):abort(400,description='Reading cannot be below the immediately preceding saved reading ('+str(previous)+'). Existing readings are unchanged.')
-    if following is not None and value>Decimal(str(following)):abort(400,description='Reading cannot exceed the immediately following saved reading ('+str(following)+'). Existing readings are unchanged.')
-    additional=confirm_additional_reading(p,meter_id,new_date,value,form) if not record_id else False
-    before_rows=[dict(r) for r in db.session.execute(text('SELECT id,reading_date,reading_value FROM bil_meter_reading WHERE meter_id=:m ORDER BY reading_date,id'),dict(m=meter_id)).mappings()] if original else []
+    mode,target=confirm_additional_reading(p,meter_id,new_date,value,form) if not record_id else ('',None)
+    if mode=='replace':
+        original=db.session.execute(text('SELECT * FROM bil_meter_reading WHERE id=:r AND meter_id=:m FOR UPDATE'),dict(r=target['id'],m=meter_id)).mappings().one()
+        record_id=original['id']
+    additional=mode=='additional'
+    before_rows=[dict(r) for r in db.session.execute(text('SELECT id,reading_date,reading_value FROM bil_meter_reading WHERE meter_id=:m ORDER BY reading_date,id'),dict(m=meter_id)).mappings()]
+    proposed=[r for r in before_rows if r['id']!=record_id]+[dict(id=record_id or -1,reading_date=new_date,reading_value=value)]
+    from .municipal_metsoa import month_context,reading_pair_from_rows
+    from .reading_consumption import refresh
+    periods={new_date.strftime('%Y-%m')}
+    if original:periods.add(original['reading_date'].strftime('%Y-%m'))
+    for period in list(periods):
+        _,start,end=month_context(period)
+        periods.add(date(start.year+start.month//12,start.month%12+1,1).strftime('%Y-%m'))
+    for period in periods:
+        _,start,end=month_context(period);pair=reading_pair_from_rows(meter,start,end,proposed)
+        if pair['error'] and pair['error'].startswith('Readings decrease'):abort(400,description=pair['error'])
     data=dict(m=meter_id,d=new_date,v=value,r=record_id)
     if original:db.session.execute(text('UPDATE bil_meter_reading SET reading_date=:d,reading_value=:v WHERE id=:r'),data)
-    elif not additional and previous is not None and following is None and not db.session.execute(text('SELECT 1 FROM bil_consumption WHERE meter_id=:m AND month=:period LIMIT 1'),dict(m=meter_id,period=new_date.strftime('%Y-%m'))).first():
-        from .utilities_readings import save as save_with_consumption
-        save_with_consumption(dict(meter_id=meter_id,property_id=p,date=new_date.isoformat(),reading_month=new_date.strftime('%Y-%m'),reading=str(value)))
-        record_id=db.session.execute(text('SELECT id FROM bil_meter_reading WHERE meter_id=:m AND reading_date=:d'),data).scalar()
     else:record_id=db.session.execute(text('INSERT INTO bil_meter_reading(meter_id,reading_date,reading_value) VALUES(:m,:d,:v) RETURNING id'),data).scalar()
-    if original:
-        from .reading_consumption import refresh
-        after_rows=[dict(r) for r in db.session.execute(text('SELECT id,reading_date,reading_value FROM bil_meter_reading WHERE meter_id=:m ORDER BY reading_date,id'),dict(m=meter_id)).mappings()]
-        periods={new_date.strftime('%Y-%m')}
-        if original:periods.add(original['reading_date'].strftime('%Y-%m'))
-        for endpoint in (new_date,original['reading_date']):
-            later=[r['reading_date'] for r in after_rows if r['reading_date']>endpoint]
-            if later:periods.add(min(later).strftime('%Y-%m'))
-        for consumption_id,before,after in refresh(db.session,meter,before_rows,after_rows,periods):
-            audit(p,'reading_consumption',consumption_id,before,after)
+    after_rows=[dict(r) for r in db.session.execute(text('SELECT id,reading_date,reading_value FROM bil_meter_reading WHERE meter_id=:m ORDER BY reading_date,id'),dict(m=meter_id)).mappings()]
+    for consumption_id,before,after in refresh(db.session,meter,before_rows,after_rows,periods):audit(p,'reading_consumption',consumption_id,before,after)
     recorded=dict(meter_id=meter_id,reading_date=new_date,reading_value=str(value))
     if additional:recorded['additional_reading_confirmed']=True
+    if mode=='replace':recorded['replacement_confirmed']=True
     audit(p,'reading',record_id,original,recorded)
     return record_id
 
@@ -210,7 +215,7 @@ def page(p,kind):
     utility_month,period_start,period_end=month_context(request.values.get('billing_month'))
     prop=db.session.execute(text('SELECT id,name,address FROM bil_property WHERE id=:p'),dict(p=p)).mappings().one()
     error=None;status=200;values={};edit_id=request.args.get('edit');version=''
-    reading_duplicates=[];reading_duplicate_token=''
+    reading_duplicates=[];reading_duplicate_token='';reading_duplicate_mode='';reading_replace_id=None
     payment_statement_id=request.args.get('payment') if kind=='statements' else None
     if request.method=='POST':
         values=request.form.to_dict();edit_id=values.get('record_id')
@@ -228,7 +233,7 @@ def page(p,kind):
             return redirect(url_for('billing_bp.meter_readings' if kind=='readings' else 'billing_bp.metro_reconciliation',property_id=p,billing_month=utility_month,view_item=values.get('view_item','')))
         except ReadingCaptureCancelled:db.session.rollback()
         except ReadingConfirmationRequired as exc:
-            db.session.rollback();reading_duplicates=exc.rows;reading_duplicate_token=exc.token
+            db.session.rollback();reading_duplicates=exc.rows;reading_duplicate_token=exc.token;reading_duplicate_mode=exc.mode;reading_replace_id=exc.target
         except HTTPException as exc:db.session.rollback();error=exc.description;status=exc.code
         except Exception:
             db.session.rollback();current_app.logger.exception('Utilities capture failed');error='Saving failed; no changes were committed. Check the server log.';status=503
@@ -267,4 +272,4 @@ def page(p,kind):
         portfolio={r['utility']:r['total'] for r in counts}
         reading_period_summary=dict(property=sum(period_start<=r['reading_date']<=period_end for r in rows),
             electricity=portfolio.get('electricity',0)+portfolio.get('electrical',0),water=portfolio.get('water',0))
-    return render_template('program_billing/utilities_capture.html',property=prop,kind=kind,utility_month=utility_month,rows=rows,meters=meters(p),accounts=accounts,values=values,version=version,edit_id=edit_id,error=error,capture_ready=schema_ready(),reading_duplicates=reading_duplicates,reading_duplicate_token=reading_duplicate_token,reading_period_summary=reading_period_summary,payment_target=payment_target,payment_history=payment_history,payment_capture_ready=payment_ready() if kind=='statements' else False,payment_request_key=values.get('request_key') or str(uuid.uuid4()),today=datetime.now(ZoneInfo('Africa/Johannesburg')).date().isoformat()),status
+    return render_template('program_billing/utilities_capture.html',property=prop,kind=kind,utility_month=utility_month,rows=rows,meters=meters(p),accounts=accounts,values=values,version=version,edit_id=edit_id,error=error,capture_ready=schema_ready(),reading_duplicates=reading_duplicates,reading_duplicate_token=reading_duplicate_token,reading_duplicate_mode=reading_duplicate_mode,reading_replace_id=reading_replace_id,reading_period_summary=reading_period_summary,payment_target=payment_target,payment_history=payment_history,payment_capture_ready=payment_ready() if kind=='statements' else False,payment_request_key=values.get('request_key') or str(uuid.uuid4()),today=datetime.now(ZoneInfo('Africa/Johannesburg')).date().isoformat()),status

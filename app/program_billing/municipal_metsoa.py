@@ -29,19 +29,18 @@ def reading_pair(meter,start,end):
 
 def reading_pair_from_rows(meter,start,end,readings):
     entry=dict(number=meter['meter_number'],billing_month=None,previous=None,current=None,difference=None,days=None,error=None)
-    by_date={}
-    for reading in sorted((r for r in readings if r['reading_date']<=end),key=lambda r:(r['reading_date'],r['id']),reverse=True):by_date.setdefault(reading['reading_date'],[]).append(reading)
-    dates=sorted(by_date,reverse=True)
-    if not dates:entry['error']='No readings are available.'
-    elif len(dates)<2:entry['error']='Only one reading is available; consumption cannot yet be calculated.'
-    elif dates[0]<start:entry['error']='No reading captured in '+start.strftime('%Y-%m')+'.'
+    previous_start=date(start.year-(start.month==1),12 if start.month==1 else start.month-1,1)
+    current_rows=[r for r in readings if start<=r['reading_date']<=end]
+    previous_rows=[r for r in readings if previous_start<=r['reading_date']<start]
+    if not current_rows:entry['error']='No reading captured in '+start.strftime('%Y-%m')+'.'
+    elif not previous_rows:entry['error']='No reading captured in previous month '+previous_start.strftime('%Y-%m')+'; consumption cannot yet be calculated.'
+    elif any(not Decimal(str(r['reading_value'])).is_finite() or Decimal(str(r['reading_value']))<0 for r in current_rows+previous_rows):entry['error']='Readings decrease or contain invalid values; review the original records.'
     else:
-        pair=[by_date[d] for d in dates[:2]]
-        if any(len({Decimal(str(r['reading_value'])) for r in group})!=1 for group in pair):entry['error']='Conflicting readings exist for the same date.'
-        else:
-            current=pair[0][0];previous=pair[1][0];new=Decimal(str(current['reading_value']));old=Decimal(str(previous['reading_value']))
-            if not new.is_finite() or not old.is_finite() or old<0 or new<old:entry['error']='Readings decrease or contain invalid values; review the original records.'
-            else:entry.update(billing_month=start.strftime('%Y-%m'),previous=dict(date=previous['reading_date'],value=old),current=dict(date=current['reading_date'],value=new),difference=new-old,days=(current['reading_date']-previous['reading_date']).days)
+        current=max(current_rows,key=lambda r:(Decimal(str(r['reading_value'])),r['reading_date'],r['id']))
+        previous=max(previous_rows,key=lambda r:(Decimal(str(r['reading_value'])),r['reading_date'],r['id']))
+        new=Decimal(str(current['reading_value']));old=Decimal(str(previous['reading_value']))
+        if new<old:entry['error']='Readings decrease or contain invalid values; review the original records and existing meter reset/replacement rules.'
+        else:entry.update(billing_month=start.strftime('%Y-%m'),previous=dict(date=previous['reading_date'],value=old),current=dict(date=current['reading_date'],value=new),difference=new-old,days=(current['reading_date']-previous['reading_date']).days)
     return entry
 
 def recipient_choices(p,manager_id):

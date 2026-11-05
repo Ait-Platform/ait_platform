@@ -56,7 +56,7 @@ class UtilitiesCaptureTests(fixture.MunicipalAccountsTests):
             response=self.capture_post(self.readings_url,meter_id=99,reading_date='2026-09-30',reading_value='15043')
         self.assertEqual(response.status_code,302,response.text)
         after=self.snapshot()
-        self.assertEqual(after['bil_consumption'],before['bil_consumption'])
+        for old in before['bil_consumption']:self.assertIn(old,after['bil_consumption'])
         for table,rows in before.items():
             for row in rows:self.assertIn(row,after[table])
         saved=self.session.execute(text("SELECT reading_value FROM bil_meter_reading WHERE meter_id=99 AND reading_date='2026-09-30'")).scalar()
@@ -78,7 +78,7 @@ class UtilitiesCaptureTests(fixture.MunicipalAccountsTests):
 
     def test_historical_insertion_rejects_inconsistent_adjacent_values(self):
         self.historical_meter();before=self.snapshot()
-        for value,message in [('14899','immediately preceding'),('15228','immediately following')]:
+        for value,message in [('14899','Readings decrease'),('15228','Readings decrease')]:
             response=self.capture_post(self.readings_url,meter_id=99,reading_date='2026-09-30',reading_value=value)
             self.assertEqual(response.status_code,400,response.text)
             self.assertIn(message,response.text)
@@ -86,6 +86,7 @@ class UtilitiesCaptureTests(fixture.MunicipalAccountsTests):
         self.assertEqual(self.session.execute(text('SELECT count(*) FROM bil_utilities_capture_audit')).scalar(),0)
 
     def test_reading_create_duplicate_edit_and_opening_preservation(self):
+        self.session.execute(text("INSERT INTO bil_meter_reading(meter_id,reading_date,reading_value) VALUES(1,'2026-08-31',123)"));self.session.commit();self.conn.commit()
         before=self.snapshot()
         result=self.capture_post(self.readings_url,meter_id=1,reading_date='2026-09-11',reading_value='614')
         self.assertEqual(result.status_code,302,result.text)

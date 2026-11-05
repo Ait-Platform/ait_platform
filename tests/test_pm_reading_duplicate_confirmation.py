@@ -19,7 +19,14 @@ class ReadingDuplicateTests(fixture.UtilitiesCaptureTests):
         self.assertEqual(response.status_code,200,response.text)
         tree=html.fromstring(response.data)
         self.assertTrue(tree.xpath('//*[@id="reading-duplicate-warning"]'))
-        return tree.xpath('//input[@name="reading_duplicate_token"]/@value')[0]
+        token=tree.xpath('//input[@name="reading_duplicate_token"]/@value')[0]
+        if tree.xpath('//button[@value="review_additional"]'):
+            fields={e.get('name'):e.get('value','') for e in tree.xpath('//form[@id="utilities-capture"]//input[@name]')}
+            fields['meter_id']=tree.xpath('//select[@name="meter_id"]/option[@selected]/@value')[0]
+            fields['reading_duplicate_action']='review_additional'
+            reviewed=self.capture_post(self.readings_url,**{k:v for k,v in fields.items() if k!='csrf_token'})
+            token=html.fromstring(reviewed.data).xpath('//input[@name="reading_duplicate_token"]/@value')[0]
+        return token
     def state(self):
         return self.snapshot(),list(self.session.execute(text('SELECT * FROM bil_utilities_capture_audit ORDER BY id')))
 
@@ -29,8 +36,8 @@ class ReadingDuplicateTests(fixture.UtilitiesCaptureTests):
                 fields=self.draft(meter_id=meter);before=self.state()
                 warning=self.post_draft(fields);token=self.token(warning)
                 tree=html.fromstring(warning.data)
-                self.assertIn('A reading already exists for this meter for the selected month. Do you want to record an additional reading?',tree.text_content())
-                self.assertEqual(tree.xpath('//*[@id="reading-duplicate-warning"]//tbody/tr/td/text()'),['2025-01-10','100.0'])
+                self.assertIn('A reading already exists for this meter for the selected month. Choose Replace Reading or Save Additional Reading.',tree.text_content())
+                self.assertEqual(tree.xpath('//*[@id="reading-duplicate-warning"]//tbody/tr/td[position()>1]/text()'),['2025-01-10','100.0'])
                 self.assertEqual(before,self.state())
                 cancelled=self.post_draft(dict(fields,reading_duplicate_action='cancel',reading_duplicate_token=token))
                 self.assertEqual(cancelled.status_code,200)
@@ -76,7 +83,7 @@ class ReadingDuplicateTests(fixture.UtilitiesCaptureTests):
         before=self.state()
         self.assertEqual(self.post_draft(self.draft(meter_id='97')).status_code,403)
         self.assertEqual(self.post_draft(self.draft(reading_value='-1')).status_code,400)
-        self.assertEqual(self.post_draft(self.draft(reading_value='999')).status_code,400)
+        self.assertEqual(self.post_draft(self.draft(reading_value='NaN')).status_code,400)
         self.assertEqual(before,self.state())
 
     def test_period_controls_are_single_block_immediately_below_register_heading(self):
@@ -117,9 +124,22 @@ class ReadingDuplicateTests(fixture.UtilitiesCaptureTests):
                 self.assertEqual(before,self.state())
                 page.get_by_role('button',name='Save',exact=True).click()
                 page.get_by_role('button',name='Save Additional Reading',exact=True).click()
+                page.get_by_role('button',name='Confirm Save Additional Reading',exact=True).click()
                 self.assertTrue(page.locator('#reading-capture').is_visible());self.assertFalse(page.locator('#reading-register').is_visible())
                 self.assertEqual(page.locator('#reading_date').input_value(),'2025-01-20');self.assertEqual(page.locator('#meter_id').input_value(),'');self.assertEqual(page.locator('#reading_value').input_value(),'')
                 self.assertIn('Meter reading saved.',page.content())
+                target=case.session.execute(text("SELECT id FROM bil_meter_reading WHERE meter_id=98 AND reading_date='2025-01-10'")).scalar()
+                count=case.session.execute(text('SELECT count(*) FROM bil_meter_reading')).scalar()
+                page.select_option('#meter_id','98');page.locator('#reading_date').fill('2025-01-05');page.locator('#reading_value').fill('110')
+                page.get_by_role('button',name='Save',exact=True).click()
+                page.locator('input[name="reading_replace_id"][value="'+str(target)+'"]').check()
+                page.get_by_role('button',name='Replace Reading',exact=True).click()
+                self.assertEqual(case.session.execute(text('SELECT count(*) FROM bil_meter_reading')).scalar(),count)
+                page.get_by_role('button',name='Confirm Replace Reading',exact=True).click()
+                self.assertTrue(page.locator('#reading-capture').is_visible())
+                self.assertEqual(page.locator('#reading_date').input_value(),'2025-01-05');self.assertEqual(page.locator('#meter_id').input_value(),'')
+                self.assertEqual(case.session.execute(text('SELECT reading_value FROM bil_meter_reading WHERE id=:r'),dict(r=target)).scalar(),110)
+                self.assertEqual(case.session.execute(text('SELECT count(*) FROM bil_meter_reading')).scalar(),count)
                 page.get_by_role('link',name='View Register',exact=True).click()
                 self.assertIn('2025-01-20',page.locator('#reading-register').inner_text())
             finally:browser.close()

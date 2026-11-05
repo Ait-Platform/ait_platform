@@ -9,9 +9,9 @@ class Element {
   replaceChildren(...children) { this.children=children; }
   appendChild(child) { this.children.push(child); }
 }
-function harness(fetcher) {
+function harness(fetcher,editing=false) {
   const ids={};for (const name of ['municipal-account-form','account_number','account-lookup-status','account-lookup-details','account-lookup-retry','owner_name','water_number','electricity_number','water_municipal_reference','electricity_municipal_reference','water_opening_reading','water_opening_date','electricity_opening_reading','electricity_opening_date','water_latest_recorded','electricity_latest_recorded','account-association','association-confirmed','associate-account','association-error']) ids[name]=new Element();
-  const form=ids['municipal-account-form'];form.dataset={lookupUrl:'/billing/utilities/26/accounts/lookup',existingAccount:'no',associateUrl:'/billing/utilities/26/accounts/associate'};
+  const form=ids['municipal-account-form'];form.dataset={lookupUrl:'/billing/utilities/26/accounts/lookup',existingAccount:editing?'yes':'no',associateUrl:'/billing/utilities/26/accounts/associate'};
   const account=new Element(),version=new Element(),csrf=new Element('csrf-value'),buttons=[new Element(),new Element()];
   const groups=['water','electricity'].map(kind=>({dataset:{meterBaseline:kind,established:'no'}}));
   form.querySelectorAll=selector=>selector.includes('save_action')?buttons:groups;
@@ -23,6 +23,13 @@ function response(body,type='application/json') { return {ok:true,status:200,hea
 const own={found:true,association:'selected_property',editable:true,details_available:true,account_id:1,version:'saved-version',message:'Selected property',values:{water_municipal_reference:'W-LOOKUP',electricity_municipal_reference:'E-LOOKUP',account_number:'MET-26',owner_name:'Recorded Owner',water_number:'W-26',electricity_number:'',water_opening_reading:'10',water_opening_date:'2020-01-01',electricity_opening_reading:'',electricity_opening_date:''},meters:{water:[{number:'W-26',opening:{value:'10',date:'2020-01-01'},latest:{value:'45',date:'2026-10-01'}}],electricity:[]},owner_email:'recorded@example.com',owner_address:'Saved address'};
 (async()=>{
   let requested;
+  let editLookups=0;
+  const edit=harness(async()=>{editLookups++;return response(own);},true);
+  edit.ids.account_number.value='00083192896040';edit.account.value='1';edit.version.value='saved-edit-version';
+  for (const [key,value] of Object.entries({owner_name:'McDonald Owner',water_number:'00WATER',electricity_number:'00ELEC',water_municipal_reference:'W000ABC',electricity_municipal_reference:'E000XYZ'})) edit.ids[key].value=value;
+  edit.ids.account_number.value='00083192896041';
+  assert.equal(edit.ids.account_number.listeners.input,undefined);assert.equal(edit.ids.account_number.listeners.change,undefined);
+  assert.equal(edit.account.value,'1');assert.equal(edit.version.value,'saved-edit-version');assert.equal(edit.ids.water_municipal_reference.value,'W000ABC');assert.equal(edit.ids.owner_name.value,'McDonald Owner');assert.equal(editLookups,0);
   const selected=harness(async url=>{requested=String(url);return response(own);});await selected.search('met-26');
   assert.match(requested,/utilities\/26\/accounts\/lookup/);assert.equal(selected.ids.owner_name.value,'Recorded Owner');
   assert.equal(selected.ids.water_municipal_reference.value,'W-LOOKUP');assert.equal(selected.ids.electricity_municipal_reference.value,'E-LOOKUP');
@@ -43,5 +50,5 @@ const own={found:true,association:'selected_property',editable:true,details_avai
   assert.equal(racing.ids.account_number.value,'NEW');assert.equal(racing.account.value,'');assert.equal(racing.buttons[0].disabled,false);
   const unassigned=harness(async()=>response({...own,association:'unassigned',editable:true,version:'review-token'}));
   await unassigned.search('MET-26');assert.equal(unassigned.account.value,1);assert.equal(unassigned.version.value,'review-token');assert.equal(unassigned.buttons[0].disabled,false);
-  console.log('8 lookup UI scenarios passed: populate, unassigned, other property, restricted details, new account, HTML failure and stale response.');
+  console.log('9 lookup/edit UI scenarios passed: populate, unassigned, other property, restricted details, new account, HTML failure and stale response.');
 })().catch(error=>{ console.error(error);process.exitCode=1; });

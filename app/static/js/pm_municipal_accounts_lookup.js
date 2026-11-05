@@ -2,6 +2,9 @@
 (() => {
   const form=document.getElementById('municipal-account-form');
   if (!form) return;
+  // Edit is already bound to a saved ID/version. Never replace its draft via Add lookup.
+  // The existing Save transaction validates identifiers, ownership and stale versions.
+  if (form.dataset.existingAccount==='yes') return;
   const number=document.getElementById('account_number');
   const status=document.getElementById('account-lookup-status');
   const retry=document.getElementById('account-lookup-retry');
@@ -41,7 +44,7 @@
       if (result.details_available) {
         number.value=result.values.account_number;
         for (const [key,value] of Object.entries(result.values)) {
-          const field=document.getElementById(key);if (field && key!=='account_number') { if(key==='owner_name' && field.tagName==='SELECT' && value && !Array.from(field.options).some(option=>option.value===value)) { const option=document.createElement('option');option.value=value;option.textContent=value+' — existing account owner';field.appendChild(option); } field.value=value || ''; }
+          const field=document.getElementById(key);if (field && key!=='account_number') { if(key==='owner_name' && field.tagName==='SELECT' && value && !Array.from(field.options).some(option=>option.value===value)) { const option=document.createElement('option');option.value=value;option.textContent=value.charAt(0).toLocaleUpperCase()+value.slice(1)+' — existing account owner';field.appendChild(option); } field.value=value || ''; }
         }
       }
       if (result.editable) { accountId.value=result.account_id;version.value=result.version; }

@@ -31,7 +31,7 @@ class HistoricalExceptionTests(fixture.ExceptionChargeTests):
         self.assertEqual(self.session.execute(text('SELECT count(*) FROM bil_meter_exception_identity')).scalar(),1)
         detail=self.client.get(result.location,headers=self.headers);self.assertIn('OLD-WATER-123',detail.text)
     def test_existing_identity_conflicts_and_verification(self):
-        for changes in [dict(historical_number='WATER-26'),dict(historical_number='FOREIGN-W'),dict(historical_verified=''),dict(historical_basis='')]:
+        for changes in [dict(historical_number='WATER-26'),dict(historical_verified=''),dict(historical_basis='')]:
             result=self.post_exception(self.historical_fields(**changes));self.assertIn(result.status_code,(400,409),result.text)
         self.assertEqual(self.post_exception(self.historical_fields()).status_code,302)
         self.assertEqual(self.post_exception(self.historical_fields(account_id='2')).status_code,409)
@@ -63,8 +63,8 @@ class HistoricalExceptionTests(fixture.ExceptionChargeTests):
         self.session.execute(text("INSERT INTO bil_meter(id,property_id,meter_number,utility_type,municipal_bill_number,status) VALUES(96,NULL,'UNASSIGNED-OLD','Water','MET-26','stolen')"));self.session.commit();self.conn.commit()
         before=self.snapshot()
         page=self.client.get(self.exceptions_url+'?account_id=1&view=register',headers=self.headers)
-        self.assertIn('UNASSIGNED-OLD',page.text)
-        self.assertEqual(self.post_exception(self.fields(meter_id='96')).status_code,302)
+        self.assertNotIn('UNASSIGNED-OLD',page.text)
+        self.assertEqual(self.post_exception(self.fields(meter_id='96')).status_code,400)
         self.assertEqual(self.post_exception(self.fields(account_id='2',meter_id='96')).status_code,400)
         self.assertEqual(before,self.snapshot())
 

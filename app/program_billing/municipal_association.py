@@ -5,20 +5,21 @@ from flask_login import current_user
 from itsdangerous import URLSafeTimedSerializer,BadSignature,SignatureExpired
 from sqlalchemy import text,inspect
 from app.extensions import db
-from .metsoa_setup_safety import property_scope
+from .metsoa_setup_safety import property_scope,PORTFOLIO_IDS,account_visibility
 
 def state(property_id,account_id,lock=False):
-    account=db.session.execute(text('SELECT * FROM bil_muni_account WHERE id=:a'+(' FOR UPDATE' if lock else '')),dict(a=account_id)).mappings().first()
+    property_scope(property_id)
+    account=db.session.execute(text('SELECT a.* FROM bil_muni_account a WHERE a.id=:a AND '+account_visibility()+(' FOR UPDATE' if lock else '')),dict(a=account_id,p=property_id)).mappings().first()
     if not account:abort(404)
     account=dict(account);conflicts=[];evidence=[]
     if account['property_id'] is not None:conflicts.append('Account is already associated with a property; it cannot be reassigned.')
     if account.get('is_bulk_account'):conflicts.append('Bulk municipal accounts require a separate reviewed association process.')
     number=account.get('account_number') or ''
-    duplicate=db.session.execute(text('SELECT id FROM bil_muni_account WHERE id<>:a AND lower(btrim(account_number))=lower(btrim(:n)) ORDER BY id'),dict(a=account_id,n=number)).scalars().all()
+    duplicate=db.session.execute(text('SELECT id FROM bil_muni_account WHERE property_id IN ('+PORTFOLIO_IDS+') AND id<>:a AND lower(btrim(account_number))=lower(btrim(:n)) ORDER BY id'),dict(a=account_id,n=number,p=property_id)).scalars().all()
     if duplicate:conflicts.append('Another municipal account uses this number. Resolve duplicate account records before association.')
     pointers=[account[k] for k in ('water_meter_id','elec_meter_id') if account.get(k)]
     declared=[account[k] for k in ('muni_water_meter_no','muni_elec_meter_no') if account.get(k)]
-    meters=[dict(r) for r in db.session.execute(text("SELECT * FROM bil_meter WHERE id=ANY(:ids) OR (NULLIF(btrim(:n),'') IS NOT NULL AND municipal_bill_number=:n) OR meter_number=ANY(:declared) ORDER BY id"+(' FOR UPDATE' if lock else '')),dict(ids=pointers,n=number,declared=declared)).mappings()]
+    meters=[dict(r) for r in db.session.execute(text("SELECT * FROM bil_meter WHERE property_id IN ("+PORTFOLIO_IDS+") AND (id=ANY(:ids) OR (NULLIF(btrim(:n),'') IS NOT NULL AND municipal_bill_number=:n) OR meter_number=ANY(:declared)) ORDER BY id"+(' FOR UPDATE' if lock else '')),dict(ids=pointers,n=number,declared=declared,p=property_id)).mappings()]
     ids=[m['id'] for m in meters]
     if set(pointers)-set(ids):conflicts.append('An account meter pointer refers to a missing record.')
     catalog=inspect(db.session.connection())
@@ -38,7 +39,7 @@ def state(property_id,account_id,lock=False):
         if meter.get('parent_meter_id') or db.session.execute(text('SELECT 1 FROM bil_meter WHERE parent_meter_id=:m LIMIT 1'),dict(m=meter['id'])).first():conflicts.append('A meter participates in a bulk relationship. Association is blocked pending a separate review.')
         if meter.get('replacement_for_meter_id') or db.session.execute(text('SELECT 1 FROM bil_meter WHERE replacement_for_meter_id=:m LIMIT 1'),dict(m=meter['id'])).first():conflicts.append('Meter replacement relationships require separate verification before association.')
         if db.session.execute(text('SELECT 1 FROM bil_muni_account WHERE id<>:a AND (water_meter_id=:m OR elec_meter_id=:m) LIMIT 1'),dict(a=account_id,m=meter['id'])).first():conflicts.append('A related meter is referenced by another municipal account.')
-        if db.session.execute(text('SELECT 1 FROM bil_meter WHERE id<>:m AND lower(btrim(meter_number))=lower(btrim(:n)) LIMIT 1'),dict(m=meter['id'],n=meter['meter_number'])).first():conflicts.append('A related meter identifier has duplicate records.')
+        if db.session.execute(text('SELECT 1 FROM bil_meter WHERE property_id IN ('+PORTFOLIO_IDS+') AND id<>:m AND lower(btrim(meter_number))=lower(btrim(:n)) LIMIT 1'),dict(m=meter['id'],n=meter['meter_number'],p=property_id)).first():conflicts.append('A related meter identifier has duplicate records.')
         utility=(meter.get('utility_type') or '').lower()
         if utility not in ('water','electricity','electrical'):conflicts.append('A related meter has an unsupported or missing utility type.')
     for kind,pointer,declared_field,types in [('water','water_meter_id','muni_water_meter_no',['water']),('electricity','elec_meter_id','muni_elec_meter_no',['electricity','electrical'])]:
@@ -55,7 +56,9 @@ def state(property_id,account_id,lock=False):
         clauses=[];params=dict(ids=ids,a=account_id,n=number)
         if 'meter_id' in columns:clauses.append('h.meter_id=ANY(:ids)')
         if 'account_id' in columns:clauses.append('h.account_id=:a')
-        if 'account_number' in columns:clauses.append('h.account_number=:n')
+        # Text account numbers are not global identities; only verified record IDs link history.
+        if 'account_number' in columns and 'property_id' in columns:
+            clauses.append('(h.account_number=:n AND h.property_id IN ('+PORTFOLIO_IDS+'))');params['p']=property_id
         if not clauses:continue
         history=db.session.execute(text("SELECT DISTINCT to_jsonb(h)->>'property_id' AS property_id,to_jsonb(h)->>'sectional_unit_id' AS sectional_unit_id,to_jsonb(h)->>'meter_id' AS meter_id,to_jsonb(h)->>'account_number' AS account_number FROM "+table+' h WHERE '+' OR '.join(clauses)),params).mappings().all()
         for row in history:
@@ -63,7 +66,7 @@ def state(property_id,account_id,lock=False):
             if row['account_number'] not in (None,'',number):conflicts.append('Historical records identify a different municipal account for a related meter.')
             if row['meter_id'] and row['meter_id'] not in {str(i) for i in ids}:conflicts.append('Historical account records refer to a meter outside the verified configuration.')
     if catalog.has_table('bil_architecture_draft'):
-        drafts=db.session.execute(text("SELECT d.id,d.property_id FROM bil_architecture_draft d WHERE EXISTS (SELECT 1 FROM jsonb_array_elements(CASE WHEN jsonb_typeof(to_jsonb(d.draft_json)->'accounts')='array' THEN to_jsonb(d.draft_json)->'accounts' ELSE '[]'::jsonb END) entry WHERE lower(btrim(entry->>'number'))=lower(btrim(:n))) ORDER BY d.id"),dict(n=number)).mappings().all()
+        drafts=db.session.execute(text("SELECT d.id,d.property_id FROM bil_architecture_draft d WHERE d.property_id IN ("+PORTFOLIO_IDS+") AND EXISTS (SELECT 1 FROM jsonb_array_elements(CASE WHEN jsonb_typeof(to_jsonb(d.draft_json)->'accounts')='array' THEN to_jsonb(d.draft_json)->'accounts' ELSE '[]'::jsonb END) entry WHERE lower(btrim(entry->>'number'))=lower(btrim(:n))) ORDER BY d.id"),dict(n=number,p=property_id)).mappings().all()
         for row in drafts:
             evidence.append(dict(table='bil_architecture_draft',id=row['id'],property_id=row['property_id']))
             if row['property_id']!=property_id:conflicts.append('A saved historical architecture draft identifies this account under another property.')

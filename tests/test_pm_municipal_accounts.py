@@ -139,8 +139,8 @@ class MunicipalAccountsTests(fixture.UtilitiesConfigurationTests):
         self.assertEqual(self.post(dict(account_number=' met-26 ',owner_name='Owner',water_number='NEW-W')).status_code,409)
         self.assertEqual(self.post(dict(base,water_number='WATER-26')).status_code,409)
         self.session.execute(text("INSERT INTO bil_muni_account(account_number) VALUES('UNASSIGNED')"));self.session.commit();self.conn.commit()
-        self.assertEqual(self.post(dict(account_number='UNASSIGNED',owner_name='Owner',water_number='NEW-W')).status_code,409)
-        self.assertEqual(self.session.execute(text('SELECT count(*) FROM bil_meter')).scalar(),1)
+        self.assertEqual(self.post(dict(account_number='UNASSIGNED',owner_name='Owner',water_number='NEW-W')).status_code,302)
+        self.assertEqual(self.session.execute(text('SELECT count(*) FROM bil_meter')).scalar(),2)
     def test_historical_identifiers_are_protected_but_second_meter_can_be_added(self):
         before=self.snapshot();data=self.account_form(1);data.pop('csrf_token');data.pop('billing_month')
         data.update(owner_name='Owner',water_number='RENUMBERED')
@@ -283,7 +283,7 @@ class MunicipalAccountsTests(fixture.UtilitiesConfigurationTests):
         return self.client.get('/billing/utilities/'+str(p)+'/accounts/lookup',query_string=dict(account_number=number),headers=self.headers)
     def historical_account(self):
         self.session.execute(text("INSERT INTO ref_muni_owner(id,name) VALUES(501,'Historical Owner')"))
-        self.session.execute(text("INSERT INTO bil_meter(id,meter_number,utility_type,municipal_bill_number,status) VALUES(2,'HIST-W','Water','HIST-ACCOUNT','active')"))
+        self.session.execute(text("INSERT INTO bil_meter(id,property_id,meter_number,utility_type,municipal_bill_number,status) VALUES(2,26,'HIST-W','Water','HIST-ACCOUNT','active')"))
         self.session.execute(text("INSERT INTO bil_muni_account(id,account_number,owner_id,water_meter_id,muni_email,owner_address) VALUES(90,'HIST-ACCOUNT',501,2,'owner@example.com','Recorded address')"))
         self.session.execute(text("INSERT INTO bil_meter_reading(id,meter_id,reading_date,reading_value) VALUES(2000,2,'2020-01-01',10),(2001,2,'2026-10-01',45)"));self.session.commit();self.conn.commit()
     def test_lookup_selected_property_populates_current_records_and_latest_not_opening(self):
@@ -335,7 +335,7 @@ class MunicipalAccountsTests(fixture.UtilitiesConfigurationTests):
         self.session.execute(text("INSERT INTO ref_muni_owner(id,name) VALUES(501,'PRIVATE OWNER')"))
         self.session.execute(text("INSERT INTO bil_muni_account(id,property_id,account_number,owner_id) VALUES(90,28,'FOREIGN',501)"));self.session.commit();self.conn.commit()
         response=self.lookup('FOREIGN');self.assertEqual(response.status_code,200)
-        self.assertEqual(response.json['association'],'other_property');self.assertFalse(response.json['details_available'])
+        self.assertEqual(response.json['association'],'not_found');self.assertFalse(response.json['found'])
         self.assertNotIn('PRIVATE OWNER',response.text);self.assertNotIn('values',response.json)
         self.assertEqual(self.lookup('FOREIGN',28).status_code,403)
         self.assertEqual(self.client.get(self.accounts_url+'/lookup?account_number=MET-26').status_code,403)
@@ -344,7 +344,7 @@ class MunicipalAccountsTests(fixture.UtilitiesConfigurationTests):
         result=self.lookup('NEW-NUMBER').json;self.assertFalse(result['found']);self.assertTrue(result['editable'])
         self.assertEqual(self.post(dict(account_number='NEW-NUMBER',owner_name='Owner',water_number='BRAND-NEW')).status_code,302)
         self.historical_account();self.user.has_role=lambda role:role=='admin'
-        self.session.execute(text("INSERT INTO bil_muni_account(id,account_number) VALUES(91,'HIST-ACCOUNT')"));self.session.commit()
+        self.session.execute(text("INSERT INTO bil_muni_account(id,account_number,water_meter_id) VALUES(91,'HIST-ACCOUNT',2)"));self.session.commit()
         result=self.lookup('HIST-ACCOUNT').json;self.assertEqual(result['association'],'ambiguous');self.assertFalse(result['editable'])
         self.assertEqual(len(result['matches']),2);self.assertEqual(result['matches'][1]['values']['owner_name'],'')
 
@@ -363,18 +363,13 @@ class MunicipalAccountsTests(fixture.UtilitiesConfigurationTests):
         self.assertNotIn('Associate with This Property',page.text);self.assertNotIn('association-confirmed',page.text)
         tree=html.fromstring(page.data);self.assertEqual(tree.xpath('//button[@name="save_action"]/text()'),['Save'])
 
-    def test_save_reuses_declared_historical_meter_without_pointer(self):
+    def test_unowned_declared_historical_meter_cannot_be_claimed_by_number(self):
         self.historical_account()
-        self.session.execute(text("UPDATE bil_muni_account SET water_meter_id=NULL,muni_water_meter_no='HIST-W' WHERE id=90"))
-        self.session.execute(text('UPDATE bil_meter SET municipal_bill_number=NULL WHERE id=2'));self.session.commit();self.conn.commit()
+        self.session.execute(text("UPDATE bil_muni_account SET water_meter_id=NULL,muni_water_meter_no='HIST-W' WHERE id=90"));self.session.commit();self.conn.commit()
         before=self.snapshot();review=self.lookup('HIST-ACCOUNT').json
-        # Preview must include the existing meter, not offer to create a duplicate.
-        self.assertEqual(review['values']['water_number'],'HIST-W')
-        data=dict(review['values'],account_id=90,version=review['version'])
-        result=self.post(data);self.assertEqual(result.status_code,302,result.text)
-        self.assertEqual(self.session.execute(text('SELECT water_meter_id FROM bil_muni_account WHERE id=90')).scalar(),2)
-        self.assertEqual(len(before['bil_meter']),len(self.snapshot()['bil_meter']))
-        self.assertEqual(before['bil_meter_reading'],self.snapshot()['bil_meter_reading'])
+        self.assertFalse(review['found'])
+        response=self.post(dict(account_id=90,account_number='HIST-ACCOUNT',owner_name='Historical Owner',water_number='HIST-W'))
+        self.assertEqual(response.status_code,404);self.assertEqual(before,self.snapshot())
 
     def test_failed_save_rolls_back_association_and_meter_updates(self):
         self.historical_account();review=self.lookup('HIST-ACCOUNT').json;before=self.snapshot()
@@ -450,12 +445,8 @@ class MunicipalAccountsTests(fixture.UtilitiesConfigurationTests):
         self.assertEqual(self.client.post(self.accounts_url+'/associate',data=dict(account_id=90,association_confirmed='yes'),headers=self.headers).status_code,400)
         self.session.execute(text("UPDATE bil_muni_account SET muni_email='changed@example.com' WHERE id=90"));self.session.commit();self.conn.commit()
         before=self.snapshot();self.assertEqual(self.association(review).status_code,409);self.assertEqual(before,self.snapshot())
-    def test_incomplete_historical_account_can_be_associated_then_saved_with_both_actions(self):
+    def test_incomplete_unowned_historical_account_is_not_exposed_or_claimed(self):
         self.session.execute(text("INSERT INTO bil_muni_account(id,account_number) VALUES(90,'INCOMPLETE')"));self.session.commit();self.conn.commit()
-        review=self.lookup('INCOMPLETE').json;self.assertTrue(review['can_associate'])
-        self.assertEqual(self.association(review).status_code,200)
-        for action in ('add_another','finish'):
-            review=self.lookup('INCOMPLETE').json
-            data=dict(review['values'],account_id=90,version=review['version'],owner_name='Completed Owner',water_number='COMPLETED-W',water_opening_reading='10',water_opening_date='2020-01-31',save_action=action)
-            self.assertEqual(self.post(data).status_code,302)
-        self.assertEqual(self.session.execute(text('SELECT count(*) FROM bil_meter_reading WHERE meter_id=(SELECT water_meter_id FROM bil_muni_account WHERE id=90)')).scalar(),0)
+        before=self.snapshot();self.assertFalse(self.lookup('INCOMPLETE').json['found'])
+        self.assertEqual(self.post(dict(account_id=90,account_number='INCOMPLETE',owner_name='Owner',water_number='NEW-W')).status_code,404)
+        self.assertEqual(before,self.snapshot())

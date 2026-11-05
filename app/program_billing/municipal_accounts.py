@@ -7,7 +7,7 @@ from sqlalchemy import text,inspect
 from sqlalchemy.exc import IntegrityError
 from werkzeug.exceptions import HTTPException
 from app.extensions import db
-from .metsoa_setup_safety import property_scope
+from .metsoa_setup_safety import property_scope,PORTFOLIO_IDS,account_visibility
 
 BASELINE_FIELDS=('water_opening_reading','water_opening_date','electricity_opening_reading','electricity_opening_date')
 REFERENCE_FIELDS=('water_municipal_reference','electricity_municipal_reference')
@@ -26,7 +26,6 @@ def reading_detail(row):
 
 def may_review_unassigned(account_id):
     from flask_login import current_user
-    if getattr(current_user,'has_role',lambda role:False)('admin'):return True
     # A shared owner name or knowledge of an account number is not proof of manager access.
     links=db.session.execute(text('SELECT m.property_id,p.manager_id FROM bil_muni_account a JOIN bil_meter m ON m.id=a.water_meter_id OR m.id=a.elec_meter_id LEFT JOIN bil_property p ON p.id=m.property_id WHERE a.id=:id'),dict(id=account_id)).mappings().all()
     known=[r for r in links if r['property_id'] is not None]
@@ -37,7 +36,7 @@ def lookup(property_id,number):
     property_scope(property_id)
     number=str(number or '').strip()
     if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9 ./_-]{0,49}',number):abort(400,description='Enter a valid municipal account number.')
-    matches=db.session.execute(text('SELECT a.id,a.property_id,p.manager_id FROM bil_muni_account a LEFT JOIN bil_property p ON p.id=a.property_id WHERE lower(btrim(a.account_number))=lower(:n) ORDER BY a.id LIMIT 21'),dict(n=number)).mappings().all()
+    matches=db.session.execute(text('SELECT a.id,a.property_id,p.manager_id FROM bil_muni_account a LEFT JOIN bil_property p ON p.id=a.property_id WHERE lower(btrim(a.account_number))=lower(:n) AND '+account_visibility()+' ORDER BY a.id LIMIT 21'),dict(n=number,p=property_id)).mappings().all()
     if not matches:return dict(found=False,association='not_found',editable=True,message='No matching account found. Enter the new account and opening readings.')
     results=[]
     for match in matches:
@@ -63,8 +62,6 @@ def lookup(property_id,number):
                 elif item.get('can_associate'):
                     from .municipal_association import state
                     groups[kind]=[m for m in state(property_id,account['id'])['meters'] if (m.get('utility_type') or '').lower() in types]
-                elif getattr(current_user,'has_role',lambda role:False)('admin'):
-                    groups[kind]=[dict(r) for r in db.session.execute(text('SELECT * FROM bil_meter WHERE municipal_bill_number=:n AND lower(utility_type)=ANY(:types) ORDER BY id'),dict(n=account['account_number'],types=types)).mappings()]
                 else:groups[kind]=[]
                 if len(groups[kind])>1:issues.append('Multiple '+kind+' meter matches; no meter was selected automatically.')
             meters={kind:entries[0] if len(entries)==1 else None for kind,entries in groups.items()}
@@ -142,7 +139,7 @@ def save(property_id,form):
     except (TypeError,ValueError):abort(400,description='Invalid municipal account.')
     if account_id is not None and account_id<=0:abort(400,description='Invalid municipal account.')
     # Resolve by registered identity on the server; Save is the association intent.
-    candidates=db.session.execute(text('SELECT id,property_id FROM bil_muni_account WHERE lower(btrim(account_number))=lower(:n) ORDER BY id'),dict(n=data['account_number'])).mappings().all()
+    candidates=db.session.execute(text('SELECT a.id,a.property_id FROM bil_muni_account a WHERE lower(btrim(a.account_number))=lower(:n) AND '+account_visibility()+' ORDER BY a.id'),dict(n=data['account_number'],p=property_id)).mappings().all()
     if len(candidates)>1:abort(409,description='Multiple existing accounts use this number; resolve duplicate records before saving.')
     if candidates and candidates[0]['property_id'] is None:
         candidate=candidates[0]
@@ -170,11 +167,11 @@ def save(property_id,form):
     if not account and not (data['water_number'] or data['electricity_number']):abort(400,description='Enter at least one water or electricity meter number for a new account.')
     identities=['account:'+data['account_number'].casefold()]+['meter:'+data[k].casefold() for k in ('water_number','electricity_number') if data[k]]
     for identity in sorted(identities):
-        lock=int.from_bytes(hashlib.sha256(('PM_MUNICIPAL:'+identity).encode()).digest()[:8],'big',signed=True)
+        lock=int.from_bytes(hashlib.sha256(('PM_MUNICIPAL:'+str(db.session.execute(text('SELECT manager_id FROM bil_property WHERE id=:p'),dict(p=property_id)).scalar())+':'+identity).encode()).digest()[:8],'big',signed=True)
         db.session.execute(text('SELECT pg_advisory_xact_lock(:key)'),dict(key=lock))
     duplicate=db.session.execute(text('SELECT id FROM bil_muni_account WHERE property_id=:p AND lower(btrim(account_number))=lower(:n) AND (:id IS NULL OR id<>:id) LIMIT 1'),dict(p=property_id,n=data['account_number'],id=account_id)).first()
     if duplicate:abort(409,description='This municipal account number already exists for the selected property.')
-    if (not account or data['account_number']!=account['account_number']) and db.session.execute(text('SELECT 1 FROM bil_muni_account WHERE lower(btrim(account_number))=lower(:n) AND (:id IS NULL OR id<>:id) LIMIT 1'),dict(n=data['account_number'],id=account_id)).first():
+    if (not account or data['account_number']!=account['account_number']) and db.session.execute(text('SELECT 1 FROM bil_muni_account WHERE property_id IN ('+PORTFOLIO_IDS+') AND lower(btrim(account_number))=lower(:n) AND (:id IS NULL OR id<>:id) LIMIT 1'),dict(n=data['account_number'],id=account_id,p=property_id)).first():
         abort(409,description='An existing account already uses this number. Review its verified property association instead of creating a duplicate or reassigning it.')
     if account and data['account_number']!=account['account_number']:
         if any(has_history(m) for m in meters.values() if m):abort(409,description='This account has meter history. Its historical account number cannot be changed through this page.')
@@ -189,7 +186,7 @@ def save(property_id,form):
             if db.session.execute(text('SELECT 1 FROM bil_muni_account WHERE id<>:a AND (water_meter_id=:m OR elec_meter_id=:m) LIMIT 1'),dict(a=account_id,m=meter['id'])).first():abort(409,description='This meter is referenced by another municipal account; it cannot be edited here.')
             if number!=meter['meter_number'] and has_history(meter):abort(409,description='This meter has reading or consumption history. Its identifier is protected; no records were changed.')
         if number:
-            if db.session.execute(text('SELECT 1 FROM bil_meter WHERE lower(btrim(meter_number))=lower(:n) AND (:id IS NULL OR id<>:id) LIMIT 1'),dict(n=number,id=meter['id'] if meter else None)).first():abort(409,description='A meter with this identifier already exists. It cannot be duplicated or reassigned through this page.')
+            if db.session.execute(text('SELECT 1 FROM bil_meter WHERE property_id IN ('+PORTFOLIO_IDS+') AND lower(btrim(meter_number))=lower(:n) AND (:id IS NULL OR id<>:id) LIMIT 1'),dict(n=number,id=meter['id'] if meter else None,p=property_id)).first():abort(409,description='A meter with this identifier already exists. It cannot be duplicated or reassigned through this page.')
             if not meter:new_meters.append(kind)
     if new_meters:
         for c in inspect(db.session.connection()).get_columns('bil_meter'):

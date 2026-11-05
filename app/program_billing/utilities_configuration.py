@@ -5,7 +5,7 @@ import hashlib,json
 from flask import abort
 from sqlalchemy import text,inspect
 from app.extensions import db
-from .metsoa_setup_safety import property_scope
+from .metsoa_setup_safety import property_scope,PORTFOLIO_IDS
 
 def rows(table,property_id):
     return [dict(r) for r in db.session.execute(text('SELECT * FROM '+table+' WHERE property_id=:p ORDER BY id'),dict(p=property_id)).mappings()]
@@ -44,7 +44,7 @@ def save(property_id,data):
             account_ids.add(record)
             # Renumbering an account would invalidate historical account-number links.
             if number!=old_accounts[record]['account_number']:abort(409,description='Existing account numbers are protected; contact support to correct an historical identity.')
-        elif db.session.execute(text('SELECT 1 FROM bil_muni_account WHERE account_number=:n LIMIT 1'),dict(n=number)).first():
+        elif db.session.execute(text('SELECT 1 FROM bil_muni_account WHERE property_id IN ('+PORTFOLIO_IDS+') AND account_number=:n LIMIT 1'),dict(n=number,p=property_id)).first():
             abort(409,description='This account number already exists. It cannot be reassigned or duplicated through Setup.')
         account_map[key]=dict(item=a,record=record,number=number)
     if account_ids!=set(old_accounts):abort(409,description='Existing accounts cannot be removed through Setup.')
@@ -66,7 +66,7 @@ def save(property_id,data):
                 if record not in old_meters or record in meter_ids:abort(403)
                 meter_ids.add(record)
                 if number!=old_meters[record]['meter_number']:abort(409,description='Existing meter numbers are protected to preserve reading history.')
-            elif db.session.execute(text('SELECT 1 FROM bil_meter WHERE meter_number=:n LIMIT 1'),dict(n=number)).first():
+            elif db.session.execute(text('SELECT 1 FROM bil_meter WHERE property_id IN ('+PORTFOLIO_IDS+') AND meter_number=:n LIMIT 1'),dict(n=number,p=property_id)).first():
                 abort(409,description='This meter number already exists. It cannot be reassigned or duplicated through Setup.')
             account=m.get('account_id') or (bulk_accounts[0] if group.startswith('bulk') and len(bulk_accounts)==1 else mapping.get(key))
             if not account and len(account_map)==1:account=next(iter(account_map))

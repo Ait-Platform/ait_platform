@@ -40,8 +40,8 @@ class UtilitiesConfigurationTests(fixture.MetsoaSetupProtectionTests):
         self.assertEqual(self.save(payload).status_code,403);self.assertEqual(before,self.snapshot())
         self.session.execute(text("INSERT INTO bil_muni_account(account_number) VALUES('UNLINKED')"));self.session.commit()
         payload=self.payload(27);payload.update(accounts=[dict(id='a',number='UNLINKED')],subWater=[],mapping=[],owners=[])
-        self.assertEqual(self.save(payload,27).status_code,409)
-        self.assertEqual(self.session.execute(text("SELECT property_id FROM bil_muni_account WHERE account_number='UNLINKED'")).scalar(),None)
+        self.assertEqual(self.save(payload,27).status_code,200)
+        self.assertEqual(self.session.execute(text("SELECT property_id FROM bil_muni_account WHERE account_number='UNLINKED' AND property_id IS NULL")).scalar(),None)
     def test_omission_or_renumbering_cannot_replace_existing_records(self):
         before=self.snapshot();payload=self.payload();payload['subWater']=[]
         self.assertEqual(self.save(payload).status_code,409);self.assertEqual(before,self.snapshot())

@@ -1,5 +1,5 @@
 """Account-scoped meter exceptions; legacy meter history remains read-only."""
-import json,uuid,re
+import json,uuid,re,hashlib
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from io import BytesIO
@@ -8,7 +8,7 @@ from flask_login import current_user
 from werkzeug.exceptions import HTTPException
 from sqlalchemy import text
 from app.extensions import db
-from .metsoa_setup_safety import property_scope
+from .metsoa_setup_safety import property_scope,PORTFOLIO_IDS
 
 def accounts(p):
     return [dict(r) for r in db.session.execute(text('SELECT a.*,o.name AS owner_name FROM bil_muni_account a LEFT JOIN ref_muni_owner o ON o.id=a.owner_id WHERE a.property_id=:p ORDER BY a.account_number,a.id'),dict(p=p)).mappings()]
@@ -21,7 +21,7 @@ def account(p,value):
     return row
 
 def account_meters(p,acc):
-    rows=[dict(r) for r in db.session.execute(text('SELECT * FROM bil_meter WHERE (property_id=:p OR property_id IS NULL) AND (id=:w OR id=:e OR municipal_bill_number=:n) ORDER BY meter_number,id'),dict(p=p,w=acc['water_meter_id'],e=acc['elec_meter_id'],n=acc['account_number'])).mappings()]
+    rows=[dict(r) for r in db.session.execute(text('SELECT * FROM bil_meter WHERE property_id=:p AND (id=:w OR id=:e OR municipal_bill_number=:n) ORDER BY meter_number,id'),dict(p=p,w=acc['water_meter_id'],e=acc['elec_meter_id'],n=acc['account_number'])).mappings()]
     return rows
 
 def historical_ready():
@@ -46,13 +46,14 @@ def historical_meter(p,acc,form):
     if form.get('historical_verified')!='yes':abort(400,description='Confirm the documented historical association with this account before registration.')
     key=number.strip().lower()
     # Serialise identity registration across accounts/properties, including duplicate submissions.
-    db.session.execute(text('SELECT pg_advisory_xact_lock(hashtextextended(:k,0))'),dict(k='pm-exception-identity:'+key))
-    if db.session.execute(text('SELECT 1 FROM bil_meter WHERE lower(btrim(meter_number))=:k LIMIT 1'),dict(k=key)).first():abort(409,description='This meter already has a registered identity. Select its verified account association; it cannot be duplicated or reassigned here.')
-    old=db.session.execute(text('SELECT * FROM bil_meter_exception_identity WHERE identity_key=:k'),dict(k=key)).mappings().first()
+    db.session.execute(text('SELECT pg_advisory_xact_lock(hashtextextended(:k,0))'),dict(k='pm-exception-identity:'+str(current_user.id)+':'+key))
+    if db.session.execute(text('SELECT 1 FROM bil_meter WHERE property_id IN ('+PORTFOLIO_IDS+') AND lower(btrim(meter_number))=:k LIMIT 1'),dict(k=key,p=p)).first():abort(409,description='This meter already has a registered identity. Select its verified account association; it cannot be duplicated or reassigned here.')
+    stored_key=hashlib.sha256(('pm-user:'+str(current_user.id)+':'+key).encode()).hexdigest()
+    old=db.session.execute(text('SELECT * FROM bil_meter_exception_identity WHERE property_id IN ('+PORTFOLIO_IDS+') AND (identity_key=:k OR identity_key=:legacy)'),dict(k=stored_key,legacy=key,p=p)).mappings().first()
     if old:
         if old['property_id']!=p or old['account_id']!=acc['id'] or old['utility_type']!=utility:abort(409,description='This historical meter identity has a conflicting account, property or utility association.')
         return dict(old,id=None,historical_identity_id=old['id'])
-    hid=db.session.execute(text('INSERT INTO bil_meter_exception_identity(property_id,account_id,meter_number,identity_key,utility_type,verification_basis,created_by) VALUES(:p,:a,:n,:k,:u,:b,:actor) RETURNING id'),dict(p=p,a=acc['id'],n=number,k=key,u=utility,b=basis,actor=current_user.id)).scalar()
+    hid=db.session.execute(text('INSERT INTO bil_meter_exception_identity(property_id,account_id,meter_number,identity_key,utility_type,verification_basis,created_by) VALUES(:p,:a,:n,:k,:u,:b,:actor) RETURNING id'),dict(p=p,a=acc['id'],n=number,k=stored_key,u=utility,b=basis,actor=current_user.id)).scalar()
     return dict(id=None,historical_identity_id=hid,meter_number=number,utility_type=utility)
 
 TYPES=('Stolen','Missing','Removed','Disconnected','Reconnected','Replaced')
@@ -96,7 +97,7 @@ def checked_meter(p,acc,value):
         linked_property=db.session.execute(text('SELECT property_id FROM bil_sectional_unit WHERE id=:u'),dict(u=row['sectional_unit_id'])).scalar()
         if linked_property!=p:abort(409,description='This meter has a conflicting legacy property association; no incident was saved.')
     if row.get('municipal_bill_number') not in (None,'',acc['account_number']):abort(409,description='Meter and account associations conflict. Resolve the historical association before recording this incident.')
-    other=db.session.execute(text('SELECT 1 FROM bil_muni_account WHERE id<>:a AND (water_meter_id=:m OR elec_meter_id=:m OR account_number=:n) LIMIT 1'),dict(a=acc['id'],m=mid,n=row.get('municipal_bill_number'))).first()
+    other=db.session.execute(text('SELECT 1 FROM bil_muni_account WHERE id<>:a AND (water_meter_id=:m OR elec_meter_id=:m OR (property_id=:p AND account_number=:n)) LIMIT 1'),dict(a=acc['id'],m=mid,n=row.get('municipal_bill_number'),p=p)).first()
     if other:abort(409,description='This meter has conflicting municipal account relationships; no incident was saved.')
     return row
 

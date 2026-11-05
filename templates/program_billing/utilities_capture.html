@@ -94,13 +94,22 @@
 {% for key,label in [('arrears','Arrears'),('balance','Balance'),('due','Due')] %}<div><label for="{{ key }}" class="block font-semibold">{{ label }} (ZAR)</label><input id="{{ key }}" name="{{ key }}" type="number" step="0.01" required value="{{ values.get(key,'') }}" class="w-full rounded-lg border border-slate-300 px-3 py-2"></div>{% endfor %}
 <div><label for="due_date" class="block font-semibold">Due date</label><input id="due_date" name="due_date" type="date" min="1900-01-01" required value="{{ values.get('due_date','') }}" class="w-full rounded-lg border border-slate-300 px-3 py-2"></div>
 {% endif %}</div>
+{% if kind=='readings' and reading_duplicates %}
+<div id="reading-duplicate-warning" role="alert" class="rounded-lg border border-amber-200 bg-amber-50 p-4">
+<p class="font-semibold">A reading already exists for this meter for the selected month. Do you want to record an additional reading?</p>
+<table class="my-3 w-full text-left text-sm"><thead><tr><th scope="col">Existing Reading Date</th><th scope="col">Recorded Value</th></tr></thead><tbody>{% for reading in reading_duplicates %}<tr><td>{{ reading.reading_date }}</td><td>{{ reading.reading_value }}</td></tr>{% endfor %}</tbody></table>
+<input type="hidden" name="reading_duplicate_token" value="{{ reading_duplicate_token }}">
+<div class="flex justify-end gap-2"><button name="reading_duplicate_action" value="cancel" type="submit" formnovalidate class="rounded-lg bg-red-100 px-4 py-2">Cancel</button><button name="reading_duplicate_action" value="confirm" type="submit" class="rounded-lg bg-green-100 px-4 py-2 font-semibold">Save Additional Reading</button></div>
+</div>
+{% else %}
 <div id="capture-actions" class="flex flex-wrap items-center justify-end gap-2"><a id="capture-cancel" {% if kind=='statements' %}data-mar-close{% else %}data-reading-close{% endif %} href="{{ url_for('billing_bp.meter_readings' if kind=='readings' else 'billing_bp.metro_reconciliation',property_id=property.id,billing_month=utility_month,view_item=request.values.get('view_item',''),workspace='closed') }}" class="rounded-lg bg-red-100 px-4 py-2">Cancel</a><button {% if not capture_ready %}disabled aria-disabled="true"{% endif %} class="rounded-lg bg-green-100 px-4 py-2 font-semibold" type="submit">Save</button></div>
+{% endif %}
 </form>
 {% endset %}
 {% if kind=='statements' %}{{ capture_form }}{% else %}
 <section id="reading-capture" data-reading-section="capture" aria-labelledby="reading-capture-title" {% if reading_initial!='capture' %}hidden{% endif %}><h2 id="reading-capture-title" class="my-3 text-lg font-semibold">{{ 'Edit Meter Reading' if edit_id else 'Capture Reading' }}</h2>{{ capture_form }}</section>
 <section id="reading-register" data-reading-section="register" aria-labelledby="reading-register-title" {% if reading_initial!='register' %}hidden{% endif %}><h2 id="reading-register-title" class="my-3 text-lg font-semibold">Recorded Meter Readings</h2>
-<form id="municipal-reading-period" method="get" action="{{ url_for('billing_bp.meter_readings',property_id=property.id) }}" class="my-4 flex flex-wrap items-end justify-end gap-2">
+<form id="municipal-reading-period" method="get" action="{{ url_for('billing_bp.meter_readings',property_id=property.id) }}" class="my-4 flex flex-wrap items-end gap-2">
 <label for="municipal-reading-month" class="font-semibold">Reporting month<input id="municipal-reading-month" type="month" name="billing_month" value="{{ utility_month }}" required class="block rounded-lg border border-slate-300 px-3 py-2"></label>
 <input type="hidden" name="workspace" value="register"><input id="reading-period-filter" type="hidden" name="view_item" value="{{ request.values.get('view_item','') }}"><button class="rounded-lg bg-slate-100 px-4 py-2">Show Period</button>
 </form>

@@ -92,12 +92,12 @@ class UtilitiesCaptureTests(fixture.MunicipalAccountsTests):
         self.assertEqual(self.capture_post(self.readings_url,meter_id=1,reading_date='2026-09-11',reading_value='614').status_code,200)
         row=self.session.execute(text("SELECT * FROM bil_meter_reading WHERE reading_date='2026-09-11'")).mappings().one()
         data=self.capture_form(self.readings_url+'?edit='+str(row['id']));data.pop('csrf_token');data.update(reading_value='615')
-        self.assertEqual(self.capture_post(self.readings_url,**data).status_code,409) # inherited consumption already exists
-        consumption=self.session.execute(text("SELECT consumption FROM bil_consumption WHERE meter_id=1 AND month='2026-09'")).scalar();self.assertEqual(consumption,491)
+        self.assertEqual(self.capture_post(self.readings_url,**data).status_code,302) # related derived consumption follows the correction
+        consumption=self.session.execute(text("SELECT consumption FROM bil_consumption WHERE meter_id=1 AND month='2026-09'")).scalar();self.assertEqual(consumption,492)
         self.assertEqual(before['bil_meter_reading'][0],self.snapshot()['bil_meter_reading'][0]);self.assertIn(before['bil_consumption'][0],self.snapshot()['bil_consumption'])
-        self.assertEqual(self.session.execute(text('SELECT count(*) FROM bil_utilities_capture_audit')).scalar(),1)
+        self.assertEqual(self.session.execute(text("SELECT count(*) FROM bil_utilities_capture_audit WHERE kind='reading'")).scalar(),2)
         self.assertEqual(self.capture_post(self.readings_url,meter_id=1,reading_date='2026-09-11',reading_value='616').status_code,200)
-    def test_unused_reading_edit_audits_original_and_rejects_stale_or_consumed(self):
+    def test_reading_edit_audits_original_and_rejects_stale_version(self):
         self.session.execute(text("INSERT INTO bil_meter(id,property_id,meter_number,utility_type,status) VALUES(99,26,'NEW-E','Electrical','active')"));self.session.commit();self.conn.commit()
         self.assertEqual(self.capture_post(self.readings_url,meter_id=99,reading_date='2026-08-26',reading_value='30025').status_code,302)
         row=self.session.execute(text('SELECT * FROM bil_meter_reading WHERE meter_id=99')).mappings().one()

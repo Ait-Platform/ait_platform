@@ -78,24 +78,32 @@ def save_reading(p,form):
         if not original:abort(404)
         if form.get('version')!=fingerprint(original):abort(409,description='Reading changed. Reopen Edit; entered values are preserved below.')
         if original['reading_date']==new_date and Decimal(str(original['reading_value']))==value:return record_id
-        # Consumed or superseded readings cannot be changed by an ordinary capture form.
-        if db.session.execute(text('SELECT 1 FROM bil_consumption WHERE meter_id=:m LIMIT 1'),dict(m=meter_id)).first() or db.session.execute(text('SELECT 1 FROM bil_meter_reading WHERE meter_id=:m AND reading_date>:d AND id<>:r LIMIT 1'),dict(m=meter_id,d=original['reading_date'],r=record_id)).first():
-            abort(409,description='This reading supports historical consumption or later readings. A separately reviewed correction is required; history is unchanged.')
     duplicate=db.session.execute(text('SELECT * FROM bil_meter_reading WHERE meter_id=:m AND reading_date=:d AND (:r IS NULL OR id<>:r)'),dict(m=meter_id,d=new_date,r=record_id)).mappings().all()
-    if duplicate and record_id:
+    if duplicate and record_id and new_date!=original['reading_date']:
         abort(409,description='A reading already exists for this meter and date. Use Edit rather than creating a duplicate.')
     previous=db.session.execute(text('SELECT reading_value FROM bil_meter_reading WHERE meter_id=:m AND reading_date<:d AND (:r IS NULL OR id<>:r) ORDER BY reading_date DESC,id DESC LIMIT 1'),dict(m=meter_id,d=new_date,r=record_id)).scalar()
     following=db.session.execute(text('SELECT reading_value FROM bil_meter_reading WHERE meter_id=:m AND reading_date>:d AND (:r IS NULL OR id<>:r) ORDER BY reading_date,id LIMIT 1'),dict(m=meter_id,d=new_date,r=record_id)).scalar()
     if previous is not None and value<Decimal(str(previous)):abort(400,description='Reading cannot be below the immediately preceding saved reading ('+str(previous)+'). Existing readings are unchanged.')
     if following is not None and value>Decimal(str(following)):abort(400,description='Reading cannot exceed the immediately following saved reading ('+str(following)+'). Existing readings are unchanged.')
     additional=confirm_additional_reading(p,meter_id,new_date,value,form) if not record_id else False
+    before_rows=[dict(r) for r in db.session.execute(text('SELECT id,reading_date,reading_value FROM bil_meter_reading WHERE meter_id=:m ORDER BY reading_date,id'),dict(m=meter_id)).mappings()] if original else []
     data=dict(m=meter_id,d=new_date,v=value,r=record_id)
     if original:db.session.execute(text('UPDATE bil_meter_reading SET reading_date=:d,reading_value=:v WHERE id=:r'),data)
-    elif not additional and previous is not None and following is None:
+    elif not additional and previous is not None and following is None and not db.session.execute(text('SELECT 1 FROM bil_consumption WHERE meter_id=:m AND month=:period LIMIT 1'),dict(m=meter_id,period=new_date.strftime('%Y-%m'))).first():
         from .utilities_readings import save as save_with_consumption
         save_with_consumption(dict(meter_id=meter_id,property_id=p,date=new_date.isoformat(),reading_month=new_date.strftime('%Y-%m'),reading=str(value)))
         record_id=db.session.execute(text('SELECT id FROM bil_meter_reading WHERE meter_id=:m AND reading_date=:d'),data).scalar()
     else:record_id=db.session.execute(text('INSERT INTO bil_meter_reading(meter_id,reading_date,reading_value) VALUES(:m,:d,:v) RETURNING id'),data).scalar()
+    if original:
+        from .reading_consumption import refresh
+        after_rows=[dict(r) for r in db.session.execute(text('SELECT id,reading_date,reading_value FROM bil_meter_reading WHERE meter_id=:m ORDER BY reading_date,id'),dict(m=meter_id)).mappings()]
+        periods={new_date.strftime('%Y-%m')}
+        if original:periods.add(original['reading_date'].strftime('%Y-%m'))
+        for endpoint in (new_date,original['reading_date']):
+            later=[r['reading_date'] for r in after_rows if r['reading_date']>endpoint]
+            if later:periods.add(min(later).strftime('%Y-%m'))
+        for consumption_id,before,after in refresh(db.session,meter,before_rows,after_rows,periods):
+            audit(p,'reading_consumption',consumption_id,before,after)
     recorded=dict(meter_id=meter_id,reading_date=new_date,reading_value=str(value))
     if additional:recorded['additional_reading_confirmed']=True
     audit(p,'reading',record_id,original,recorded)

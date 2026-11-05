@@ -23,10 +23,14 @@ def original_builders():
     return build_electrical_rows,build_water_rows
 
 def reading_pair(meter,start,end):
-    entry=dict(number=meter['meter_number'],billing_month=None,previous=None,current=None,difference=None,days=None,error=None)
     readings=db.session.execute(text('SELECT id,reading_date,reading_value FROM bil_meter_reading WHERE meter_id=:m AND reading_date<=:end ORDER BY reading_date DESC,id DESC'),dict(m=meter['id'],end=end)).mappings().all()
+    return reading_pair_from_rows(meter,start,end,readings)
+
+
+def reading_pair_from_rows(meter,start,end,readings):
+    entry=dict(number=meter['meter_number'],billing_month=None,previous=None,current=None,difference=None,days=None,error=None)
     by_date={}
-    for reading in readings:by_date.setdefault(reading['reading_date'],[]).append(reading)
+    for reading in sorted((r for r in readings if r['reading_date']<=end),key=lambda r:(r['reading_date'],r['id']),reverse=True):by_date.setdefault(reading['reading_date'],[]).append(reading)
     dates=sorted(by_date,reverse=True)
     if not dates:entry['error']='No readings are available.'
     elif len(dates)<2:entry['error']='Only one reading is available; consumption cannot yet be calculated.'

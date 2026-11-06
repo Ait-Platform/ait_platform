@@ -5,13 +5,17 @@ from types import SimpleNamespace
 from sqlalchemy import text,inspect
 from app.extensions import db
 
-def select(billing_date):
+def select(billing_date,use_current=False):
     import re
     issues=[];catalog=inspect(db.session.connection())
     required={'id','utility_type','code','description','rate','block_start','block_end','reduction_factor','unit','effective_date'}
     if not catalog.has_table('bil_tariff') or not required<={c['name'] for c in catalog.get_columns('bil_tariff')}:
         return dict(electricity=None,water=[],sewerage=[],water_fixed=[],sewerage_fixed=[],water_surcharge=None,sewerage_surcharge=None,records=[]),['Applicable tariff records are unavailable.']
-    from app.utils.tariff_versions import resolve,identity
+    from app.utils.tariff_versions import resolve,identity,billing_date as parse_billing_date
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    on=parse_billing_date(billing_date)
+    current_on=datetime.now(ZoneInfo('Africa/Johannesburg')).date()
     categories={}
     if catalog.has_table('bil_tariff_verification') and {'tariff_id','municipal_category'}<={c['name'] for c in catalog.get_columns('bil_tariff_verification')}:
         categories={r['tariff_id']:r['municipal_category'] for r in db.session.execute(text('SELECT tariff_id,municipal_category FROM bil_tariff_verification')).mappings()}
@@ -28,14 +32,29 @@ def select(billing_date):
         utility,code=identity(row)
         return ({'sanitation':'sewerage','electrical':'electricity','sanitation_fixed':'sewerage_fixed'}.get(utility,utility),code)
     versions,version_issues=resolve(source,billing_date,key_function=family)
-    issues.extend(version_issues);selected=[]
+    issues.extend(version_issues)
+    if use_current and on<current_on.replace(day=1):
+        present={family(r) for r in versions}
+        groups={}
+        for row in source:groups.setdefault(family(row),[]).append(row)
+        for key,group in groups.items():
+            if key in present:continue
+            # Missing coverage can use today's schedule only after explicit consent.
+            # Invalid/ambiguous historical evidence is never silently replaced.
+            try:historical=any(date.fromisoformat(str(r['effective_date']))<=on for r in group)
+            except (ValueError,TypeError):continue
+            if historical:continue
+            current,problems=resolve(group,current_on,key_function=family)
+            if problems:issues.extend(problems)
+            elif current:versions.append(dict(current[0],historical_estimate=True))
+    selected=[]
     for row in versions:
         try:
             rate=Decimal(str(row['rate']))
             if not rate.is_finite() or rate<0:raise ValueError()
         except (ValueError,InvalidOperation):issues.append('Tariff '+row['code']+' has an invalid rate.');continue
         row['rate']=rate;row['effective_date']=date.fromisoformat(str(row['effective_date']));selected.append(SimpleNamespace(**row))
-    result=dict(electricity=None,water=[],sewerage=[],water_fixed=[],sewerage_fixed=[],water_surcharge=None,sewerage_surcharge=None,records=selected)
+    result=dict(electricity=None,water=[],sewerage=[],water_fixed=[],sewerage_fixed=[],water_surcharge=None,sewerage_surcharge=None,records=selected,current_tariff_date=current_on)
     selected_families={family(vars(r)) for r in selected}
     missing_families={family(r):r for r in source if family(r) not in selected_families}
     result['unavailable_components']=[]

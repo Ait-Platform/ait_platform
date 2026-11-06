@@ -19,7 +19,7 @@
         &larr; Back
       </button>
       <div class="flex gap-4">
-        {% if pm_tariff_statement|default(false) %}<a href="{{ url_for('billing_bp.generate_municipal_metsoa',property_id=property.id,billing_month=month,recipient_id=pm_recipient.id if pm_recipient else None,generate='1',format='pdf') }}" class="bg-blue-600 text-white px-4 py-2 rounded">Open PDF</a><a href="{{ url_for('billing_bp.generate_municipal_metsoa',property_id=property.id,billing_month=month,recipient_id=pm_recipient.id if pm_recipient else None,generate='1',format='pdf',download='1') }}" class="bg-blue-600 text-white px-4 py-2 rounded">Download PDF</a>{% else %}<button onclick="sendMetsoaEmail()" class="bg-blue-600 hover:bg-blue-700 font-bold py-2 px-4 rounded shadow transition text-sm flex items-center">
+        {% if pm_tariff_statement|default(false) %}<a href="{{ url_for('billing_bp.generate_municipal_metsoa',property_id=property.id,billing_month=month,recipient_id=pm_recipient.id if pm_recipient else None,generate='1',use_current_tariffs='1' if pm_override_requested|default(false) else None,format='pdf') }}" class="bg-blue-600 text-white px-4 py-2 rounded">Open PDF</a><a href="{{ url_for('billing_bp.generate_municipal_metsoa',property_id=property.id,billing_month=month,recipient_id=pm_recipient.id if pm_recipient else None,generate='1',use_current_tariffs='1' if pm_override_requested|default(false) else None,format='pdf',download='1') }}" class="bg-blue-600 text-white px-4 py-2 rounded">Download PDF</a>{% else %}<button onclick="sendMetsoaEmail()" class="bg-blue-600 hover:bg-blue-700 font-bold py-2 px-4 rounded shadow transition text-sm flex items-center">
           Email METSOA
         </button>{% endif %}
         <button onclick="window.print()" class="bg-slate-600 hover:bg-slate-700 font-bold py-2 px-4 rounded shadow transition text-sm flex items-center">
@@ -31,7 +31,8 @@
     <!-- START PAGE 1: Summary -->
     <div class="print-page p-10 bg-white text-black text-sm">
       
-      {% if pm_tariff_statement|default(false) and not pm_complete %}<div role="alert" class="mb-6 border border-amber-400 bg-amber-50 p-4 text-amber-900"><strong>INCOMPLETE — NOT A FINAL AMOUNT DUE</strong><p>Only verified tariff components are shown. Missing readings or rates have not been estimated.</p>{% for issue in pm_issues %}<p>{{ issue }}</p>{% endfor %}</div>{% endif %}
+      {% if pm_tariff_statement|default(false) and not pm_pricing_complete|default(pm_complete) %}<div role="alert" class="mb-6 border border-amber-400 bg-amber-50 p-4 text-amber-900"><strong>INCOMPLETE — NOT A FINAL AMOUNT DUE</strong><p>{% if pm_estimated|default(false) %}Available charges include the estimates identified below. Remaining missing components are unavailable; no rates or readings were invented.{% else %}Only verified tariff components are shown. Missing readings or rates have not been estimated.{% endif %}</p>{% for issue in pm_display_issues|default(pm_issues) %}<p>{{ issue }}</p>{% endfor %}</div>{% endif %}
+      {% if pm_estimated|default(false) %}<div id="historical-estimate" role="status" class="mb-6 border border-amber-400 p-4"><strong>HISTORICAL ESTIMATE &mdash; CURRENT TARIFFS APPLIED</strong><p>The user selected current tariffs for missing historical components. Schedule selected as at {{ pm_current_tariff_date }}. These are estimates, not verified historical municipal charges. The user must verify the calculations.</p><table><thead><tr><th>Estimated charge component</th><th>Utility</th><th>Rate</th><th>Original effective date</th></tr></thead><tbody>{% for r in pm_estimated_components %}<tr><td>{{ r.code }}</td><td>{{ r.utility }}</td><td>{{ r.rate }}</td><td>{{ r.effective_date }}</td></tr>{% endfor %}</tbody></table></div>{% endif %}
       {% if pm_tariff_statement|default(false) %}{% include 'program_billing/metsoa_consumption.html' %}{% endif %}
       <!-- Statement Header -->
       {% if tenant and tenant.tenant_reference %}<p>Tenant Reference for payments: {{ tenant.tenant_reference }}</p>{% endif %}
@@ -49,7 +50,7 @@
       </div>
       
       <div class="w-full border border-gray-400 py-2 text-center font-bold mb-6">
-        {% if pm_tariff_statement|default(false) and not pm_complete %}Final amount due unavailable — see missing information above.{% else %}Amount Due R{{ "%.2f"|format(grand_total|float) }} for Utilities.{% endif %}
+        {% if pm_estimated|default(false) and pm_pricing_complete %}Estimated utilities total R{{ '%.2f'|format(grand_total) }}. Not a verified municipal amount due.{% elif pm_tariff_statement|default(false) and not pm_complete %}Final amount due unavailable — see missing information above.{% else %}Amount Due R{{ "%.2f"|format(grand_total|float) }} for Utilities.{% endif %}
       </div>
 
       {% for note in pm_bulk_notes|default([]) %}<p class="mb-2 text-sm">{{ note }}</p>{% endfor %}
@@ -152,7 +153,7 @@
           
           <tr class="font-bold bg-gray-200 border-t-2 border-gray-400">
             <td colspan="8" class="py-2 px-2 text-lg">Municipality Utility Charges</td>
-            <td class="py-2 px-2 text-right text-lg">{% if pm_tariff_statement|default(false) and not pm_complete %}Not final{% else %}R{{ "%.2f"|format(grand_total) }}{% endif %}</td>
+            <td class="py-2 px-2 text-right text-lg">{% if pm_estimated|default(false) and pm_pricing_complete %}Estimate R{{ '%.2f'|format(grand_total) }}{% elif pm_tariff_statement|default(false) and not pm_complete %}Not final{% else %}R{{ "%.2f"|format(grand_total) }}{% endif %}</td>
           </tr>
         </tbody>
       </table>

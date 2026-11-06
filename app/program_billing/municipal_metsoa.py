@@ -3,7 +3,7 @@ import calendar,re
 from datetime import date,datetime
 from decimal import Decimal
 from zoneinfo import ZoneInfo
-from flask import abort,request,render_template,send_file
+from flask import abort,request,render_template,send_file,current_app
 from sqlalchemy import text
 from app.extensions import db
 from .metsoa_setup_safety import property_scope
@@ -104,7 +104,7 @@ def applicable_tariff_records(utility,records):
             yield record
 
 
-def build(p,month,recipient_id=None):
+def build(p,month,recipient_id=None,use_current_tariffs=False):
     property_scope(p);month,start,end=month_context(month)
     prop=db.session.execute(text('SELECT id,name,address,manager_id FROM bil_property WHERE id=:p'),dict(p=p)).mappings().one()
     accounts=[dict(r) for r in db.session.execute(text('SELECT id,account_number,water_meter_id,elec_meter_id FROM bil_muni_account WHERE property_id=:p'),dict(p=p)).mappings()]
@@ -112,7 +112,7 @@ def build(p,month,recipient_id=None):
     from .bulk_meter_linking import confirmed_meters
     meters=confirmed_meters(p,meters)
     from .metsoa_tariffs import select
-    tariffs,tariff_issues=select(end)
+    tariffs,tariff_issues=select(end,use_current=use_current_tariffs)
     issues=list(tariff_issues);source=[];bulk_notes=[];consumption_rows=[]
     pairs={m['id']:reading_pair(m,start,end) for m in meters}
     if not meters:issues.append('No registered property meters are available.')
@@ -143,7 +143,7 @@ def build(p,month,recipient_id=None):
         elif tariffs['electricity'] is None:continue
         if any(pair['previous']['date']<r.effective_date<=pair['current']['date'] for r in applicable_tariff_records(kind,tariffs['records'])):
             issues.append(meter['meter_number']+': tariff effective date changes within its reading period; review rate allocation before finalisation.');continue
-        source.append(SimpleNamespace(account_id=linked[0]['id'],meter_id=meter['id'],meter_number=meter['meter_number'],utility_type=meter['utility_type'],last_date=pair['previous']['date'],new_date=pair['current']['date'],last_read=pair['previous']['value'],new_read=pair['current']['value'],days=pair['days'],consumption=consumption))
+        source.append(SimpleNamespace(estimated=any(getattr(r,'historical_estimate',False) for r in applicable_tariff_records(kind,tariffs['records'])),account_id=linked[0]['id'],meter_id=meter['id'],meter_number=meter['meter_number'],utility_type=meter['utility_type'],last_date=pair['previous']['date'],new_date=pair['current']['date'],last_read=pair['previous']['value'],new_read=pair['current']['value'],days=pair['days'],consumption=consumption))
     elec_builder,water_builder=original_builders()
     electricity,electricity_total=elec_builder(p,month,source=source,tariffs=tariffs)
     water,water_total=water_builder(p,month,source=source,tariffs=tariffs)
@@ -181,10 +181,21 @@ def build(p,month,recipient_id=None):
             except ArithmeticError:pass
         total=calculated[account['id']].quantize(Decimal('.01')) if complete else None
         difference=total-bill_amount if total is not None and bill_amount is not None else None
-        comparisons.append(dict(account=account['account_number'],calculated=total,billed=bill_amount,difference=difference,label=('Debit difference' if difference>0 else 'Credit difference' if difference<0 else 'No difference') if difference is not None else 'Comparison unavailable'))
+        estimated=any(r.estimated for r in source if r.account_id==account['id'])
+        comparisons.append(dict(estimated=estimated,account=account['account_number'],calculated=total,billed=bill_amount,difference=difference,label=(('Estimated ' if estimated else '')+('Debit difference' if difference>0 else 'Credit difference' if difference<0 else 'No difference')) if difference is not None else 'Comparison unavailable'))
     recipient,recipient_choices,recipient_issue=statement_recipient(p,prop['manager_id'],month,recipient_id)
     if recipient_issue:issues.append(recipient_issue)
-    return dict(property=prop,month=month,tenant=recipient,electricity=dict(rows=electricity,subtotal=electricity_total),water=dict(meters=water,total=water_total),grand_total=electricity_total+water_total,pm_comparisons=comparisons,pm_consumption_rows=consumption_rows,pm_unpriced_components=unpriced+missing,pm_tariff_statement=True,pm_complete=not issues,pm_issues=issues,pm_customer=recipient['name'] if recipient else '',pm_recipient=recipient,pm_recipients=recipient_choices,pm_recipient_issue=recipient_issue,pm_electricity_available=bool(electricity),pm_statement_date=end,pm_tariff_records=tariffs['records'],pm_bulk_notes=bulk_notes)
+    grouped_components={}
+    for component in unpriced+missing:
+        key=(component['component'],component['reason'])
+        if key not in grouped_components:grouped_components[key]=dict(component)
+        elif component['number'] not in grouped_components[key]['number'].split(', '):grouped_components[key]['number']+=', '+component['number']
+    estimated_components=[dict(code=r.code,utility=r.utility_type,rate=r.rate,effective_date=r.effective_date) for r in tariffs['records'] if getattr(r,'historical_estimate',False)]
+    estimated=bool(estimated_components)
+    issues=list(dict.fromkeys(issues))
+    display_issues=[i for i in issues if not (i.startswith(('No applicable ','No electricity tariff','No verified effective W_LOSS','Tariff ')) and ('Rate unavailable' in i or 'No applicable ' in i or 'No electricity tariff' in i or 'No verified effective W_LOSS' in i))]
+    if missing:display_issues.insert(0,'Rate unavailable for: '+', '.join(dict.fromkeys(r['component'] for r in missing))+'. See the unpriced components below.')
+    return dict(property=prop,month=month,tenant=recipient,electricity=dict(rows=electricity,subtotal=electricity_total),water=dict(meters=water,total=water_total),grand_total=electricity_total+water_total,pm_comparisons=comparisons,pm_consumption_rows=consumption_rows,pm_unpriced_components=list(grouped_components.values()),pm_override_requested=use_current_tariffs,pm_estimated=estimated,pm_estimated_components=estimated_components,pm_current_tariff_date=tariffs.get('current_tariff_date'),pm_pricing_complete=not issues,pm_tariff_statement=True,pm_complete=not issues and not estimated,pm_display_issues=display_issues,pm_issues=issues,pm_customer=recipient['name'] if recipient else '',pm_recipient=recipient,pm_recipients=recipient_choices,pm_recipient_issue=recipient_issue,pm_electricity_available=bool(electricity),pm_statement_date=end,pm_tariff_records=tariffs['records'],pm_bulk_notes=bulk_notes)
 
 def pdf_bytes(html):
     from playwright.sync_api import sync_playwright
@@ -204,11 +215,14 @@ def page(p):
     generate=request.args.get('generate')=='1'
     month=request.args.get('billing_month','') if generate else ''
     recipient=request.args.get('recipient_id','') if generate else ''
+    use_current=request.args.get('use_current_tariffs')=='1'
     if not generate or not month or not recipient:
-        return render_template('program_billing/metsoa_select.html',property=prop,month=month,pm_recipients=recipient_choices(p,prop['manager_id']),pm_recipient=None,error='Select a billing month and recipient.' if generate else None),400 if generate else 200
+        return render_template('program_billing/metsoa_select.html',property=prop,month=month,pm_recipients=recipient_choices(p,prop['manager_id']),pm_recipient=None,pm_override_requested=use_current,error='Select a billing month and recipient.' if generate else None),400 if generate else 200
     month_context(month)
     # Existing PM token-free access remains unchanged.
-    data=build(p,month,recipient_id=recipient)
+    data=build(p,month,recipient_id=recipient,use_current_tariffs=use_current)
+    if data['pm_estimated']:
+        current_app.logger.info('PM historical tariff estimate confirmed actor=%s property=%s month=%s current_schedule_date=%s components=%s',data['property']['manager_id'],p,month,data['pm_current_tariff_date'],','.join(r['code'] for r in data['pm_estimated_components']))
     html=render_template('program_billing/metsoa.html',**data)
     if request.args.get('format')=='pdf':
         return send_file(BytesIO(pdf_bytes(html)),mimetype='application/pdf',as_attachment=request.args.get('download')=='1',download_name=month+'-MetSoa-'+data['property']['name']+'.pdf')

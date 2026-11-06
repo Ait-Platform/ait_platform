@@ -1,9 +1,9 @@
 <section id="metsoa-consumption" class="mb-6">
-<h2 class="text-lg font-semibold">{{ 'Fully priced statement' if pm_complete else 'Consumption report ? incomplete pricing' }}</h2>
+<h2 class="text-lg font-semibold">{{ 'Historical estimate' if pm_estimated|default(false) else ('Fully priced statement' if pm_complete else 'Consumption report - incomplete pricing') }}</h2>
 <p>Consumption is calculated from saved readings independently of tariff availability. Bulk differences are measured values; negative differences do not create refunds.</p>
 <table class="w-full border-collapse my-3"><thead><tr><th>Meter</th><th>Utility</th><th>Previous date / reading</th><th>Current date / reading</th><th>Consumption</th><th>Bulk difference</th></tr></thead><tbody>
 {% for r in pm_consumption_rows %}<tr><td>{{ r.number }}</td><td>{{ r.utility }}</td><td>{% if r.previous %}{{ r.previous.date }} / {{ r.previous.value }}{% else %}Unavailable{% endif %}</td><td>{% if r.current %}{{ r.current.date }} / {{ r.current.value }}{% else %}Unavailable{% endif %}</td><td>{% if r.consumption is not none %}{{ r.consumption }} {{ 'kL' if r.utility|lower=='water' else 'kWh' }}{% else %}Unavailable ? {{ r.error }}{% endif %}</td><td>{% if r.is_bulk %}{{ r.bulk_difference if r.bulk_difference is not none else 'Unavailable ? incompatible or missing linked readings' }}{% else %}?{% endif %}</td></tr>{% endfor %}
 </tbody></table>
 {% if pm_unpriced_components %}<h3 class="font-semibold">Unpriced components</h3><table id="metsoa-unpriced" class="w-full border-collapse my-3"><thead><tr><th>Meter</th><th>Component</th><th>Charge</th><th>Explanation</th></tr></thead><tbody>{% for r in pm_unpriced_components %}<tr><td>{{ r.number }}</td><td>{{ r.component }}</td><td>Rate unavailable</td><td>{{ r.reason }}</td></tr>{% endfor %}</tbody></table>{% endif %}
-{% if not pm_complete %}<p>Amounts below cover available priced components only. They are not a verified final amount due.</p>{% endif %}
+{% if not pm_pricing_complete|default(pm_complete) %}<p>Amounts below cover available priced components only. They are not a verified final amount due.</p>{% endif %}
 </section>

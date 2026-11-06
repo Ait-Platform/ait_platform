@@ -97,12 +97,15 @@ def meters_for(account):
             rows=db.session.execute(text('SELECT * FROM bil_meter WHERE id=:id AND property_id=:p'),dict(id=account[pointer],p=account['property_id'])).mappings().all()
             if not rows:issues.append('An existing meter pointer has no verified link to this property; this account is view-only.')
         else:
-            rows=db.session.execute(text("SELECT * FROM bil_meter WHERE property_id=:p AND municipal_bill_number=:n AND lower(utility_type) = ANY(:types) ORDER BY id"),dict(p=account['property_id'],n=account['account_number'],types=['water'] if kind=='water' else ['electricity','electrical'])).mappings().all()
+            # A saved declaration is explicit account evidence; a submitted number is not.
+            declared=str(account.get(field) or '').strip()
+            condition='lower(btrim(meter_number))=lower(:n)' if declared else 'lower(btrim(municipal_bill_number))=lower(btrim(:n))'
+            rows=db.session.execute(text('SELECT * FROM bil_meter WHERE property_id=:p AND '+condition+' AND lower(utility_type)=ANY(:types) ORDER BY id'),dict(p=account['property_id'],n=declared or account['account_number'],types=['water'] if kind=='water' else ['electricity','electrical'])).mappings().all()
         if len(rows)>1:issues.append('Multiple '+kind+' meters are linked to this account; use the original wizard to view the complete configuration. This page cannot edit it safely.')
         result[kind]=dict(rows[0]) if len(rows)==1 else None
         if result[kind] and (result[kind]['utility_type'] or '').lower() not in (['water'] if kind=='water' else ['electricity','electrical']):
             issues.append('An existing meter type conflicts with its account pointer; this account is view-only.')
-        if result[kind] and result[kind]['municipal_bill_number'] not in (None,'',account['account_number']):
+        if result[kind] and str(result[kind].get('municipal_bill_number') or '').strip().casefold() not in ('',str(account['account_number'] or '').strip().casefold()):
             issues.append('The existing meter pointer and municipal account number disagree; this account is view-only until verified.')
     return result,issues
 
@@ -127,7 +130,6 @@ def clean(form):
         if data[key] and not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9./_-]{0,49}',data[key]):abort(400,description='Meter identifiers must contain 1–50 letters, digits, dots, slashes or hyphens, without spaces.')
     for key in REFERENCE_FIELDS:
         if len(data[key])>100 or any(ord(c)<32 for c in data[key]):abort(400,description='Municipal Reference must be at most 100 characters without control characters.')
-        if data[key] and not data[key.replace('_municipal_reference','_number')]:abort(400,description='Enter a meter number before adding its Municipal Reference.')
     if data['water_number'] and data['water_number'].casefold()==data['electricity_number'].casefold():abort(400,description='Water and electricity meters must have different identifiers.')
     return data
 
@@ -173,13 +175,19 @@ def save(property_id,form):
     if duplicate:abort(409,description='This municipal account number already exists for the selected property.')
     if (not account or data['account_number']!=account['account_number']) and db.session.execute(text('SELECT 1 FROM bil_muni_account WHERE property_id IN ('+PORTFOLIO_IDS+') AND lower(btrim(account_number))=lower(:n) AND (:id IS NULL OR id<>:id) LIMIT 1'),dict(n=data['account_number'],id=account_id,p=property_id)).first():
         abort(409,description='An existing account already uses this number. Review its verified property association instead of creating a duplicate or reassigning it.')
-    new_meters=[]
+    new_meters=[];unresolved=set()
     for kind,key in [('water','water_number'),('electricity','electricity_number')]:
         meter=meters[kind];number=data[key]
         # Use the existing case-insensitive identity rule, while preserving saved characters.
-        if meter and number.strip().casefold()==str(meter['meter_number']).strip().casefold():
+        if meter and (not number or number.strip().casefold()==str(meter['meter_number']).strip().casefold()):
             number=data[key]=meter['meter_number']
-        if meter and not number:abort(409,description='Existing meters cannot be removed through this page. Their records and history have been retained.')
+        declared_field='muni_water_meter_no' if kind=='water' else 'muni_elec_meter_no'
+        if account and not meter and account.get(declared_field):
+            if number and number.casefold()!=str(account[declared_field]).strip().casefold():abort(409,description='The existing '+kind+' meter could not be verified. Its identifier and records were retained.')
+            if data[kind+'_municipal_reference']:abort(409,description='The existing '+kind+' meter could not be verified. Its Municipal Reference was not changed.')
+            data[key]=account[declared_field];unresolved.add(kind)
+            continue
+        if data[kind+'_municipal_reference'] and not number:abort(400,description='Enter a meter number before adding its Municipal Reference.')
         if meter:
             if db.session.execute(text('SELECT 1 FROM bil_muni_account WHERE id<>:a AND (water_meter_id=:m OR elec_meter_id=:m) LIMIT 1'),dict(a=account_id,m=meter['id'])).first():abort(409,description='This meter is referenced by another municipal account; it cannot be edited here.')
             if number!=meter['meter_number'] and has_history(meter):abort(409,description='This meter has reading or consumption history. Its identifier is protected; no records were changed.')
@@ -194,11 +202,15 @@ def save(property_id,form):
     db.session.execute(text('INSERT INTO ref_muni_owner(name) VALUES(:n) ON CONFLICT(name) DO NOTHING'),dict(n=data['owner_name']))
     owner_id=db.session.execute(text('SELECT id FROM ref_muni_owner WHERE name=:n'),dict(n=data['owner_name'])).scalar()
     for kind,key in [('water','water_number'),('electricity','electricity_number')]:
-        if not data[key]:continue
+        if not data[key] or kind in unresolved:continue
         values=dict(p=property_id,n=data[key],a=data['account_number'])
         if meters[kind]:
             values['id']=meters[kind]['id']
-            db.session.execute(text('UPDATE bil_meter SET meter_number=:n,municipal_bill_number=:a WHERE id=:id AND property_id=:p'),values)
+            if data[key]!=meters[kind]['meter_number']:
+                db.session.execute(text('UPDATE bil_meter SET meter_number=:n WHERE id=:id AND property_id=:p'),values)
+            # Keep missing historical links missing; only carry an existing link through a number correction.
+            if account and data['account_number']!=account['account_number'] and str(meters[kind].get('municipal_bill_number') or '').strip():
+                db.session.execute(text('UPDATE bil_meter SET municipal_bill_number=:a WHERE id=:id AND property_id=:p'),values)
         else:
             values['u']='Water' if kind=='water' else 'Electrical'
             identifier=db.session.execute(text("INSERT INTO bil_meter(property_id,meter_number,utility_type,municipal_bill_number,status) VALUES(:p,:n,:u,:a,'active') RETURNING id"),values).scalar()
@@ -213,6 +225,11 @@ def save(property_id,form):
                                dict(ref=data[key] or None,id=meter['id'],p=property_id))
     values=dict(p=property_id,n=data['account_number'],o=owner_id,w=meters['water']['id'] if meters['water'] else None,e=meters['electricity']['id'] if meters['electricity'] else None,wn=data['water_number'] or None,en=data['electricity_number'] or None)
     if account:
+        # Resolving a missing pointer for this edit must not silently repair saved associations.
+        for kind,pointer,field,pk,nk in [('water','water_meter_id','muni_water_meter_no','w','wn'),('electricity','elec_meter_id','muni_elec_meter_no','e','en')]:
+            if kind not in new_meters:
+                values[pk]=account[pointer]
+                if not meters[kind] or data[kind+'_number']==meters[kind]['meter_number']:values[nk]=account[field]
         values['id']=account_id
         db.session.execute(text('UPDATE bil_muni_account SET account_number=:n,owner_id=:o,water_meter_id=:w,elec_meter_id=:e,muni_water_meter_no=:wn,muni_elec_meter_no=:en WHERE id=:id AND property_id=:p'),values)
     else:

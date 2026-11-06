@@ -85,7 +85,7 @@ class UtilitiesOutputTests(fixture.StatementFilterTests):
             self.assertEqual(result.status_code,302,result.text);sender.assert_called_once()
             args=sender.call_args.args;self.assertEqual(args[0],'manager@example.com');self.assertTrue(args[3].startswith(b'%PDF-'))
             self.assertIn('REPORT-W',' '.join(p.extract_text() or '' for p in PdfReader(BytesIO(args[3])).pages))
-            success=self.client.get(result.location,headers=self.headers);self.assertIn('Utilities report emailed successfully.',success.text)
+            success=self.client.get(result.location,headers=self.headers);self.assertIn('Mail transport accepted the Utilities report. Inbox delivery is not confirmed.',success.text)
         self.assertEqual(before,self.snapshot())
     def test_email_pdf_failures_validation_and_stale_preview(self):
         fields=self.email_fields(self.preview());before=self.snapshot()
@@ -104,6 +104,15 @@ class UtilitiesOutputTests(fixture.StatementFilterTests):
         self.session.execute(text("INSERT INTO bil_meter_reading(meter_id,reading_date,reading_value) VALUES(99,'2026-09-20',25)"));self.session.commit();self.conn.commit()
         with patch.object(self.output,'email_pdf') as sender:
             stale=self.client.post(self.base,data=fields,headers=self.headers);self.assertEqual(stale.status_code,409);self.assertIn('records changed after preview',stale.text);sender.assert_not_called()
+    def test_suppressed_transport_never_reports_acceptance(self):
+        fields=self.email_fields(self.preview())
+        with patch.dict(self.app.config,MAIL_SUPPRESS_SEND=True), patch.object(self.output,'render_pdf',return_value=b'%PDF-test'), patch('app.utils.mailer.send_pdf_email') as sender:
+            with self.assertLogs(self.app.logger,level='ERROR'):
+                result=self.client.post(self.base,data=fields,headers=self.headers)
+            self.assertEqual(result.status_code,503)
+            self.assertIn('Delivery was not confirmed',result.text)
+            sender.assert_not_called()
+
     def test_output_actions_are_right_aligned_in_existing_filter_row(self):
         page=self.preview()
         tree=html.fromstring(page.data)

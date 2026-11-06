@@ -56,6 +56,9 @@ def render_pdf(data):
 
 def email_pdf(address,data,pdf):
     from app.utils.mailer import send_pdf_email
+    transport = current_app.extensions.get('mail')
+    if current_app.config.get('MAIL_SUPPRESS_SEND') or getattr(transport, 'suppress', False):
+        raise RuntimeError('Mail transport is suppressed; no SMTP acceptance occurred')
     return send_pdf_email(address,data['property']['name']+' — '+data['title'],'Please find the requested Utilities report attached.',pdf,'Utilities-'+data['source']+'.pdf')
 
 def page(p):
@@ -87,7 +90,7 @@ def page(p):
                     if not email_pdf(address,data,pdf):raise RuntimeError('Email delivery not confirmed')
                 except Exception:
                     current_app.logger.exception('Utilities report email failed');abort(503,description='The report could not be emailed. Delivery was not confirmed; please try again or contact the administrator.')
-                flash('Utilities report emailed successfully.','success')
+                flash('Mail transport accepted the Utilities report. Inbox delivery is not confirmed.','success')
                 return redirect(url_for('billing_bp.utilities_output',property_id=p,preview='1',**{k:data[k] for k in FILTERS}))
             except HTTPException as exc:error=exc.description;status=exc.code
     return render_template('program_billing/utilities_output.html',**data,previewed=previewed,preview_token=preview_token(data) if previewed else '',email_to=address,error=error),status

@@ -130,9 +130,9 @@ class MunicipalAccountsTests(fixture.UtilitiesConfigurationTests):
         data['owner_name']='Stale typed owner';data.pop('billing_month')
         rejected=self.post(data);self.assertEqual(rejected.status_code,409,rejected.text);self.assertIn('Stale typed owner',rejected.text)
         self.assertIn('changed after',rejected.text)
-    def test_new_account_requires_meter_and_duplicate_and_identifier_validation(self):
+    def test_rates_only_account_and_duplicate_and_identifier_validation(self):
         base=dict(account_number='NEW-ACCOUNT',owner_name='Owner')
-        self.assertEqual(self.post(base).status_code,400)
+        self.assertEqual(self.post(base).status_code,302)
         self.assertEqual(self.post(dict(base,water_number='contains spaces')).status_code,400)
         self.assertEqual(self.post(dict(base,water_number='<script>')).status_code,400)
         self.assertEqual(self.post(dict(base,water_number='SAME',electricity_number='same')).status_code,400)
@@ -225,7 +225,9 @@ class MunicipalAccountsTests(fixture.UtilitiesConfigurationTests):
         page=self.client.get(self.accounts_url+'?edit=98',headers=self.headers)
         self.assertIn('pointer and municipal account number disagree',page.text)
         data=self.account_form(98);data.pop('csrf_token');data.pop('billing_month');data['owner_name']='Owner'
-        self.assertEqual(self.post(data).status_code,409);self.assertEqual(before,self.snapshot())
+        self.assertEqual(self.post(data).status_code,302)
+        for table in ('bil_meter','bil_meter_reading','bil_consumption'):
+            self.assertEqual(before[table],self.snapshot()[table])
 
     def test_both_baselines_and_save_destinations_are_atomic_without_consumption(self):
         before=self.snapshot()

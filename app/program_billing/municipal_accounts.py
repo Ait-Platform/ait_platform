@@ -75,7 +75,7 @@ def lookup(property_id,number):
             values[kind+'_number']=meter['meter_number'] if meter else account[declared] or ''
             values[kind+'_opening_reading']=str(first['reading_value']) if first else ''
             values[kind+'_opening_date']=first['reading_date'].isoformat() if first else ''
-        item.update(account_id=account['id'],values=values,meters=records,owner_email=account['muni_email'] or '',owner_address=account['owner_address'] or '',issues=issues,editable=(association=='selected_property' or item.get('can_associate',False)) and not issues,version=token(account,meters) if association=='selected_property' else item.get('association_token',''))
+        item.update(account_id=account['id'],values=values,meters=records,owner_email=account['muni_email'] or '',owner_address=account['owner_address'] or '',issues=issues,editable=(association=='selected_property' or item.get('can_associate',False)) ,version=token(account,meters) if association=='selected_property' else item.get('association_token',''))
         item['message']={'selected_property':'Account belongs to the selected property. Existing details and recorded readings have been loaded.','other_property':'Account belongs to another property you manage. Review only; it cannot be edited from this property.','unassigned':'Existing account loaded. Save will link it to this property if its relationships remain conflict-free.'}[association]
         if issues:item['message']+=' '+' '.join(issues)
         results.append(item)
@@ -164,9 +164,14 @@ def save(property_id,form):
     if data['owner_name'] not in {o['name'] for o in registered_owners(property_id)} and not (account and data['owner_name']==account.get('owner_name')):
         abort(400,description='Select a registered owner of this property. Register the owner in Property & Owner first.')
     meters,issues=meters_for(account) if account else ({'water':None,'electricity':None},[])
-    if issues:abort(409,description=' '.join(issues))
+    if issues:
+        # Ambiguity prevents meter mutation, not correction of independent account details.
+        for kind,declared in [('water','muni_water_meter_no'),('electricity','muni_elec_meter_no')]:
+            saved=meters[kind]['meter_number'] if meters[kind] else account.get(declared) or ''
+            reference=(meters[kind].get('municipal_reference') or '') if meters[kind] else ''
+            if (data[kind+'_number'] and data[kind+'_number']!=saved) or data[kind+'_municipal_reference']!=reference:
+                abort(409,description='The meter association is unresolved. Account details may be corrected, but meter changes require a verified association.')
     if account and form.get('version')!=token(account,meters):abort(409,description='This account changed after the form was opened. Reopen Edit before saving; your entered values remain below.')
-    if not account and not (data['water_number'] or data['electricity_number']):abort(400,description='Enter at least one water or electricity meter number for a new account.')
     identities=['account:'+data['account_number'].casefold()]+['meter:'+data[k].casefold() for k in ('water_number','electricity_number') if data[k]]
     for identity in sorted(identities):
         lock=int.from_bytes(hashlib.sha256(('PM_MUNICIPAL:'+str(db.session.execute(text('SELECT manager_id FROM bil_property WHERE id=:p'),dict(p=property_id)).scalar())+':'+identity).encode()).digest()[:8],'big',signed=True)
@@ -178,6 +183,9 @@ def save(property_id,form):
     new_meters=[];unresolved=set();corrections=[]
     for kind,key in [('water','water_number'),('electricity','electricity_number')]:
         meter=meters[kind];number=data[key]
+        if issues:
+            data[key]=account.get('muni_water_meter_no' if kind=='water' else 'muni_elec_meter_no') or number
+            unresolved.add(kind);continue
         # Blank or unedited fields retain the saved identifier, including legacy formatting.
         if meter and (not number or str(form.get(key) or '')==str(meter['meter_number'])):
             number=data[key]=meter['meter_number']
@@ -188,10 +196,11 @@ def save(property_id,form):
             data[key]=account[declared_field];unresolved.add(kind)
             continue
         if data[kind+'_municipal_reference'] and not number:abort(400,description='Enter a meter number before adding its Municipal Reference.')
+        meter_changed=bool(meter and (number!=meter['meter_number'] or data[kind+'_municipal_reference']!=(meter.get('municipal_reference') or '') or (account and data['account_number']!=account['account_number'] and meter.get('municipal_bill_number'))))
         if meter:
-            if db.session.execute(text('SELECT 1 FROM bil_muni_account WHERE id<>:a AND (water_meter_id=:m OR elec_meter_id=:m) LIMIT 1'),dict(a=account_id,m=meter['id'])).first():abort(409,description='This meter is referenced by another municipal account; it cannot be edited here.')
+            if meter_changed and db.session.execute(text('SELECT 1 FROM bil_muni_account WHERE id<>:a AND (water_meter_id=:m OR elec_meter_id=:m) LIMIT 1'),dict(a=account_id,m=meter['id'])).first():abort(409,description='This meter is referenced by another municipal account; it cannot be edited here.')
             if number!=meter['meter_number']:corrections.append((kind,meter))
-        if number:
+        if number and (not meter or number!=meter['meter_number']):
             conflict=db.session.execute(text("SELECT m.id,m.meter_number,m.utility_type,m.property_id,p.name AS property_name,COALESCE(NULLIF(m.municipal_bill_number,''),(SELECT a.account_number FROM bil_muni_account a WHERE a.property_id=m.property_id AND (a.water_meter_id=m.id OR a.elec_meter_id=m.id) ORDER BY a.id LIMIT 1)) AS account_number FROM bil_meter m JOIN bil_property p ON p.id=m.property_id WHERE m.property_id IN ("+PORTFOLIO_IDS+") AND lower(btrim(m.meter_number))=lower(:n) AND (:id IS NULL OR m.id<>:id) ORDER BY m.id LIMIT 1"),dict(n=number.strip(),id=meter['id'] if meter else None,p=property_id)).mappings().first()
             if conflict:abort(409,description='Meter '+conflict['meter_number']+' already exists as record #'+str(conflict['id'])+' ('+conflict['utility_type']+'), property '+conflict['property_name']+' (#'+str(conflict['property_id'])+'), municipal account '+str(conflict['account_number'] or 'not linked')+'. No meters were merged or changed.')
             if not meter:new_meters.append(kind)
@@ -222,7 +231,7 @@ def save(property_id,form):
     for kind in ('water','electricity'):
         key=kind+'_municipal_reference'
         meter=meters[kind]
-        if meter and key in form and (data[key] or meter.get('municipal_reference')):
+        if kind not in unresolved and meter and key in form and (data[key] or meter.get('municipal_reference')):
             if not any(c['name']=='municipal_reference' for c in inspect(db.session.connection()).get_columns('bil_meter')):
                 abort(503,description='Municipal Reference requires migration pm_meter_reference_001. No changes were saved.')
             db.session.execute(text('UPDATE bil_meter SET municipal_reference=:ref WHERE id=:id AND property_id=:p'),

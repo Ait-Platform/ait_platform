@@ -98,7 +98,7 @@ def applicable_tariff_records(utility,records):
         kind = (record.utility_type or '').strip().lower()
         code = record.code.strip().lower()
         if water:
-            if getattr(record,'charge_component',None)=='water_loss' or kind in ('water','sewerage','sanitation','water_fixed','sewerage_fixed','sanitation_fixed') or code in ('w_loss','w_mgt','s_refuse','w_surcharge','s_surcharge'):
+            if getattr(record,'charge_component',None) in ('water_loss','water_surcharge','sewerage_surcharge') or kind in ('water','sewerage','sanitation','water_fixed','sewerage_fixed','sanitation_fixed') or code in ('w_loss','w_mgt','s_refuse','w_surcharge','s_surcharge'):
                 yield record
         elif kind in ('electricity','electrical'):
             yield record
@@ -151,6 +151,7 @@ def build(p,month,recipient_id=None,use_current_tariffs=False):
     unpriced=[dict(number=r['number'],component=r['utility']+' consumption charges',reason=r['error'] or 'See the missing rate, account or interval warnings.') for r in consumption_rows if r['meter_id'] not in priced]
     missing=list(tariffs.get('unavailable_components',[]))
     for key,label in [('electricity','Electricity consumption'),('water','Water consumption bands'),('sewerage','Sewerage consumption bands'),('water_fixed','Water fixed charges'),('sewerage_fixed','Sewerage fixed charges'),('water_surcharge','Water surcharge'),('sewerage_surcharge','Sewerage surcharge')]:
+        if key=='sewerage_surcharge' and not tariffs.get('sewerage_surcharge_applicable',False):continue
         if tariffs[key] is None or tariffs[key]==[]:missing.append(dict(number='All applicable meters',component=label,reason='No applicable verified rate for '+month+'.'))
     if not any(getattr(r,'charge_component',None)=='water_loss' or r.code.lower()=='w_loss' for r in tariffs['water_fixed']):missing.append(dict(number='Water meters',component='Water Loss Levy (insurance)',reason='No applicable W_LOSS rate for '+month+'.'))
     # Compare only complete account calculations with explicit same-account/month bill evidence.
@@ -169,8 +170,8 @@ def build(p,month,recipient_id=None,use_current_tariffs=False):
         for meter in attached:
             utility=(meter['utility_type'] or '').lower()
             if utility=='water':
-                complete=complete and all(tariffs[k] for k in ('water','sewerage','water_fixed','sewerage_fixed')) and all(tariffs[k] is not None for k in ('water_surcharge','sewerage_surcharge')) and any(getattr(r,'charge_component',None)=='water_loss' or r.code.lower()=='w_loss' for r in tariffs['water_fixed'])
-            relevant=('water','sewerage','sanitation','water_fixed','sewerage_fixed','sanitation_fixed') if utility=='water' else ('electricity','electrical')
+                complete=complete and all(tariffs[k] for k in ('water','sewerage','water_fixed','sewerage_fixed')) and tariffs['water_surcharge'] is not None and (not tariffs.get('sewerage_surcharge_applicable',False) or tariffs['sewerage_surcharge'] is not None) and any(getattr(r,'charge_component',None)=='water_loss' or r.code.lower()=='w_loss' for r in tariffs['water_fixed'])
+            relevant=('water','sewerage','sanitation','water_fixed','sewerage_fixed','sanitation_fixed','water_surcharge','sewerage_surcharge') if utility=='water' else ('electricity','electrical')
             if any((r.get('utility_type') or '').lower() in relevant for r in tariffs.get('unavailable_components',[])):complete=False
         bills=billed.get(account['id'],[])
         bill_amount=None
@@ -195,7 +196,7 @@ def build(p,month,recipient_id=None,use_current_tariffs=False):
     issues=list(dict.fromkeys(issues))
     display_issues=[i for i in issues if not (i.startswith(('No applicable ','No electricity tariff','No verified effective W_LOSS','Tariff ')) and ('Rate unavailable' in i or 'No applicable ' in i or 'No electricity tariff' in i or 'No verified effective W_LOSS' in i))]
     if missing:display_issues.insert(0,'Rate unavailable for: '+', '.join(dict.fromkeys(r['component'] for r in missing))+'. See the unpriced components below.')
-    return dict(property=prop,month=month,tenant=recipient,electricity=dict(rows=electricity,subtotal=electricity_total),water=dict(meters=water,total=water_total),grand_total=electricity_total+water_total,pm_comparisons=comparisons,pm_consumption_rows=consumption_rows,pm_unpriced_components=list(grouped_components.values()),pm_override_requested=use_current_tariffs,pm_estimated=estimated,pm_estimated_components=estimated_components,pm_current_tariff_date=tariffs.get('current_tariff_date'),pm_pricing_complete=not issues,pm_tariff_statement=True,pm_complete=not issues and not estimated,pm_display_issues=display_issues,pm_issues=issues,pm_customer=recipient['name'] if recipient else '',pm_recipient=recipient,pm_recipients=recipient_choices,pm_recipient_issue=recipient_issue,pm_electricity_available=bool(electricity),pm_statement_date=end,pm_tariff_records=tariffs['records'],pm_bulk_notes=bulk_notes)
+    return dict(property=prop,month=month,tenant=recipient,electricity=dict(rows=electricity,subtotal=electricity_total),water=dict(meters=water,total=water_total),grand_total=electricity_total+water_total,pm_sewerage_surcharge_configured=tariffs.get('sewerage_surcharge_applicable',False),pm_comparisons=comparisons,pm_consumption_rows=consumption_rows,pm_unpriced_components=list(grouped_components.values()),pm_override_requested=use_current_tariffs,pm_estimated=estimated,pm_estimated_components=estimated_components,pm_current_tariff_date=tariffs.get('current_tariff_date'),pm_pricing_complete=not issues,pm_tariff_statement=True,pm_complete=not issues and not estimated,pm_display_issues=display_issues,pm_issues=issues,pm_customer=recipient['name'] if recipient else '',pm_recipient=recipient,pm_recipients=recipient_choices,pm_recipient_issue=recipient_issue,pm_electricity_available=bool(electricity),pm_statement_date=end,pm_tariff_records=tariffs['records'],pm_bulk_notes=bulk_notes)
 
 def pdf_bytes(html):
     from playwright.sync_api import sync_playwright

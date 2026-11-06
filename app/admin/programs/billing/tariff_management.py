@@ -12,7 +12,9 @@ from app.utils.roles import is_admin
 from app.utils.tariff_versions import identity, resolve
 
 TYPES = {'electricity': 'Electricity', 'water': 'Water', 'sewerage': 'Sewerage',
-         'water_fixed': 'Water Fixed Charge', 'sewerage_fixed': 'Sewerage Fixed Charge'}
+         'water_fixed': 'Water Fixed Charge', 'sewerage_fixed': 'Sewerage Fixed Charge',
+         'water_surcharge':'Water Infrastructure Surcharge',
+         'sewerage_surcharge':'Sewerage Infrastructure Surcharge (where applicable)'}
 
 
 def today():
@@ -180,10 +182,11 @@ def save_new(values):
     factor = number(values, 'reduction_factor', 'Calculation Factor', 3, '1') if tiered else Decimal(1)
     if tiered and (upper <= lower or factor <= 0):
         raise ValueError('Consumption To must exceed Consumption From and Calculation Factor must be positive.')
-    unit = values.get('unit', '')
-    if unit not in ('', 'kL', 'kWh', 'fixed'):
+    surcharge=utility in ('water_surcharge','sewerage_surcharge')
+    unit = values.get('unit', '') or ('R/kL' if surcharge else '')
+    if unit not in ('', 'kL', 'kWh', 'fixed', 'R/kL'):
         raise ValueError('Select a valid unit.')
-    if unit and unit != ('kL' if tiered else 'kWh' if utility == 'electricity' else 'fixed'):
+    if unit and unit != ('R/kL' if surcharge else 'kL' if tiered else 'kWh' if utility == 'electricity' else 'fixed'):
         raise ValueError('The selected unit does not match the Type of Charge.')
     # Serialise allocation by type before generating the authoritative code.
     lock_identity(utility, '__code_allocation__')
@@ -222,7 +225,8 @@ def save_rate(tariff_id, values):
 
 
 CODE_PREFIXES = {'electricity': 'ELEC', 'water': 'W', 'sewerage': 'S',
-                 'water_fixed': 'WF', 'sewerage_fixed': 'SF'}
+                 'water_fixed': 'WF', 'sewerage_fixed': 'SF',
+                 'water_surcharge':'WIS','sewerage_surcharge':'SIS'}
 
 
 def next_code(utility):

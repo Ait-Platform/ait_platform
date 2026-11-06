@@ -154,7 +154,8 @@ class MunicipalMetsoaTests(fixture.UtilitiesCaptureTests):
         from io import BytesIO
         pdf=self.client.get(self.generation_url+'&format=pdf',headers=self.headers);self.assertEqual(pdf.status_code,200)
         contents=' '.join((p.extract_text() or '') for p in PdfReader(BytesIO(pdf.data)).pages)
-        self.assertIn('272.32',contents);self.assertIn('Water surcharge',contents);self.assertIn('Sewerage surcharge',contents);self.assertIn('19.30',contents)
+        contents=' '.join(contents.split())
+        self.assertIn('272.32',contents);self.assertIn('Water Infrastructure Surcharge',contents);self.assertIn('Sewerage Infrastructure Surcharge',contents);self.assertIn('19.30',contents)
         summary_label='Municipality Utility Charges'
         tree=__import__('lxml.html',fromlist=['html']).fromstring(html.data)
         summary=tree.xpath('//tr[td[contains(text(),"Municipality Utility Charges")]]')

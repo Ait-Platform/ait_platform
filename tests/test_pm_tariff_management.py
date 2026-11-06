@@ -68,6 +68,23 @@ class ManagementTests(AuthenticatedTemplateTests):
             self.assertIn('role="alert"',response.text)
         self.assertEqual(self.client.post(path,data=base).status_code,400)
         self.assertEqual(self.snapshot(),before)
+    def test_capture_independent_infrastructure_surcharge_with_audit_and_versions(self):
+        form=self.client.get('/admin/billing/tariffs/new')
+        self.assertIn('Water Infrastructure Surcharge',form.text)
+        before=self.snapshot()['bil_tariff']
+        response=self.post('/admin/billing/tariffs/new',dict(utility_type='water_surcharge',rate='1.48',effective_date='2026-07-01',unit='R/kL',description='Water Infrastructure Surcharge'))
+        self.assertEqual(response.status_code,302,response.text)
+        rows=self.snapshot()['bil_tariff'];self.assertEqual(rows[:1],before)
+        added=next(r for r in rows if r['utility_type']=='water_surcharge')
+        self.assertEqual(added['unit'],'R/kL');self.assertEqual(added['rate'],1.48);self.assertEqual(added['code'],'WIS01')
+        evidence=self.conn.execute(text('SELECT * FROM bil_tariff_verification WHERE tariff_id=:id'),dict(id=added['id'])).mappings().one()
+        self.assertEqual(evidence['verified_by'],7);self.assertIsNotNone(evidence['recorded_at'])
+        response=self.post('/admin/billing/tariffs/'+str(added['id'])+'/edit',dict(base_id=str(added['id']),rate='1.6',effective_date='2027-07-01'))
+        self.assertEqual(response.status_code,302,response.text)
+        self.assertIn(added,self.snapshot()['bil_tariff'])
+        response=self.post('/admin/billing/tariffs/new',dict(utility_type='water_surcharge',rate='1.48',effective_date='2026-07-01',unit='fixed'))
+        self.assertEqual(response.status_code,400)
+
     def test_edit_appends_version_and_preserves_historical_metadata(self):
         self.session.execute(text("UPDATE bil_tariff SET reduction_factor=999,block_start=1501,block_end=99999,unit=NULL WHERE id=1"));self.session.commit();self.conn.commit()
         before=self.snapshot()['bil_tariff'][0]

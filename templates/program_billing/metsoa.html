@@ -182,11 +182,11 @@
             <!-- Left Side: WS -->
             {% if i < w.ws_breakdown|length %}
             {% if w.ws_breakdown[i].cons is defined %}
-            <td class="py-1 px-1">{{ w.ws_breakdown[i].desc }}</td>
+            <td class="py-1 px-1">{{ 'Water Infrastructure Surcharge' if w.ws_breakdown[i].desc=='Water surcharge' else w.ws_breakdown[i].desc }}</td>
             <td class="py-1 px-1 text-right">{{ w.ws_breakdown[i].cons|round(2) }}</td>
             <td class="py-1 px-1 text-right">{{ ("%.2f" if pm_tariff_statement|default(false) else "%.1f")|format(w.ws_breakdown[i].rate) }}</td>
             {% else %}
-            <td colspan="3" class="py-1 px-1">{{ w.ws_breakdown[i].desc }}</td>
+            <td colspan="3" class="py-1 px-1">{{ 'Water Infrastructure Surcharge' if w.ws_breakdown[i].desc=='Water surcharge' else w.ws_breakdown[i].desc }}</td>
             {% endif %}
             <td class="py-1 px-1 text-right">{{ "%.2f"|format(w.ws_breakdown[i].due) }}</td>
             {% else %}
@@ -196,11 +196,11 @@
             <!-- Right Side: SD -->
             {% if i < w.sd_breakdown|length %}
             {% if w.sd_breakdown[i].cons is defined %}
-            <td class="py-1 px-1 pl-4 border-l border-gray-300">{{ w.sd_breakdown[i].desc }}</td>
+            <td class="py-1 px-1 pl-4 border-l border-gray-300">{{ 'Sewerage Infrastructure Surcharge' if w.sd_breakdown[i].desc=='Sewerage surcharge' else w.sd_breakdown[i].desc }}</td>
             <td class="py-1 px-1 text-right">{{ w.sd_breakdown[i].cons|round(2) }}</td>
             <td class="py-1 px-1 text-right">{{ ("%.2f" if pm_tariff_statement|default(false) else "%.1f")|format(w.sd_breakdown[i].rate) }}</td>
             {% else %}
-            <td colspan="3" class="py-1 px-1 pl-4 border-l border-gray-300">{{ w.sd_breakdown[i].desc }}</td>
+            <td colspan="3" class="py-1 px-1 pl-4 border-l border-gray-300">{{ 'Sewerage Infrastructure Surcharge' if w.sd_breakdown[i].desc=='Sewerage surcharge' else w.sd_breakdown[i].desc }}</td>
             {% endif %}
             <td class="py-1 px-1 text-right">{{ "%.2f"|format(w.sd_breakdown[i].due) }}</td>
             {% else %}

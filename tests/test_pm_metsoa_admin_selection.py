@@ -69,7 +69,8 @@ class AdminSelectionTests(fixture.MunicipalMetsoaTests):
         self.session.execute(text("DELETE FROM bil_tariff WHERE code='SDSurcharge'"))
         self.session.commit();self.conn.commit();data=self.data()
         result=next(r for r in data['pm_comparisons'] if r['account']=='83192896040')
-        self.assertIsNone(result['difference']);self.assertIsNone(result['calculated'])
+        self.assertIsNotNone(result['difference']);self.assertIsNotNone(result['calculated'])
+        self.assertFalse(data['pm_sewerage_surcharge_configured'])
 
 
 def load_tests(loader,tests,pattern):

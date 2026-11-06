@@ -68,7 +68,8 @@ class HistoricalReportTests(fixture.BulkMetsoaTests):
         self.assertEqual(ws['rate'],Decimal('0.75'))
         self.assertEqual(ws['due'],Decimal('23.25'))
         self.assertFalse(any(r['desc']=='Sewerage surcharge' for r in water['sd_breakdown']))
-        self.assertTrue(any(r['component']=='Sewerage surcharge' for r in data['pm_unpriced_components']))
+        self.assertFalse(any(r['component']=='Sewerage surcharge' for r in data['pm_unpriced_components']))
+        self.assertFalse(any('sewerage surcharge tariff' in i for i in data['pm_issues']))
         self.assertFalse(data['pm_complete'])
 
     def test_available_consumption_survives_mid_period_tariff_change(self):

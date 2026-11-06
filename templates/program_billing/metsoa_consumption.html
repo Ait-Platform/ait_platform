@@ -6,4 +6,5 @@
 </tbody></table>
 {% if pm_unpriced_components %}<h3 class="font-semibold">Unpriced components</h3><table id="metsoa-unpriced" class="w-full border-collapse my-3"><thead><tr><th>Meter</th><th>Component</th><th>Charge</th><th>Explanation</th></tr></thead><tbody>{% for r in pm_unpriced_components %}<tr><td>{{ r.number }}</td><td>{{ r.component }}</td><td>Rate unavailable</td><td>{{ r.reason }}</td></tr>{% endfor %}</tbody></table>{% endif %}
 {% if not pm_pricing_complete|default(pm_complete) %}<p>Amounts below cover available priced components only. They are not a verified final amount due.</p>{% endif %}
+{% if not pm_sewerage_surcharge_configured|default(true) %}<p>Sewerage infrastructure surcharge not applied: no administrator-maintained surcharge is configured. Verify applicability against the municipal bill.</p>{% endif %}
 </section>

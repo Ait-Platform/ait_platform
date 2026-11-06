@@ -20,7 +20,7 @@
 <label data-tier>Consumption From<input name="block_start" type="number" min="0" step="0.01" value="{{ values.get('block_start','0') }}"></label>
 <label data-tier>Consumption To<input name="block_end" type="number" min="0" step="0.01" value="{{ values.get('block_end','0') }}"></label>
 <label data-tier>Calculation Factor<input name="reduction_factor" type="number" min="0.001" step="0.001" value="{{ values.get('reduction_factor','1') }}"><span class="tariff-hint">The verified municipal tier allocation or reduction factor. 1 is neutral. Preserve documented values such as 999.</span></label>
-<label>Unit<select name="unit">{% for unit in ['', 'kWh','kL','fixed'] %}<option value="{{ unit }}" {{ 'selected' if values.get('unit','')==unit else '' }}>{{ unit or 'Not specified' }}</option>{% endfor %}</select></label>
+<label>Unit<select name="unit">{% for unit in ['', 'kWh','kL','fixed','R/kL'] %}<option value="{{ unit }}" {{ 'selected' if values.get('unit','')==unit else '' }}>{{ unit or 'Not specified' }}</option>{% endfor %}</select></label>
 {% endif %}
 <label>Municipality<input name="municipality" value="{{ values.get('municipality','') }}" maxlength="200"></label>
 <label>Municipal tariff category<input name="municipal_category" value="{{ values.get('municipal_category','') }}" maxlength="200"></label>
@@ -28,6 +28,6 @@
 </div><p class="tariff-hint">Municipal verification details are optional. Saving records {{ verifier_name }} and the audit timestamps automatically. Existing legacy records remain unchanged.</p><div class="tariff-form-actions"><button class="tariff-button save" type="submit" {% if not verification_ready %}disabled{% endif %}>{{ 'Save New Rate' if source else 'Save Tariff' }}</button><a class="tariff-button" href="{{ url_for('admin_bp.billing_tariffs') }}">Cancel</a></div>
 </form>
 {% if not source %}<script>
-(()=>{const type=document.getElementById('charge-type');const codes={{ code_previews|tojson }};function update(){document.getElementById('tariff-code').value=codes[type.value];const tier=['water','sewerage'].includes(type.value);document.querySelectorAll('[data-tier]').forEach(el=>{el.hidden=!tier;el.querySelector('input').disabled=!tier;});}type.addEventListener('change',update);update();})();
+(()=>{const type=document.getElementById('charge-type');const codes={{ code_previews|tojson }};function update(){document.getElementById('tariff-code').value=codes[type.value];const tier=['water','sewerage'].includes(type.value);document.querySelectorAll('[data-tier]').forEach(el=>{el.hidden=!tier;el.querySelector('input').disabled=!tier;});}type.addEventListener('change',()=>{if(type.value.endsWith('_surcharge'))document.querySelector('[name=unit]').value='R/kL';update();});update();})();
 </script>{% endif %}
 {% endblock %}

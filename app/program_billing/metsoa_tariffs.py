@@ -25,10 +25,19 @@ def select(billing_date,use_current=False):
         code=re.sub(r'[^a-z0-9]','',row['code'].lower())
         category=re.sub(r'[^a-z0-9]','',str(categories.get(row['id']) or '').lower())
         is_loss=code in ('wloss','waterlosslevy') or ((row.get('utility_type') or '').strip().lower()=='water_fixed' and category in ('waterloss','waterlosslevy','waterlossinsurance','waterlosslevyinsurance','waterlosscharge'))
-        row['charge_component']='water_loss' if is_loss else None
+        kind=(row.get('utility_type') or '').strip().lower()
+        surcharge=None
+        if kind in ('water_surcharge','sewerage_surcharge'):surcharge=kind
+        elif category in ('waterinfrastructuresurcharge',):surcharge='water_surcharge'
+        elif category in ('sewerageinfrastructuresurcharge','sewagedisposalinfrastructuresurcharge'):surcharge='sewerage_surcharge'
+        elif 'surcharge' in code:
+            if kind.startswith('water') or code.startswith('w'):surcharge='water_surcharge'
+            elif kind in ('sewerage','sanitation','sewerage_fixed') or code.startswith('s'):surcharge='sewerage_surcharge'
+        row['charge_component']='water_loss' if is_loss else surcharge
         source.append(row)
     def family(row):
         if row.get('charge_component')=='water_loss':return ('water_fixed','water_loss')
+        if row.get('charge_component') in ('water_surcharge','sewerage_surcharge'):return (row['charge_component'],'infrastructure')
         utility,code=identity(row)
         return ({'sanitation':'sewerage','electrical':'electricity','sanitation_fixed':'sewerage_fixed'}.get(utility,utility),code)
     versions,version_issues=resolve(source,billing_date,key_function=family)
@@ -55,6 +64,7 @@ def select(billing_date,use_current=False):
         except (ValueError,InvalidOperation):issues.append('Tariff '+row['code']+' has an invalid rate.');continue
         row['rate']=rate;row['effective_date']=date.fromisoformat(str(row['effective_date']));selected.append(SimpleNamespace(**row))
     result=dict(electricity=None,water=[],sewerage=[],water_fixed=[],sewerage_fixed=[],water_surcharge=None,sewerage_surcharge=None,records=selected,current_tariff_date=current_on)
+    result['sewerage_surcharge_applicable']=any(r.get('charge_component')=='sewerage_surcharge' for r in source)
     selected_families={family(vars(r)) for r in selected}
     missing_families={family(r):r for r in source if family(r) not in selected_families}
     result['unavailable_components']=[]
@@ -70,15 +80,14 @@ def select(billing_date,use_current=False):
             # The amount still comes only from its applicable, unambiguous database version.
             result['water_fixed'].append(row)
             continue
-        if 'surcharge' in code or code in ('w_surcharge','s_surcharge'):
-            side='water' if kind.startswith('water') or code.startswith('w') else 'sewerage' if kind in ('sewerage','sanitation','sewerage_fixed') or code.startswith('s') else None
-            if side:
-                key=side+'_surcharge'
-                if key in seen_surcharges:
-                    issues.append('Multiple '+side+' surcharge tariffs require review.');result[key]=None
-                elif (row.unit or '').strip().lower().replace(' ','') not in {'r/kl','zar/kl','perkl'}:issues.append('Tariff '+row.code+' needs verified per-kL units before its consumption surcharge can be applied.')
-                else:result[key]=row.rate
-                seen_surcharges.add(key)
+        if row.charge_component in ('water_surcharge','sewerage_surcharge'):
+            key=row.charge_component
+            side=key.split('_')[0]
+            if key in seen_surcharges:
+                issues.append('Multiple '+side+' surcharge tariffs require review.');result[key]=None
+            elif (row.unit or '').strip().lower().replace(' ','') not in {'r/kl','zar/kl','perkl'}:issues.append('Tariff '+row.code+' needs verified per-kL units before its consumption surcharge can be applied.')
+            else:result[key]=row.rate
+            seen_surcharges.add(key)
         elif kind in ('electricity','electrical'):electricity.append(row)
         elif kind in ('water_fixed','sewerage_fixed','sanitation_fixed') or code in ('w_loss','w_mgt','s_refuse'):
             result['water_fixed' if kind=='water_fixed' or code in ('w_loss','w_mgt') else 'sewerage_fixed'].append(row)
@@ -101,6 +110,6 @@ def select(billing_date,use_current=False):
         if not result[side]:issues.append('No applicable '+side+' consumption bands for '+str(billing_date)+'.')
         elif result[side][0]['start']!=0 or len({r['start'] for r in result[side]})!=len(result[side]):
             issues.append('The '+side+' bands have ambiguous starting boundaries.');result[side]=[]
-        if result[side+'_surcharge'] is None:issues.append('No applicable '+side+' surcharge tariff for '+str(billing_date)+'. Rate unavailable.')
+        if result[side+'_surcharge'] is None and (side=='water' or result['sewerage_surcharge_applicable']):issues.append('No applicable '+side+' surcharge tariff for '+str(billing_date)+'. Rate unavailable.')
         if not result[side+'_fixed']:issues.append('No applicable '+side+' fixed-charge records are available; no fallback levy was used.')
     return result,issues

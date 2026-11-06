@@ -80,10 +80,10 @@ class ReconciliationPaymentTests(fixture.UtilitiesCaptureTests):
         data=self.payment_form();self.assertEqual(self.submit(data).status_code,302)
         before=self.snapshot_payments()
         self.assertEqual(self.submit(dict(data,payment_amount='101.25')).status_code,409)
-        self.assertEqual(self.submit(dict(data,request_key=str(uuid.uuid4()))).status_code,409)
+        self.assertEqual(self.submit(data).status_code,302)
         self.assertEqual(before,self.snapshot_payments())
         # A recurring reference on another date represents a separate real transaction.
-        self.assertEqual(self.submit(dict(data,request_key=str(uuid.uuid4()),payment_date='2026-10-16')).status_code,302)
+        self.assertEqual(self.submit(dict(data,request_key=str(uuid.uuid4()))).status_code,302)
         self.assertEqual(self.session.execute(text("SELECT count(*) FROM bil_muni_payment WHERE reference IN ('001','002')")).scalar(),2)
 
     def test_invalid_amounts_dates_and_reference_never_write(self):
@@ -221,15 +221,15 @@ class ReconciliationPaymentTests(fixture.UtilitiesCaptureTests):
         first['payment_date']='2026-10-16'
         second=dict(first,request_key=str(uuid.uuid4()))
         results=concurrent([first,second])
-        self.assertEqual(sum(r>0 for r in results),1);self.assertIn(-409,results)
+        self.assertTrue(all(r>0 for r in results));self.assertNotEqual(results[0],results[1])
         count=self.session.execute(text('SELECT count(*) FROM public.'+tables['bil_muni_payment']+" WHERE id>=1000")).scalar()
-        self.assertEqual(count,2)
+        self.assertEqual(count,3)
         distinct1=dict(form,request_key=str(uuid.uuid4()),payment_date='2026-10-17',payment_amount='31')
         other=self.session.execute(text('SELECT id FROM '+tables['bil_municipal_statement']+' WHERE account_id=2')).scalar()
         distinct2=dict(distinct1,statement_id=str(other),request_key=str(uuid.uuid4()),payment_amount='32',_property='27')
         results=concurrent([distinct1,distinct2]);self.assertTrue(all(r>0 for r in results))
         references=list(self.session.execute(text('SELECT reference FROM public.'+tables['bil_muni_payment']+' WHERE id>=1000 ORDER BY id')).scalars())
-        self.assertEqual(set(references),{'001','002','003','004'})
+        self.assertEqual(set(references),{'001','002','003','004','005'})
         self.assertEqual(len(references),len(set(references)))
 
     def test_browser_record_payment_alongside_edit_and_refresh(self):

@@ -199,11 +199,6 @@ def record_payment(p,form):
         if receipt['property_id']!=p or receipt['actor_id']!=current_user.id or receipt['after_data'].get('payload_hash') not in (digest,legacy_digest):
             abort(409,description='This payment submission was already used with different information. Reopen Record Payment.')
         return receipt['record_id'],statement['account_id']
-    duplicate=db.session.execute(text('''SELECT id FROM bil_muni_payment
-        WHERE account_id=:a AND payment_date=:d AND CAST(amount AS numeric(18,2))=:v
-        LIMIT 1'''),
-        dict(a=statement['account_id'],d=payment_date,v=value)).first()
-    if duplicate:abort(409,description='This municipal payment is already recorded. Existing transactions were retained.')
     # PostgreSQL nextval is atomic across sessions and never reuses a rolled-back allocation.
     # Skip any historical reference which already happens to use this padded numeric form.
     while True:
@@ -333,3 +328,31 @@ def page(p,kind):
             return selected if with_categories else [message for _,message in selected]
         presentation=dict(reading_saved=saved,reading_warnings=reading_warnings,get_flashed_messages=page_flashes)
     return render_template('program_billing/utilities_capture.html',property=prop,kind=kind,utility_month=utility_month,rows=rows,meters=meters(p),accounts=accounts,values=values,version=version,edit_id=edit_id,error=error,capture_ready=schema_ready(),reading_delete=reading_delete,reading_delete_token=reading_delete_token,reading_duplicates=reading_duplicates,reading_duplicate_token=reading_duplicate_token,reading_duplicate_mode=reading_duplicate_mode,reading_replace_id=reading_replace_id,reading_period_summary=reading_period_summary,payment_target=payment_target,payment_history=payment_history,payment_capture_ready=payment_ready() if kind=='statements' else False,payment_request_key=values.get('request_key') or str(uuid.uuid4()),today=datetime.now(ZoneInfo('Africa/Johannesburg')).date().isoformat(),**presentation),status
+
+
+def record_legacy_payment(p,account_id,period,form):
+    """Append a legacy-form transaction; retries are identified by form identity."""
+    property_scope(p,lock=True)
+    if not payment_ready():abort(503,description='Municipal payment capture is temporarily unavailable. No changes were saved.')
+    try:key=str(uuid.UUID(form.get('request_key','')))
+    except (ValueError,TypeError,AttributeError):abort(400,description='Reopen the reconciliation form before saving.')
+    when=day(form.get('date'))
+    if when>datetime.now(ZoneInfo('Africa/Johannesburg')).date():abort(400,description='Payment date cannot be in the future.')
+    raw=str(form.get('amount') or '')
+    if not re.fullmatch(r'[0-9]+(?:\.[0-9]{1,2})?',raw):abort(400,description='Enter a positive payment with at most two decimals.')
+    value=amount(raw,True)
+    if value<=0:abort(400,description='Amount Paid must be greater than zero.')
+    if not db.session.execute(text('SELECT 1 FROM bil_muni_account WHERE id=:a AND property_id=:p FOR UPDATE'),dict(a=account_id,p=p)).first():abort(404)
+    payload=dict(account_id=account_id,period=period,payment_date=when.isoformat(),amount=str(value.quantize(Decimal('.01'))))
+    digest=hashlib.sha256(json.dumps(payload,sort_keys=True).encode()).hexdigest()
+    db.session.execute(text('SELECT pg_advisory_xact_lock(hashtextextended(:key,0))'),dict(key='pm-reconciliation-payment:'+key))
+    old=db.session.execute(text("SELECT * FROM bil_utilities_capture_audit WHERE kind='municipal_payment' AND after_data->>'request_key'=:k ORDER BY id LIMIT 1"),dict(k=key)).mappings().first()
+    if old:
+        if old['property_id']!=p or old['actor_id']!=current_user.id or old['after_data'].get('payload_hash')!=digest:abort(409,description='This submission was already used with different details.')
+        return old['record_id']
+    while True:
+        reference=format(db.session.execute(text('SELECT nextval(:seq)'),dict(seq=PAYMENT_REFERENCE_SEQUENCE)).scalar_one(),'03d')
+        if not db.session.execute(text('SELECT 1 FROM bil_muni_payment WHERE reference=:r'),dict(r=reference)).first():break
+    identifier=db.session.execute(text('INSERT INTO bil_muni_payment(account_id,month,payment_date,amount,reference) VALUES(:a,:m,:d,:v,:r) RETURNING id'),dict(a=account_id,m=period,d=when,v=value,r=reference)).scalar_one()
+    audit(p,'municipal_payment',identifier,None,dict(payload,reference=reference,request_key=key,payload_hash=digest,source='legacy_reconciliation'))
+    return identifier

@@ -594,105 +594,49 @@ def muni_recon_statement():
 @billing_bp.route("/billing/muni/payment", methods=["POST"])
 @login_required
 def muni_payment_submit():
-    from datetime import datetime
-    from app.models.billing import BilMuniAccount, BilMuniPayment, BilMuniCycleTotals, BilMetsoaCycle
-    
-    account_number = request.form.get("account_number")
-    date_str = request.form.get("date") # Full date e.g. YYYY-MM-DD
-    amount = request.form.get("amount", type=float)
-    metsoa_val = request.form.get("metsoa", type=float)
-    metro_due = request.form.get("metro_due", type=float)
-    
-    if not account_number or not date_str:
-        flash("Missing required fields", "danger")
-        return redirect(url_for("billing_bp.muni_recon_statement", account_number=account_number))
-        
-    month = date_str[:7] # Extract YYYY-MM
+    from .metsoa_setup_safety import owned_account_id,property_scope
+    from .utilities_capture import day,amount,record_legacy_payment,audit
+    from sqlalchemy import text
+    from werkzeug.exceptions import HTTPException
+    account_id=owned_account_id(request.form.get('account_number'),request.form.get('property_id'))
+    account=db.session.execute(text('SELECT * FROM bil_muni_account WHERE id=:a'),dict(a=account_id)).mappings().one()
+    p=account['property_id'];property_scope(p,lock=True)
     try:
-        payment_date_obj = datetime.strptime(date_str, "%Y-%m-%d").date()
-    except ValueError:
-        payment_date_obj = datetime.now().date()
-        
-    from .metsoa_setup_safety import owned_account_id
-    acc = BilMuniAccount.query.get_or_404(owned_account_id(account_number,request.values.get('property_id')))
-    account_number=acc.account_number
-    if not acc:
-        flash("Account not found", "danger")
-        return redirect(url_for("billing_bp.muni_recon_statement", account_number=account_number))
-        
-    if amount is not None and amount > 0:
-        # Check if payment exists for this month, update it if so
-        payment = BilMuniPayment.query.filter_by(account_id=acc.id, month=month).first()
-        if payment:
-            payment.amount = amount
-            payment.payment_date = payment_date_obj
-        else:
-            payment = BilMuniPayment(
-                account_id=acc.id,
-                month=month,
-                payment_date=payment_date_obj,
-                amount=amount,
-                reference="Frontend user payment"
-            )
-            db.session.add(payment)
-            
-    # Always update or create the metsoa cycle if a value was provided
-    if metsoa_val is not None:
-        metsoa = BilMetsoaCycle.query.filter_by(account_id=acc.id, period=month).first()
-        if metsoa:
-            metsoa.metsoa_due = metsoa_val
-        else:
-            metsoa = BilMetsoaCycle(
-                account_id=acc.id,
-                period=month,
-                metsoa_due=metsoa_val
-            )
-            db.session.add(metsoa)
-    
-    # Also update cycle totals for recon
-    if (amount is not None and amount > 0) or metro_due is not None:
-        cycle = BilMuniCycleTotals.query.filter_by(account_id=acc.id, period=month).first()
-        if cycle:
-            if amount is not None and amount > 0:
-                cycle.paid = amount
-            if metro_due is not None:
-                cycle.due = metro_due
-        else:
-            cycle = BilMuniCycleTotals(
-                account_id=acc.id,
-                period=month,
-                paid=amount if amount is not None else 0,
-                due=metro_due if metro_due is not None else 0
-            )
-            db.session.add(cycle)
-        
-    db.session.commit()
-    flash("Record saved successfully", "success")
-    return redirect(url_for("billing_bp.muni_recon_statement", account_number=account_number))
+        period=day(request.form.get('date')).strftime('%Y-%m')
+        if request.form.get('amount') not in (None,''):
+            record_legacy_payment(p,account_id,period,request.form)
+        for field,table,column in [('metro_due','bil_muni_cycle_totals','due'),('metsoa','bil_metsoa_cycle','metsoa_due')]:
+            if request.form.get(field) in (None,''):continue
+            value=amount(request.form[field],True)
+            old=db.session.execute(text('SELECT * FROM '+table+' WHERE account_id=:a AND period=:m FOR UPDATE'),dict(a=account_id,m=period)).mappings().first()
+            if old:
+                db.session.execute(text('UPDATE '+table+' SET '+column+'=:v WHERE id=:id'),dict(v=value,id=old['id']))
+                identifier=old['id']
+            else:
+                identifier=db.session.execute(text('INSERT INTO '+table+'(account_id,period,'+column+') VALUES(:a,:m,:v) RETURNING id'),dict(a=account_id,m=period,v=value)).scalar_one()
+            audit(p,'recon_correction',identifier,dict(old) if old else None,dict(table=table,account_id=account_id,period=period,**{column:str(value)}))
+        db.session.commit()
+    except HTTPException:
+        db.session.rollback();raise
+    except Exception:
+        db.session.rollback();current_app.logger.exception('Legacy reconciliation save failed')
+        abort(503,description='No changes were saved. Please retry the reconciliation form.')
+    flash('Record saved successfully','success')
+    return redirect(url_for('billing_bp.muni_recon_statement',account_number=account['account_number'],property_id=p))
 
 @billing_bp.route("/billing/muni/payment/delete", methods=["POST"])
 @login_required
 def muni_payment_delete():
-    from app.models.billing import BilMuniAccount, BilMuniPayment
-    account_number = request.form.get("account_number")
-    month = request.form.get("month")
-    
     from .metsoa_setup_safety import owned_account_id
-    acc = BilMuniAccount.query.get_or_404(owned_account_id(account_number,request.values.get('property_id')))
-    account_number=acc.account_number
-    if acc:
-        payments = BilMuniPayment.query.filter_by(account_id=acc.id, month=month).all()
-        for p in payments:
-            db.session.delete(p)
-        db.session.commit()
-        flash(f"Payment record for {month} removed.", "success")
-        
-    return redirect(url_for("billing_bp.muni_recon_statement", account_number=account_number))
+    owned_account_id(request.form.get('account_number'),request.form.get('property_id'))
+    flash('Payments were preserved. This legacy action cannot delete an account/month payment history.','warning')
+    return redirect(url_for('billing_bp.muni_recon_statement',account_number=request.form.get('account_number'),property_id=request.form.get('property_id')))
 
 @billing_bp.route("/billing/muni/recon/edit", methods=["GET"])
 @login_required
 def muni_recon_edit():
     from app.models.billing import BilMuniAccount, BilMuniPayment, BilMuniCycleTotals, BilMetsoaCycle
+    import uuid
     from sqlalchemy import text
     from datetime import datetime
     
@@ -744,7 +688,7 @@ def muni_recon_edit():
         owner_payment = float(pay)
         
     return render_template("program_billing/recon_edit.html", 
-                           account=acc, 
+                           account=acc,request_key=str(uuid.uuid4()), 
                            month=month, 
                            is_new=is_new,
                            metsoa_charges=metsoa_charges, 

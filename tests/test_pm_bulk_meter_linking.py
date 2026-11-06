@@ -29,6 +29,24 @@ class BulkLinkTests(fixture.UtilitiesCaptureTests):
         tree=html.fromstring(page.data);self.assertEqual(tree.xpath('//input[@name="children"][@checked]/@value'),['91'])
         self.assertEqual(self.link(children=()).status_code,302)
         self.assertIsNone(self.session.execute(text('SELECT parent_meter_id FROM bil_meter WHERE id=91')).scalar())
+    def test_confirmed_links_follow_latest_save_and_property_scope(self):
+        from app.program_billing.bulk_meter_linking import confirmed_meters
+        def recognised():
+            rows=self.session.execute(text('SELECT id,parent_meter_id FROM bil_meter WHERE property_id=26')).mappings().all()
+            return {r['id']:r['parent_meter_id'] for r in confirmed_meters(26,rows)}
+        self.assertEqual(self.link().status_code,302)
+        self.assertEqual(recognised()[91],90)
+        # Another property's audit evidence cannot override the saved confirmation.
+        self.session.execute(text("INSERT INTO bil_utilities_capture_audit(property_id,kind,record_id,actor_id,after_data) VALUES(28,'bulk_link',90,8,CAST(:d AS json))"),dict(d='{"source":"bulk_meter_linking","children":[]}'))
+        self.session.commit();self.conn.commit()
+        self.assertEqual(recognised()[91],90)
+        self.assertEqual(self.link(children=()).status_code,302)
+        self.assertIsNone(recognised()[91])
+        # A stale pointer is not a replacement for the latest explicit save.
+        self.session.execute(text('UPDATE bil_meter SET parent_meter_id=90 WHERE id=91'))
+        self.session.commit();self.conn.commit()
+        self.assertIsNone(recognised()[91])
+
     def test_invalid_duplicate_and_circular_links_are_rejected(self):
         for parent,children,utility in [(90,(90,),'water'),(90,(94,),'water'),(90,(93,),'water'),(90,(91,91),'water'),(92,(93,),'water')]:
             self.assertEqual(self.link(parent,children,utility).status_code,400)

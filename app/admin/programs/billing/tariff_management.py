@@ -70,10 +70,30 @@ def form(render, tariff_id=None):
     error = None
     status = 200
     ready = verification_ready()
+    recovered_schedule=request.values.get('recovered_schedule','')
+    recovered_variable=request.values.get('recovered_variable','')
+    recovered_note=None
+    if recovered_schedule or recovered_variable:
+        try:
+            from app.program_billing.recovered_tariffs import prepared,TRANSITION
+            evidence=verification_records() or {}
+            prefills,schedule,recovered_row=prepared(records(),{k:v.get('municipal_category') for k,v in evidence.items()},recovered_schedule,recovered_variable,tariff_id)
+            recovered_note='Recovered Almond settings: '+recovered_schedule+' / '+recovered_variable+' = '+recovered_row['literal']+'. Verify applicability, the original source and the resulting end date before Save. This is not an automatically verified official municipal tariff.'
+            if request.method=='GET':values.update(prefills)
+            else:
+                start=effective(values).isoformat()
+                if (recovered_schedule=='B' and start!=TRANSITION) or (recovered_schedule=='A' and start>=TRANSITION):
+                    raise ValueError('The recovered version must respect the stated 1 November 2024 transition. Schedule A also requires its actual start date.')
+                provenance=prefills['source_reference']
+                if provenance not in values.get('source_reference',''):
+                    values['source_reference']=(values.get('source_reference','')+' | '+provenance).strip(' |')
+        except (ValueError,TypeError) as exc:
+            error=str(exc);status=400
     if not ready:
         error = 'Municipal tariff verification is unavailable. Database setup must be completed before saving.'
     if request.method == 'POST':
         try:
+            if error:raise ValueError(error)
             if not ready:
                 raise ValueError(error)
             if source is not None:
@@ -91,6 +111,7 @@ def form(render, tariff_id=None):
     return render('admin/programs/billing/tariff_form.html', source=source, current=current,
                   values=values, types=TYPES, error=error, issues=issues,
                   code_previews={utility: next_code(utility) for utility in TYPES} if source is None else {},
+                  recovered_schedule=recovered_schedule,recovered_variable=recovered_variable,recovered_note=recovered_note,
                   verification_ready=ready, verifier_name=getattr(current_user, 'name', '') or ('Administrator ' + str(current_user.id))), status
 
 
@@ -274,3 +295,15 @@ def verification_input(values):
     # The actor and timestamps are authoritative server/database values, never form inputs.
     evidence['verified_by'] = int(current_user.id)
     return evidence
+
+
+def recovered_review(render):
+    """Read-only Admin review; activation uses the existing version form and audit service."""
+    authorised()
+    from app.program_billing.recovered_tariffs import review,selected_schedule
+    evidence=verification_records() or {}
+    schedules=review(records(),{key:value.get('municipal_category') for key,value in evidence.items()})
+    month=request.args.get('month','2024-11');error=None;chosen=None
+    try:chosen=selected_schedule(month)
+    except (ValueError,TypeError):error='Choose a valid reporting month.'
+    return render('admin/programs/billing/recovered_tariffs.html',schedules=schedules,month=month,chosen=chosen,error=error),400 if error else 200

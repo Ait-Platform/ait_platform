@@ -2,7 +2,7 @@
 {% block tariff_title %}Tariff Management{% endblock %}
 {% block tariff_back %}{{ url_for('admin_bp.readings_dashboard') }}{% endblock %}
 {% block tariff_back_label %}Back{% endblock %}
-{% block tariff_actions %}<div class="tariff-actions"><a class="tariff-button add" href="{{ url_for('admin_bp.billing_tariff_new') }}">+ Add New Tariff / Charge</a></div>{% endblock %}
+{% block tariff_actions %}<div class="tariff-actions" style="flex-wrap:wrap"><a class="tariff-button add" href="{{ url_for('admin_bp.billing_tariff_new') }}">+ Add New Tariff / Charge</a><a class="tariff-button history" href="{{ url_for('admin_bp.billing_tariff_recovered') }}">Recovered schedules</a></div>{% endblock %}
 {% block tariff_body %}
 <table class="tariff-table"><colgroup><col style="width:15%"><col style="width:10%"><col style="width:28%"><col style="width:18%"><col style="width:14%"><col style="width:15%"></colgroup>
 <thead><tr><th>Type</th><th>Code</th><th>Description</th><th>Consumption Tier</th><th>Current Rate</th><th style="text-align:right">Actions</th></tr></thead><tbody>

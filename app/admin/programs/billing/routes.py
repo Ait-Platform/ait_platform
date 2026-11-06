@@ -63,6 +63,12 @@ def billing_tariffs():
     return listing(_render_billing_template)
 
 
+@admin_bp.route("/billing/tariffs/recovered", methods=["GET"])
+def billing_tariff_recovered():
+    from app.admin.programs.billing.tariff_management import recovered_review
+    return recovered_review(_render_billing_template)
+
+
 @admin_bp.route("/billing/tariffs/new", methods=["GET", "POST"])
 def billing_tariff_new():
     from app.admin.programs.billing.tariff_management import form

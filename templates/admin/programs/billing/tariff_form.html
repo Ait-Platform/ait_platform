@@ -1,10 +1,12 @@
 {% extends "admin/programs/billing/tariff_layout.html" %}
 {% block tariff_title %}{{ 'Edit Tariff' if source else 'Add New Tariff / Charge' }}{% endblock %}
 {% block tariff_body %}
+{% if recovered_note|default(false) %}<p role="status" class="tariff-flash">{{ recovered_note }}</p>{% endif %}
 {% if error %}<div role="alert" class="tariff-flash error">{{ error }}</div>{% endif %}
 {% for issue in issues %}<div role="alert" class="tariff-flash error">{{ issue }}</div>{% endfor %}
 <form method="post" class="tariff-form"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 {% if source %}<input type="hidden" name="base_id" value="{{ values.get('base_id',source.id) }}">{% endif %}
+{% if recovered_schedule|default(false) %}<input type="hidden" name="recovered_schedule" value="{{ recovered_schedule }}"><input type="hidden" name="recovered_variable" value="{{ recovered_variable }}">{% endif %}
 <div class="tariff-fields">
 {% if source %}
 <label>Tariff Code<input value="{{ source.code }}" readonly></label><label>Type of Charge<input value="{{ types.get(source.utility_type,source.utility_type) }}" readonly></label>

@@ -1,0 +1,61 @@
+{
+  "source": "User-supplied recovered VB6 tariff assignments; not calculation formulas",
+  "transition": "2024-11-01",
+  "activation": "Inactive review data; never loaded by METSOA tariff selection",
+  "schedules": [
+    {
+      "id": "A",
+      "label": "Schedule A ? before 1 November 2024",
+      "stated_start": null,
+      "stated_end": "2024-10-31",
+      "official_status": "Unverified recovered Almond settings",
+      "values": {
+        "Unit25": "19",
+        "Rate25": "27.8",
+        "Unit30": "5",
+        "Rate30": "37.9",
+        "Unit45": "15",
+        "Rate45": "63.6",
+        "Rate46": "91.9",
+        "Unit6": "6",
+        "Rate6": "0",
+        "Rate95": "6.39",
+        "Rate75": "10.78",
+        "Rate76": "20.56",
+        "Rate65": "32.08",
+        "Rate60": "32.81",
+        "EleRate": "2.58"
+      }
+    },
+    {
+      "id": "B",
+      "label": "Schedule B ? from 1 November 2024",
+      "stated_start": "2024-11-01",
+      "stated_end": null,
+      "official_status": "Unverified recovered Almond settings",
+      "values": {
+        "Unit200": "0.2",
+        "Unit833": "0.833",
+        "Unit1000": "1",
+        "Unit1500": "1.5",
+        "Tier1Pc": "0.95",
+        "Tier2Pc": "0.75",
+        "Tier3Pc": "0.65",
+        "EleRate": "3.5747",
+        "WsRate200": "40.1",
+        "WsRate833": "47.5",
+        "WsRate1000": "63.3",
+        "WsRate1500": "101.84",
+        "WtrSurcharge": "1.48",
+        "WtrLossLevy": "17.12",
+        "SdRate200": "5.45",
+        "SdRate833": "9.2",
+        "SdRate1000": "17.54",
+        "SdRate1500": "27.38",
+        "SdBinCharge": "206.93",
+        "SDSurcharge": "1.48",
+        "MthMgtFee14": "24.09"
+      }
+    }
+  ]
+}

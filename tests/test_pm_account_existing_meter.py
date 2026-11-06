@@ -37,11 +37,11 @@ class ExistingAccountMeterTests(AccountCorrectionsTests):
         self.assertEqual(before,self.associations());self.assertEqual(history,self.immutable_history())
         self.assertEqual(self.session.execute(text('SELECT municipal_reference FROM bil_meter WHERE id=1')).scalar(),'W-ORIGINAL')
         self.assertIsNone(self.session.execute(text('SELECT municipal_reference FROM bil_meter WHERE id=90')).scalar())
-    def test_real_identifier_changes_are_blocked_after_declared_meter_resolution(self):
+    def test_unconfirmed_identifier_changes_are_blocked_after_declared_meter_resolution(self):
         self.missing_pointers(missing_bill=True);before=self.snapshot();history=self.immutable_history()
         for fields in (dict(water_number='DIFFERENT-W'),dict(electricity_number='DIFFERENT-E')):
             response=self.edit(**fields);self.assertEqual(response.status_code,409,response.text)
-            self.assertIn('This meter has reading or consumption history.',response.text)
+            self.assertIn('Select Identifier correction (same physical meter)',response.text)
             self.assertEqual(before,self.snapshot());self.assertEqual(history,self.immutable_history())
     def test_unresolved_declaration_stays_unresolved_without_creating_a_replacement(self):
         self.session.execute(text("UPDATE bil_muni_account SET water_meter_id=NULL,muni_water_meter_no='UNRESOLVED-W' WHERE id=1"));self.session.commit();self.conn.commit()

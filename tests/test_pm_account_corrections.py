@@ -37,11 +37,11 @@ class AccountCorrectionsTests(UtilitiesCaptureTests):
             self.assertEqual(meter_ids,list(self.session.execute(text('SELECT id,meter_number,property_id FROM bil_meter ORDER BY id'))))
             self.assertEqual(pointers,self.session.execute(text('SELECT id,property_id,water_meter_id,elec_meter_id FROM bil_muni_account WHERE id=1')).one())
         self.assertEqual(list(self.session.execute(text('SELECT municipal_bill_number FROM bil_meter ORDER BY id'))),[('000CORRECTED-ACCOUNT',),('000CORRECTED-ACCOUNT',)])
-    def test_genuine_meter_changes_remain_blocked_and_preserve_entered_values(self):
+    def test_unconfirmed_meter_changes_are_blocked_and_preserve_entered_values(self):
         before=self.snapshot();history=self.immutable_history()
         for changes in (dict(water_number='GENUINE-NEW'),dict(electricity_number='GENUINE-NEW'),dict(water_number='00wR')):
             response=self.edit(**changes);self.assertEqual(response.status_code,409,response.text)
-            self.assertIn('This meter has reading or consumption history.',response.text)
+            self.assertIn('Select Identifier correction (same physical meter)',response.text)
             tree=html.fromstring(response.data)
             for name,value in changes.items():self.assertEqual(tree.xpath('//input[@name="'+name+'"]/@value'),[value])
             self.assertEqual(before,self.snapshot());self.assertEqual(history,self.immutable_history())

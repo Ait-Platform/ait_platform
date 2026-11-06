@@ -81,6 +81,9 @@ def bulk_consumption(meter,meters,pairs,issues,notes):
         if cp['error'] or not cp['billing_month'] or cp['billing_month']!=pair['billing_month']:
             reason=cp['error'] or 'Validated consumption is not available for the selected billing month.'
             issues.append(meter['meter_number']+': linked meter '+child['meter_number']+' monthly consumption for '+str(pair['billing_month'])+' cannot be established: '+reason+' Bulk adjustment is incomplete.');return None
+        if (cp['previous']['date'],cp['current']['date']) != (pair['previous']['date'],pair['current']['date']):
+            issues.append(meter['meter_number']+': linked meter '+child['meter_number']+' has incompatible reading intervals ('+str(cp['previous']['date'])+' to '+str(cp['current']['date'])+'; bulk '+str(pair['previous']['date'])+' to '+str(pair['current']['date'])+'). No bulk adjustment was calculated.')
+            return None
     deducted=sum((pairs[c['id']]['difference'] for c in children),Decimal(0))
     adjusted=pair['difference']-deducted
     message=meter['meter_number']+': bulk consumption '+str(pair['difference'])+' minus linked individual consumption '+str(deducted)+' = '+str(adjusted)+(' kL' if kind(meter['utility_type'])=='water' else ' kWh')+'.'

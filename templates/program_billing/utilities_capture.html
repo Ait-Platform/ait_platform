@@ -2,6 +2,10 @@
 {% block title %}{{ 'Meter Readings' if kind=='readings' else 'Municipal Account Reconciliation (MAR)' }}{% endblock %}
 {% block flashes %}{% endblock %}
 {% block content %}
+{% macro display_reading(value) -%}
+{%- set reading=value|string -%}
+{{- reading.rstrip('0').rstrip('.') if '.' in reading and 'e' not in reading|lower else reading -}}
+{%- endmacro %}
 {% if kind=='statements' %}<style id="mar-input-styles">
 #mar-page input:not([type="hidden"]), #mar-page select, #mar-page textarea {
   border: 1px solid #b8cde6;
@@ -97,15 +101,15 @@
 {% if kind=='readings' and reading_delete %}
 <div id="reading-delete-confirmation" role="alert" class="rounded-lg border border-red-200 bg-red-50 p-4">
 <p class="font-semibold">Are you sure you want to delete this meter reading?</p>
-<dl class="my-3 grid grid-cols-1 gap-2 md:grid-cols-3"><div><dt>Meter</dt><dd>{{ reading_delete.meter_number }}</dd></div><div><dt>Reading Date</dt><dd>{{ reading_delete.reading_date }}</dd></div><div><dt>Recorded Value</dt><dd>{{ reading_delete.reading_value }}</dd></div></dl>
+<dl class="my-3 grid grid-cols-1 gap-2 md:grid-cols-3"><div><dt>Meter</dt><dd>{{ reading_delete.meter_number }}</dd></div><div><dt>Reading Date</dt><dd>{{ reading_delete.reading_date }}</dd></div><div><dt>Recorded Value</dt><dd>{{ display_reading(reading_delete.reading_value) }}</dd></div></dl>
 <input type="hidden" name="reading_delete_token" value="{{ reading_delete_token }}">
 <div class="flex justify-end gap-2"><button type="submit" name="action" value="cancel_delete_reading" formnovalidate class="rounded-lg bg-red-100 px-4 py-2">Cancel</button><button type="submit" name="action" value="confirm_delete_reading" formnovalidate class="rounded-lg bg-red-600 px-4 py-2 font-semibold text-white">Confirm Delete</button></div>
 </div>
 {% elif kind=='readings' and reading_duplicates %}
 <div id="reading-duplicate-warning" role="alert" class="rounded-lg border border-amber-200 bg-amber-50 p-4">
 <p class="font-semibold">A reading already exists for this meter for the selected month. Choose Replace Reading or Save Additional Reading.</p>
-<p class="my-2">New reading: {{ values.get('reading_date') }} &mdash; {{ values.get('reading_value') }}</p>
-<table class="my-3 w-full text-left text-sm"><thead><tr><th scope="col">Replace</th><th scope="col">Existing Reading Date</th><th scope="col">Recorded Value</th></tr></thead><tbody>{% for reading in reading_duplicates %}<tr><td><label><input type="radio" name="reading_replace_id" value="{{ reading.id }}" {% if reading_replace_id==reading.id or (not reading_replace_id and loop.last) %}checked{% endif %}> Reading #{{ reading.id }}</label></td><td>{{ reading.reading_date }}</td><td>{{ reading.reading_value }}</td></tr>{% endfor %}</tbody></table>
+<p class="my-2">New reading: {{ values.get('reading_date') }} &mdash; {{ display_reading(values.get('reading_value')) }}</p>
+<table class="my-3 w-full text-left text-sm"><thead><tr><th scope="col">Replace</th><th scope="col">Existing Reading Date</th><th scope="col">Recorded Value</th></tr></thead><tbody>{% for reading in reading_duplicates %}<tr><td><label><input type="radio" name="reading_replace_id" value="{{ reading.id }}" {% if reading_replace_id==reading.id or (not reading_replace_id and loop.last) %}checked{% endif %}> Reading #{{ reading.id }}</label></td><td>{{ reading.reading_date }}</td><td>{{ display_reading(reading.reading_value) }}</td></tr>{% endfor %}</tbody></table>
 <input type="hidden" name="reading_duplicate_token" value="{{ reading_duplicate_token }}">
 {% if reading_duplicate_mode %}<p class="my-2 font-semibold">{% if reading_duplicate_mode=='replace' %}Confirm replacement of reading #{{ reading_replace_id }} with the new date and value above. The existing record identity is retained.{% else %}Confirm saving the new reading as an additional record. Existing readings are retained.{% endif %}</p>{% endif %}
 <div class="flex flex-wrap justify-end gap-2"><button name="reading_duplicate_action" value="cancel" type="submit" formnovalidate class="rounded-lg bg-red-100 px-4 py-2">Cancel</button>
@@ -136,7 +140,7 @@
 
 <div class="mt-6 overflow-x-auto" tabindex="0" role="region" aria-label="{{ 'Meter readings' if kind=='readings' else 'Municipal statements' }}"><table class="w-full text-left text-sm"><thead class="bg-slate-50"><tr>{% for label in (['Date','Meter','Reading','Action'] if kind=='readings' else ['Date','Account','Arrears','Balance','Due','Paid','Action']) %}<th scope="col" class="whitespace-nowrap p-3">{{ label }}</th>{% endfor %}</tr></thead><tbody>
 {% for row in rows %}<tr class="border-t" {% if kind=='readings' %}data-reading-row data-meter-id="{{ row.meter_id }}" {% if loop.index>5 %}hidden{% endif %}{% else %}data-statement-row data-account-id="{{ row.account_id }}"{% endif %}><td class="whitespace-nowrap p-3">{{ row.reading_date if kind=='readings' else row.statement_date }}</td>
-{% if kind=='readings' %}<td class="p-3">{{ row.meter_number }}</td><td class="whitespace-nowrap p-3">{{ row.reading_value }} {{ 'kL' if row.utility_type|lower=='water' else 'kWh' }}</td>{% else %}<td class="p-3">{{ row.account_number }}</td>{% for key in ['arrears','balance','due'] %}<td class="whitespace-nowrap p-3">R{{ '{:,.2f}'.format(row[key]) }}</td>{% endfor %}<td class="whitespace-nowrap p-3">{{ 'R{:,.2f}'.format(row.paid) if row.paid is not none else 'Unavailable' }}</td>{% endif %}
+{% if kind=='readings' %}<td class="p-3">{{ row.meter_number }}</td><td class="whitespace-nowrap p-3">{{ display_reading(row.reading_value) }} {{ 'kL' if row.utility_type|lower=='water' else 'kWh' }}</td>{% else %}<td class="p-3">{{ row.account_number }}</td>{% for key in ['arrears','balance','due'] %}<td class="whitespace-nowrap p-3">R{{ '{:,.2f}'.format(row[key]) }}</td>{% endfor %}<td class="whitespace-nowrap p-3">{{ 'R{:,.2f}'.format(row.paid) if row.paid is not none else 'Unavailable' }}</td>{% endif %}
 <td class="p-3"><a class="inline-flex rounded-lg bg-yellow-100 px-3 py-2 font-semibold" {% if kind=='statements' %}data-mar-record{% else %}data-reading-record{% endif %} href="{{ url_for('billing_bp.meter_readings' if kind=='readings' else 'billing_bp.metro_reconciliation',property_id=property.id,edit=row.id,billing_month=utility_month) }}">Edit</a>{% if kind=='statements' %}<a data-mar-record class="ml-2 inline-flex rounded-lg bg-green-100 px-3 py-2 font-semibold" href="{{ url_for('billing_bp.metro_reconciliation',property_id=property.id,payment=row.id,billing_month=utility_month) }}">Record Payment</a>{% endif %}</td></tr>{% else %}<tr><td colspan="{{ 4 if kind=='readings' else 7 }}" class="p-4 text-slate-600">No {{ 'readings' if kind=='readings' else 'statements' }} recorded.</td></tr>{% endfor %}
 </tbody></table></div>
 {% if kind=='readings' and rows|length>5 %}<div class="my-4 flex justify-end"><button type="button" id="reading-toggle" aria-expanded="false" class="rounded-lg bg-blue-100 px-4 py-2">Show More (5 of {{ rows|length }})</button></div>{% endif %}

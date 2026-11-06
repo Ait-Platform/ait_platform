@@ -37,7 +37,7 @@ class ReadingDuplicateTests(fixture.UtilitiesCaptureTests):
                 warning=self.post_draft(fields);token=self.token(warning)
                 tree=html.fromstring(warning.data)
                 self.assertIn('A reading already exists for this meter for the selected month. Choose Replace Reading or Save Additional Reading.',tree.text_content())
-                self.assertEqual(tree.xpath('//*[@id="reading-duplicate-warning"]//tbody/tr/td[position()>1]/text()'),['2025-01-10','100.0'])
+                self.assertEqual(tree.xpath('//*[@id="reading-duplicate-warning"]//tbody/tr/td[position()>1]/text()'),['2025-01-10','100'])
                 self.assertEqual(before,self.state())
                 cancelled=self.post_draft(dict(fields,reading_duplicate_action='cancel',reading_duplicate_token=token))
                 self.assertEqual(cancelled.status_code,200)

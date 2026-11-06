@@ -221,7 +221,7 @@
 
         </tbody>
       </table>
-
+      {% if pm_tariff_statement|default(false) %}{% include 'program_billing/metsoa_comparison.html' %}{% endif %}
 
   </div>
 </div>

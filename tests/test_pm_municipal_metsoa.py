@@ -63,7 +63,7 @@ class MunicipalMetsoaTests(fixture.UtilitiesCaptureTests):
         self.assertIn('Statement For All Metro Meters',page.text);self.assertIn('Electricity Sub-Total',page.text);self.assertIn('W&S For #',page.text);self.assertIn('S & D Cost',page.text)
         self.assertIn('NOT A FINAL AMOUNT DUE',page.text);self.assertNotIn('Arrears',page.text);self.assertNotIn('7,190.88',page.text)
         self.assertFalse(any(q.lstrip().startswith(('insert ','update ','delete ')) for q in queries))
-        self.assertFalse(any('bil_municipal_statement' in q or 'bil_muni_payment' in q or 'bil_statement_payment' in q or 'bil_consumption' in q for q in queries));self.assertEqual(before,self.snapshot())
+        self.assertFalse(any('bil_muni_payment' in q or 'bil_statement_payment' in q or 'bil_consumption' in q for q in queries));self.assertEqual(before,self.snapshot())
     def test_valid_explicit_surcharges_and_second_reading_enable_final_amount(self):
         self.session.execute(text("DELETE FROM bil_tariff WHERE code IN ('WSSurcharge','SDSurcharge')"))
         self.session.execute(text("INSERT INTO bil_tariff(utility_type,code,description,rate,unit,effective_date) VALUES('water','WSSurcharge','Recorded water surcharge',1.48,'R/kL','2026-06-05'),('sewerage','SDSurcharge','Recorded sewerage surcharge',1.48,'R/kL','2026-06-05')"))

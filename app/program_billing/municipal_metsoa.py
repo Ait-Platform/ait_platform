@@ -98,7 +98,7 @@ def applicable_tariff_records(utility,records):
         kind = (record.utility_type or '').strip().lower()
         code = record.code.strip().lower()
         if water:
-            if kind in ('water','sewerage','sanitation','water_fixed','sewerage_fixed','sanitation_fixed') or code in ('w_loss','w_mgt','s_refuse','w_surcharge','s_surcharge'):
+            if getattr(record,'charge_component',None)=='water_loss' or kind in ('water','sewerage','sanitation','water_fixed','sewerage_fixed','sanitation_fixed') or code in ('w_loss','w_mgt','s_refuse','w_surcharge','s_surcharge'):
                 yield record
         elif kind in ('electricity','electrical'):
             yield record
@@ -143,7 +143,7 @@ def build(p,month,recipient_id=None):
         elif tariffs['electricity'] is None:continue
         if any(pair['previous']['date']<r.effective_date<=pair['current']['date'] for r in applicable_tariff_records(kind,tariffs['records'])):
             issues.append(meter['meter_number']+': tariff effective date changes within its reading period; review rate allocation before finalisation.');continue
-        source.append(SimpleNamespace(meter_id=meter['id'],meter_number=meter['meter_number'],utility_type=meter['utility_type'],last_date=pair['previous']['date'],new_date=pair['current']['date'],last_read=pair['previous']['value'],new_read=pair['current']['value'],days=pair['days'],consumption=consumption))
+        source.append(SimpleNamespace(account_id=linked[0]['id'],meter_id=meter['id'],meter_number=meter['meter_number'],utility_type=meter['utility_type'],last_date=pair['previous']['date'],new_date=pair['current']['date'],last_read=pair['previous']['value'],new_read=pair['current']['value'],days=pair['days'],consumption=consumption))
     elec_builder,water_builder=original_builders()
     electricity,electricity_total=elec_builder(p,month,source=source,tariffs=tariffs)
     water,water_total=water_builder(p,month,source=source,tariffs=tariffs)
@@ -152,10 +152,39 @@ def build(p,month,recipient_id=None):
     missing=list(tariffs.get('unavailable_components',[]))
     for key,label in [('electricity','Electricity consumption'),('water','Water consumption bands'),('sewerage','Sewerage consumption bands'),('water_fixed','Water fixed charges'),('sewerage_fixed','Sewerage fixed charges'),('water_surcharge','Water surcharge'),('sewerage_surcharge','Sewerage surcharge')]:
         if tariffs[key] is None or tariffs[key]==[]:missing.append(dict(number='All applicable meters',component=label,reason='No applicable verified rate for '+month+'.'))
-    if not any(r.code.lower()=='w_loss' for r in tariffs['water_fixed']):missing.append(dict(number='Water meters',component='Water Loss Levy (insurance)',reason='No applicable W_LOSS rate for '+month+'.'))
+    if not any(getattr(r,'charge_component',None)=='water_loss' or r.code.lower()=='w_loss' for r in tariffs['water_fixed']):missing.append(dict(number='Water meters',component='Water Loss Levy (insurance)',reason='No applicable W_LOSS rate for '+month+'.'))
+    # Compare only complete account calculations with explicit same-account/month bill evidence.
+    from .utilities_capture import available
+    billed={}
+    if available('bil_municipal_statement',['account_id','period','due']):
+        for bill in db.session.execute(text('SELECT s.account_id,s.due FROM bil_municipal_statement s JOIN bil_muni_account a ON a.id=s.account_id WHERE a.property_id=:p AND s.period=:month'),dict(p=p,month=month)).mappings():
+            billed.setdefault(bill['account_id'],[]).append(bill['due'])
+    calculated={a['id']:Decimal(0) for a in accounts}
+    for record,line in zip([r for r in source if r.utility_type.lower() in ('electricity','electrical')],electricity):calculated[record.account_id]+=Decimal(str(line['due']))
+    for record,line in zip([r for r in source if r.utility_type.lower()=='water'],water):calculated[record.account_id]+=Decimal(str(line['total']))
+    comparisons=[]
+    for account in accounts:
+        attached=[m for m in meters if m['id'] in (account['water_meter_id'],account['elec_meter_id']) or m.get('municipal_bill_number')==account['account_number']]
+        complete=bool(attached) and all(m['id'] in priced and not any(i.startswith(m['meter_number']+':') for i in issues) for m in attached)
+        for meter in attached:
+            utility=(meter['utility_type'] or '').lower()
+            if utility=='water':
+                complete=complete and all(tariffs[k] for k in ('water','sewerage','water_fixed','sewerage_fixed')) and all(tariffs[k] is not None for k in ('water_surcharge','sewerage_surcharge')) and any(getattr(r,'charge_component',None)=='water_loss' or r.code.lower()=='w_loss' for r in tariffs['water_fixed'])
+            relevant=('water','sewerage','sanitation','water_fixed','sewerage_fixed','sanitation_fixed') if utility=='water' else ('electricity','electrical')
+            if any((r.get('utility_type') or '').lower() in relevant for r in tariffs.get('unavailable_components',[])):complete=False
+        bills=billed.get(account['id'],[])
+        bill_amount=None
+        if len(bills)==1 and bills[0] is not None:
+            try:
+                value=Decimal(str(bills[0]))
+                if value.is_finite():bill_amount=value.quantize(Decimal('.01'))
+            except ArithmeticError:pass
+        total=calculated[account['id']].quantize(Decimal('.01')) if complete else None
+        difference=total-bill_amount if total is not None and bill_amount is not None else None
+        comparisons.append(dict(account=account['account_number'],calculated=total,billed=bill_amount,difference=difference,label=('Debit difference' if difference>0 else 'Credit difference' if difference<0 else 'No difference') if difference is not None else 'Comparison unavailable'))
     recipient,recipient_choices,recipient_issue=statement_recipient(p,prop['manager_id'],month,recipient_id)
     if recipient_issue:issues.append(recipient_issue)
-    return dict(property=prop,month=month,tenant=recipient,electricity=dict(rows=electricity,subtotal=electricity_total),water=dict(meters=water,total=water_total),grand_total=electricity_total+water_total,pm_consumption_rows=consumption_rows,pm_unpriced_components=unpriced+missing,pm_tariff_statement=True,pm_complete=not issues,pm_issues=issues,pm_customer=recipient['name'] if recipient else '',pm_recipient=recipient,pm_recipients=recipient_choices,pm_recipient_issue=recipient_issue,pm_electricity_available=bool(electricity),pm_statement_date=end,pm_tariff_records=tariffs['records'],pm_bulk_notes=bulk_notes)
+    return dict(property=prop,month=month,tenant=recipient,electricity=dict(rows=electricity,subtotal=electricity_total),water=dict(meters=water,total=water_total),grand_total=electricity_total+water_total,pm_comparisons=comparisons,pm_consumption_rows=consumption_rows,pm_unpriced_components=unpriced+missing,pm_tariff_statement=True,pm_complete=not issues,pm_issues=issues,pm_customer=recipient['name'] if recipient else '',pm_recipient=recipient,pm_recipients=recipient_choices,pm_recipient_issue=recipient_issue,pm_electricity_available=bool(electricity),pm_statement_date=end,pm_tariff_records=tariffs['records'],pm_bulk_notes=bulk_notes)
 
 def pdf_bytes(html):
     from playwright.sync_api import sync_playwright

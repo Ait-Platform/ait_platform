@@ -6,15 +6,28 @@ from sqlalchemy import text,inspect
 from app.extensions import db
 
 def select(billing_date):
+    import re
     issues=[];catalog=inspect(db.session.connection())
     required={'id','utility_type','code','description','rate','block_start','block_end','reduction_factor','unit','effective_date'}
     if not catalog.has_table('bil_tariff') or not required<={c['name'] for c in catalog.get_columns('bil_tariff')}:
         return dict(electricity=None,water=[],sewerage=[],water_fixed=[],sewerage_fixed=[],water_surcharge=None,sewerage_surcharge=None,records=[]),['Applicable tariff records are unavailable.']
     from app.utils.tariff_versions import resolve,identity
+    categories={}
+    if catalog.has_table('bil_tariff_verification') and {'tariff_id','municipal_category'}<={c['name'] for c in catalog.get_columns('bil_tariff_verification')}:
+        categories={r['tariff_id']:r['municipal_category'] for r in db.session.execute(text('SELECT tariff_id,municipal_category FROM bil_tariff_verification')).mappings()}
     source=[]
     for record in db.session.execute(text('SELECT * FROM bil_tariff ORDER BY id')).mappings():
-        row=dict(record);row['code']=str(row.get('code') or '').strip();source.append(row)
-    versions,version_issues=resolve(source,billing_date,key_function=lambda r:('water_fixed','w_loss') if r['code'].lower()=='w_loss' else identity(r))
+        row=dict(record);row['code']=str(row.get('code') or '').strip()
+        code=re.sub(r'[^a-z0-9]','',row['code'].lower())
+        category=re.sub(r'[^a-z0-9]','',str(categories.get(row['id']) or '').lower())
+        is_loss=code in ('wloss','waterlosslevy') or ((row.get('utility_type') or '').strip().lower()=='water_fixed' and category in ('waterloss','waterlosslevy','waterlossinsurance','waterlosslevyinsurance','waterlosscharge'))
+        row['charge_component']='water_loss' if is_loss else None
+        source.append(row)
+    def family(row):
+        if row.get('charge_component')=='water_loss':return ('water_fixed','water_loss')
+        utility,code=identity(row)
+        return ({'sanitation':'sewerage','electrical':'electricity','sanitation_fixed':'sewerage_fixed'}.get(utility,utility),code)
+    versions,version_issues=resolve(source,billing_date,key_function=family)
     issues.extend(version_issues);selected=[]
     for row in versions:
         try:
@@ -23,18 +36,17 @@ def select(billing_date):
         except (ValueError,InvalidOperation):issues.append('Tariff '+row['code']+' has an invalid rate.');continue
         row['rate']=rate;row['effective_date']=date.fromisoformat(str(row['effective_date']));selected.append(SimpleNamespace(**row))
     result=dict(electricity=None,water=[],sewerage=[],water_fixed=[],sewerage_fixed=[],water_surcharge=None,sewerage_surcharge=None,records=selected)
-    family=lambda r:('water_fixed','w_loss') if r['code'].lower()=='w_loss' else identity(r)
     selected_families={family(vars(r)) for r in selected}
     missing_families={family(r):r for r in source if family(r) not in selected_families}
     result['unavailable_components']=[]
     for row in missing_families.values():
         reason='Tariff '+row['code']+': no applicable unambiguous rate on '+str(billing_date)+'. Rate unavailable.'
         issues.append(reason)
-        result['unavailable_components'].append(dict(number='Applicable meters',component=row['code'],reason=reason))
+        result['unavailable_components'].append(dict(number='Applicable meters',component=row['code'],reason=reason,utility_type=row['utility_type']))
     electricity=[];seen_surcharges=set();invalid_sides=set()
     for row in selected:
         kind=(row.utility_type or '').strip().lower();code=row.code.lower()
-        if code=='w_loss':
+        if row.charge_component=='water_loss':
             # Confirmed charge-code semantics override incomplete legacy type/unit labels.
             # The amount still comes only from its applicable, unambiguous database version.
             result['water_fixed'].append(row)
@@ -60,7 +72,7 @@ def select(billing_date):
                 result[side].append(dict(start=start,label=row.description or row.code,multiplier=factor,rate=row.rate,code=row.code))
             except (ValueError,InvalidOperation):
                 issues.append('Tariff '+row.code+' has missing or invalid band boundaries/daily allocation metadata.');invalid_sides.add(side)
-    if not any(r.code.lower()=='w_loss' for r in result['water_fixed']):issues.append('No verified effective W_LOSS fixed per-water-meter insurance levy is available.')
+    if not any(r.charge_component=='water_loss' for r in result['water_fixed']):issues.append('No verified effective W_LOSS fixed per-water-meter insurance levy is available.')
     if len(electricity)==1:result['electricity']=electricity[0].rate
     elif not electricity:issues.append('No electricity tariff is effective on or before '+str(billing_date)+'.')
     else:issues.append('Multiple applicable electricity tariffs require an explicit selection; no rate was guessed.')

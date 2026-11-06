@@ -1250,7 +1250,7 @@ def build_sd_breakdown(consumption, days, month, meter_id, tiers=None, surcharge
 
 def build_water_fee_block(r, month, tariff_override=None):
     if tariff_override is not None:
-        return {key:[dict(desc='Water Loss Levy (insurance)' if f.code.lower()=='w_loss' else f.description or f.code,cons=1 if f.code.lower()=='w_loss' else 0,rate=f.rate if f.code.lower()=='w_loss' else 0,due=f.rate) for f in tariff_override[group]] for key,group in [('ws','water_fixed'),('sd','sewerage_fixed')]}
+        return {key:[dict(desc='Water Loss Levy (insurance)' if (getattr(f,'charge_component',None)=='water_loss' or f.code.lower()=='w_loss') else f.description or f.code,cons=1 if (getattr(f,'charge_component',None)=='water_loss' or f.code.lower()=='w_loss') else 0,rate=f.rate if (getattr(f,'charge_component',None)=='water_loss' or f.code.lower()=='w_loss') else 0,due=f.rate) for f in tariff_override[group]] for key,group in [('ws','water_fixed'),('sd','sewerage_fixed')]}
     meter_number = r.meter_number
     consumption = r.consumption
 

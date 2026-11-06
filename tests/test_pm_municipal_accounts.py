@@ -23,7 +23,7 @@ class MunicipalAccountsTests(fixture.UtilitiesConfigurationTests):
         response=self.client.get(self.accounts_url+('?edit='+str(account_id) if account_id else ''),headers=self.headers)
         self.assertEqual(response.status_code,200,response.text)
         tree=html.fromstring(response.data)
-        fields={e.get('name'):e.get('value','') for e in tree.xpath('//form//input[@name]')}
+        fields={e.get('name'):e.get('value','') for e in tree.xpath('//form[@id="municipal-account-form"]//input[@name]')}
         fields['owner_name']=tree.xpath('//select[@name="owner_name"]/option[@selected]/@value')[0] if tree.xpath('//select[@name="owner_name"]/option[@selected]') else ''
         return fields
     def post(self,data,url=None):
@@ -146,8 +146,11 @@ class MunicipalAccountsTests(fixture.UtilitiesConfigurationTests):
         data.update(owner_name='Owner',water_number='RENUMBERED')
         self.assertEqual(self.post(data).status_code,409);self.assertEqual(before,self.snapshot())
         data['water_number']='WATER-26';data['account_number']='RENUMBERED-ACCOUNT'
-        self.assertEqual(self.post(data).status_code,409);self.assertEqual(before,self.snapshot())
-        data['account_number']='MET-26';data['electricity_number']='ADDED-E';data['electricity_opening_reading']='0';data['electricity_opening_date']='2020-01-31'
+        self.assertEqual(self.post(data).status_code,302)
+        self.assertEqual(before['bil_meter_reading'],self.snapshot()['bil_meter_reading'])
+        self.assertEqual(before['bil_consumption'],self.snapshot()['bil_consumption'])
+        data=self.account_form(1);data.pop('csrf_token');data.pop('billing_month')
+        data['electricity_number']='ADDED-E';data['electricity_opening_reading']='0';data['electricity_opening_date']='2020-01-31'
         self.assertEqual(self.post(data).status_code,302)
         self.assertEqual(before['bil_consumption'],self.snapshot()['bil_consumption'])
         self.assertEqual(dict(self.session.execute(text('SELECT * FROM bil_meter_reading WHERE id=1')).mappings().one()),dict(before['bil_meter_reading'][0]))

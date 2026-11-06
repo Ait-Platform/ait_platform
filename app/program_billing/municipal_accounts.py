@@ -173,20 +173,18 @@ def save(property_id,form):
     if duplicate:abort(409,description='This municipal account number already exists for the selected property.')
     if (not account or data['account_number']!=account['account_number']) and db.session.execute(text('SELECT 1 FROM bil_muni_account WHERE property_id IN ('+PORTFOLIO_IDS+') AND lower(btrim(account_number))=lower(:n) AND (:id IS NULL OR id<>:id) LIMIT 1'),dict(n=data['account_number'],id=account_id,p=property_id)).first():
         abort(409,description='An existing account already uses this number. Review its verified property association instead of creating a duplicate or reassigning it.')
-    if account and data['account_number']!=account['account_number']:
-        if any(has_history(m) for m in meters.values() if m):abort(409,description='This account has meter history. Its historical account number cannot be changed through this page.')
-        catalog=inspect(db.session.connection())
-        for table in ('bil_muni_cycle_totals','bil_metsoa_cycle','bil_muni_payment'):
-            if catalog.has_table(table) and db.session.execute(text('SELECT 1 FROM '+table+' WHERE account_id=:id LIMIT 1'),dict(id=account_id)).first():abort(409,description='This account has historical billing records; its account number is protected.')
     new_meters=[]
     for kind,key in [('water','water_number'),('electricity','electricity_number')]:
         meter=meters[kind];number=data[key]
+        # Use the existing case-insensitive identity rule, while preserving saved characters.
+        if meter and number.strip().casefold()==str(meter['meter_number']).strip().casefold():
+            number=data[key]=meter['meter_number']
         if meter and not number:abort(409,description='Existing meters cannot be removed through this page. Their records and history have been retained.')
         if meter:
             if db.session.execute(text('SELECT 1 FROM bil_muni_account WHERE id<>:a AND (water_meter_id=:m OR elec_meter_id=:m) LIMIT 1'),dict(a=account_id,m=meter['id'])).first():abort(409,description='This meter is referenced by another municipal account; it cannot be edited here.')
             if number!=meter['meter_number'] and has_history(meter):abort(409,description='This meter has reading or consumption history. Its identifier is protected; no records were changed.')
         if number:
-            if db.session.execute(text('SELECT 1 FROM bil_meter WHERE property_id IN ('+PORTFOLIO_IDS+') AND lower(btrim(meter_number))=lower(:n) AND (:id IS NULL OR id<>:id) LIMIT 1'),dict(n=number,id=meter['id'] if meter else None,p=property_id)).first():abort(409,description='A meter with this identifier already exists. It cannot be duplicated or reassigned through this page.')
+            if db.session.execute(text('SELECT 1 FROM bil_meter WHERE property_id IN ('+PORTFOLIO_IDS+') AND lower(btrim(meter_number))=lower(:n) AND (:id IS NULL OR id<>:id) LIMIT 1'),dict(n=number.strip(),id=meter['id'] if meter else None,p=property_id)).first():abort(409,description='A meter with this identifier already exists. It cannot be duplicated or reassigned through this page.')
             if not meter:new_meters.append(kind)
     if new_meters:
         for c in inspect(db.session.connection()).get_columns('bil_meter'):

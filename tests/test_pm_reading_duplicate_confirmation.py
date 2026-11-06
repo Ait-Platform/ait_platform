@@ -86,14 +86,17 @@ class ReadingDuplicateTests(fixture.UtilitiesCaptureTests):
         self.assertEqual(self.post_draft(self.draft(reading_value='NaN')).status_code,400)
         self.assertEqual(before,self.state())
 
-    def test_period_controls_are_single_block_immediately_below_register_heading(self):
-        tree=html.fromstring(self.client.get(self.readings_url+'?workspace=register',headers=self.headers).data)
+    def test_register_has_no_reporting_controls_and_retains_hidden_output_context(self):
+        tree=html.fromstring(self.client.get(self.readings_url+'?workspace=register&billing_month=2026-10',headers=self.headers).data)
         self.assertEqual(len(tree.xpath('//form[@id="municipal-reading-period"]')),1)
         form=tree.xpath('//*[@id="reading-register-title"]/following-sibling::*[1]')[0]
         self.assertEqual(form.get('id'),'municipal-reading-period')
-        self.assertNotIn('justify-end',form.get('class'))
-        self.assertEqual(form.xpath('.//input[@type="month"]/@name'),['billing_month'])
-        self.assertEqual(form.xpath('.//button/text()'),['Show Period'])
+        self.assertIsNotNone(form.get('hidden'))
+        self.assertFalse(tree.xpath('//input[@type="month"]'))
+        self.assertNotIn('Show Period',tree.text_content())
+        self.assertNotIn('Reporting month',tree.text_content())
+        self.assertEqual(form.xpath('.//input[@type="hidden"][@name="billing_month"]/@value'),['2026-10'])
+        self.assertFalse(form.xpath('.//button'))
 
     def test_browser_warning_cancel_confirmation_and_register(self):
         from playwright.sync_api import sync_playwright

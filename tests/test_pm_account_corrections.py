@@ -59,7 +59,7 @@ class AccountCorrectionsTests(UtilitiesCaptureTests):
         readings=self.client.get('/billing/utilities/26/meter-readings?workspace=register&billing_month=2025-09',headers=self.headers)
         reading_tree=html.fromstring(readings.data)
         self.assertEqual(reading_tree.xpath('//*[@id="municipal-reading-month"]/@value'),['2025-09'])
-        self.assertIn('Show Period',reading_tree.text_content())
+        self.assertNotIn('Show Period',reading_tree.text_content())
         response=self.client.get(self.accounts_url+'?view=list&billing_month=2025-10',headers=self.headers)
         tree=html.fromstring(response.data)
         for href in tree.xpath('//a[contains(@href,"edit=")]/@href'):

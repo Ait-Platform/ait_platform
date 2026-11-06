@@ -113,7 +113,7 @@ class ReadingFilterTests(fixture.UtilitiesCaptureTests):
         with sync_playwright() as runtime:
             browser=runtime.chromium.launch(headless=True)
             try:
-                tab=browser.new_page();tab.goto(origin+self.readings_url+'?billing_month=2026-09')
+                tab=browser.new_page();tab.goto(origin+self.readings_url+'?billing_month=2026-10')
                 self.assertFalse(tab.locator('#reading-workspaces').is_visible())
                 self.assertEqual(tab.locator('[data-reading-section]:visible').count(),0)
                 tab.get_by_role('link',name='Capture Reading',exact=True).click()
@@ -127,8 +127,9 @@ class ReadingFilterTests(fixture.UtilitiesCaptureTests):
                 tab.get_by_role('link',name='View Register',exact=True).click()
                 self.assertEqual(tab.locator('[data-reading-section]:visible').count(),1)
                 tab.select_option('#reading-meter-filter','99')
-                tab.locator('#municipal-reading-month').fill('2026-10')
-                tab.get_by_role('button',name='Show Period',exact=True).click()
+                self.assertEqual(tab.locator('input[type=month]').count(),0)
+                self.assertEqual(tab.get_by_role('button',name='Show Period',exact=True).count(),0)
+                self.assertEqual(tab.get_by_text('Reporting month',exact=True).count(),0)
                 self.assertTrue(tab.locator('#reading-register').is_visible())
                 self.assertEqual(tab.locator('#reading-meter-filter').input_value(),'99')
                 # Verify the real form submits the selected month to the existing PDF endpoint.
@@ -183,7 +184,7 @@ class ReadingFilterTests(fixture.UtilitiesCaptureTests):
         with sync_playwright() as runtime:
             browser=runtime.chromium.launch(headless=True)
             try:
-                tab=browser.new_page();tab.goto(origin+self.readings_url+'?billing_month=2026-09')
+                tab=browser.new_page();tab.goto(origin+self.readings_url+'?billing_month=2026-10')
                 tab.get_by_role('link',name='Capture Reading',exact=True).click()
                 tab.locator('#reading_date').fill('2026-09-09')
                 for meter,value in [('96','123.45'),('98','50')]:

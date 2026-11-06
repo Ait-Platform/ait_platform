@@ -88,6 +88,19 @@ def bulk_consumption(meter,meters,pairs,issues,notes):
     if adjusted<0:issues.append(message+' Negative difference requires investigation; consumption-based charges use zero, not a refund.')
     return max(Decimal(0),adjusted)
 
+def applicable_tariff_records(utility,records):
+    """Only charge components used by this utility may constrain its interval."""
+    water = utility == 'water'
+    for record in records:
+        kind = (record.utility_type or '').strip().lower()
+        code = record.code.strip().lower()
+        if water:
+            if kind in ('water','sewerage','sanitation','water_fixed','sewerage_fixed','sanitation_fixed') or code in ('w_loss','w_mgt','s_refuse','w_surcharge','s_surcharge'):
+                yield record
+        elif kind in ('electricity','electrical'):
+            yield record
+
+
 def build(p,month,recipient_id=None):
     property_scope(p);month,start,end=month_context(month)
     prop=db.session.execute(text('SELECT id,name,address,manager_id FROM bil_property WHERE id=:p'),dict(p=p)).mappings().one()
@@ -118,7 +131,7 @@ def build(p,month,recipient_id=None):
             if any(sum((t['multiplier']*pair['days'] for t in tariffs[side]),Decimal(0))<consumption for side in ('water','sewerage')):
                 issues.append(meter['meter_number']+': tariff bands do not cover the recorded consumption; no excess rate was guessed.');continue
         elif tariffs['electricity'] is None:continue
-        if any(pair['previous']['date']<r.effective_date<=pair['current']['date'] for r in tariffs['records']):
+        if any(pair['previous']['date']<r.effective_date<=pair['current']['date'] for r in applicable_tariff_records(kind,tariffs['records'])):
             issues.append(meter['meter_number']+': tariff effective date changes within its reading period; review rate allocation before finalisation.');continue
         source.append(SimpleNamespace(meter_id=meter['id'],meter_number=meter['meter_number'],utility_type=meter['utility_type'],last_date=pair['previous']['date'],new_date=pair['current']['date'],last_read=pair['previous']['value'],new_read=pair['current']['value'],days=pair['days'],consumption=consumption))
     elec_builder,water_builder=original_builders()

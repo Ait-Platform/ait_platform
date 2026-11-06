@@ -88,8 +88,8 @@ def bulk_consumption(meter,meters,pairs,issues,notes):
     adjusted=pair['difference']-deducted
     message=meter['meter_number']+': bulk consumption '+str(pair['difference'])+' minus linked individual consumption '+str(deducted)+' = '+str(adjusted)+(' kL' if kind(meter['utility_type'])=='water' else ' kWh')+'.'
     notes.append(message)
-    if adjusted<0:issues.append(message+' Negative difference requires investigation; consumption-based charges use zero, not a refund.')
-    return max(Decimal(0),adjusted)
+    if adjusted<0:issues.append(message+' Negative difference shown for investigation; no automatic refund is created.')
+    return adjusted
 
 def applicable_tariff_records(utility,records):
     """Only charge components used by this utility may constrain its interval."""
@@ -113,10 +113,15 @@ def build(p,month,recipient_id=None):
     meters=confirmed_meters(p,meters)
     from .metsoa_tariffs import select
     tariffs,tariff_issues=select(end)
-    issues=list(tariff_issues);source=[];bulk_notes=[]
+    issues=list(tariff_issues);source=[];bulk_notes=[];consumption_rows=[]
     pairs={m['id']:reading_pair(m,start,end) for m in meters}
     if not meters:issues.append('No registered property meters are available.')
     for meter in meters:
+        pair=pairs[meter['id']]
+        row=dict(meter_id=meter['id'],number=meter['meter_number'],utility=meter['utility_type'],previous=pair['previous'],current=pair['current'],consumption=pair['difference'],bulk_difference=None,is_bulk=any(m.get('parent_meter_id')==meter['id'] for m in meters),error=pair['error'])
+        consumption_rows.append(row)
+        measured=bulk_consumption(meter,meters,pairs,issues,bulk_notes) if not pair['error'] else None
+        if row['is_bulk']:row['bulk_difference']=measured
         linked=[a for a in accounts if meter['id'] in (a['water_meter_id'],a['elec_meter_id']) or meter.get('municipal_bill_number')==a['account_number']]
         if len(linked)!=1:
             issues.append(meter['meter_number']+': municipal account association is missing or ambiguous.');continue
@@ -127,8 +132,10 @@ def build(p,month,recipient_id=None):
             issues.append(meter['meter_number']+': unsupported utility type.');continue
         pair=pairs[meter['id']]
         if pair['error']:issues.append(meter['meter_number']+': '+pair['error']);continue
-        consumption=bulk_consumption(meter,meters,pairs,issues,bulk_notes)
+        consumption=measured
         if consumption is None:continue
+        # Display the signed measured difference; pricing never creates a refund.
+        consumption=max(Decimal(0),consumption)
         if kind=='water':
             if not tariffs['water'] or not tariffs['sewerage']:continue
             if any(sum((t['multiplier']*pair['days'] for t in tariffs[side]),Decimal(0))<consumption for side in ('water','sewerage')):
@@ -140,9 +147,15 @@ def build(p,month,recipient_id=None):
     elec_builder,water_builder=original_builders()
     electricity,electricity_total=elec_builder(p,month,source=source,tariffs=tariffs)
     water,water_total=water_builder(p,month,source=source,tariffs=tariffs)
+    priced={r.meter_id for r in source}
+    unpriced=[dict(number=r['number'],component=r['utility']+' consumption charges',reason=r['error'] or 'See the missing rate, account or interval warnings.') for r in consumption_rows if r['meter_id'] not in priced]
+    missing=list(tariffs.get('unavailable_components',[]))
+    for key,label in [('electricity','Electricity consumption'),('water','Water consumption bands'),('sewerage','Sewerage consumption bands'),('water_fixed','Water fixed charges'),('sewerage_fixed','Sewerage fixed charges'),('water_surcharge','Water surcharge'),('sewerage_surcharge','Sewerage surcharge')]:
+        if tariffs[key] is None or tariffs[key]==[]:missing.append(dict(number='All applicable meters',component=label,reason='No applicable verified rate for '+month+'.'))
+    if not any(r.code.lower()=='w_loss' for r in tariffs['water_fixed']):missing.append(dict(number='Water meters',component='Water Loss Levy (insurance)',reason='No applicable W_LOSS rate for '+month+'.'))
     recipient,recipient_choices,recipient_issue=statement_recipient(p,prop['manager_id'],month,recipient_id)
     if recipient_issue:issues.append(recipient_issue)
-    return dict(property=prop,month=month,tenant=recipient,electricity=dict(rows=electricity,subtotal=electricity_total),water=dict(meters=water,total=water_total),grand_total=electricity_total+water_total,pm_tariff_statement=True,pm_complete=not issues,pm_issues=issues,pm_customer=recipient['name'] if recipient else '',pm_recipient=recipient,pm_recipients=recipient_choices,pm_recipient_issue=recipient_issue,pm_electricity_available=bool(electricity),pm_statement_date=end,pm_tariff_records=tariffs['records'],pm_bulk_notes=bulk_notes)
+    return dict(property=prop,month=month,tenant=recipient,electricity=dict(rows=electricity,subtotal=electricity_total),water=dict(meters=water,total=water_total),grand_total=electricity_total+water_total,pm_consumption_rows=consumption_rows,pm_unpriced_components=unpriced+missing,pm_tariff_statement=True,pm_complete=not issues,pm_issues=issues,pm_customer=recipient['name'] if recipient else '',pm_recipient=recipient,pm_recipients=recipient_choices,pm_recipient_issue=recipient_issue,pm_electricity_available=bool(electricity),pm_statement_date=end,pm_tariff_records=tariffs['records'],pm_bulk_notes=bulk_notes)
 
 def pdf_bytes(html):
     from playwright.sync_api import sync_playwright
@@ -169,5 +182,5 @@ def page(p):
     data=build(p,month,recipient_id=recipient)
     html=render_template('program_billing/metsoa.html',**data)
     if request.args.get('format')=='pdf':
-        return send_file(BytesIO(pdf_bytes(html)),mimetype='application/pdf',as_attachment=False,download_name=month+'-MetSoa-'+data['property']['name']+'.pdf')
+        return send_file(BytesIO(pdf_bytes(html)),mimetype='application/pdf',as_attachment=request.args.get('download')=='1',download_name=month+'-MetSoa-'+data['property']['name']+'.pdf')
     return html

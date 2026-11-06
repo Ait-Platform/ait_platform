@@ -19,7 +19,7 @@
         &larr; Back
       </button>
       <div class="flex gap-4">
-        {% if pm_tariff_statement|default(false) %}<a href="{{ url_for('billing_bp.generate_municipal_metsoa',property_id=property.id,billing_month=month,recipient_id=pm_recipient.id if pm_recipient else None,generate='1',format='pdf') }}" class="bg-blue-600 text-white px-4 py-2 rounded">Open PDF</a>{% else %}<button onclick="sendMetsoaEmail()" class="bg-blue-600 hover:bg-blue-700 font-bold py-2 px-4 rounded shadow transition text-sm flex items-center">
+        {% if pm_tariff_statement|default(false) %}<a href="{{ url_for('billing_bp.generate_municipal_metsoa',property_id=property.id,billing_month=month,recipient_id=pm_recipient.id if pm_recipient else None,generate='1',format='pdf') }}" class="bg-blue-600 text-white px-4 py-2 rounded">Open PDF</a><a href="{{ url_for('billing_bp.generate_municipal_metsoa',property_id=property.id,billing_month=month,recipient_id=pm_recipient.id if pm_recipient else None,generate='1',format='pdf',download='1') }}" class="bg-blue-600 text-white px-4 py-2 rounded">Download PDF</a>{% else %}<button onclick="sendMetsoaEmail()" class="bg-blue-600 hover:bg-blue-700 font-bold py-2 px-4 rounded shadow transition text-sm flex items-center">
           Email METSOA
         </button>{% endif %}
         <button onclick="window.print()" class="bg-slate-600 hover:bg-slate-700 font-bold py-2 px-4 rounded shadow transition text-sm flex items-center">
@@ -32,6 +32,7 @@
     <div class="print-page p-10 bg-white text-black text-sm">
       
       {% if pm_tariff_statement|default(false) and not pm_complete %}<div role="alert" class="mb-6 border border-amber-400 bg-amber-50 p-4 text-amber-900"><strong>INCOMPLETE — NOT A FINAL AMOUNT DUE</strong><p>Only verified tariff components are shown. Missing readings or rates have not been estimated.</p>{% for issue in pm_issues %}<p>{{ issue }}</p>{% endfor %}</div>{% endif %}
+      {% if pm_tariff_statement|default(false) %}{% include 'program_billing/metsoa_consumption.html' %}{% endif %}
       <!-- Statement Header -->
       {% if tenant and tenant.tenant_reference %}<p>Tenant Reference for payments: {{ tenant.tenant_reference }}</p>{% endif %}
       <h1 class="text-2xl font-bold text-center mb-6">{{ 'Statement For All Metro Meters' if pm_tariff_statement|default(false) else 'Statement for Utilities for' }}<br/>{{ property.name if property else 'Unknown Property' }}</h1>
@@ -90,7 +91,7 @@
           <tr class="font-bold border-t border-gray-400">
             <td></td>
             <td colspan="9" class="py-2 px-1">Electricity Sub-Total</td>
-            <td class="py-2 px-1 text-right">{% if pm_tariff_statement|default(false) and not pm_electricity_available %}Unavailable{% else %}R{{ "%.2f"|format(electricity.subtotal) }}{% endif %}</td>
+            <td class="py-2 px-1 text-right">{% if pm_tariff_statement|default(false) and not pm_electricity_available %}Rate unavailable{% else %}R{{ "%.2f"|format(electricity.subtotal) }}{% endif %}</td>
           </tr>
         </tbody>
       </table>

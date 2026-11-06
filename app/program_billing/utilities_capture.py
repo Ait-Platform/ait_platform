@@ -3,7 +3,7 @@ import json,hashlib,re,uuid
 from datetime import date,datetime
 from decimal import Decimal,InvalidOperation
 from zoneinfo import ZoneInfo
-from flask import abort,request,render_template,redirect,url_for,flash,current_app,get_flashed_messages
+from flask import abort,request,render_template,redirect,url_for,flash,current_app,get_flashed_messages,g
 from flask_login import current_user
 from sqlalchemy import text,inspect
 from werkzeug.exceptions import HTTPException
@@ -74,6 +74,7 @@ def confirm_additional_reading(p,meter_id,new_date,value,form):
 
 def save_reading(p,form):
     property_scope(p,lock=True);ready('Meter Readings')
+    g.reading_save_warnings=[]
     try:meter_id=int(form.get('meter_id',''));record_id=int(form['record_id']) if form.get('record_id') else None
     except ValueError:abort(400,description='Select a valid meter or reading.')
     meter=db.session.execute(text('SELECT * FROM bil_meter WHERE id=:m AND property_id=:p FOR UPDATE'),dict(m=meter_id,p=p)).mappings().first()
@@ -100,9 +101,17 @@ def save_reading(p,form):
     for period in list(periods):
         _,start,end=month_context(period)
         periods.add(date(start.year+start.month//12,start.month%12+1,1).strftime('%Y-%m'))
-    for period in periods:
+    warnings=[];review_periods=[]
+    if original and value<Decimal(str(original['reading_value'])):
+        warnings.append('The corrected reading is lower than the previously saved value.')
+    preceding=max((r for r in before_rows if r['id']!=record_id and r['reading_date']<=new_date),key=lambda r:(r['reading_date'],r['id']),default=None)
+    if preceding:
+        prior=Decimal(str(preceding['reading_value']))
+        if prior.is_finite() and value<prior:warnings.append('This reading is lower than the preceding recorded reading.')
+    for period in sorted(periods):
         _,start,end=month_context(period);pair=reading_pair_from_rows(meter,start,end,proposed)
-        if pair['error'] and pair['error'].startswith('Readings decrease'):abort(400,description=pair['error'])
+        if pair['error'] and pair['error'].startswith('Readings decrease'):review_periods.append(period)
+    if review_periods:warnings.append('Monthly consumption is unavailable for '+', '.join(review_periods)+'. Review the surrounding saved readings.')
     data=dict(m=meter_id,d=new_date,v=value,r=record_id)
     if original:db.session.execute(text('UPDATE bil_meter_reading SET reading_date=:d,reading_value=:v WHERE id=:r'),data)
     else:record_id=db.session.execute(text('INSERT INTO bil_meter_reading(meter_id,reading_date,reading_value) VALUES(:m,:d,:v) RETURNING id'),data).scalar()
@@ -112,6 +121,7 @@ def save_reading(p,form):
     if additional:recorded['additional_reading_confirmed']=True
     if mode=='replace':recorded['replacement_confirmed']=True
     audit(p,'reading',record_id,original,recorded)
+    g.reading_save_warnings=warnings
     return record_id
 
 class ReadingDeleteConfirmation(Exception):
@@ -263,6 +273,8 @@ def page(p,kind):
                 return redirect(url_for('billing_bp.metro_reconciliation',property_id=p,billing_month=utility_month,view_item=account_id))
             (save_reading if kind=='readings' else save_statement)(p,values);db.session.commit()
             flash('Meter reading saved.' if kind=='readings' else 'Municipal statement saved.','success')
+            if kind=='readings':
+                for warning in g.get('reading_save_warnings',[]):flash(warning,'reading_decrease')
             if kind=='readings' and not values.get('record_id'):
                 return redirect(url_for('billing_bp.meter_readings',property_id=p,billing_month=utility_month,view_item=values.get('view_item',''),workspace='capture',reading_date=day(values.get('reading_date')).isoformat()))
             return redirect(url_for('billing_bp.meter_readings' if kind=='readings' else 'billing_bp.metro_reconciliation',property_id=p,billing_month=utility_month,view_item=values.get('view_item','')))
@@ -312,10 +324,12 @@ def page(p,kind):
     presentation={}
     if kind=='readings':
         messages=get_flashed_messages(with_categories=True)
-        saved=not edit_id and request.args.get('workspace')=='capture' and ('success','Meter reading saved.') in messages
-        remaining=[item for item in messages if not saved or item!=('success','Meter reading saved.')]
+        capture=not edit_id and request.args.get('workspace')=='capture'
+        saved=capture and ('success','Meter reading saved.') in messages
+        reading_warnings=[message for category,message in messages if category=='reading_decrease'] if capture else []
+        remaining=[('warning' if category=='reading_decrease' else category,message) for category,message in messages if not (saved and (category,message)==('success','Meter reading saved.')) and not (capture and category=='reading_decrease')]
         def page_flashes(with_categories=False,category_filter=()):
             selected=[item for item in remaining if not category_filter or item[0] in category_filter]
             return selected if with_categories else [message for _,message in selected]
-        presentation=dict(reading_saved=saved,get_flashed_messages=page_flashes)
+        presentation=dict(reading_saved=saved,reading_warnings=reading_warnings,get_flashed_messages=page_flashes)
     return render_template('program_billing/utilities_capture.html',property=prop,kind=kind,utility_month=utility_month,rows=rows,meters=meters(p),accounts=accounts,values=values,version=version,edit_id=edit_id,error=error,capture_ready=schema_ready(),reading_delete=reading_delete,reading_delete_token=reading_delete_token,reading_duplicates=reading_duplicates,reading_duplicate_token=reading_duplicate_token,reading_duplicate_mode=reading_duplicate_mode,reading_replace_id=reading_replace_id,reading_period_summary=reading_period_summary,payment_target=payment_target,payment_history=payment_history,payment_capture_ready=payment_ready() if kind=='statements' else False,payment_request_key=values.get('request_key') or str(uuid.uuid4()),today=datetime.now(ZoneInfo('Africa/Johannesburg')).date().isoformat(),**presentation),status

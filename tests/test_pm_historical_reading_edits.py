@@ -85,7 +85,7 @@ class HistoricalReadingEditTests(fixture.UtilitiesCaptureTests):
         self.assertEqual(self.session.execute(text("SELECT count(*) FROM bil_meter_reading WHERE meter_id=96 AND reading_date='2025-02-28'")).scalar(),1)
 
     def test_validation_permissions_audit_atomicity_and_month_duplicate_warning_remain(self):
-        for changes,code in [(dict(reading_value='-1'),400),(dict(reading_value='350'),400),(dict(meter_id='97'),403)]:
+        for changes,code in [(dict(reading_value='-1'),400),(dict(reading_value='not-a-number'),400),(dict(meter_id='97'),403)]:
             _,data=self.edit(**changes);before=self.state();self.assertEqual(self.capture_post(self.readings_url,**data).status_code,code);self.assertEqual(before,self.state())
         fields=dict(meter_id='98',reading_date='2025-09-20',reading_value='150')
         warning=self.capture_post(self.readings_url,**fields);self.assertEqual(warning.status_code,200);self.assertIn('reading-duplicate-warning',warning.text)

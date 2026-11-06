@@ -96,8 +96,10 @@ class MonthlyReadingActionsTests(fixture.UtilitiesCaptureTests):
         target=next(r['id'] for r in self.rows(98) if r['reading_value']==30572)
         data=self.review(fields,'replace',target)
         response=self.capture_post(self.readings_url,**data)
-        self.assertEqual(response.status_code,400);self.assertEqual(before,self.snapshot())
-        self.assertIn('reset/replacement',response.text)
+        self.assertEqual(response.status_code,302,response.text)
+        self.assertEqual(len(before['bil_meter_reading']),len(self.snapshot()['bil_meter_reading']))
+        self.assertIn('Monthly consumption is unavailable',self.client.get(response.location,headers=self.headers).text)
+        self.assertIsNone(self.pair(98,11)['difference'])
 
 def load_tests(loader,tests,pattern):
     return unittest.TestSuite(MonthlyReadingActionsTests(name) for name in MonthlyReadingActionsTests.__dict__ if name.startswith('test_'))

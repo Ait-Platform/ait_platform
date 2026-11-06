@@ -76,14 +76,19 @@ class UtilitiesCaptureTests(fixture.MunicipalAccountsTests):
         self.assertEqual(before,self.snapshot())
         self.assertEqual(self.session.execute(text("SELECT count(*) FROM bil_meter_reading WHERE meter_id=99 AND reading_date='2026-09-30'")).scalar(),1)
 
-    def test_historical_insertion_rejects_inconsistent_adjacent_values(self):
+    def test_historical_decreases_save_with_warnings_and_preserve_existing_readings(self):
         self.historical_meter();before=self.snapshot()
-        for value,message in [('14899','Readings decrease'),('15228','Readings decrease')]:
-            response=self.capture_post(self.readings_url,meter_id=99,reading_date='2026-09-30',reading_value=value)
-            self.assertEqual(response.status_code,400,response.text)
-            self.assertIn(message,response.text)
-            self.assertEqual(before,self.snapshot())
-        self.assertEqual(self.session.execute(text('SELECT count(*) FROM bil_utilities_capture_audit')).scalar(),0)
+        response=self.capture_post(self.readings_url,meter_id=99,reading_date='2026-09-30',reading_value='14899')
+        self.assertEqual(response.status_code,302,response.text)
+        self.assertIn('lower than the preceding',self.client.get(response.location,headers=self.headers).text)
+        record=self.session.execute(text("SELECT id FROM bil_meter_reading WHERE meter_id=99 AND reading_date='2026-09-30'")).scalar()
+        data=self.capture_form(self.readings_url+'?edit='+str(record));data.pop('csrf_token');data['reading_value']='15228'
+        response=self.capture_post(self.readings_url,**data)
+        self.assertEqual(response.status_code,302,response.text)
+        self.assertIn('Monthly consumption is unavailable',self.client.get(response.location,headers=self.headers).text)
+        for table,rows in before.items():
+            for row in rows:self.assertIn(row,self.snapshot()[table])
+        self.assertEqual(self.session.execute(text("SELECT count(*) FROM bil_utilities_capture_audit WHERE kind='reading'")).scalar(),2)
 
     def test_reading_create_duplicate_edit_and_opening_preservation(self):
         self.session.execute(text("INSERT INTO bil_meter_reading(meter_id,reading_date,reading_value) VALUES(1,'2026-08-31',123)"));self.session.commit();self.conn.commit()

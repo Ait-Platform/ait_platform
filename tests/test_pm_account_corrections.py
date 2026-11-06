@@ -51,17 +51,17 @@ class AccountCorrectionsTests(UtilitiesCaptureTests):
         self.assertEqual(response.status_code,302,response.text)
         self.assertEqual(list(self.session.execute(text('SELECT meter_number FROM bil_meter ORDER BY id'))),[(' 000wR ',),('000AbC-S',)])
         self.assertEqual(history,self.immutable_history())
-    def test_reporting_month_is_directly_below_register_heading_and_keeps_property_context(self):
+    def test_register_has_no_month_controls_and_keeps_existing_month_context(self):
         response=self.client.get(self.accounts_url+'?view=list&billing_month=2025-09',headers=self.headers)
         self.assertEqual(response.status_code,200)
         tree=html.fromstring(response.data)
-        form=tree.xpath('//*[@id="account-register-title"]/following-sibling::*[1]')[0]
-        self.assertEqual(form.get('id'),'municipal-account-period');self.assertEqual(form.get('method'),'get')
-        self.assertEqual(form.get('action'),self.accounts_url)
-        self.assertEqual(len(tree.xpath('//input[@type="month"]')),1)
-        self.assertEqual(form.xpath('.//input[@type="month"]/@name'),['billing_month'])
-        self.assertEqual(form.xpath('.//input[@type="month"]/@value'),['2025-09'])
-        self.assertEqual(form.xpath('.//input[@name="view"]/@value'),['list'])
+        self.assertFalse(tree.xpath('//input[@type="month"]'))
+        self.assertFalse(tree.xpath('//*[@id="municipal-account-period"]'))
+        self.assertNotIn('Show Period',tree.text_content())
+        readings=self.client.get('/billing/utilities/26/meter-readings?workspace=register&billing_month=2025-09',headers=self.headers)
+        reading_tree=html.fromstring(readings.data)
+        self.assertEqual(reading_tree.xpath('//*[@id="municipal-reading-month"]/@value'),['2025-09'])
+        self.assertIn('Show Period',reading_tree.text_content())
         response=self.client.get(self.accounts_url+'?view=list&billing_month=2025-10',headers=self.headers)
         tree=html.fromstring(response.data)
         for href in tree.xpath('//a[contains(@href,"edit=")]/@href'):
@@ -72,7 +72,7 @@ class AccountCorrectionsTests(UtilitiesCaptureTests):
         self.assertEqual(self.client.get(self.accounts_url+'?view=list&billing_month=2025-13',headers=self.headers).status_code,400)
         self.assertEqual(self.client.get('/billing/utilities/28/accounts?view=list&billing_month=2025-10',headers=self.headers).status_code,403)
 
-    def test_browser_month_selection_edit_and_save_keep_context(self):
+    def test_browser_register_edit_and_save_keep_existing_month_context(self):
         from playwright.sync_api import sync_playwright
         from http.server import HTTPServer,BaseHTTPRequestHandler
         from threading import Thread
@@ -91,18 +91,18 @@ class AccountCorrectionsTests(UtilitiesCaptureTests):
         with sync_playwright() as runtime:
             browser=runtime.chromium.launch(headless=True)
             try:
-                page=browser.new_page();page.goto('http://127.0.0.1:'+str(server.server_port)+self.accounts_url)
+                page=browser.new_page();page.goto('http://127.0.0.1:'+str(server.server_port)+self.accounts_url+'?billing_month=2025-09')
                 self.assertFalse(page.locator('#account-register').is_visible())
                 page.get_by_role('link',name='View Register',exact=True).click()
                 self.assertTrue(page.get_by_role('heading',name='Recorded Municipal Accounts',exact=True).is_visible())
-                page.locator('#municipal-account-month').fill('2025-09')
-                page.get_by_role('button',name='Show Period',exact=True).click()
+                self.assertEqual(page.locator('#municipal-account-month').count(),0)
+                self.assertEqual(page.get_by_role('button',name='Show Period',exact=True).count(),0)
                 self.assertIn('billing_month=2025-09',page.url);self.assertTrue(page.locator('#account-register').is_visible())
                 page.get_by_role('link',name='Edit',exact=True).click()
                 page.select_option('#owner_name','Correct Owner')
                 page.get_by_role('button',name='Save',exact=True).click()
                 self.assertIn('billing_month=2025-09',page.url)
-                self.assertEqual(page.locator('#municipal-account-month').input_value(),'2025-09')
+                self.assertEqual(page.locator('#municipal-account-month').count(),0)
                 self.assertTrue(page.locator('#account-register').is_visible())
                 self.assertIn('Municipal account saved.',page.content())
                 self.assertIn('Correct Owner',page.locator('#account-register').inner_text())

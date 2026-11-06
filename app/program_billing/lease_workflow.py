@@ -416,15 +416,15 @@ def particular_group(property_id, group):
         if group == 'period':
             automatic=request.form.get('period_form_version')=='2'
             if automatic:
-                calculated,period_errors=calculated_period(request.form,items)
+                calculated,period_errors=calculated_period(request.form,items,allow_incomplete=True)
                 errors.extend(period_errors)
                 if not period_errors:
                     items['_period']=dict(items.get('_period',{}),**calculated)
-                    items['s1-17']={'value':str(calculated['duration_months'])+' months'}
+                    items['s1-17']={'value':str(calculated['duration_months'])+' months' if calculated['duration_months'] else ''}
                     items['s1-18']={'value':calculated['commencement_date']}
                     items['s1-20']={'value':calculated['expiry_date']}
                     if 's1-19' in request.form:items['s1-19']={'value':request.form['s1-19'].strip()}
-            errors += period_alerts(items, require_complete=not automatic)
+            errors += period_alerts(items, require_complete=False)
         if not errors:
             if draft:save_items(draft, items)
             else:draft=create_parties_draft(property_id,items)
@@ -962,15 +962,19 @@ def calendar_month_date(value,months,preserve_month_end=False):
     return date(year,month+1,day)
 
 
-def calculated_period(form,items):
+def calculated_period(form,items,allow_incomplete=False):
     errors=[];raw=form.get('s1-17','').strip();start=form.get('s1-18','').strip()
-    if not re.fullmatch(r'[0-9]{1,4}',raw) or not 1<=int(raw or '0')<=1200:
+    if (raw or not allow_incomplete) and (not re.fullmatch(r'[0-9]{1,4}',raw) or not 1<=int(raw or '0')<=1200):
         errors.append('Lease duration must be a whole number between 1 and 1200 months.')
-    try:
-        if not re.fullmatch(r'\d{4}-\d{2}-\d{2}',start):raise ValueError()
-        commencement=date.fromisoformat(start)
-    except ValueError:errors.append('Enter a valid lease commencement date (YYYY-MM-DD).')
+    commencement=None
+    if start or not allow_incomplete:
+        try:
+            if not re.fullmatch(r'\d{4}-\d{2}-\d{2}',start):raise ValueError()
+            commencement=date.fromisoformat(start)
+        except ValueError:errors.append('Enter a valid lease commencement date (YYYY-MM-DD).')
     if errors:return {},errors
+    if allow_incomplete and (not raw or not start):
+        return dict(duration_months=int(raw) if raw else None,commencement_date=start,expiry_date='',renewal_notice_date=''),[]
     try:
         expiry=calendar_month_date(commencement,int(raw))-timedelta(days=1)
         notice=calendar_month_date(expiry,-3,preserve_month_end=True)

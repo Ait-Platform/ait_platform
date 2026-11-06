@@ -29,13 +29,14 @@ class PeriodOfflineTests(unittest.TestCase):
         for value in ['2027-01-01','2027-01-15','2028-12-31']:self.assertIn(value,html)
         self.assertNotIn('aria-label="Property Management"',html)
 
-    def test_three_dates_required_and_no_occupation_autofill(self):
+    def test_partial_dates_save_as_draft_but_are_required_for_generation(self):
         for key in ['s1-18','s1-19','s1-20']:
             response=self.client.post(self.route,data=self.form(**{key:''}))
-            self.assertEqual(response.status_code,400);self.assertIsNone(self.saved)
+            self.assertEqual(response.status_code,302)
+            self.assertTrue(self.m.period_alerts(self.saved,require_complete=True))
         html=self.client.get(self.route).get_data(as_text=True)
         self.assertIn('value=""',html)
-        self.assertIn('occupation is not copied',html)
+        self.assertIn('Physical occupation date (optional)',html)
 
     def test_formats_leap_dates_and_chronology(self):
         invalid=[{'s1-18':'20270101'},{'s1-18':'01/01/2027'},{'s1-19':'2027-02-29'},
@@ -52,9 +53,9 @@ class PeriodOfflineTests(unittest.TestCase):
             self.assertEqual(self.client.post(self.route,data=self.form(**{'s1-17':term})).status_code,400)
             self.assertIsNone(self.saved)
         fields=self.m.period_field({'key':'s1-17','requirement':'Essential','placeholders':['[TERM TO CONFIRM]']})
-        self.assertEqual(fields['requirement'],'Optional');self.assertFalse(fields['placeholders'])
+        self.assertEqual(fields['requirement'],'Essential');self.assertFalse(fields['placeholders'])
         alerts=self.m.completion_alerts(self.items_from(self.form(**{'s1-17':''})),[])
-        self.assertFalse(any(group=='period' for group,key,message in alerts))
+        self.assertTrue(any(group=='period' for group,key,message in alerts))
 
     def test_authorization_and_schema_write_gates_unchanged(self):
         self.assertEqual(self.client.post(self.route.replace('/26/','/27/'),data=self.form()).status_code,404)

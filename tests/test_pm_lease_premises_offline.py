@@ -11,11 +11,12 @@ ROOT=Path(__file__).resolve().parents[1]
 class PremisesOfflineTests(unittest.TestCase):
     def setUp(self):
         self.app=Flask('premises-offline');self.app.config.update(TESTING=True,SECRET_KEY='synthetic')
-        self.app.jinja_loader=ChoiceLoader([DictLoader({'layout.html':'{% block content %}{% endblock %}','partials/flash_messages.html':''}),FileSystemLoader(ROOT/'templates')])
+        self.app.jinja_loader=ChoiceLoader([DictLoader({'layout.html':'{% block content %}{% endblock %}','partials/flash_messages.html':'','program_billing/lease_submenu.html':''}),FileSystemLoader(ROOT/'templates')])
         self.app.jinja_env.globals['csrf_token']=lambda:'synthetic'
         bp=Blueprint('billing_bp',__name__)
         modules={name:types.ModuleType(name) for name in ['app','app.extensions','app.program_billing','app.program_billing.routes','app.program_billing.lease_snapshot','app.program_billing.lease_management']}
         for module in modules.values():module.__path__=[]
+        modules["app.program_billing"].__path__=[str(ROOT/"app/program_billing")]
         snapshot=modules['app.program_billing.lease_snapshot']
         snapshot.CATALOG=json.loads((ROOT/'app/program_billing/lease_snapshot_catalog.json').read_text(encoding='utf-8-sig'))
         snapshot.ITEMS={i['key']:i for i in snapshot.CATALOG['items']}
@@ -44,6 +45,9 @@ class PremisesOfflineTests(unittest.TestCase):
         self.m=importlib.util.module_from_spec(spec);spec.loader.exec_module(self.m)
         def save(draft,items):self.saved=copy.deepcopy(items)
         self.m.save_items=save
+        modules['app.program_billing.lease_workflow']=self.m
+        modules['app.program_billing'].lease_workflow=self.m
+        sys.modules['app.program_billing.lease_workflow']=self.m
         self.app.register_blueprint(bp);self.client=self.app.test_client()
         self.route='/billing/leases/property/26/particulars/premises?draft_id=synthetic-draft'
 

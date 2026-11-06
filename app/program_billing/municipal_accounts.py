@@ -256,7 +256,7 @@ def page(property_id):
     property_scope(property_id)
     prop=db.session.execute(text('SELECT id,name,address FROM bil_property WHERE id=:p'),dict(p=property_id)).mappings().one()
     month=request.values.get('billing_month') or datetime.now().strftime('%Y-%m')
-    if not re.fullmatch(r'\d{4}-(0[1-9]|1[0-2])',month):abort(400)
+    if not re.fullmatch(r'\d{4}-(0[1-9]|1[0-2])',month):month=datetime.now().strftime('%Y-%m')
     error=None;status=200;values={k:'' for k in FIELDS};version='';account_id=None;established={'water':False,'electricity':False};current_readings={}
     if request.method=='POST':
         values={k:request.form.get(k,'') for k in FIELDS};version=request.form.get('version','');account_id=request.form.get('account_id')

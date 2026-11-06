@@ -230,127 +230,16 @@ def view_property(property_id):
     if prop.manager_id != current_user.id:
         abort(403)
         
-    return render_template("program_billing/view_property.html", property=prop, account_meters=account_meters)
+    return render_template("program_billing/view_property.html", property=prop)
 
 @billing_bp.route("/billing/property/<int:property_id>/edit", methods=["GET", "POST"])
 @login_required
 def edit_property(property_id):
-    prop = BilProperty.query.get_or_404(property_id)
-    if prop.manager_id != current_user.id:
-        abort(403)
-        
-    from app.models.billing import BilBankDetail
-        
-    # Get primary unit and tenant if exists
-    tenant = BilTenant.query.filter_by(property_id=prop.id).first()
-    lease = None
-    if tenant:
-        if tenant:
-            lease = BilLease.query.filter_by(tenant_id=tenant.id).first()
-            
-
-    tenant_id = None
-    if units and units[0].tenants:
-        tenant_id = units[0].tenants[0].id
-
-    if request.method == "POST":
-        prop.name = request.form.get("property_name")
-        prop.address = request.form.get("address")
-        prop.metro_arrangement_amount = float(request.form.get("metro_arrangement_amount") or 0)
-        prop.metro_arrangement_duration = int(request.form.get("metro_arrangement_duration") or 0)
-        prop.metro_rates_amount = float(request.form.get("metro_rates_amount") or 0)
-        
-        if tenant:
-            tenant.name = request.form.get("tenant_name")
-            tenant.email = request.form.get("tenant_email")
-        
-        if lease:
-            lease.rent_amount = float(request.form.get("rent_amount") or 0)
-            lease.tenant_arrangement_charge = float(request.form.get("tenant_arrangement_charge") or 0)
-            lease.tenant_rates_charge = float(request.form.get("tenant_rates_charge") or 0)
-            lease.tenant_arrears_total = float(request.form.get("tenant_arrears_total") or 0)
-            lease.tenant_arrears_installment = float(request.form.get("tenant_arrears_installment") or 0)
-            lease.agent_fee_target = request.form.get("agent_fee_target") or "owner"
-            
-        bank_name = request.form.get("bank_name")
-        if bank_name:
-            if not prop.bank_detail:
-                prop.bank_detail = BilBankDetail()
-                db.session.add(prop.bank_detail)
-            prop.bank_detail.bank_name = bank_name
-            prop.bank_detail.account_holder = request.form.get("account_holder")
-            prop.bank_detail.account_number = request.form.get("account_number")
-            prop.bank_detail.account_type = request.form.get("account_type")
-            prop.bank_detail.branch_name = request.form.get("branch_name")
-            prop.bank_detail.branch_code = request.form.get("branch_code")
-            
-        import json
-        
-        # 1. Handle Existing Meters updates
-        existing_meters_json = request.form.get("existing_meters_json")
-        if existing_meters_json:
-            try:
-                existing_data = json.loads(existing_meters_json)
-                for m_data in existing_data:
-                    m_id = m_data.get("id")
-                    if m_id:
-                        meter = BilMeter.query.get(m_id)
-                        if meter and meter.property_id == property.id:
-                            meter.meter_number = m_data.get("number", meter.meter_number)
-                            meter.pointing_to = m_data.get("pointing_to", meter.pointing_to)
-                            meter.utility_type = m_data.get("type", meter.utility_type)
-            except Exception as e:
-                print(f"Error updating existing meters: {e}")
-                flash("Error updating existing meters", "warning")
-                
-        
-        # Handle Deleted Meters
-        deleted_meters_json = request.form.get("deleted_meters_json")
-        if deleted_meters_json:
-            try:
-                deleted_ids = json.loads(deleted_meters_json)
-                for m_id in deleted_ids:
-                    meter = BilMeter.query.get(m_id)
-                    if meter and meter.property_id == property.id:
-                        # Optional: also delete linked consumptions if cascade is not set
-                        from app.models.billing import BilConsumption
-                        
-                        # Unlink sub-meters to prevent ForeignKeyViolation
-                        sub_meters = BilMeter.query.filter_by(parent_meter_id=meter.id,property_id=prop.id).all()
-                        for sm in sub_meters:
-                            sm.parent_meter_id = None
-                            
-                        BilConsumption.query.filter_by(meter_id=meter.id).delete()
-                        db.session.delete(meter)
-            except Exception as e:
-                print(f"Error deleting meters: {e}")
-                
-        # 2. Handle New Meters
-
-        new_meters_json = request.form.get("new_meters_json")
-        print(f"DEBUG new_meters_json: {new_meters_json}")
-        if new_meters_json and unit:
-            try:
-                meters_data = json.loads(new_meters_json)
-                for m_data in meters_data:
-                    number = m_data.get("number")
-                    if number:
-                        new_meter = BilMeter(
-                            property_id=prop.id,
-                            meter_number=number,
-                            utility_type=m_data.get("type", "water"),
-                            pointing_to=m_data.get("pointing_to", "")
-                        )
-                        db.session.add(new_meter)
-            except Exception as e:
-                print(f"Error adding new meters: {e}")
-                flash(f"Failed to add new meters: {e}", "warning")
-            
-        db.session.commit()
-        flash("Property settings updated!", "success")
-        return redirect(url_for("billing_bp.learner_dashboard"))
-        
-    return render_template("program_billing/edit_property.html", property=prop, account_meters=account_meters, tenant=tenant, lease=lease, units=units)
+    prop=BilProperty.query.get_or_404(property_id)
+    if prop.manager_id!=current_user.id:abort(403)
+    if request.method=='POST':
+        flash('No changes were made by the retired form. Review and save in the property editor.','warning')
+    return redirect(url_for('billing_bp.property_edit',property_id=property_id),code=303)
 
 @billing_bp.route("/billing/property/<int:property_id>/input_readings", methods=["GET", "POST"])
 @login_required
@@ -3086,7 +2975,7 @@ def utilities_hub():
         selected_property=BilProperty.query.get_or_404(property_id)
     properties=BilProperty.query.filter_by(manager_id=current_user.id).all() if not selected_property else []
     month=values.get('billing_month') or datetime.now().strftime('%Y-%m')
-    if not re.fullmatch(r'\d{4}-(0[1-9]|1[0-2])',month):abort(400,description='Select a valid billing month.')
+    if not re.fullmatch(r'\d{4}-(0[1-9]|1[0-2])',month):month=datetime.now().strftime('%Y-%m')
     if request.method=='POST':
         action=values.get('action')
         if not selected_property:

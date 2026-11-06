@@ -63,6 +63,16 @@ class LegacyPortfolioTests(UtilitiesCaptureTests):
         self.assertEqual(self.capture_post('/legacy/muni_payment_delete',account_number='MET-26',month='2025-10').status_code,302)
         self.assertEqual(self.session.execute(text('SELECT count(*) FROM bil_muni_payment WHERE account_id=90')).scalar(),1)
         self.assertEqual(self.session.execute(text('SELECT count(*) FROM bil_muni_payment WHERE account_id=1')).scalar(),1)
+    def test_legacy_property_view_and_editor_are_reachable_without_undefined_context(self):
+        self.app._got_first_request=False
+        self.app.add_url_rule('/safe-property/<int:property_id>',endpoint='billing_bp.property_edit',view_func=lambda **kw:'Property editor')
+        page=self.client.get('/legacy/view_property/26',headers=self.headers)
+        self.assertEqual(page.status_code,200,page.text)
+        page=self.client.get('/legacy/edit_property/26',headers=self.headers)
+        self.assertEqual(page.status_code,303,page.text)
+        self.assertTrue(page.location.endswith('/safe-property/26'))
+        self.assertEqual(self.client.get('/legacy/edit_property/28',headers=self.headers).status_code,403)
+
     def test_legacy_payment_retries_append_and_deletion_preserves_evidence(self):
         fields=dict(account_number='MET-26',date='2025-10-01',amount='10',request_key=str(uuid.uuid4()))
         self.assertEqual(self.capture_post('/legacy/muni_payment_submit',**fields).status_code,302)

@@ -4,6 +4,10 @@ from sqlalchemy import text
 import test_pm_municipal_accounts as fixture
 
 class AccountRestrictionTests(fixture.MunicipalAccountsTests):
+    def test_invalid_optional_month_does_not_block_accounts(self):
+        page=self.client.get(self.accounts_url+'?billing_month=stale',headers=self.headers)
+        self.assertEqual(page.status_code,200,page.text)
+
     def test_rates_only_account_does_not_create_meters(self):
         before=self.snapshot()
         result=self.post(dict(account_number='RATES-26',owner_name='Rates Owner'))

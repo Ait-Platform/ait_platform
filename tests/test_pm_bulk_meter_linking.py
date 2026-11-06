@@ -51,9 +51,10 @@ class BulkLinkTests(fixture.UtilitiesCaptureTests):
         for parent,children,utility in [(90,(90,),'water'),(90,(94,),'water'),(90,(93,),'water'),(90,(91,91),'water'),(92,(93,),'water')]:
             self.assertEqual(self.link(parent,children,utility).status_code,400)
         self.assertEqual(self.link().status_code,302)
-        self.assertEqual(self.link(parent=95).status_code,409)
-        self.assertEqual(self.link(parent=91,children=(90,)).status_code,400)
-        self.assertEqual(self.session.execute(text('SELECT parent_meter_id FROM bil_meter WHERE id=91')).scalar(),90)
+        self.assertEqual(self.link(parent=95).status_code,302)
+        self.assertEqual(self.session.execute(text('SELECT parent_meter_id FROM bil_meter WHERE id=91')).scalar(),95)
+        self.assertEqual(self.link(parent=91,children=(95,)).status_code,400)
+        self.assertEqual(self.session.execute(text('SELECT parent_meter_id FROM bil_meter WHERE id=91')).scalar(),95)
     def test_permissions_csrf_and_navigation_cleanup(self):
         self.assertEqual(self.client.get(self.bulk_url).status_code,403)
         self.assertEqual(self.client.get(self.bulk_url.replace('/26/','/28/'),headers=self.headers).status_code,403)

@@ -25,7 +25,7 @@ def save(p,form):
     for child in children:
         if child not in meters:abort(400,description='All linked meters must belong to this property.')
         if kind(meters[child]['utility_type'])!=utility:abort(400,description='Water and electricity meters cannot be linked together.')
-        if meters[child]['parent_meter_id'] not in (None,parent):abort(409,description='An individual meter already has another bulk parent. Remove that link first.')
+    former_parents={meters[c]['parent_meter_id'] for c in children if meters[c]['parent_meter_id'] not in (None,parent)}
     graph={r['id']:r['parent_meter_id'] for r in rows}
     for child in graph:
         if graph[child]==parent:graph[child]=None
@@ -37,6 +37,9 @@ def save(p,form):
             visited.add(node);node=graph[node]
     db.session.execute(text('UPDATE bil_meter SET parent_meter_id=NULL WHERE property_id=:p AND parent_meter_id=:parent'),dict(p=p,parent=parent))
     for child in children:db.session.execute(text('UPDATE bil_meter SET parent_meter_id=:parent WHERE id=:child AND property_id=:p'),dict(p=p,parent=parent,child=child))
+    for former in sorted(former_parents):
+        old_children=[r['id'] for r in rows if r['parent_meter_id']==former]
+        audit(p,'bulk_link',former,dict(children=old_children),dict(children=[c for c in old_children if c not in children],source='bulk_meter_linking',reassigned_to=parent))
     audit(p,'bulk_link',parent,dict(children=[r['id'] for r in rows if r['parent_meter_id']==parent]),dict(children=children,source='bulk_meter_linking'))
 
 def confirmed_meters(p,rows):

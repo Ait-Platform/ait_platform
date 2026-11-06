@@ -337,7 +337,7 @@
     btn.disabled = true;
 
     try {
-      const res = await fetch('/api/save_reading', {
+      let res = await fetch('/api/save_reading', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -346,7 +346,15 @@
         body: JSON.stringify(payload)
       });
       
-      const result = await res.json();
+      let result = await res.json();
+      if (result.confirmation_required) {
+        const existing=result.existing.map(r => r.date+': '+r.value).join('\n');
+        if (!window.confirm(result.error+'\n'+existing+'\nSave an additional reading?')) return;
+        payload.reading_duplicate_action='confirm';payload.reading_duplicate_token=result.reading_duplicate_token;
+        res=await fetch('/api/save_reading',{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':csrfToken},body:JSON.stringify(payload)});
+        result=await res.json();
+      }
+      if (res.ok && result.warnings && result.warnings.length) window.alert(result.warnings.join('\n'));
       
       if (res.ok && result.success) {
         // Success

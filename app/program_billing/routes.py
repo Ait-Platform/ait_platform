@@ -365,12 +365,15 @@ def property_hub(property_id):
     tenant_id=None
     if request.method=='POST':
         from .utilities_readings import save
+        from .utilities_capture import ReadingConfirmationRequired
         from werkzeug.exceptions import HTTPException
         try:
             for meter in all_meters:
                 if request.form.get('reading_'+str(meter.id)) not in (None,''):
                     save(dict(meter_id=meter.id,property_id=property_id,reading_month=request.form.get('reading_month'),date=request.form.get('date_'+str(meter.id)),reading=request.form.get('reading_'+str(meter.id)),prev_reading=request.form.get('prev_reading_'+str(meter.id)),prev_date=request.form.get('prev_date_'+str(meter.id))))
             db.session.commit();flash('Readings saved.','success')
+        except ReadingConfirmationRequired:
+            db.session.rollback();flash('A reading already exists for this month. Open Meter Readings to replace it or save an additional reading.','warning')
         except HTTPException as exc:
             db.session.rollback();flash(exc.description,'danger')
         return redirect(url_for('billing_bp.property_hub',property_id=property_id,billing_month=request.form.get('reading_month')))
@@ -688,7 +691,7 @@ def muni_recon_edit():
         owner_payment = float(pay)
         
     return render_template("program_billing/recon_edit.html", 
-                           account=acc,request_key=str(uuid.uuid4()), 
+                           account=acc,request_key=str(uuid.uuid4()),
                            month=month, 
                            is_new=is_new,
                            metsoa_charges=metsoa_charges, 
@@ -2971,11 +2974,15 @@ def architecture_summary(property_id):
 @login_required
 def save_reading():
     from .utilities_readings import save
+    from .utilities_capture import ReadingConfirmationRequired
     from app.extensions import db
     from werkzeug.exceptions import HTTPException
     try:
         result=save(request.get_json(silent=True));db.session.commit()
         return result
+    except ReadingConfirmationRequired as exc:
+        db.session.rollback()
+        return dict(success=False,confirmation_required=True,error='A reading already exists for this meter for the selected month.',existing=[dict(id=r['id'],date=r['reading_date'].isoformat(),value=str(r['reading_value'])) for r in exc.rows],reading_duplicate_token=exc.token),409
     except HTTPException as exc:
         db.session.rollback();return dict(success=False,error=exc.description),exc.code
     except Exception:

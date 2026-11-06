@@ -33,8 +33,11 @@ def available(table,columns):
     return catalog.has_table(table) and set(columns)<={c['name'] for c in catalog.get_columns(table)}
 def schema_ready():
     return available('bil_municipal_statement',['id','account_id','period','statement_date','arrears','balance','due','due_date','version']) and available('bil_utilities_capture_audit',['id','property_id','kind','record_id','actor_id','before_data','after_data'])
+def reading_ready():
+    return available('bil_meter',['id','property_id','meter_number','utility_type']) and available('bil_meter_reading',['id','meter_id','reading_date','reading_value']) and available('bil_utilities_capture_audit',['id','property_id','kind','record_id','actor_id','before_data','after_data'])
+
 def ready(label='Metro Reconciliation'):
-    if not schema_ready():abort(503,description=label+' is temporarily unavailable. Please contact the administrator.')
+    if not (reading_ready() if label=='Meter Readings' else schema_ready()):abort(503,description=label+' is temporarily unavailable. Please contact the administrator.')
 def audit(p,kind,record,before,after):
     db.session.execute(text('INSERT INTO bil_utilities_capture_audit(property_id,kind,record_id,actor_id,before_data,after_data) VALUES(:p,:k,:r,:u,CAST(:b AS json),CAST(:a AS json))'),dict(p=p,k=kind,r=record,u=current_user.id,b=json.dumps(dict(before),default=str) if before else None,a=json.dumps(dict(after),default=str)))
 def meters(p):
@@ -304,7 +307,8 @@ def page(p,kind):
     elif request.method=='POST':version=values.get('version','')
     if kind=='readings' and request.method=='GET' and not edit_id and request.args.get('workspace')=='capture' and request.args.get('reading_date'):
         values['reading_date']=day(request.args['reading_date']).isoformat()
-    if not schema_ready():error=error or ('Metro Reconciliation is temporarily unavailable. Please contact the administrator.' if kind=='statements' else 'Meter Readings is temporarily unavailable. Please contact the administrator.')
+    capture_ready=reading_ready() if kind=='readings' else schema_ready()
+    if not capture_ready:error=error or ('Metro Reconciliation is temporarily unavailable. Please contact the administrator.' if kind=='statements' else 'Meter Readings is temporarily unavailable. Please contact the administrator.')
     accounts=[dict(r) for r in db.session.execute(text('SELECT id,account_number FROM bil_muni_account WHERE property_id=:p ORDER BY account_number,id'),dict(p=p)).mappings()]
     reading_period_summary=None
     if kind=='readings':
@@ -327,7 +331,7 @@ def page(p,kind):
             selected=[item for item in remaining if not category_filter or item[0] in category_filter]
             return selected if with_categories else [message for _,message in selected]
         presentation=dict(reading_saved=saved,reading_warnings=reading_warnings,get_flashed_messages=page_flashes)
-    return render_template('program_billing/utilities_capture.html',property=prop,kind=kind,utility_month=utility_month,rows=rows,meters=meters(p),accounts=accounts,values=values,version=version,edit_id=edit_id,error=error,capture_ready=schema_ready(),reading_delete=reading_delete,reading_delete_token=reading_delete_token,reading_duplicates=reading_duplicates,reading_duplicate_token=reading_duplicate_token,reading_duplicate_mode=reading_duplicate_mode,reading_replace_id=reading_replace_id,reading_period_summary=reading_period_summary,payment_target=payment_target,payment_history=payment_history,payment_capture_ready=payment_ready() if kind=='statements' else False,payment_request_key=values.get('request_key') or str(uuid.uuid4()),today=datetime.now(ZoneInfo('Africa/Johannesburg')).date().isoformat(),**presentation),status
+    return render_template('program_billing/utilities_capture.html',property=prop,kind=kind,utility_month=utility_month,rows=rows,meters=meters(p),accounts=accounts,values=values,version=version,edit_id=edit_id,error=error,capture_ready=capture_ready,reading_delete=reading_delete,reading_delete_token=reading_delete_token,reading_duplicates=reading_duplicates,reading_duplicate_token=reading_duplicate_token,reading_duplicate_mode=reading_duplicate_mode,reading_replace_id=reading_replace_id,reading_period_summary=reading_period_summary,payment_target=payment_target,payment_history=payment_history,payment_capture_ready=payment_ready() if kind=='statements' else False,payment_request_key=values.get('request_key') or str(uuid.uuid4()),today=datetime.now(ZoneInfo('Africa/Johannesburg')).date().isoformat(),**presentation),status
 
 
 def record_legacy_payment(p,account_id,period,form):

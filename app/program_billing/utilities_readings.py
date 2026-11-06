@@ -20,6 +20,20 @@ def save(data):
     if not meter['property_id']:abort(409,description='This historical meter has no verified property association.')
     property_scope(meter['property_id'],lock=True)
     if data.get('property_id') and str(data['property_id'])!=str(meter['property_id']):abort(403)
+    if data.get('estimated_consumption') is None:
+        from flask import g
+        from .utilities_capture import save_reading,day,amount
+        form=dict(data)
+        form.update(reading_date=data.get('date'),reading_value=data.get('reading'),record_id=data.get('record_id') or data.get('reading_id'))
+        when=day(form['reading_date']);value=amount(form['reading_value'])
+        if not form['record_id'] and not data.get('reading_duplicate_action'):
+            # Exact repeated legacy AJAX submissions never create another record.
+            same=db.session.execute(text('SELECT id FROM bil_meter_reading WHERE meter_id=:m AND reading_date=:d AND reading_value=:v ORDER BY id LIMIT 1'),dict(m=meter['id'],d=when,v=value)).scalar()
+            if same:return dict(success=True,record_id=same,message='This reading was already saved; history is unchanged.')
+            if db.session.execute(text("SELECT 1 FROM bil_meter_reading WHERE meter_id=:m AND date_trunc('month',reading_date)=date_trunc('month',CAST(:d AS date)) LIMIT 1"),dict(m=meter['id'],d=when)).first():
+                form['reading_duplicate_action']='review_additional'
+        record_id=save_reading(meter['property_id'],form)
+        return dict(success=True,record_id=record_id,message='Meter reading saved.',warnings=getattr(g,'reading_save_warnings',[]))
     try:
         new_date=date.fromisoformat(data.get('date',''))
         period=data['reading_month']

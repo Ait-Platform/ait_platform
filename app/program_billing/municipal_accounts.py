@@ -176,11 +176,10 @@ def save(property_id,form):
     if (not account or data['account_number']!=account['account_number']) and db.session.execute(text('SELECT 1 FROM bil_muni_account WHERE property_id IN ('+PORTFOLIO_IDS+') AND lower(btrim(account_number))=lower(:n) AND (:id IS NULL OR id<>:id) LIMIT 1'),dict(n=data['account_number'],id=account_id,p=property_id)).first():
         abort(409,description='An existing account already uses this number. Review its verified property association instead of creating a duplicate or reassigning it.')
     new_meters=[];unresolved=set();corrections=[]
-    if account and form.get('meter_change_type')=='replacement':abort(409,description='Record a physical meter replacement in Exceptions. The existing meter and its history were retained.')
     for kind,key in [('water','water_number'),('electricity','electricity_number')]:
         meter=meters[kind];number=data[key]
-        # Use the existing case-insensitive identity rule, while preserving saved characters.
-        if meter and (not number or str(form.get(key) or '')==str(meter['meter_number']) or (form.get('meter_change_type')!='correction' and number.strip().casefold()==str(meter['meter_number']).strip().casefold())):
+        # Blank or unedited fields retain the saved identifier, including legacy formatting.
+        if meter and (not number or str(form.get(key) or '')==str(meter['meter_number'])):
             number=data[key]=meter['meter_number']
         declared_field='muni_water_meter_no' if kind=='water' else 'muni_elec_meter_no'
         if account and not meter and account.get(declared_field):
@@ -197,7 +196,6 @@ def save(property_id,form):
             if conflict:abort(409,description='Meter '+conflict['meter_number']+' already exists as record #'+str(conflict['id'])+' ('+conflict['utility_type']+'), property '+conflict['property_name']+' (#'+str(conflict['property_id'])+'), municipal account '+str(conflict['account_number'] or 'not linked')+'. No meters were merged or changed.')
             if not meter:new_meters.append(kind)
     if corrections:
-        if form.get('meter_change_type')!='correction':abort(409,description='Select Identifier correction (same physical meter) to confirm a correction. Record a physical replacement in Exceptions instead.')
         from .utilities_capture import available,audit
         if not available('bil_utilities_capture_audit',['property_id','kind','record_id','actor_id','before_data','after_data']):abort(503,description='Meter corrections are temporarily unavailable because the existing audit infrastructure is unavailable. No changes were saved.')
     if new_meters:
@@ -242,7 +240,7 @@ def save(property_id,form):
         account_id=db.session.execute(text('INSERT INTO bil_muni_account(property_id,account_number,owner_id,water_meter_id,elec_meter_id,muni_water_meter_no,muni_elec_meter_no,is_bulk_account) VALUES(:p,:n,:o,:w,:e,:wn,:en,false) RETURNING id'),values).scalar()
     for kind,before in corrections:
         after=db.session.execute(text('SELECT * FROM bil_meter WHERE id=:id AND property_id=:p'),dict(id=before['id'],p=property_id)).mappings().one()
-        audit(property_id,'meter_correction',before['id'],dict(before,account_id=account_id),dict(after,account_id=account_id,same_physical_meter_confirmed=True))
+        audit(property_id,'meter_correction',before['id'],dict(before,account_id=account_id),dict(after,account_id=account_id,identifier_updated_in_place=True))
     return account_id
 
 def page(property_id):

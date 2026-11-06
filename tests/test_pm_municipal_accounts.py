@@ -141,11 +141,9 @@ class MunicipalAccountsTests(fixture.UtilitiesConfigurationTests):
         self.session.execute(text("INSERT INTO bil_muni_account(account_number) VALUES('UNASSIGNED')"));self.session.commit();self.conn.commit()
         self.assertEqual(self.post(dict(account_number='UNASSIGNED',owner_name='Owner',water_number='NEW-W')).status_code,302)
         self.assertEqual(self.session.execute(text('SELECT count(*) FROM bil_meter')).scalar(),2)
-    def test_historical_identifiers_are_protected_but_second_meter_can_be_added(self):
+    def test_historical_metadata_edits_and_second_meter_keep_existing_records(self):
         before=self.snapshot();data=self.account_form(1);data.pop('csrf_token');data.pop('billing_month')
-        data.update(owner_name='Owner',water_number='RENUMBERED')
-        self.assertEqual(self.post(data).status_code,409);self.assertEqual(before,self.snapshot())
-        data['water_number']='WATER-26';data['account_number']='RENUMBERED-ACCOUNT'
+        data.update(owner_name='Owner',account_number='RENUMBERED-ACCOUNT')
         self.assertEqual(self.post(data).status_code,302)
         self.assertEqual(before['bil_meter_reading'],self.snapshot()['bil_meter_reading'])
         self.assertEqual(before['bil_consumption'],self.snapshot()['bil_consumption'])
@@ -208,20 +206,18 @@ class MunicipalAccountsTests(fixture.UtilitiesConfigurationTests):
         page=self.client.get(response.location,headers=self.headers)
         self.assertEqual(page.status_code,200,page.text)
         self.assertFalse(html.fromstring(page.data).xpath('//nav[@aria-label="Utilities"]'))
-    def test_new_opening_reading_protects_identifiers_while_owner_edit_keeps_ids(self):
+    def test_new_opening_reading_and_meter_ids_survive_metadata_edits(self):
         response=self.post(dict(account_number='NEW-ORIGINAL',owner_name='Owner',water_number='NEW-WATER'))
         self.assertEqual(response.status_code,302)
         row=self.session.execute(text("SELECT id,water_meter_id FROM bil_muni_account WHERE account_number='NEW-ORIGINAL'")).mappings().one()
         self.session.execute(text("INSERT INTO bil_meter_reading(meter_id,reading_date,reading_value) VALUES(:m,'2020-01-31',0)"),dict(m=row['water_meter_id']));self.session.commit();self.conn.commit()
         data=self.account_form(row['id']);data.pop('csrf_token');data.pop('billing_month')
-        data.update(account_number='NEW-CORRECTED',owner_name='Corrected Owner',water_number='CORRECTED-WATER')
-        self.assertEqual(self.post(data).status_code,409)
-        data.update(account_number='NEW-ORIGINAL',water_number='NEW-WATER')
+        data.update(account_number='NEW-CORRECTED',owner_name='Corrected Owner')
         self.assertEqual(self.post(data).status_code,302)
         updated=self.session.execute(text('SELECT id,water_meter_id FROM bil_muni_account WHERE id=:id'),dict(id=row['id'])).mappings().one()
         self.assertEqual(row,updated)
         meter=self.session.execute(text('SELECT meter_number,municipal_bill_number,parent_meter_id FROM bil_meter WHERE id=:id'),dict(id=row['water_meter_id'])).mappings().one()
-        self.assertEqual(meter['meter_number'],'NEW-WATER');self.assertEqual(meter['municipal_bill_number'],'NEW-ORIGINAL');self.assertIsNone(meter['parent_meter_id'])
+        self.assertEqual(meter['meter_number'],'NEW-WATER');self.assertEqual(meter['municipal_bill_number'],'NEW-CORRECTED');self.assertIsNone(meter['parent_meter_id'])
 
     def test_conflicting_existing_meter_pointer_cannot_reassign_history(self):
         self.session.execute(text("INSERT INTO bil_muni_account(id,property_id,account_number,water_meter_id) VALUES(98,26,'DIFFERENT-ACCOUNT',1)"));self.session.commit();self.conn.commit()

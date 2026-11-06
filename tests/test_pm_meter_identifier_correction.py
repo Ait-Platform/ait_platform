@@ -1,4 +1,4 @@
-"""Explicit same-physical-meter corrections on an isolated Almond/account fixture."""
+"""Ordinary in-place meter identifier edits on an isolated Almond/account fixture."""
 import unittest
 from unittest.mock import patch
 from sqlalchemy import text
@@ -12,7 +12,7 @@ class IdentifierCorrectionTests(AccountCorrectionsTests):
         self.session.execute(text("UPDATE bil_meter SET meter_number=CASE id WHEN 1 THEN 'CEL888_CWA074' ELSE '2188802S' END,municipal_bill_number='83192896040',municipal_reference=CASE id WHEN 1 THEN 'W4049314' ELSE NULL END"))
         self.session.commit();self.conn.commit()
     def correction(self,**changes):
-        return self.edit(meter_change_type='correction',**changes)
+        return self.edit(**changes)
     def audit_rows(self):
         return self.session.execute(text("SELECT * FROM bil_utilities_capture_audit WHERE kind='meter_correction' ORDER BY id")).mappings().all()
     def test_supplied_account_both_identifiers_and_metadata_correct_in_place_with_audit(self):
@@ -27,7 +27,7 @@ class IdentifierCorrectionTests(AccountCorrectionsTests):
             self.assertEqual(event['property_id'],26);self.assertEqual(event['actor_id'],7)
             self.assertEqual(event['before_data']['meter_number'],old);self.assertEqual(event['after_data']['meter_number'],new)
             self.assertEqual(event['before_data']['id'],event['after_data']['id']);self.assertEqual(event['record_id'],event['before_data']['id'])
-            self.assertTrue(event['after_data']['same_physical_meter_confirmed'])
+            self.assertTrue(event['after_data']['identifier_updated_in_place'])
     def test_explicit_case_correction_is_saved_and_audited(self):
         history=self.immutable_history()
         response=self.correction(water_number='cel888_cwa074')
@@ -40,12 +40,14 @@ class IdentifierCorrectionTests(AccountCorrectionsTests):
         response=self.edit(account_number='00083192896040',owner_name='Correct Owner',water_number='',water_municipal_reference='W4049314-CORRECTED')
         self.assertEqual(response.status_code,302,response.text);self.assertEqual(history,self.immutable_history());self.assertFalse(self.audit_rows())
         self.assertEqual(list(self.session.execute(text('SELECT meter_number FROM bil_meter ORDER BY id'))),[('CEL888_CWA074',),('2188802S',)])
-    def test_missing_confirmation_and_physical_replacement_never_transfer_history(self):
-        before=self.snapshot();history=self.immutable_history()
-        for change_type in ('','replacement','invalid'):
-            response=self.edit(water_number='REPLACEMENT-W',meter_change_type=change_type)
-            self.assertEqual(response.status_code,409,response.text);self.assertIn('Exceptions',response.text)
-            self.assertEqual(before,self.snapshot());self.assertEqual(history,self.immutable_history());self.assertFalse(self.audit_rows())
+    def test_ordinary_save_updates_in_place_without_classification(self):
+        history=self.immutable_history()
+        ids=list(self.session.execute(text('SELECT id,property_id FROM bil_meter ORDER BY id')))
+        response=self.edit(water_number='UPDATED-WATER')
+        self.assertEqual(response.status_code,302,response.text)
+        self.assertEqual(ids,list(self.session.execute(text('SELECT id,property_id FROM bil_meter ORDER BY id'))))
+        self.assertEqual(history,self.immutable_history());self.assertEqual(len(self.audit_rows()),1)
+        self.assertNotIn('same_physical_meter_confirmed',self.audit_rows()[0]['after_data'])
     def test_duplicate_owned_identifier_identifies_conflict_without_merging(self):
         self.session.execute(text("INSERT INTO bil_meter(id,property_id,meter_number,utility_type,municipal_bill_number) VALUES(90,27,'DUPLICATE-W','Water','DUPLICATE-ACCOUNT')"));self.session.commit();self.conn.commit()
         before=self.snapshot();history=self.immutable_history()
@@ -61,7 +63,7 @@ class IdentifierCorrectionTests(AccountCorrectionsTests):
         self.assertEqual(foreign,self.session.execute(text('SELECT * FROM bil_meter WHERE id=90')).one());self.assertEqual(history,self.immutable_history())
         self.assertEqual(self.client.get('/billing/utilities/28/accounts?edit=90',headers=self.headers).status_code,403)
         self.assertEqual(self.client.get(self.accounts_url+'?edit=90',headers=self.headers).status_code,404)
-        data=self.account_form(1);data.pop('csrf_token');data.update(account_id='90',water_number='ATTACK',meter_change_type='correction')
+        data=self.account_form(1);data.pop('csrf_token');data.update(account_id='90',water_number='ATTACK')
         before=self.snapshot();self.assertEqual(self.capture_post(self.accounts_url,**data).status_code,404);self.assertEqual(before,self.snapshot())
     def test_saved_declaration_keeps_original_id_without_filling_missing_links(self):
         self.session.execute(text('UPDATE bil_muni_account SET water_meter_id=NULL WHERE id=1'))
@@ -79,11 +81,11 @@ class IdentifierCorrectionTests(AccountCorrectionsTests):
         before=self.snapshot()
         with patch.object(utilities_capture,'available',return_value=False):response=self.correction(water_number='CEL888')
         self.assertEqual(response.status_code,503);self.assertEqual(before,self.snapshot())
-        data=self.account_form(1);data.pop('csrf_token');data.update(water_number='CEL888',meter_change_type='correction')
+        data=self.account_form(1);data.pop('csrf_token');data.update(water_number='CEL888')
         self.assertEqual(self.capture_post(self.accounts_url,**data).status_code,302)
         before=self.snapshot();self.assertEqual(self.capture_post(self.accounts_url,**data).status_code,409);self.assertEqual(before,self.snapshot());self.assertEqual(len(self.audit_rows()),1)
 
-    def test_browser_requires_explicit_correction_and_rejects_replacement(self):
+    def test_browser_saves_meter_number_without_additional_controls(self):
         from playwright.sync_api import sync_playwright
         from http.server import HTTPServer,BaseHTTPRequestHandler
         from threading import Thread
@@ -108,11 +110,9 @@ class IdentifierCorrectionTests(AccountCorrectionsTests):
                 self.assertEqual(page.locator('#electricity_number').input_value(),'2188802S')
                 self.assertEqual(page.locator('#electricity_municipal_reference').input_value(),'')
                 page.locator('#water_number').fill('CEL888')
-                page.select_option('#meter_change_type','replacement')
-                page.get_by_role('button',name='Save',exact=True).click()
-                self.assertIn('Record a physical meter replacement in Exceptions.',page.content())
-                self.assertEqual(before,self.snapshot());self.assertFalse(self.audit_rows())
-                page.select_option('#meter_change_type','correction')
+                self.assertEqual(page.locator('#meter_change_type').count(),0)
+                self.assertNotIn('Identifier correction (same physical meter)',page.content())
+                self.assertNotIn('Record a physical replacement in Exceptions',page.content())
                 page.get_by_role('button',name='Save',exact=True).click()
                 self.assertTrue(page.locator('#account-register').is_visible())
                 self.assertIn('Municipal account saved.',page.content())

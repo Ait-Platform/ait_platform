@@ -37,19 +37,17 @@ class AccountCorrectionsTests(UtilitiesCaptureTests):
             self.assertEqual(meter_ids,list(self.session.execute(text('SELECT id,meter_number,property_id FROM bil_meter ORDER BY id'))))
             self.assertEqual(pointers,self.session.execute(text('SELECT id,property_id,water_meter_id,elec_meter_id FROM bil_muni_account WHERE id=1')).one())
         self.assertEqual(list(self.session.execute(text('SELECT municipal_bill_number FROM bil_meter ORDER BY id'))),[('000CORRECTED-ACCOUNT',),('000CORRECTED-ACCOUNT',)])
-    def test_unconfirmed_meter_changes_are_blocked_and_preserve_entered_values(self):
-        before=self.snapshot();history=self.immutable_history()
-        for changes in (dict(water_number='GENUINE-NEW'),dict(electricity_number='GENUINE-NEW'),dict(water_number='00wR')):
-            response=self.edit(**changes);self.assertEqual(response.status_code,409,response.text)
-            self.assertIn('Select Identifier correction (same physical meter)',response.text)
-            tree=html.fromstring(response.data)
-            for name,value in changes.items():self.assertEqual(tree.xpath('//input[@name="'+name+'"]/@value'),[value])
-            self.assertEqual(before,self.snapshot());self.assertEqual(history,self.immutable_history())
-    def test_case_and_padding_preserve_saved_characters_and_zeroes(self):
+    def test_meter_numbers_save_normally_in_place_and_preserve_history(self):
+        ids=list(self.session.execute(text('SELECT id,property_id FROM bil_meter ORDER BY id')));history=self.immutable_history()
+        for changes in (dict(water_number='UPDATED-W'),dict(electricity_number='UPDATED-E'),dict(water_number='00wR')):
+            response=self.edit(**changes);self.assertEqual(response.status_code,302,response.text)
+            self.assertEqual(ids,list(self.session.execute(text('SELECT id,property_id FROM bil_meter ORDER BY id'))))
+            self.assertEqual(history,self.immutable_history())
+    def test_meter_edits_preserve_entered_characters_and_leading_zeroes(self):
         history=self.immutable_history()
         response=self.edit(water_number='000wr',electricity_number='000abc-s',water_municipal_reference='New reference')
         self.assertEqual(response.status_code,302,response.text)
-        self.assertEqual(list(self.session.execute(text('SELECT meter_number FROM bil_meter ORDER BY id'))),[(' 000wR ',),('000AbC-S',)])
+        self.assertEqual(list(self.session.execute(text('SELECT meter_number FROM bil_meter ORDER BY id'))),[('000wr',),('000abc-s',)])
         self.assertEqual(history,self.immutable_history())
     def test_register_has_no_month_controls_and_keeps_existing_month_context(self):
         response=self.client.get(self.accounts_url+'?view=list&billing_month=2025-09',headers=self.headers)

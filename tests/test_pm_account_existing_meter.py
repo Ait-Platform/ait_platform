@@ -32,17 +32,18 @@ class ExistingAccountMeterTests(AccountCorrectionsTests):
         page=self.client.get(self.accounts_url+'?edit=1',headers=self.headers)
         tree=html.fromstring(page.data)
         self.assertEqual(tree.xpath('//input[@name="water_number"]/@value'),[' 000wR '])
-        response=self.edit(water_number='000wr',electricity_number='',owner_name='Correct Owner',water_municipal_reference='W-ORIGINAL')
+        response=self.edit(water_number='',electricity_number='',owner_name='Correct Owner',water_municipal_reference='W-ORIGINAL')
         self.assertEqual(response.status_code,302,response.text)
         self.assertEqual(before,self.associations());self.assertEqual(history,self.immutable_history())
         self.assertEqual(self.session.execute(text('SELECT municipal_reference FROM bil_meter WHERE id=1')).scalar(),'W-ORIGINAL')
         self.assertIsNone(self.session.execute(text('SELECT municipal_reference FROM bil_meter WHERE id=90')).scalar())
-    def test_unconfirmed_identifier_changes_are_blocked_after_declared_meter_resolution(self):
-        self.missing_pointers(missing_bill=True);before=self.snapshot();history=self.immutable_history()
+    def test_identifier_changes_save_in_place_after_declared_meter_resolution(self):
+        self.missing_pointers(missing_bill=True);history=self.immutable_history()
+        ids=list(self.session.execute(text('SELECT id,property_id FROM bil_meter ORDER BY id')))
         for fields in (dict(water_number='DIFFERENT-W'),dict(electricity_number='DIFFERENT-E')):
-            response=self.edit(**fields);self.assertEqual(response.status_code,409,response.text)
-            self.assertIn('Select Identifier correction (same physical meter)',response.text)
-            self.assertEqual(before,self.snapshot());self.assertEqual(history,self.immutable_history())
+            response=self.edit(**fields);self.assertEqual(response.status_code,302,response.text)
+            self.assertEqual(ids,list(self.session.execute(text('SELECT id,property_id FROM bil_meter ORDER BY id'))))
+            self.assertEqual(history,self.immutable_history())
     def test_unresolved_declaration_stays_unresolved_without_creating_a_replacement(self):
         self.session.execute(text("UPDATE bil_muni_account SET water_meter_id=NULL,muni_water_meter_no='UNRESOLVED-W' WHERE id=1"));self.session.commit();self.conn.commit()
         before=self.associations();history=self.immutable_history()
@@ -72,10 +73,10 @@ class ExistingAccountMeterTests(AccountCorrectionsTests):
         data=self.account_form(1);data.pop('csrf_token');data['account_id']='90'
         before=self.snapshot();self.assertEqual(self.capture_post(self.accounts_url,**data).status_code,404)
         self.assertEqual(before,self.snapshot())
-    def test_consumption_only_history_remains_protected(self):
+    def test_meter_edit_preserves_consumption_only_history(self):
         self.session.execute(text('DELETE FROM bil_meter_reading WHERE meter_id=1'));self.session.commit();self.conn.commit()
-        before=self.snapshot();response=self.edit(water_number='NEW-PHYSICAL-W')
-        self.assertEqual(response.status_code,409,response.text);self.assertEqual(before,self.snapshot())
+        history=self.immutable_history();response=self.edit(water_number='UPDATED-W')
+        self.assertEqual(response.status_code,302,response.text);self.assertEqual(history,self.immutable_history())
         self.assertEqual(self.edit(water_number='',owner_name='Correct Owner').status_code,302)
 
 def load_tests(loader,tests,pattern):

@@ -82,15 +82,27 @@ class ManagementTests(AuthenticatedTemplateTests):
         selected,_=self.tariff_service.resolve(rows,date(2026,12,1));self.assertEqual(selected[0]['rate'],4.1234)
         self.assertEqual(self.post(path,values).status_code,400)
         self.assertEqual(len(self.snapshot()['bil_tariff']),2)
-    def test_edit_rejects_preceding_duplicate_and_ambiguous_records(self):
+    def test_edit_rejects_duplicate_dates_invalid_and_ambiguous_records(self):
         path='/admin/billing/tariffs/1/edit';before=self.snapshot()
-        for day in ('2025-12-31','2026-01-01','bad'):
+        for day in ('2026-01-01','bad'):
             response=self.post(path,dict(base_id='1',rate='5',effective_date=day,description='Entered description'))
             self.assertEqual(response.status_code,400);self.assertIn('Entered description',response.text)
         self.assertEqual(before,self.snapshot())
         self.session.execute(text("INSERT INTO bil_tariff(id,utility_type,code,rate,effective_date) VALUES(2,'electricity','TEST-E',8,'2026-01-01')"));self.session.commit();self.conn.commit()
         response=self.post(path,dict(base_id='2',rate='9',effective_date='2026-12-01'))
         self.assertEqual(response.status_code,400);self.assertIn('conflicting records',response.text)
+    def test_historical_version_is_appended_with_actual_date_and_evidence(self):
+        before=self.snapshot()
+        response=self.post('/admin/billing/tariffs/1/edit',dict(base_id='1',rate='2.5',effective_date='2025-08-01',description='Documented historical rate'))
+        self.assertEqual(response.status_code,302,response.text)
+        rows=self.snapshot()['bil_tariff']
+        self.assertEqual(rows[0],before['bil_tariff'][0])
+        selected,issues=self.tariff_service.resolve(rows,date(2025,10,31))
+        self.assertEqual(issues,[]);self.assertEqual(selected[0]['rate'],2.5)
+        selected,issues=self.tariff_service.resolve(rows,date(2026,10,31))
+        self.assertEqual(selected[0]['id'],1)
+        self.assertIsNotNone(self.session.execute(text("SELECT tariff_id FROM bil_tariff_verification WHERE effective_date='2025-08-01'")).scalar())
+
     def test_old_overwrite_delete_endpoint_is_disabled(self):
         before=self.snapshot()
         with self.client.session_transaction() as state:
@@ -261,7 +273,7 @@ class ManagementTests(AuthenticatedTemplateTests):
         self.assertEqual(history.xpath('//tbody/tr/td[4]/text()'),['Previous','Current'])
         # Chronological ordering and stale-form rules still apply to past dates.
         before=self.snapshot()
-        for day in ('2026-06-01','2026-07-01'):
+        for day in ('2026-07-01',):
             response=self.post('/admin/billing/tariffs/1/edit',dict(base_id=str(rows[1]['id']),rate='4',effective_date=day))
             self.assertEqual(response.status_code,400,response.text)
         self.assertEqual(self.post('/admin/billing/tariffs/1/edit',dict(base_id='1',rate='4',effective_date='2026-08-01')).status_code,400)

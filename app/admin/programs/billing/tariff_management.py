@@ -212,8 +212,8 @@ def save_rate(tariff_id, values):
     latest = max(versions, key=lambda r: r['effective_date'])
     if str(values.get('base_id', '')) != str(latest['id']):
         raise ValueError('A new tariff version was saved while this form was open. Reopen Edit to review it; your entered values are retained below.')
-    if start.isoformat() <= latest['effective_date']:
-        raise ValueError('Effective From must be later than the latest stored version (' + latest['effective_date'] + '). Duplicate or overlapping starts are not permitted.')
+    if any(r['effective_date']==start.isoformat() for r in versions):
+        raise ValueError('A tariff version already starts on this Effective From date. Existing versions were preserved.')
     replacement = dict(latest)
     replacement.update(rate=rate, description=description, effective_date=start.isoformat())
     # Utility, code, units, boundaries and even NULL/999 factors are copied from

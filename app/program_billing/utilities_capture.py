@@ -3,7 +3,7 @@ import json,hashlib,re,uuid
 from datetime import date,datetime
 from decimal import Decimal,InvalidOperation
 from zoneinfo import ZoneInfo
-from flask import abort,request,render_template,redirect,url_for,flash,current_app
+from flask import abort,request,render_template,redirect,url_for,flash,current_app,get_flashed_messages
 from flask_login import current_user
 from sqlalchemy import text,inspect
 from werkzeug.exceptions import HTTPException
@@ -309,4 +309,13 @@ def page(p,kind):
         portfolio={r['utility']:r['total'] for r in counts}
         reading_period_summary=dict(property=sum(period_start<=r['reading_date']<=period_end for r in rows),
             electricity=portfolio.get('electricity',0)+portfolio.get('electrical',0),water=portfolio.get('water',0))
-    return render_template('program_billing/utilities_capture.html',property=prop,kind=kind,utility_month=utility_month,rows=rows,meters=meters(p),accounts=accounts,values=values,version=version,edit_id=edit_id,error=error,capture_ready=schema_ready(),reading_delete=reading_delete,reading_delete_token=reading_delete_token,reading_duplicates=reading_duplicates,reading_duplicate_token=reading_duplicate_token,reading_duplicate_mode=reading_duplicate_mode,reading_replace_id=reading_replace_id,reading_period_summary=reading_period_summary,payment_target=payment_target,payment_history=payment_history,payment_capture_ready=payment_ready() if kind=='statements' else False,payment_request_key=values.get('request_key') or str(uuid.uuid4()),today=datetime.now(ZoneInfo('Africa/Johannesburg')).date().isoformat()),status
+    presentation={}
+    if kind=='readings':
+        messages=get_flashed_messages(with_categories=True)
+        saved=not edit_id and request.args.get('workspace')=='capture' and ('success','Meter reading saved.') in messages
+        remaining=[item for item in messages if not saved or item!=('success','Meter reading saved.')]
+        def page_flashes(with_categories=False,category_filter=()):
+            selected=[item for item in remaining if not category_filter or item[0] in category_filter]
+            return selected if with_categories else [message for _,message in selected]
+        presentation=dict(reading_saved=saved,get_flashed_messages=page_flashes)
+    return render_template('program_billing/utilities_capture.html',property=prop,kind=kind,utility_month=utility_month,rows=rows,meters=meters(p),accounts=accounts,values=values,version=version,edit_id=edit_id,error=error,capture_ready=schema_ready(),reading_delete=reading_delete,reading_delete_token=reading_delete_token,reading_duplicates=reading_duplicates,reading_duplicate_token=reading_duplicate_token,reading_duplicate_mode=reading_duplicate_mode,reading_replace_id=reading_replace_id,reading_period_summary=reading_period_summary,payment_target=payment_target,payment_history=payment_history,payment_capture_ready=payment_ready() if kind=='statements' else False,payment_request_key=values.get('request_key') or str(uuid.uuid4()),today=datetime.now(ZoneInfo('Africa/Johannesburg')).date().isoformat(),**presentation),status

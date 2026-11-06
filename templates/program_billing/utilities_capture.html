@@ -89,7 +89,7 @@
 <input id="capture-view-item" type="hidden" name="view_item" value="{{ request.values.get('view_item','') }}"><input type="hidden" name="billing_month" value="{{ utility_month }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="record_id" value="{{ edit_id or '' }}"><input type="hidden" name="version" value="{{ version }}">
 <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
 {% if kind=='readings' %}
-<div><label for="reading_date" class="block font-semibold">Reading Date</label><input id="reading_date" name="reading_date" type="date" min="1900-01-01" max="{{ today }}" required autofocus value="{{ values.get('reading_date',today) }}" class="w-full rounded-lg border border-slate-300 px-3 py-2"></div>
+<div><label for="reading_date" class="block font-semibold">Reading Date</label><input id="reading_date" name="reading_date" type="date" min="1900-01-01" max="{{ today }}" required {% if not reading_saved %}autofocus{% endif %} value="{{ values.get('reading_date',today) }}" class="w-full rounded-lg border border-slate-300 px-3 py-2"></div>
 <div><label for="meter_id" class="block font-semibold">Meter</label><select id="meter_id" name="meter_id" required class="w-full rounded-lg border border-slate-300 px-3 py-2"><option value="">Select meter</option>{% for meter in meters %}{% if not edit_id or values.get('meter_id')|string==meter.id|string %}<option value="{{ meter.id }}" data-meter-number="{{ meter.meter_number }}" data-utility="{{ meter.utility_type }}" data-unit="{{ 'kL' if meter.utility_type|lower=='water' else 'kWh' }}" {% if values.get('meter_id')|string==meter.id|string %}selected{% endif %}>{{ meter.meter_number }}</option>{% endif %}{% endfor %}</select></div>
 <div><label for="reading_value" class="block font-semibold">Reading (<span id="reading-unit">kWh</span>)</label><input id="reading_value" name="reading_value" type="number" min="0" step="any" required value="{{ values.get('reading_value','') }}" class="w-full rounded-lg border border-slate-300 px-3 py-2"></div>
 {% else %}
@@ -122,7 +122,7 @@
 </form>
 {% endset %}
 {% if kind=='statements' %}{{ capture_form }}{% else %}
-<section id="reading-capture" data-reading-section="capture" aria-labelledby="reading-capture-title" {% if reading_initial!='capture' %}hidden{% endif %}><h2 id="reading-capture-title" class="my-3 text-lg font-semibold">{{ 'Edit Meter Reading' if edit_id else 'Capture Reading' }}</h2>{{ capture_form }}</section>
+<section id="reading-capture" data-reading-section="capture" aria-labelledby="reading-capture-title" {% if reading_initial!='capture' %}hidden{% endif %}><div id="reading-capture-heading" class="my-3 flex items-center justify-between gap-3"><h2 id="reading-capture-title" class="text-lg font-semibold">{{ 'Edit Meter Reading' if edit_id else 'Capture Reading' }}</h2>{% if reading_saved %}<p id="reading-save-success" role="status" class="rounded-lg bg-green-100 px-3 py-1 text-right text-sm text-green-800">Meter reading saved.</p>{% endif %}</div>{{ capture_form }}</section>
 <section id="reading-register" data-reading-section="register" aria-labelledby="reading-register-title" {% if reading_initial!='register' %}hidden{% endif %}><h2 id="reading-register-title" class="my-3 text-lg font-semibold">Recorded Meter Readings</h2>
 <form id="municipal-reading-period" method="get" action="{{ url_for('billing_bp.meter_readings',property_id=property.id) }}" hidden>
 <input id="municipal-reading-month" type="hidden" name="billing_month" value="{{ utility_month }}">

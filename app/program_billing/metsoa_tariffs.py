@@ -16,9 +16,12 @@ def select(billing_date,use_current=False):
     from zoneinfo import ZoneInfo
     on=parse_billing_date(billing_date)
     current_on=datetime.now(ZoneInfo('Africa/Johannesburg')).date()
-    categories={}
+    categories={};substitutes={}
+    from .tariff_substitutes import metadata
     if catalog.has_table('bil_tariff_verification') and {'tariff_id','municipal_category'}<={c['name'] for c in catalog.get_columns('bil_tariff_verification')}:
         categories={r['tariff_id']:r['municipal_category'] for r in db.session.execute(text('SELECT tariff_id,municipal_category FROM bil_tariff_verification')).mappings()}
+    if catalog.has_table('bil_tariff_verification') and 'source_reference' in {c['name'] for c in catalog.get_columns('bil_tariff_verification')}:
+        substitutes={r['tariff_id']:r['source_reference'] for r in db.session.execute(text('SELECT tariff_id,source_reference FROM bil_tariff_verification')).mappings()}
     source=[]
     for record in db.session.execute(text('SELECT * FROM bil_tariff ORDER BY id')).mappings():
         row=dict(record);row['code']=str(row.get('code') or '').strip()
@@ -37,6 +40,13 @@ def select(billing_date,use_current=False):
         if code=='wmgt' or (kind=='water_fixed' and category in ('monthlymanagementfee','managementfee','watermanagementfee')):property_component='property_management'
         elif code=='srefuse' or (kind in ('sewerage_fixed','sanitation_fixed') and category in ('refuse','refusebins','refusecharge')):property_component='property_refuse'
         row['charge_component']='water_loss' if is_loss else surcharge or property_component
+        try:
+            provenance=metadata(substitutes.get(row['id']))
+            if provenance:
+                if provenance['effective_date']!=str(row['effective_date']):raise ValueError('Substitute date mismatch.')
+                row.update(historical_estimate=True,substitute_provenance=provenance)
+        except (ValueError,KeyError,TypeError):
+            issues.append('Tariff '+row['code']+' has invalid substitute provenance.');continue
         source.append(row)
     def family(row):
         if row.get('charge_component')=='water_loss':return ('water_fixed','water_loss')

@@ -307,3 +307,47 @@ def recovered_review(render):
     try:chosen=selected_schedule(month)
     except (ValueError,TypeError):error='Choose a valid reporting month.'
     return render('admin/programs/billing/recovered_tariffs.html',schedules=schedules,month=month,chosen=chosen,error=error),400 if error else 200
+
+
+def fill_missing_historical_substitutes(month):
+    """Explicit authorised operation; insert missing water rates with audit provenance.
+
+    No route, scheduler or report invokes this automatically. Existing tariff
+    Save validation/locking/auditing is retained, including per-version commits.
+    Safe to retry: each committed historical version is preserved and skipped.
+    """
+    authorised()
+    if not verification_ready():raise ValueError('Tariff audit storage is unavailable; no substitutes were saved.')
+    from app.utils.tariff_versions import billing_date
+    from app.program_billing.metsoa_tariffs import select
+    from app.program_billing.tariff_substitutes import reference
+    on=billing_date(month);now=today()
+    if on>=now.replace(day=1):raise ValueError('Select a past reporting month.')
+    start=date(on.year-(on.month<7),7,1)
+    current,problems=select(now)
+    if any('conflicting records' in i or 'invalid' in i or 'Multiple ' in i for i in problems):raise ValueError('Current tariff selection requires correction before copying: '+' '.join(problems))
+    copied=[]
+    for source in current['records']:
+        kind=(source.utility_type or '').strip().lower()
+        if kind not in ('water','sewerage','sanitation','water_fixed','sewerage_fixed','sanitation_fixed','water_surcharge','sewerage_surcharge'):continue
+        if getattr(source,'historical_estimate',False):continue
+        lock_identity(source.utility_type,source.code)
+        historical,issues=select(on)
+        if any('conflicting records' in i or 'invalid' in i or 'Multiple ' in i for i in issues):
+            db.session.rollback();raise ValueError('Existing historical tariff evidence requires review; no conflicting version was replaced.')
+        # The selector already reconciles canonical aliases and Admin categories.
+        component=getattr(source,'charge_component',None)
+        def same(r):
+            return (component and component==getattr(r,'charge_component',None)) or identity(vars(r))==identity(vars(source))
+        if any(same(r) for r in historical['records']):continue
+        raw=[r for r in records() if identity(r)==identity(vars(source))]
+        if any(date.fromisoformat(r['effective_date'])<=on for r in raw):continue
+        latest=max(raw,key=lambda r:(r['effective_date'],r['id']))
+        if any(latest[k]!=getattr(source,k) for k in ('unit','block_start','block_end','reduction_factor')):
+            db.session.rollback();raise ValueError('Future tariff metadata differs from the current source; no dimensions were guessed.')
+        evidence=(verification_records() or {}).get(source.id,{})
+        values=dict(base_id=str(latest['id']),rate=str(source.rate),description=source.description or '',effective_date=start.isoformat(),municipality=evidence.get('municipality') or '',municipal_category=evidence.get('municipal_category') or '',source_reference=reference(source,start,now))
+        save_rate(source.id,values)
+        copied.append(dict(code=source.code,rate=source.rate,effective_date=start,source_tariff_id=source.id))
+    db.session.commit()
+    return copied

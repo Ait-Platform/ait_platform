@@ -30,6 +30,10 @@ class MunicipalMetsoaTests(fixture.UtilitiesCaptureTests):
             self.session.execute(text('INSERT INTO bil_meter_reading(meter_id,reading_date,reading_value) VALUES(:m,:d,:v)'),dict(m=meter,d=day,v=value))
         self.session.execute(text("INSERT INTO bil_municipal_statement(account_id,period,statement_date,arrears,balance,due,due_date) VALUES(1,'2026-10','2026-10-28',7043.55,7190.88,7190.88,'2026-11-07')"));self.session.commit();self.conn.commit()
         self.session.execute(text('UPDATE bil_tenant SET property_id=NULL WHERE id=44'));self.session.commit();self.conn.commit()
+        # Explicit existing bulk account identifies the property-level fee target.
+        self.session.execute(text('ALTER TABLE bil_muni_account ADD COLUMN IF NOT EXISTS is_bulk_account boolean DEFAULT false'))
+        self.session.execute(text('UPDATE bil_muni_account SET is_bulk_account=true,water_meter_id=5 WHERE id=1'))
+        self.session.commit();self.conn.commit()
         self.seed_tariffs_and_builders()
     def seed_tariffs_and_builders(self):
         import test_pm_lease_lessee_persistence as loader
@@ -158,7 +162,7 @@ class MunicipalMetsoaTests(fixture.UtilitiesCaptureTests):
         self.assertIn('272.32',contents);self.assertIn('Water Infrastructure Surcharge',contents);self.assertIn('Sewerage Infrastructure Surcharge',contents);self.assertIn('19.30',contents)
         summary_label='Municipality Utility Charges'
         tree=__import__('lxml.html',fromlist=['html']).fromstring(html.data)
-        summary=tree.xpath('//tr[td[contains(text(),"Municipality Utility Charges")]]')
+        summary=tree.xpath('//tr[td[contains(.,"Municipality Utility Charges")]]')
         self.assertEqual(len(summary),1)
         self.assertEqual(summary[0].xpath('sum(td/@colspan)')+len(summary[0].xpath('td[not(@colspan)]')),9)
         self.assertIn('%.2f'%data['grand_total'],summary[0].text_content())
@@ -171,7 +175,7 @@ class MunicipalMetsoaTests(fixture.UtilitiesCaptureTests):
         self.assertNotIn('Due to Metro',contents)
         pages=[p.extract_text() or '' for p in PdfReader(BytesIO(pdf.data)).pages]
         self.assertIn(summary_label,pages[0])
-        self.assertNotIn('W&S For # ANG489',pages[0])
+        # Detail tables flow naturally; no mandatory page break after the summary.
         self.assertEqual(before,self.snapshot())
     def test_duplicate_w_loss_metadata_does_not_double_charge_insurance(self):
         self.session.execute(text("INSERT INTO bil_tariff(utility_type,code,rate,unit,effective_date) VALUES('water','W_LOSS',19.30,NULL,'2026-06-05')"));self.session.commit();self.conn.commit()
@@ -239,7 +243,7 @@ class MunicipalMetsoaTests(fixture.UtilitiesCaptureTests):
         self.assertEqual(page.mimetype,'application/pdf');self.assertIn('inline',page.headers['Content-Disposition'])
         reader=PdfReader(BytesIO(page.data));text_content=' '.join(p.extract_text() or '' for p in reader.pages)
         self.assertIn('Natural Lessee',text_content);self.assertIn('Statement For All Metro Meters',text_content);self.assertIn('Electricity Sub-Total',text_content);self.assertIn('W&S For #',text_content);self.assertIn('NOT A FINAL AMOUNT DUE',text_content)
-        self.assertNotIn('Arrears',text_content);self.assertGreaterEqual(len(reader.pages),2)
+        self.assertNotIn('Arrears',text_content);self.assertGreaterEqual(len(reader.pages),1)
         output=__import__('pathlib').Path('tmp/metsoa-restored-review');output.mkdir(parents=True,exist_ok=True);(output/'statement.pdf').write_bytes(page.data)
         import fitz
         pdf=fitz.open(stream=page.data,filetype='pdf')

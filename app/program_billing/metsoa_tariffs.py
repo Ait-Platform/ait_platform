@@ -33,10 +33,14 @@ def select(billing_date,use_current=False):
         elif 'surcharge' in code:
             if kind.startswith('water') or code.startswith('w'):surcharge='water_surcharge'
             elif kind in ('sewerage','sanitation','sewerage_fixed') or code.startswith('s'):surcharge='sewerage_surcharge'
-        row['charge_component']='water_loss' if is_loss else surcharge
+        property_component=None
+        if code=='wmgt' or (kind=='water_fixed' and category in ('monthlymanagementfee','managementfee','watermanagementfee')):property_component='property_management'
+        elif code=='srefuse' or (kind in ('sewerage_fixed','sanitation_fixed') and category in ('refuse','refusebins','refusecharge')):property_component='property_refuse'
+        row['charge_component']='water_loss' if is_loss else surcharge or property_component
         source.append(row)
     def family(row):
         if row.get('charge_component')=='water_loss':return ('water_fixed','water_loss')
+        if row.get('charge_component') in ('property_management','property_refuse'):return (row['charge_component'],'property')
         if row.get('charge_component') in ('water_surcharge','sewerage_surcharge'):return (row['charge_component'],'infrastructure')
         utility,code=identity(row)
         return ({'sanitation':'sewerage','electrical':'electricity','sanitation_fixed':'sewerage_fixed'}.get(utility,utility),code)

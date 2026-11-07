@@ -1250,7 +1250,14 @@ def build_sd_breakdown(consumption, days, month, meter_id, tiers=None, surcharge
 
 def build_water_fee_block(r, month, tariff_override=None):
     if tariff_override is not None:
-        return {key:[dict(desc='Water Loss Levy (insurance)' if (getattr(f,'charge_component',None)=='water_loss' or f.code.lower()=='w_loss') else f.description or f.code,cons=1 if (getattr(f,'charge_component',None)=='water_loss' or f.code.lower()=='w_loss') else 0,rate=f.rate if (getattr(f,'charge_component',None)=='water_loss' or f.code.lower()=='w_loss') else 0,due=f.rate) for f in tariff_override[group]] for key,group in [('ws','water_fixed'),('sd','sewerage_fixed')]}
+        fees={'ws':[],'sd':[]}
+        for key,group in [('ws','water_fixed'),('sd','sewerage_fixed')]:
+            for fee in tariff_override[group]:
+                component=getattr(fee,'charge_component',None)
+                property_fee=component in ('property_management','property_refuse') or fee.code.lower() in ('w_mgt','s_refuse')
+                if property_fee and getattr(r,'property_fee_meter_id',None)!=r.meter_id:continue
+                fees[key].append(dict(desc='Water Loss Levy (insurance)' if component=='water_loss' or fee.code.lower()=='w_loss' else fee.description or fee.code,cons=1,rate=fee.rate,due=fee.rate))
+        return fees
     meter_number = r.meter_number
     consumption = r.consumption
 

@@ -247,6 +247,27 @@ def save_statement(p,form):
     audit(p,'statement',record_id,old,values)
     return record_id
 
+
+def bulk_consumption_review(p,period):
+    """Read-only owner review using METSOA's existing confirmed-link arithmetic."""
+    property_scope(p)
+    if not reading_ready() or not available('bil_meter',['parent_meter_id']):return []
+    from .municipal_metsoa import month_context,reading_pair_from_rows,bulk_consumption
+    from .bulk_meter_linking import confirmed_meters
+    _,start,end=month_context(period)
+    selected=[dict(r) for r in db.session.execute(text('SELECT id,meter_number,utility_type,parent_meter_id FROM bil_meter WHERE property_id=:p'),dict(p=p)).mappings()]
+    selected=confirmed_meters(p,selected,session=db.session)
+    readings_by_meter={m['id']:[] for m in selected}
+    for row in db.session.execute(text('SELECT r.id,r.meter_id,r.reading_date,r.reading_value FROM bil_meter_reading r JOIN bil_meter m ON m.id=r.meter_id WHERE m.property_id=:p AND r.reading_date<=:end'),dict(p=p,end=end)).mappings():
+        readings_by_meter[row['meter_id']].append(row)
+    pairs={m['id']:reading_pair_from_rows(m,start,end,readings_by_meter[m['id']]) for m in selected}
+    issues=[];notes=[]
+    for meter in selected:
+        if not any(c.get('parent_meter_id')==meter['id'] for c in selected):continue
+        if pairs[meter['id']]['error']:issues.append(meter['meter_number']+': '+pairs[meter['id']]['error'])
+        else:bulk_consumption(meter,selected,pairs,issues,notes)
+    return notes+issues
+
 def page(p,kind):
     property_scope(p)
     from .municipal_metsoa import month_context
@@ -331,7 +352,7 @@ def page(p,kind):
             selected=[item for item in remaining if not category_filter or item[0] in category_filter]
             return selected if with_categories else [message for _,message in selected]
         presentation=dict(reading_saved=saved,reading_warnings=reading_warnings,get_flashed_messages=page_flashes)
-    return render_template('program_billing/utilities_capture.html',property=prop,kind=kind,utility_month=utility_month,rows=rows,meters=meters(p),accounts=accounts,values=values,version=version,edit_id=edit_id,error=error,capture_ready=capture_ready,reading_delete=reading_delete,reading_delete_token=reading_delete_token,reading_duplicates=reading_duplicates,reading_duplicate_token=reading_duplicate_token,reading_duplicate_mode=reading_duplicate_mode,reading_replace_id=reading_replace_id,reading_period_summary=reading_period_summary,payment_target=payment_target,payment_history=payment_history,payment_capture_ready=payment_ready() if kind=='statements' else False,payment_request_key=values.get('request_key') or str(uuid.uuid4()),today=datetime.now(ZoneInfo('Africa/Johannesburg')).date().isoformat(),**presentation),status
+    return render_template('program_billing/utilities_capture.html',property=prop,kind=kind,utility_month=utility_month,rows=rows,meters=meters(p),accounts=accounts,values=values,version=version,edit_id=edit_id,error=error,capture_ready=capture_ready,reading_delete=reading_delete,reading_delete_token=reading_delete_token,reading_duplicates=reading_duplicates,reading_duplicate_token=reading_duplicate_token,reading_duplicate_mode=reading_duplicate_mode,reading_replace_id=reading_replace_id,reading_period_summary=reading_period_summary,mar_bulk_notes=bulk_consumption_review(p,utility_month) if kind=='statements' else [],payment_target=payment_target,payment_history=payment_history,payment_capture_ready=payment_ready() if kind=='statements' else False,payment_request_key=values.get('request_key') or str(uuid.uuid4()),today=datetime.now(ZoneInfo('Africa/Johannesburg')).date().isoformat(),**presentation),status
 
 
 def record_legacy_payment(p,account_id,period,form):

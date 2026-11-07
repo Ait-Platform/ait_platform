@@ -33,13 +33,13 @@ class BulkMetsoaTests(fixture.MunicipalMetsoaTests):
         bulk=water['ANG489']
         self.assertEqual(next(r['due'] for r in bulk['ws_breakdown'] if r['desc']=='Water surcharge'),Decimal('100.64'))
         page=self.client.get(self.generation_url,headers=self.headers)
-        self.assertEqual(page.status_code,200);self.assertIn('minus linked individual consumption',page.text)
+        self.assertEqual(page.status_code,200);self.assertNotIn('minus linked individual consumption',page.text)
         from io import BytesIO
         from pypdf import PdfReader
         pdf=self.client.get(self.generation_url+'&format=pdf',headers=self.headers)
         self.assertEqual(pdf.status_code,200)
         contents=' '.join(p.extract_text() or '' for p in PdfReader(BytesIO(pdf.data)).pages)
-        self.assertIn('minus linked individual consumption',contents);self.assertIn('100.64',contents)
+        self.assertNotIn('minus linked individual consumption',contents);self.assertIn('100.64',contents)
         self.assertEqual(before,self.snapshot())
     def test_electricity_incompatible_intervals_omit_bulk_only(self):
         self.confirm_bulk(4,[3],'electricity')

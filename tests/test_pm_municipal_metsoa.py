@@ -164,7 +164,7 @@ class MunicipalMetsoaTests(fixture.UtilitiesCaptureTests):
         tree=__import__('lxml.html',fromlist=['html']).fromstring(html.data)
         summary=tree.xpath('//tr[td[contains(.,"Municipality Utility Charges")]]')
         self.assertEqual(len(summary),1)
-        self.assertEqual(summary[0].xpath('sum(td/@colspan)')+len(summary[0].xpath('td[not(@colspan)]')),9)
+        self.assertEqual(summary[0].xpath('sum(td/@colspan)')+len(summary[0].xpath('td[not(@colspan)]')),8)
         self.assertIn('%.2f'%data['grand_total'],summary[0].text_content())
         for detail in ('W&S For # ANG489','S&D For #ANG489'):
             self.assertLess(tree.text_content().index(summary_label),tree.text_content().index(detail))

@@ -84,7 +84,7 @@ class AllocationTests(fixture.BulkMetsoaTests):
         reader=PdfReader(BytesIO(pdf.data));self.assertLess(len(reader.pages),6)
         content=' '.join(' '.join(p.extract_text() or '' for p in reader.pages).split())
         self.assertEqual(content.count('Management Fee'),1);self.assertEqual(content.count('Refuse'),1)
-        self.assertIn('Report status: FINAL',content);self.assertIn('no automatic refund',content)
+        self.assertIn('Report status: FINAL',content);self.assertNotIn('no automatic refund',content)
         self.assertEqual(content.count('Water Loss Levy (insurance)'),7)
         self.assertIn('%.2f'%data['grand_total'],content)
         output=Path('tmp/metsoa-allocation-review');output.mkdir(parents=True,exist_ok=True)

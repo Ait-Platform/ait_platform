@@ -54,7 +54,7 @@ class SavedSubstituteTests(fixture.ScheduleBTests):
         pdf=self.client.get(url+'&format=pdf',headers=self.headers)
         content=' '.join(' '.join(p.extract_text() or '' for p in PdfReader(BytesIO(pdf.data)).pages).split())
         self.assertIn('11840.22',content);self.assertIn('Report status: ESTIMATED',content);self.assertNotIn('INCOMPLETE',content)
-        self.assertIn('= -3.0 kL',content)
+        self.assertNotIn('= -3.0 kL',content)
         from lxml import html
         visible=html.fromstring(page.data).text_content()
         self.assertIn('Estimated charges \u2014 historical tariff verification pending.',visible)

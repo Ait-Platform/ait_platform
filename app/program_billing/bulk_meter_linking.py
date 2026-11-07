@@ -42,12 +42,12 @@ def save(p,form):
         audit(p,'bulk_link',former,dict(children=old_children),dict(children=[c for c in old_children if c not in children],source='bulk_meter_linking',reassigned_to=parent))
     audit(p,'bulk_link',parent,dict(children=[r['id'] for r in rows if r['parent_meter_id']==parent]),dict(children=children,source='bulk_meter_linking'))
 
-def confirmed_meters(p,rows):
+def confirmed_meters(p,rows,session=None):
     """Legacy pointers alone never establish an explicitly authorised bulk link."""
     from .utilities_capture import available
     confirmations={}
     if available('bil_utilities_capture_audit',['property_id','kind','record_id','after_data']):
-        for r in db.session.execute(text("SELECT DISTINCT ON (record_id) record_id,after_data FROM bil_utilities_capture_audit WHERE property_id=:p AND kind='bulk_link' ORDER BY record_id,id DESC"),dict(p=p)).mappings():
+        for r in (session if session is not None else db.session).execute(text("SELECT DISTINCT ON (record_id) record_id,after_data FROM bil_utilities_capture_audit WHERE property_id=:p AND kind='bulk_link' ORDER BY record_id,id DESC"),dict(p=p)).mappings():
             data=r['after_data']
             if data.get('source')=='bulk_meter_linking':confirmations[r['record_id']]=set(data.get('children',[]))
     result=[]

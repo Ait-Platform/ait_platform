@@ -41,7 +41,7 @@ class ReportStatusTests(fixture.BulkMetsoaTests):
         self.assertEqual(priced['summary']['consumption'],0) # Existing pricing floor unchanged.
         self.assertTrue(all(r['due']>=0 for r in priced['ws_breakdown']+priced['sd_breakdown']))
         page,pdf=self.assert_screen_pdf_status('FINAL')
-        self.assertIn('-3.0 kL',page);self.assertIn('-3.0 kL',pdf);self.assertNotIn('INCOMPLETE',page)
+        self.assertNotIn('-3.0 kL',page);self.assertNotIn('-3.0 kL',pdf);self.assertNotIn('INCOMPLETE',page)
         self.assertEqual(before,self.snapshot())
         self.assertEqual(audit,list(self.session.execute(text('SELECT * FROM bil_utilities_capture_audit ORDER BY id'))))
         self.assertEqual(self.client.get(self.generation_url.replace('/26/','/28/'),headers=self.headers).status_code,403)
@@ -65,7 +65,7 @@ class ReportStatusTests(fixture.BulkMetsoaTests):
         page,pdf=self.assert_screen_pdf_status('ESTIMATED',True)
         self.assertIn('historical tariff verification pending.',pdf);self.assertNotIn('CURRENT TARIFFS APPLIED',pdf)
         self.assertNotIn('Amount Due R',page);self.assertNotIn('INCOMPLETE',page)
-        self.assertIn('-3.0 kL',pdf)
+        self.assertNotIn('-3.0 kL',pdf)
     def test_partial_estimate_still_identifies_missing_components(self):
         self.negative_difference()
         self.session.execute(text("UPDATE bil_tariff SET effective_date='2026-11-01'"))

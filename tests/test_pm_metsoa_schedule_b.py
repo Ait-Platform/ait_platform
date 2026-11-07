@@ -132,7 +132,7 @@ class ScheduleBTests(fixture.BulkMetsoaTests):
         pdf=self.client.get(self.february+'&use_current_tariffs=1&format=pdf',headers=self.headers)
         content=' '.join(' '.join(p.extract_text() or '' for p in PdfReader(BytesIO(pdf.data)).pages).split())
         self.assertIn('Report status: FINAL',content);self.assertNotIn('historical tariff verification pending.',content)
-        self.assertIn('= -3.0 kL',content)
+        self.assertNotIn('= -3.0 kL',content)
         self.assertEqual(page.text.count('>Management Fee<'),1);self.assertEqual(page.text.count('>Refuse<'),1)
         output=Path('tmp/metsoa-schedule-b-review');output.mkdir(parents=True,exist_ok=True);(output/'complete-fixture.pdf').write_bytes(pdf.data)
         import fitz

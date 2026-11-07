@@ -47,13 +47,23 @@ class SavedSubstituteTests(fixture.ScheduleBTests):
         self.assertEqual(len([r for r in rows if r['desc']=='Water Loss Levy (insurance)']),7)
         audit=list(self.session.execute(text('SELECT source_reference,verified_by FROM bil_tariff_verification')))
         self.assertEqual(len(audit),14);self.assertTrue(all(r[0].startswith('AIT_CURRENT_RATE_SUBSTITUTE_V1:') and r[1]==7 for r in audit))
+        saved_rates=self.rates()
         url=self.february
         page=self.client.get(url,headers=self.headers);self.assertEqual(page.status_code,200)
-        self.assertIn('Current-rate substitutes saved on 2026-11-07',page.text);self.assertNotIn('INCOMPLETE',page.text)
+        self.assertIn('historical tariff verification pending.',page.text);self.assertNotIn('INCOMPLETE',page.text)
         pdf=self.client.get(url+'&format=pdf',headers=self.headers)
         content=' '.join(' '.join(p.extract_text() or '' for p in PdfReader(BytesIO(pdf.data)).pages).split())
         self.assertIn('11840.22',content);self.assertIn('Report status: ESTIMATED',content);self.assertNotIn('INCOMPLETE',content)
         self.assertIn('= -3.0 kL',content)
+        from lxml import html
+        visible=html.fromstring(page.data).text_content()
+        self.assertIn('Estimated charges \u2014 historical tariff verification pending.',visible)
+        self.assertIn('historical tariff verification pending.',content)
+        for technical in ('CURRENT-RATE SUBSTITUTE','Current-rate substitute','AIT_CURRENT_RATE_SUBSTITUTE','source_tariff_id','Original effective date','original effective date','Estimated charge components','2026-06-05','2025-07-01','2026-11-07'):
+            self.assertNotIn(technical,visible);self.assertNotIn(technical,content)
+        self.assertEqual(saved_rates,self.rates())
+        self.assertEqual(audit,list(self.session.execute(text('SELECT source_reference,verified_by FROM bil_tariff_verification'))))
+
         output=Path('tmp/saved-tariff-substitutes');output.mkdir(parents=True,exist_ok=True);(output/'february-fixture.pdf').write_bytes(pdf.data)
         import fitz
         doc=fitz.open(stream=pdf.data,filetype='pdf')

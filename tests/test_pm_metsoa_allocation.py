@@ -43,7 +43,7 @@ class AllocationTests(fixture.BulkMetsoaTests):
         self.assertEqual(Decimal('13823.24')-data['grand_total'],6*(Decimal('144.54')+Decimal('206.93')))
         self.assertIn('= -3.0 kL',str(data['pm_bulk_notes']))
         page=self.client.get(self.generation_url.replace('2026-10','2026-02')+'&use_current_tariffs=1',headers=self.headers)
-        self.assertIn('11714.42',page.text);self.assertIn('HISTORICAL ESTIMATE',page.text)
+        self.assertIn('11714.42',page.text);self.assertIn('historical tariff verification pending.',page.text)
         self.assertEqual(page.text.count('>Management Fee<'),1);self.assertEqual(page.text.count('>Refuse<'),1)
         self.assertEqual(before,self.snapshot());self.assertEqual(rates,list(self.session.execute(text('SELECT * FROM bil_tariff ORDER BY id'))))
         self.assertEqual(self.client.get(self.generation_url.replace('/26/','/28/'),headers=self.headers).status_code,403)

@@ -63,7 +63,7 @@ class ReportStatusTests(fixture.BulkMetsoaTests):
         with self.app.test_request_context():data=self.metsoa.build(26,'2026-10',recipient_id=11,use_current_tariffs=True)
         self.assertEqual(data['pm_status'],'ESTIMATED');self.assertTrue(data['pm_pricing_complete']);self.assertFalse(data['pm_complete'])
         page,pdf=self.assert_screen_pdf_status('ESTIMATED',True)
-        self.assertIn('HISTORICAL ESTIMATE',pdf);self.assertIn('CURRENT TARIFFS APPLIED',pdf)
+        self.assertIn('historical tariff verification pending.',pdf);self.assertNotIn('CURRENT TARIFFS APPLIED',pdf)
         self.assertNotIn('Amount Due R',page);self.assertNotIn('INCOMPLETE',page)
         self.assertIn('-3.0 kL',pdf)
     def test_partial_estimate_still_identifies_missing_components(self):
@@ -73,7 +73,7 @@ class ReportStatusTests(fixture.BulkMetsoaTests):
         with self.app.test_request_context():data=self.metsoa.build(26,'2026-10',recipient_id=11,use_current_tariffs=True)
         self.assertEqual(data['pm_status'],'ESTIMATED (INCOMPLETE)');self.assertFalse(data['pm_complete'])
         page,pdf=self.assert_screen_pdf_status('ESTIMATED (INCOMPLETE)',True)
-        self.assertIn('Rate unavailable',page);self.assertIn('HISTORICAL ESTIMATE',pdf)
+        self.assertIn('Rate unavailable',page);self.assertIn('historical tariff verification pending.',pdf)
         self.assertNotIn('Amount Due R',page)
 
 

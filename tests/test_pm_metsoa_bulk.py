@@ -87,7 +87,7 @@ class BulkMetsoaTests(fixture.MunicipalMetsoaTests):
 
     def test_negative_bulk_difference_is_shown_without_negative_charge(self):
         self.setup_bulk();self.session.execute(text("UPDATE bil_meter_reading SET reading_value=20 WHERE meter_id=5 AND reading_date='2026-10-30'"));self.session.commit();self.conn.commit()
-        data=self.data();self.assertFalse(data['pm_complete']);self.assertIn('= -12.0 kL',str(data['pm_issues']))
+        data=self.data();self.assertTrue(data['pm_complete']);self.assertIn('= -12.0 kL',str(data['pm_bulk_notes']))
         water=next(w for w in data['water']['meters'] if w['meter_number']=='ANG489')
         self.assertEqual(water['summary']['consumption'],0)
         self.assertEqual(next(r['due'] for r in water['ws_breakdown'] if r['desc']=='Water surcharge'),0)

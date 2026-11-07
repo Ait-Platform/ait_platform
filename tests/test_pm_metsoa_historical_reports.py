@@ -48,7 +48,7 @@ class HistoricalReportTests(fixture.BulkMetsoaTests):
         self.assertTrue(all(r['due']>=0 for r in water['ws_breakdown']+water['sd_breakdown']))
         page=self.client.get(self.generation_url,headers=self.headers)
         self.assertIn('-12',html.fromstring(page.data).get_element_by_id('metsoa-consumption').text_content())
-        self.assertFalse(data['pm_complete']);self.assertEqual(before,self.snapshot())
+        self.assertTrue(data['pm_complete']);self.assertEqual(before,self.snapshot())
 
     def test_missing_fixed_component_cannot_be_hidden_by_other_fixed_rates(self):
         self.session.execute(text("UPDATE bil_tariff SET effective_date='2027-01-01' WHERE code='W_MGT'"))

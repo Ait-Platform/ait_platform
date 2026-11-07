@@ -87,8 +87,8 @@ def bulk_consumption(meter,meters,pairs,issues,notes):
     deducted=sum((pairs[c['id']]['difference'] for c in children),Decimal(0))
     adjusted=pair['difference']-deducted
     message=meter['meter_number']+': bulk consumption '+str(pair['difference'])+' minus linked individual consumption '+str(deducted)+' = '+str(adjusted)+(' kL' if kind(meter['utility_type'])=='water' else ' kWh')+'.'
+    if adjusted<0:message+=' Negative difference shown for investigation; no automatic refund is created.'
     notes.append(message)
-    if adjusted<0:issues.append(message+' Negative difference shown for investigation; no automatic refund is created.')
     return adjusted
 
 def applicable_tariff_records(utility,records):
@@ -194,9 +194,10 @@ def build(p,month,recipient_id=None,use_current_tariffs=False):
     estimated_components=[dict(code=r.code,utility=r.utility_type,rate=r.rate,effective_date=r.effective_date) for r in tariffs['records'] if getattr(r,'historical_estimate',False)]
     estimated=bool(estimated_components)
     issues=list(dict.fromkeys(issues))
+    report_status=('ESTIMATED (INCOMPLETE)' if issues else 'ESTIMATED') if estimated else ('INCOMPLETE' if issues else 'FINAL')
     display_issues=[i for i in issues if not (i.startswith(('No applicable ','No electricity tariff','No verified effective W_LOSS','Tariff ')) and ('Rate unavailable' in i or 'No applicable ' in i or 'No electricity tariff' in i or 'No verified effective W_LOSS' in i))]
     if missing:display_issues.insert(0,'Rate unavailable for: '+', '.join(dict.fromkeys(r['component'] for r in missing))+'. See the unpriced components below.')
-    return dict(property=prop,month=month,tenant=recipient,electricity=dict(rows=electricity,subtotal=electricity_total),water=dict(meters=water,total=water_total),grand_total=electricity_total+water_total,pm_sewerage_surcharge_configured=tariffs.get('sewerage_surcharge_applicable',False),pm_comparisons=comparisons,pm_consumption_rows=consumption_rows,pm_unpriced_components=list(grouped_components.values()),pm_override_requested=use_current_tariffs,pm_estimated=estimated,pm_estimated_components=estimated_components,pm_current_tariff_date=tariffs.get('current_tariff_date'),pm_pricing_complete=not issues,pm_tariff_statement=True,pm_complete=not issues and not estimated,pm_display_issues=display_issues,pm_issues=issues,pm_customer=recipient['name'] if recipient else '',pm_recipient=recipient,pm_recipients=recipient_choices,pm_recipient_issue=recipient_issue,pm_electricity_available=bool(electricity),pm_statement_date=end,pm_tariff_records=tariffs['records'],pm_bulk_notes=bulk_notes)
+    return dict(property=prop,month=month,tenant=recipient,electricity=dict(rows=electricity,subtotal=electricity_total),water=dict(meters=water,total=water_total),grand_total=electricity_total+water_total,pm_sewerage_surcharge_configured=tariffs.get('sewerage_surcharge_applicable',False),pm_comparisons=comparisons,pm_consumption_rows=consumption_rows,pm_unpriced_components=list(grouped_components.values()),pm_override_requested=use_current_tariffs,pm_estimated=estimated,pm_estimated_components=estimated_components,pm_current_tariff_date=tariffs.get('current_tariff_date'),pm_status=report_status,pm_pricing_complete=not issues,pm_tariff_statement=True,pm_complete=not issues and not estimated,pm_display_issues=display_issues,pm_issues=issues,pm_customer=recipient['name'] if recipient else '',pm_recipient=recipient,pm_recipients=recipient_choices,pm_recipient_issue=recipient_issue,pm_electricity_available=bool(electricity),pm_statement_date=end,pm_tariff_records=tariffs['records'],pm_bulk_notes=bulk_notes)
 
 def pdf_bytes(html):
     from playwright.sync_api import sync_playwright

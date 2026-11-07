@@ -39,5 +39,4 @@
 {% for i in range([w.ws_breakdown|length,w.sd_breakdown|length]|max) %}<tr>{% for side in [w.ws_breakdown,w.sd_breakdown] %}{% if i < side|length %}{% set r=side[i] %}<td>{{ 'Water Infrastructure Surcharge' if r.desc=='Water surcharge' else 'Sewerage Infrastructure Surcharge' if r.desc=='Sewerage surcharge' else r.desc }}</td><td>{{ r.cons }}</td><td>{{ r.rate }}</td><td>{{ '%.2f'|format(r.due) }}</td>{% else %}<td></td><td></td><td></td><td></td>{% endif %}{% endfor %}</tr>{% endfor %}
 <tr><td colspan="3"><strong>W&S Cost For # {{ w.meter_number }}</strong></td><td><strong>{{ '%.2f'|format(w.ws_cost) }}</strong></td><td colspan="3"><strong>S & D Cost #{{ w.meter_number }}</strong></td><td><strong>{{ '%.2f'|format(w.sd_cost) }}</strong></td></tr>
 </tbody></table></section>{% endfor %}
-{% include 'program_billing/metsoa_comparison.html' %}
 </div></div>

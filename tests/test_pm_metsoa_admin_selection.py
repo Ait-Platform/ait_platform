@@ -64,7 +64,25 @@ class AdminSelectionTests(fixture.MunicipalMetsoaTests):
             self.assertEqual(result['label'],label);self.assertEqual(abs(result['difference']),Decimal('10.00'))
             self.assertFalse(any(q.startswith(('insert ','update ','delete ')) for q in queries))
         page=self.client.get(self.february,headers=self.headers)
-        self.assertIn('Credit difference',html.fromstring(page.data).get_element_by_id('metsoa-comparison').text_content())
+        self.assertFalse(html.fromstring(page.data).xpath('//*[@id="metsoa-comparison"]'))
+        before=self.snapshot()
+        from io import BytesIO
+        from pypdf import PdfReader
+        pdf=self.client.get(self.february+'&format=pdf',headers=self.headers)
+        self.assertEqual(pdf.status_code,200)
+        content=' '.join(p.extract_text() or '' for p in PdfReader(BytesIO(pdf.data)).pages)
+        for text_to_remove in ('Municipal billing comparison','Captured municipal Amount Due','Credit difference','Debit difference','Comparison unavailable'):
+            self.assertNotIn(text_to_remove,page.text);self.assertNotIn(text_to_remove,content)
+        for expected in ('Electricity Sub-Total','Water meter readings','Water and sewerage calculations','%.2f'%data['grand_total']):
+            self.assertIn(expected,page.text);self.assertIn(expected,content)
+        self.assertEqual(before,self.snapshot())
+        from pathlib import Path
+        import fitz
+        output=Path('tmp/metsoa-tenant-facing-review');output.mkdir(parents=True,exist_ok=True)
+        (output/'statement.pdf').write_bytes(pdf.data)
+        document=fitz.open(stream=pdf.data,filetype='pdf')
+        for i,p in enumerate(document):p.get_pixmap(matrix=fitz.Matrix(1.2,1.2)).save(str(output/('page-'+str(i+1)+'.png')))
+
         self.assertEqual(self.client.get(self.february.replace('/26/','/28/'),headers=self.headers).status_code,403)
         self.session.execute(text("DELETE FROM bil_tariff WHERE code='SDSurcharge'"))
         self.session.commit();self.conn.commit();data=self.data()

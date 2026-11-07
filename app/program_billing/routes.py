@@ -1117,7 +1117,10 @@ def build_ws_sd_rows_for_meter(meter_id, month, adjusted_consumption=None, recor
     ws_rows, ws_total = build_ws_breakdown(consumption, days, month, meter_id, **(dict(tiers=tariff_override['water'],surcharge_rate=tariff_override['water_surcharge'],strict=True) if tariff_override is not None else {}))
 
     # Step 4: Tiered SD breakdown
-    sd_rows, sd_total = build_sd_breakdown(consumption, days, month, meter_id, **(dict(tiers=tariff_override['sewerage'],surcharge_rate=tariff_override['sewerage_surcharge'],strict=True) if tariff_override is not None else {}))
+    sd_rows, sd_total = build_sd_breakdown(consumption, days, month, meter_id, verification=getattr(record, 'sewerage_verification', None), **(dict(tiers=tariff_override['sewerage'],surcharge_rate=tariff_override['sewerage_surcharge'],strict=True) if tariff_override is not None else {}))
+
+    from app.program_billing.metsoa_sewerage import readiness
+    sd_unavailable = bool(readiness(tariff_override['sewerage'] if tariff_override is not None else get_tariff_for_sd(meter_id, month), getattr(record, 'sewerage_verification', None)))
 
     # Step 5: Fixed & Sundry Charges
     fees = build_water_fee_block(record, month, tariff_override=tariff_override)
@@ -1128,6 +1131,7 @@ def build_ws_sd_rows_for_meter(meter_id, month, adjusted_consumption=None, recor
     return {
         "meter_number": meter.meter_number,
         "ws_cost": round(ws_total + ws_fixed_total, 2),
+        "sd_unavailable": sd_unavailable,
         "sd_cost": round(sd_total + sd_fixed_total, 2),
         "total": round(ws_total + sd_total + ws_fixed_total + sd_fixed_total, 2),
         "ws_breakdown": ws_rows + fees["ws"],
@@ -1209,44 +1213,11 @@ def build_ws_breakdown(consumption, days, month, meter_id, tiers=None, surcharge
 
     return breakdown, round(total_due, 2)
 
-def build_sd_breakdown(consumption, days, month, meter_id, tiers=None, surcharge_rate=None, strict=False):
-    sd_tiers = get_tariff_for_sd(meter_id, month) if tiers is None else tiers  # Pull SD structure from DB
+def build_sd_breakdown(consumption, days, month, meter_id, tiers=None, surcharge_rate=None, strict=False, verification=None):
+    from app.program_billing.metsoa_sewerage import calculate
+    sd_tiers = get_tariff_for_sd(meter_id, month) if tiers is None else tiers
+    return calculate(consumption, days, sd_tiers, surcharge_rate, verification)
 
-    breakdown = []
-    total_due = consumption * 0
-    remaining = consumption
-
-    for tier in sd_tiers:
-        max_alloc = round(tier["multiplier"] * days, 3)
-        used = min(remaining, max_alloc)
-        due = round(used * tier["rate"], 2)
-
-        breakdown.append({
-            "desc": tier.get("label", f"SD Tier @ R{tier['rate']}"),
-            "cons": used,
-            "rate": tier["rate"],
-            "due": due
-        })
-
-        total_due += due
-        remaining -= used
-        if remaining <= 0:
-            break
-
-    # Add Surcharge universally
-    if surcharge_rate is None and strict:
-        return breakdown, round(total_due, 2)
-    surcharge_rate = 1.48 if surcharge_rate is None else surcharge_rate
-    surcharge_due = round(consumption * surcharge_rate, 2)
-    breakdown.append({
-        "desc": "Sewerage surcharge" if strict else "Surcharge",
-        "cons": consumption,
-        "rate": surcharge_rate,
-        "due": surcharge_due
-    })
-    total_due += surcharge_due
-
-    return breakdown, round(total_due, 2)
 
 def build_water_fee_block(r, month, tariff_override=None):
     if tariff_override is not None:

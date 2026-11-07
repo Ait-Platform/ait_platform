@@ -29,12 +29,15 @@ def price(record,p,month,monthly,select,builders,changes):
         unavailable=[key.replace('_',' ') for key in required if rates[key] is None or rates[key]==[]]
         if unavailable:
             raise IntervalUnavailable('Rate unavailable for '+', '.join(unavailable)+' consumption from '+str(part['start'])+' to '+str(part['end'])+'.')
-        if water and any(sum((t['multiplier']*part['days'] for t in rates[side]),Decimal(0))<part['consumption'] for side in ('water','sewerage')):
+        if water and sum((t['multiplier']*part['days'] for t in rates['water']),Decimal(0))<part['consumption']:
             raise IntervalUnavailable('Tariff bands do not cover consumption from '+str(part['start'])+' to '+str(part['end'])+'; no excess rate was guessed.')
         if water:
             for key in ('water_surcharge','sewerage_surcharge'):
                 if key=='sewerage_surcharge' and not rates.get('sewerage_surcharge_applicable',False):continue
                 if rates[key] is None:pricing_issues.append('Rate unavailable for '+key.replace('_',' ')+' from '+str(part['start'])+' to '+str(part['end'])+'.')
+        if water:
+            from .metsoa_sewerage import readiness
+            pricing_issues.extend(readiness(rates['sewerage'], getattr(record, 'sewerage_verification', None)))
         # Ignore unrelated utility/fixed-rate changes when deciding to split.
         used.extend(r for r in applicable_tariff_records(record.utility_type.lower(),rates['records']) if (r.utility_type or '').lower() not in ('water_fixed','sewerage_fixed','sanitation_fixed') and getattr(r,'charge_component',None) not in ('water_loss','property_management','property_refuse'))
         signature=repr(([(side,[(t['start'],t['multiplier'],t['rate']) for t in rates[side]]) for side in ('water','sewerage')],rates['water_surcharge'],rates['sewerage_surcharge']) if water else rates['electricity'])
@@ -51,6 +54,7 @@ def price(record,p,month,monthly,select,builders,changes):
         allocations.append(dict(start=part['start'],end=part['end'],days=part['days'],consumption=part['consumption'],rate=rates['electricity'] if not water else None))
         if water:
             if result is None:result=dict(line,ws_breakdown=[],sd_breakdown=[],ws_cost=Decimal(0),sd_cost=Decimal(0),total=Decimal(0))
+            result['sd_unavailable'] = result.get('sd_unavailable', False) or line.get('sd_unavailable', False)
             for side in ('ws','sd'):
                 for charge in line[side+'_breakdown']:
                     result[side+'_breakdown'].append(dict(charge,prorated=len(parts)>1,desc=charge['desc']+(' ('+str(part['start'])+' to '+str(part['end'])+')' if len(parts)>1 else '')))

@@ -1120,7 +1120,7 @@ def build_ws_sd_rows_for_meter(meter_id, month, adjusted_consumption=None, recor
     sd_rows, sd_total = build_sd_breakdown(consumption, days, month, meter_id, verification=getattr(record, 'sewerage_verification', None), **(dict(tiers=tariff_override['sewerage'],surcharge_rate=tariff_override['sewerage_surcharge'],strict=True) if tariff_override is not None else {}))
 
     from app.program_billing.metsoa_sewerage import readiness
-    sd_unavailable = bool(readiness(tariff_override['sewerage'] if tariff_override is not None else get_tariff_for_sd(meter_id, month), getattr(record, 'sewerage_verification', None)))
+    sd_unavailable = bool(readiness(tariff_override['sewerage'] if tariff_override is not None else get_tariff_for_sd(meter_id, month), getattr(record, 'sewerage_verification', None), consumption, days))
 
     # Step 5: Fixed & Sundry Charges
     fees = build_water_fee_block(record, month, tariff_override=tariff_override)

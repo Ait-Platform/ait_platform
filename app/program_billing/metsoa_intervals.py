@@ -37,7 +37,7 @@ def price(record,p,month,monthly,select,builders,changes):
                 if rates[key] is None:pricing_issues.append('Rate unavailable for '+key.replace('_',' ')+' from '+str(part['start'])+' to '+str(part['end'])+'.')
         if water:
             from .metsoa_sewerage import readiness
-            pricing_issues.extend(readiness(rates['sewerage'], getattr(record, 'sewerage_verification', None)))
+            pricing_issues.extend(readiness(rates['sewerage'], getattr(record, 'sewerage_verification', None), part['consumption'], part['days']))
         # Ignore unrelated utility/fixed-rate changes when deciding to split.
         used.extend(r for r in applicable_tariff_records(record.utility_type.lower(),rates['records']) if (r.utility_type or '').lower() not in ('water_fixed','sewerage_fixed','sanitation_fixed') and getattr(r,'charge_component',None) not in ('water_loss','property_management','property_refuse'))
         signature=repr(([(side,[(t['start'],t['multiplier'],t['rate']) for t in rates[side]]) for side in ('water','sewerage')],rates['water_surcharge'],rates['sewerage_surcharge']) if water else rates['electricity'])

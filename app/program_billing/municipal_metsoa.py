@@ -104,13 +104,16 @@ def applicable_tariff_records(utility,records):
             yield record
 
 
-def build(p,month,recipient_id=None,use_current_tariffs=False):
+def build(p,month,recipient_id=None,use_current_tariffs=False,test_mode=False):
     property_scope(p);month,start,end=month_context(month)
     prop=db.session.execute(text('SELECT id,name,address,manager_id FROM bil_property WHERE id=:p'),dict(p=p)).mappings().one()
     accounts=[dict(r) for r in db.session.execute(text('SELECT id,account_number,water_meter_id,elec_meter_id,is_bulk_account FROM bil_muni_account WHERE property_id=:p'),dict(p=p)).mappings()]
     meters=[dict(m) for m in db.session.execute(text('SELECT * FROM bil_meter WHERE property_id=:p ORDER BY meter_number,id'),dict(p=p)).mappings()]
     from .bulk_meter_linking import confirmed_meters
     meters=confirmed_meters(p,meters)
+    from .metsoa_sewerage import property_verification
+    sewerage_verification=dict(test_mode=True,first_band_exempt=False) if test_mode else property_verification(prop,accounts)
+    if test_mode:use_current_tariffs=False
     from .metsoa_tariffs import select
     tariffs,tariff_issues=select(end,use_current=use_current_tariffs)
     issues=list(tariff_issues);source=[];bulk_notes=[];consumption_rows=[]
@@ -163,7 +166,7 @@ def build(p,month,recipient_id=None,use_current_tariffs=False):
         if consumption is None:continue
         # Display the signed measured difference; pricing never creates a refund.
         consumption=max(Decimal(0),consumption)
-        record=SimpleNamespace(property_fee_meter_id=property_fee_meter_id,estimated=False,account_id=linked[0]['id'],meter_id=meter['id'],meter_number=meter['meter_number'],utility_type=meter['utility_type'],last_date=pair['previous']['date'],new_date=pair['current']['date'],last_read=pair['previous']['value'],new_read=pair['current']['value'],days=pair['days'],consumption=consumption,pricing_complete=True)
+        record=SimpleNamespace(sewerage_verification=sewerage_verification,property_fee_meter_id=property_fee_meter_id,estimated=False,account_id=linked[0]['id'],meter_id=meter['id'],meter_number=meter['meter_number'],utility_type=meter['utility_type'],last_date=pair['previous']['date'],new_date=pair['current']['date'],last_read=pair['previous']['value'],new_read=pair['current']['value'],days=pair['days'],consumption=consumption,pricing_complete=True)
         try:line,applied_records,pricing_issues=price(record,p,month,tariffs,dated,builders,changes)
         except IntervalUnavailable as exc:
             issues.append(meter['meter_number']+': '+str(exc));continue
@@ -179,7 +182,7 @@ def build(p,month,recipient_id=None,use_current_tariffs=False):
         if len(attached)==1 and meter.get('municipal_bill_number') in (None,'',attached[0]['account_number']):
             pair=pairs[meter['id']]
             previous=pair['previous'] or dict(date=start,value=None);current=pair['current'] or dict(date=end,value=None)
-            record=SimpleNamespace(property_fee_meter_id=property_fee_meter_id,account_id=attached[0]['id'],meter_id=meter['id'],meter_number=meter['meter_number'],utility_type=meter['utility_type'],last_date=previous['date'],new_date=current['date'],last_read=previous['value'],new_read=current['value'],days=max(1,(current['date']-previous['date']).days),consumption=Decimal(0),pricing_complete=False)
+            record=SimpleNamespace(sewerage_verification=sewerage_verification,property_fee_meter_id=property_fee_meter_id,account_id=attached[0]['id'],meter_id=meter['id'],meter_number=meter['meter_number'],utility_type=meter['utility_type'],last_date=previous['date'],new_date=current['date'],last_read=previous['value'],new_read=current['value'],days=max(1,(current['date']-previous['date']).days),consumption=Decimal(0),pricing_complete=False)
             line,applied_records=fixed_only(record,p,month,tariffs,builders)
             if line['ws_breakdown'] or line['sd_breakdown']:
                 line['consumption_unavailable']=True
@@ -189,7 +192,9 @@ def build(p,month,recipient_id=None,use_current_tariffs=False):
     priced={r.meter_id for r in source if r.pricing_complete}
     if property_fees and not any(r.meter_id==property_fee_meter_id for r in source):
         issues.append('Property management/refuse charges could not be priced against the bulk water meter.')
-    unpriced=[dict(number=r['number'],component=r['utility']+' consumption charges',reason=r['error'] or 'See the missing rate, account or interval warnings.') for r in consumption_rows if r['meter_id'] not in priced]
+    sewerage_unpriced=[dict(number=w['meter_number'],component=r['code']+' sewerage consumption',reason='No applicable rate for '+str(r['cons'])+' kL in '+month+'.') for w in water for r in w['sd_breakdown'] if r.get('unpriced')]
+    sewerage_partial={r['number'] for r in sewerage_unpriced}
+    unpriced=sewerage_unpriced+[dict(number=r['number'],component=r['utility']+' consumption charges',reason=r['error'] or 'See the missing rate, account or interval warnings.') for r in consumption_rows if r['meter_id'] not in priced and r['number'] not in sewerage_partial]
     missing=list(tariffs.get('unavailable_components',[]))+missing_property_fees
     for key,label in [('electricity','Electricity consumption'),('water','Water consumption bands'),('sewerage','Sewerage consumption bands'),('water_fixed','Water fixed charges'),('sewerage_fixed','Sewerage fixed charges'),('water_surcharge','Water surcharge'),('sewerage_surcharge','Sewerage surcharge')]:
         if key=='sewerage_surcharge' and not tariffs.get('sewerage_surcharge_applicable',False):continue
@@ -238,11 +243,12 @@ def build(p,month,recipient_id=None,use_current_tariffs=False):
     estimated=bool(estimated_components)
     issues=list(dict.fromkeys(issues))
     report_status=('ESTIMATED (INCOMPLETE)' if issues else 'ESTIMATED') if estimated else ('INCOMPLETE' if issues else 'FINAL')
+    if test_mode:report_status='TEST / NOT FOR ISSUANCE - '+('INCOMPLETE' if issues else 'PRICING COMPLETE')
     display_issues=[i for i in issues if not (i.startswith(('No applicable ','No electricity tariff','No verified effective W_LOSS','Tariff ')) and ('Rate unavailable' in i or 'No applicable ' in i or 'No electricity tariff' in i or 'No verified effective W_LOSS' in i))]
     if missing:display_issues.insert(0,'Rate unavailable for: '+', '.join(dict.fromkeys(r['component'] for r in missing))+'. See the unpriced components below.')
-    return dict(property=prop,month=month,tenant=recipient,electricity=dict(rows=electricity,subtotal=electricity_total),water=dict(meters=water,total=water_total),grand_total=electricity_total+water_total,pm_sewerage_surcharge_configured=tariffs.get('sewerage_surcharge_applicable',False),pm_comparisons=comparisons,pm_consumption_rows=consumption_rows,pm_unpriced_components=list(grouped_components.values()),pm_substitute_dates=sorted({r.substitute_provenance['copied_on'] for r in tariffs['records'] if getattr(r,'substitute_provenance',None)}),pm_override_requested=use_current_tariffs,pm_estimated=estimated,pm_estimated_components=estimated_components,pm_current_tariff_date=tariffs.get('current_tariff_date'),pm_status=report_status,pm_pricing_complete=not issues,pm_tariff_statement=True,pm_complete=not issues and not estimated,pm_display_issues=display_issues,pm_issues=issues,pm_customer=recipient['name'] if recipient else '',pm_recipient=recipient,pm_recipients=recipient_choices,pm_recipient_issue=recipient_issue,pm_electricity_available=bool(electricity),pm_statement_date=end,pm_tariff_records=tariffs['records'],pm_bulk_notes=bulk_notes)
+    return dict(pm_test_mode=test_mode,property=prop,month=month,tenant=recipient,electricity=dict(rows=electricity,subtotal=electricity_total),water=dict(meters=water,total=water_total),grand_total=electricity_total+water_total,pm_sewerage_surcharge_configured=tariffs.get('sewerage_surcharge_applicable',False),pm_comparisons=comparisons,pm_consumption_rows=consumption_rows,pm_unpriced_components=list(grouped_components.values()),pm_substitute_dates=sorted({r.substitute_provenance['copied_on'] for r in tariffs['records'] if getattr(r,'substitute_provenance',None)}),pm_override_requested=use_current_tariffs,pm_estimated=estimated,pm_estimated_components=estimated_components,pm_current_tariff_date=tariffs.get('current_tariff_date'),pm_status=report_status,pm_pricing_complete=not issues,pm_tariff_statement=True,pm_complete=not test_mode and not issues and not estimated,pm_display_issues=display_issues,pm_issues=issues,pm_customer=recipient['name'] if recipient else '',pm_recipient=recipient,pm_recipients=recipient_choices,pm_recipient_issue=recipient_issue,pm_electricity_available=bool(electricity),pm_statement_date=end,pm_tariff_records=tariffs['records'],pm_bulk_notes=bulk_notes)
 
-def pdf_bytes(html):
+def pdf_bytes(html,test_mode=False):
     from playwright.sync_api import sync_playwright
     with sync_playwright() as runtime:
         browser=runtime.chromium.launch(headless=True)
@@ -251,7 +257,7 @@ def pdf_bytes(html):
             page.route('**/*',lambda route:route.abort())
             page.set_content(html,wait_until='domcontentloaded')
             page.add_style_tag(content='body{font-family:Arial,sans-serif;font-size:11px;color:#111}table{width:100%;border-collapse:collapse}th,td{padding:4px;border-bottom:1px solid #ddd}thead{display:table-header-group}tr{break-inside:avoid}.text-right{text-align:right}.text-center{text-align:center}.font-bold,.font-semibold{font-weight:bold}.flex{display:flex}.w-24{width:6rem;display:inline-block;flex-shrink:0}.bg-gray-100,.bg-gray-200{background:#eee}.print-page{padding:12px}.print\\:hidden,nav,script{display:none!important}h1{font-size:20px}h2{font-size:16px}')
-            return page.pdf(format='A4',print_background=True,display_header_footer=True,header_template='<span></span>',footer_template='<div style="width:100%;text-align:center;font-size:10px">Page <span class="pageNumber"></span> of <span class="totalPages"></span></div>',margin=dict(top='30px',bottom='40px',left='10px',right='10px'))
+            return page.pdf(format='A4',print_background=True,display_header_footer=True,header_template='<span></span>',footer_template=('<div style="width:100%;text-align:center;font-size:10px">'+('TEST / NOT FOR ISSUANCE - ' if test_mode else '')+'Page <span class="pageNumber"></span> of <span class="totalPages"></span></div>'),margin=dict(top='30px',bottom='40px',left='10px',right='10px'))
         finally:browser.close()
 
 def page(p):
@@ -265,10 +271,10 @@ def page(p):
         return render_template('program_billing/metsoa_select.html',property=prop,month=month,pm_recipients=recipient_choices(p,prop['manager_id']),pm_recipient=None,pm_override_requested=use_current,error='Select a billing month and recipient.' if generate else None),400 if generate else 200
     month_context(month)
     # Existing PM token-free access remains unchanged.
-    data=build(p,month,recipient_id=recipient,use_current_tariffs=use_current)
+    data=build(p,month,recipient_id=recipient,use_current_tariffs=use_current,test_mode=request.args.get('test_report')=='1')
     if data['pm_estimated']:
         current_app.logger.info('PM historical tariff estimate confirmed actor=%s property=%s month=%s current_schedule_date=%s components=%s',data['property']['manager_id'],p,month,data['pm_current_tariff_date'],','.join(r['code'] for r in data['pm_estimated_components']))
     html=render_template('program_billing/metsoa.html',**data)
     if request.args.get('format')=='pdf':
-        return send_file(BytesIO(pdf_bytes(html)),mimetype='application/pdf',as_attachment=request.args.get('download')=='1',download_name=month+'-MetSoa-'+data['property']['name']+'.pdf')
+        return send_file(BytesIO(pdf_bytes(html,test_mode=data['pm_test_mode'])),mimetype='application/pdf',as_attachment=request.args.get('download')=='1',download_name=('TEST-' if data['pm_test_mode'] else '')+month+'-MetSoa-'+data['property']['name']+'.pdf')
     return html

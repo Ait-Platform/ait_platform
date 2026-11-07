@@ -84,7 +84,7 @@ class MunicipalMetsoaTests(fixture.UtilitiesCaptureTests):
         self.assertEqual(data['electricity']['rows'],[]);self.assertIn('conflicting records',str(data['pm_issues']))
         self.session.execute(text("DELETE FROM bil_tariff WHERE utility_type IN ('water','water_fixed')"));self.session.commit();self.conn.commit()
         with self.app.test_request_context():data=self.metsoa.build(26,'2026-10',recipient_id=11)
-        self.assertEqual(data['water']['meters'],[]);self.assertIn('No applicable water',str(data['pm_issues']))
+        self.assertTrue(all(w.get('consumption_unavailable') for w in data['water']['meters']));self.assertEqual(data['water']['total'],Decimal('206.93'));self.assertIn('No applicable water',str(data['pm_issues']))
     def test_permissions_and_token_free_pm_access_remain_unchanged(self):
         self.session.execute(text('DELETE FROM bil_statement_payment'));self.session.commit();self.conn.commit()
         self.assertEqual(self.client.get(self.generation_url,headers=self.headers).status_code,200)
@@ -104,10 +104,10 @@ class MunicipalMetsoaTests(fixture.UtilitiesCaptureTests):
     def test_mid_period_tariff_changes_and_invalid_band_metadata_are_not_guessed(self):
         self.session.execute(text("INSERT INTO bil_tariff(utility_type,code,rate,effective_date) VALUES('electricity','ELEC01',8,'2026-10-01')"));self.session.commit();self.conn.commit()
         with self.app.test_request_context():data=self.metsoa.build(26,'2026-10',recipient_id=11)
-        self.assertEqual(data['electricity']['rows'],[]);self.assertIn('tariff effective date changes',str(data['pm_issues']))
+        self.assertEqual(next(r['due'] for r in data['electricity']['rows'] if r['meter_number']=='2188802S'),Decimal('4031.71'));self.assertFalse(any('tariff effective date changes' in i for i in data['pm_issues']))
         self.session.execute(text("UPDATE bil_tariff SET reduction_factor=NULL WHERE code='W01'"));self.session.commit();self.conn.commit()
         with self.app.test_request_context():data=self.metsoa.build(26,'2026-10',recipient_id=11)
-        self.assertIn('invalid band',str(data['pm_issues']));self.assertEqual(data['water']['meters'],[])
+        self.assertIn('invalid band',str(data['pm_issues']));self.assertTrue(all(w.get('consumption_unavailable') for w in data['water']['meters']))
 
     def test_water_loss_is_fixed_per_meter_and_never_a_consumption_surcharge(self):
         self.session.execute(text("INSERT INTO bil_tariff(utility_type,code,description,rate,unit,effective_date) VALUES('water_fixed','W_LOSS','Historical insurance',17.12,'R/month','2025-01-01')"));self.session.commit();self.conn.commit()
@@ -115,13 +115,14 @@ class MunicipalMetsoaTests(fixture.UtilitiesCaptureTests):
         for water in data['water']['meters']:
             levies=[r for r in water['ws_breakdown'] if r['desc']=='Water Loss Levy (insurance)']
             self.assertEqual(len(levies),1);self.assertEqual(levies[0]['cons'],1);self.assertEqual(levies[0]['rate'],Decimal('19.30'));self.assertEqual(levies[0]['due'],Decimal('19.30'))
-            self.assertEqual(len([r for r in water['ws_breakdown']+water['sd_breakdown'] if 'surcharge' in r['desc'].lower()]),2)
+            self.assertEqual(len([r for r in water['ws_breakdown']+water['sd_breakdown'] if 'surcharge' in r['desc'].lower()]),0 if water.get('consumption_unavailable') else 2)
         self.assertFalse(data['pm_complete']);self.assertIn('ANG489',str(data['pm_issues']))
     def test_confirmed_water_and_sewerage_surcharges_are_separate_per_meter(self):
         self.session.execute(text("DELETE FROM bil_tariff WHERE code IN ('WSSurcharge','SDSurcharge')"))
         self.session.execute(text("INSERT INTO bil_tariff(utility_type,code,description,rate,unit,effective_date) VALUES('water','WSSurcharge','Approved water consumption surcharge',1.48,'R/kL','2026-06-05'),('sewerage','SDSurcharge','Approved sewerage consumption surcharge',1.48,'R/kL','2026-06-05')"));self.session.commit();self.conn.commit()
         with self.app.test_request_context():data=self.metsoa.build(26,'2026-10',recipient_id=11)
         for water in data['water']['meters']:
+            if water.get('consumption_unavailable'):continue
             expected=Decimal('45.88') if water['meter_number']=='CEL888' else Decimal('1.48')
             ws=[r for r in water['ws_breakdown'] if r['desc']=='Water surcharge'];sd=[r for r in water['sd_breakdown'] if r['desc']=='Sewerage surcharge']
             self.assertEqual(len(ws),1);self.assertEqual(len(sd),1);self.assertEqual(ws[0]['due'],expected);self.assertEqual(sd[0]['due'],expected)

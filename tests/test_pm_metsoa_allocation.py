@@ -63,8 +63,8 @@ class AllocationTests(fixture.BulkMetsoaTests):
         self.setup_bulk()
         self.session.execute(text("UPDATE bil_tariff SET effective_date='2026-10-01' WHERE code='W_MGT'"));self.session.commit();self.conn.commit()
         data=self.data();names=[w['meter_number'] for w in data['water']['meters']]
-        self.assertIn('CEL888',names);self.assertIn('CXN998',names);self.assertNotIn('ANG489',names)
-        self.assertEqual(data['pm_status'],'INCOMPLETE')
+        self.assertIn('CEL888',names);self.assertIn('CXN998',names);self.assertIn('ANG489',names)
+        self.assertEqual(data['pm_status'],'FINAL')
 
     def test_thirteen_meter_pdf_is_compact_with_natural_pagination(self):
         self.setup_bulk()

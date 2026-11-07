@@ -59,7 +59,7 @@ class BulkMetsoaTests(fixture.MunicipalMetsoaTests):
         self.assertFalse(data['pm_complete'])
         self.assertIn('linked meter CEL888 monthly consumption for 2026-10 cannot be established',str(data['pm_issues']))
         self.assertIn('No reading captured in 2026-10.',str(data['pm_issues']))
-        self.assertNotIn('ANG489',[w['meter_number'] for w in data['water']['meters']])
+        self.assertTrue(next(w for w in data['water']['meters'] if w['meter_number']=='ANG489')['consumption_unavailable'])
         self.assertEqual(before,self.snapshot())
         self.session.execute(text("INSERT INTO bil_meter_reading(meter_id,reading_date,reading_value) VALUES(1,'2026-08-30',0)"));self.session.commit();self.conn.commit()
         data=self.data();self.assertFalse(data['pm_complete'])
@@ -70,7 +70,7 @@ class BulkMetsoaTests(fixture.MunicipalMetsoaTests):
         self.session.execute(text("UPDATE bil_meter_reading SET reading_date='2026-10-11' WHERE meter_id=2 AND reading_date='2026-10-30'"))
         self.session.commit();self.conn.commit();before=self.snapshot();data=self.data()
         water={w['meter_number']:w for w in data['water']['meters']}
-        self.assertNotIn('ANG489',water)
+        self.assertTrue(water['ANG489']['consumption_unavailable'])
         self.assertIn('CXN998',water)
         self.assertFalse(data['pm_complete'])
         self.assertIn('incompatible reading intervals',str(data['pm_issues']))

@@ -117,11 +117,30 @@ def build(p,month,recipient_id=None,use_current_tariffs=False):
     # Property fees belong to one identified bulk water meter, never every meter.
     water_ids={m['id'] for m in meters if (m.get('utility_type') or '').lower()=='water'}
     bulk_ids={m['id'] for m in meters if m['id'] in water_ids and not m.get('parent_meter_id') and any(c.get('parent_meter_id')==m['id'] for c in meters)}
-    bulk_ids.update(a['water_meter_id'] for a in accounts if a.get('is_bulk_account') and a.get('water_meter_id') in water_ids)
+    # Confirmed bulk links identify the physical bulk meter. An account pointer
+    # may identify an individual meter on the same account and is only a fallback.
+    if not bulk_ids:bulk_ids={a['water_meter_id'] for a in accounts if a.get('is_bulk_account') and a.get('water_meter_id') in water_ids}
     property_fee_meter_id=next(iter(bulk_ids)) if len(bulk_ids)==1 else None
     property_fees=[r for key in ('water_fixed','sewerage_fixed') for r in tariffs[key] if getattr(r,'charge_component',None) in ('property_management','property_refuse')]
     if property_fees and property_fee_meter_id is None:
         issues.append('Property management/refuse charges: a unique bulk water meter cannot be identified from saved bulk links or the bulk account. Charges are unavailable; no meter was guessed.')
+    from .metsoa_intervals import price,fixed_only,IntervalUnavailable
+    builders=original_builders();electricity=[];water=[];used_records=[]
+    tariff_cache={end:(tariffs,tariff_issues)}
+    def dated(on):
+        if on not in tariff_cache:tariff_cache[on]=select(on,use_current=use_current_tariffs)
+        return tariff_cache[on]
+    changes=set()
+    if tariffs['records']:
+        for r in db.session.execute(text('SELECT DISTINCT effective_date FROM bil_tariff')).mappings():
+            try:changes.add(date.fromisoformat(str(r['effective_date'])))
+            except (ValueError,TypeError):pass # Existing selector reports malformed evidence.
+    missing_property_fees=[]
+    if property_fee_meter_id is not None:
+        for component,code in [('property_management','W_MGT'),('property_refuse','S_REFUSE')]:
+            if not any(getattr(r,'charge_component',None)==component for r in property_fees):
+                issues.append('Rate unavailable for '+code+' monthly bulk charge in '+month+'.')
+                missing_property_fees.append(dict(number='Bulk water meter',component=code,reason='No applicable monthly bulk tariff for '+month+'.'))
     pairs={m['id']:reading_pair(m,start,end) for m in meters}
     if not meters:issues.append('No registered property meters are available.')
     for meter in meters:
@@ -144,23 +163,34 @@ def build(p,month,recipient_id=None,use_current_tariffs=False):
         if consumption is None:continue
         # Display the signed measured difference; pricing never creates a refund.
         consumption=max(Decimal(0),consumption)
-        if kind=='water':
-            if not tariffs['water'] or not tariffs['sewerage']:continue
-            if any(sum((t['multiplier']*pair['days'] for t in tariffs[side]),Decimal(0))<consumption for side in ('water','sewerage')):
-                issues.append(meter['meter_number']+': tariff bands do not cover the recorded consumption; no excess rate was guessed.');continue
-        elif tariffs['electricity'] is None:continue
-        applied_records=[r for r in applicable_tariff_records(kind,tariffs['records']) if getattr(r,'charge_component',None) not in ('property_management','property_refuse') or meter['id']==property_fee_meter_id]
-        if any(pair['previous']['date']<r.effective_date<=pair['current']['date'] for r in applied_records):
-            issues.append(meter['meter_number']+': tariff effective date changes within its reading period; review rate allocation before finalisation.');continue
-        source.append(SimpleNamespace(property_fee_meter_id=property_fee_meter_id,estimated=any(getattr(r,'historical_estimate',False) for r in applied_records),account_id=linked[0]['id'],meter_id=meter['id'],meter_number=meter['meter_number'],utility_type=meter['utility_type'],last_date=pair['previous']['date'],new_date=pair['current']['date'],last_read=pair['previous']['value'],new_read=pair['current']['value'],days=pair['days'],consumption=consumption))
-    elec_builder,water_builder=original_builders()
-    electricity,electricity_total=elec_builder(p,month,source=source,tariffs=tariffs)
-    water,water_total=water_builder(p,month,source=source,tariffs=tariffs)
-    priced={r.meter_id for r in source}
-    if property_fees and property_fee_meter_id not in priced:
+        record=SimpleNamespace(property_fee_meter_id=property_fee_meter_id,estimated=False,account_id=linked[0]['id'],meter_id=meter['id'],meter_number=meter['meter_number'],utility_type=meter['utility_type'],last_date=pair['previous']['date'],new_date=pair['current']['date'],last_read=pair['previous']['value'],new_read=pair['current']['value'],days=pair['days'],consumption=consumption,pricing_complete=True)
+        try:line,applied_records,pricing_issues=price(record,p,month,tariffs,dated,builders,changes)
+        except IntervalUnavailable as exc:
+            issues.append(meter['meter_number']+': '+str(exc));continue
+        record.pricing_complete=not pricing_issues
+        issues.extend(meter['meter_number']+': '+message for message in pricing_issues)
+        record.estimated=any(getattr(r,'historical_estimate',False) for r in applied_records)
+        used_records.extend(applied_records);source.append(record)
+        (water if kind=='water' else electricity).append(line)
+    # Monthly property fees are independent of bulk variable-usage readiness.
+    if property_fee_meter_id is not None and not any(r.meter_id==property_fee_meter_id for r in source):
+        meter=next(m for m in meters if m['id']==property_fee_meter_id)
+        attached=[a for a in accounts if meter['id'] in (a['water_meter_id'],a['elec_meter_id']) or meter.get('municipal_bill_number')==a['account_number']]
+        if len(attached)==1 and meter.get('municipal_bill_number') in (None,'',attached[0]['account_number']):
+            pair=pairs[meter['id']]
+            previous=pair['previous'] or dict(date=start,value=None);current=pair['current'] or dict(date=end,value=None)
+            record=SimpleNamespace(property_fee_meter_id=property_fee_meter_id,account_id=attached[0]['id'],meter_id=meter['id'],meter_number=meter['meter_number'],utility_type=meter['utility_type'],last_date=previous['date'],new_date=current['date'],last_read=previous['value'],new_read=current['value'],days=max(1,(current['date']-previous['date']).days),consumption=Decimal(0),pricing_complete=False)
+            line,applied_records=fixed_only(record,p,month,tariffs,builders)
+            if line['ws_breakdown'] or line['sd_breakdown']:
+                line['consumption_unavailable']=True
+                record.estimated=any(getattr(r,'historical_estimate',False) for r in applied_records)
+                used_records.extend(applied_records);source.append(record);water.append(line)
+    electricity_total=sum((r['due'] for r in electricity),Decimal(0));water_total=sum((r['total'] for r in water),Decimal(0))
+    priced={r.meter_id for r in source if r.pricing_complete}
+    if property_fees and not any(r.meter_id==property_fee_meter_id for r in source):
         issues.append('Property management/refuse charges could not be priced against the bulk water meter.')
     unpriced=[dict(number=r['number'],component=r['utility']+' consumption charges',reason=r['error'] or 'See the missing rate, account or interval warnings.') for r in consumption_rows if r['meter_id'] not in priced]
-    missing=list(tariffs.get('unavailable_components',[]))
+    missing=list(tariffs.get('unavailable_components',[]))+missing_property_fees
     for key,label in [('electricity','Electricity consumption'),('water','Water consumption bands'),('sewerage','Sewerage consumption bands'),('water_fixed','Water fixed charges'),('sewerage_fixed','Sewerage fixed charges'),('water_surcharge','Water surcharge'),('sewerage_surcharge','Sewerage surcharge')]:
         if key=='sewerage_surcharge' and not tariffs.get('sewerage_surcharge_applicable',False):continue
         if tariffs[key] is None or tariffs[key]==[]:missing.append(dict(number='All applicable meters',component=label,reason='No applicable verified rate for '+month+'.'))
@@ -191,7 +221,7 @@ def build(p,month,recipient_id=None,use_current_tariffs=False):
                 value=Decimal(str(bills[0]))
                 if value.is_finite():bill_amount=value.quantize(Decimal('.01'))
             except ArithmeticError:pass
-        if property_fees and property_fee_meter_id not in priced:complete=False
+        if missing_property_fees or (property_fees and not any(r.meter_id==property_fee_meter_id for r in source)):complete=False
         total=calculated[account['id']].quantize(Decimal('.01')) if complete else None
         difference=total-bill_amount if total is not None and bill_amount is not None else None
         estimated=any(r.estimated for r in source if r.account_id==account['id'])
@@ -203,6 +233,7 @@ def build(p,month,recipient_id=None,use_current_tariffs=False):
         key=(component['component'],component['reason'])
         if key not in grouped_components:grouped_components[key]=dict(component)
         elif component['number'] not in grouped_components[key]['number'].split(', '):grouped_components[key]['number']+=', '+component['number']
+    tariffs['records']=list({(r.id,r.effective_date,getattr(r,'historical_estimate',False)):r for r in list(tariffs['records'])+used_records}.values())
     estimated_components=[dict(code=r.code,utility=r.utility_type,rate=r.rate,effective_date=getattr(r,'substitute_provenance',{}).get('source_effective_date',r.effective_date)) for r in tariffs['records'] if getattr(r,'historical_estimate',False)]
     estimated=bool(estimated_components)
     issues=list(dict.fromkeys(issues))

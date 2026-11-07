@@ -78,7 +78,7 @@ class HistoricalReportTests(fixture.BulkMetsoaTests):
         measured=next(r for r in data['pm_consumption_rows'] if r['number']=='2188802S')
         self.assertEqual(measured['consumption'],Decimal(547))
         self.assertEqual(data['electricity']['rows'],[])
-        self.assertTrue(any('tariff effective date' in s for s in data['pm_issues']))
+        self.assertTrue(any('Rate unavailable for electricity' in s for s in data['pm_issues']))
 
 
 def load_tests(loader,tests,pattern):

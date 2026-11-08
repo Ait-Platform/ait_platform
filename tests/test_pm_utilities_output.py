@@ -121,7 +121,7 @@ class UtilitiesOutputTests(fixture.StatementFilterTests):
         self.assertIn('ml-auto',actions.get('class'))
         self.assertIn('justify-end',actions.get('class'))
         self.assertEqual(actions.xpath('./button/text()'),['Preview','Print','Email'])
-        self.assertEqual(tree.xpath('//form[@id="output-filters"]//select/@name'),['source','item_id'])
+        self.assertEqual(tree.xpath('//form[@id="output-filters"]//select/@name'),['source','report','item_id','recipient_id'])
         self.assertEqual(tree.xpath('//form[@id="output-filters"]//input[@type="date"]/@name'),['date_from','date_to'])
 
     def test_browser_print_email_controls_and_dirty_filter_protection(self):

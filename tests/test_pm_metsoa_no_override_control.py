@@ -20,12 +20,12 @@ class MetsoaNoOverrideControlTests(unittest.TestCase):
         self.assertTrue(tree.xpath('//input[@name="billing_month"]'))
         self.assertTrue(tree.xpath('//select[@name="recipient_id"]'))
         self.assertIn('property_id=26',tree.xpath('//a[contains(text(),"Back to Utilities")]/@href')[0])
-    def test_generated_form_and_pdf_links_remove_only_obsolete_parameter(self):
+    def test_generated_form_and_central_output_link_keep_context(self):
         tree=self.assert_no_control(self.fx.client.get(self.fx.generation_url+'&test_report=1&use_current_tariffs=1',headers=self.fx.headers))
         self.assertEqual(tree.xpath('//input[@name="billing_month"]/@value'),['2026-10'])
         self.assertEqual(tree.xpath('//select[@name="recipient_id"]/option[@selected]/@value'),['11'])
-        links=tree.xpath('//a[contains(@href,"format=pdf")]/@href')
-        self.assertEqual(len(links),2)
+        links=tree.xpath('//a[@id="metsoa-output"]/@href')
+        self.assertEqual(len(links),1)
         self.assertTrue(all('use_current_tariffs' not in link for link in links))
         self.assertTrue(all('billing_month=2026-10' in link and 'recipient_id=11' in link and 'test_report=1' in link for link in links))
     def test_stale_form_parameter_is_ignored_and_results_are_unchanged(self):

@@ -18,6 +18,8 @@ class ArrangementTests(fixture.AdminLandingTests):
     url='/billing/utilities/26/payment-arrangements'
     def setUp(self):
         super().setUp()
+        if 'billing_bp.utilities_output' not in self.app.view_functions:
+            self.app.add_url_rule('/billing/utilities/<int:property_id>/output',endpoint='billing_bp.utilities_output',view_func=lambda **kw:'Existing central Utilities Output')
         self.session=Session(self.conn);self.addCleanup(self.session.close);self.db=types.SimpleNamespace(session=self.session)
         self.conn.execute(text('SET search_path TO pg_temp,public'))
         for sql in ('CREATE TEMP TABLE "user"(id integer PRIMARY KEY,email text,is_active integer)',
@@ -379,10 +381,10 @@ class ArrangementTests(fixture.AdminLandingTests):
         self.assertIn('Almond',page.text)
         self.assertFalse(tree.xpath('//input[@type="month"]'))
         self.assertEqual(len(tree.xpath('//input[@name="billing_month"][@type="hidden"]')),1)
-        self.assertEqual(len(tree.xpath('//nav[@aria-label="Municipal Utilities"]/a')),7)
+        self.assertEqual(len(tree.xpath('//nav[@aria-label="Municipal Utilities"]/a')),8)
         links=tree.xpath('//nav[@aria-label="Municipal Utilities"]/a')
-        self.assertEqual([link.text for link in links],['Accounts','Readings','Reconciliation','Exceptions','Generate METSOA','Link Meters','Payment Arrangements'])
-        self.assertEqual(self.client.get(links[-1].get('href')).status_code,200)
+        self.assertEqual([link.text for link in links],['Accounts','Readings','Reconciliation','Exceptions','Generate METSOA','Link Meters','Payment Arrangements','Output'])
+        self.assertEqual(self.client.get(next(link for link in links if link.text=='Payment Arrangements').get('href')).status_code,200)
         before=self.financial_snapshot()
         target=self.create()
         self.assertEqual(self.post(target,self.payment(amount='50')).status_code,302)

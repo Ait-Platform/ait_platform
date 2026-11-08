@@ -11,7 +11,9 @@ from werkzeug.exceptions import HTTPException
 from app.extensions import db
 from .metsoa_setup_safety import property_scope
 
-FILTERS=('source','item_id','date_from','date_to','billing_month')
+from .utilities_output_reports import CATALOG,SOURCES,PERIOD_REPORTS
+
+FILTERS=('source','report','item_id','date_from','date_to','billing_month','recipient_id','test_report')
 
 def meter_histories(choices,rows,history):
     """Use canonical saved-reading monthly consumption; never derived estimates."""
@@ -47,29 +49,37 @@ def report(p,args):
     property_scope(p)
     from .utilities_capture import meters,readings,statements,day
     source=args.get('source','readings')
-    if source not in ('readings','reconciliation'):abort(400,description='Select a supported report source.')
-    all_choices=dict(readings=meters(p),reconciliation=[dict(r) for r in db.session.execute(text('SELECT id,account_number FROM bil_muni_account WHERE property_id=:p ORDER BY account_number,id'),dict(p=p)).mappings()])
+    if source not in CATALOG:abort(400,description='Select a supported report source.')
+    key=args.get('report') or CATALOG[source][0][0]
+    if key not in dict(CATALOG[source]):abort(400,description='Select a report belonging to the selected source.')
+    account_choices=[dict(r) for r in db.session.execute(text('SELECT id,account_number FROM bil_muni_account WHERE property_id=:p ORDER BY account_number,id'),dict(p=p)).mappings()]
+    all_choices=dict(readings=meters(p),**{name:account_choices for name in SOURCES if name!='readings'})
     choices=all_choices[source];item=args.get('item_id','')
     selected=next((m for m in choices if str(m['id'])==item),None) if item else None
     if item and not selected:abort(403)
     date_from=args.get('date_from','');date_to=args.get('date_to','')
     first=day(date_from) if date_from else None;last=day(date_to) if date_to else None
     if first and last and first>last:abort(400,description='Date From must not be later than Date To.')
-    history=readings(p) if source=='readings' else statements(p)
+    history=readings(p) if key=='history' else statements(p) if key=='metro_reconciliation' else []
     rows=[]
     for row in history:
         if item and str(row['meter_id'] if source=='readings' else row['account_id'])!=item:continue
         recorded=row['reading_date'] if source=='readings' else row['statement_date']
         if (first and recorded<first) or (last and recorded>last):continue
         rows.append(row)
-    prop=db.session.execute(text('SELECT id,name,address FROM bil_property WHERE id=:p'),dict(p=p)).mappings().one()
-    groups=meter_histories(choices,rows,history) if source=='readings' else []
-    if source=='readings':rows.sort(key=lambda r:(r['reading_date'],r['id']))
-    return dict(meter_reports=groups,property=prop,source=source,title='Meter Readings' if source=='readings' else 'Metro Reconciliation',choices=choices,all_choices=all_choices,item_id=item,item_label=selected['meter_number' if source=='readings' else 'account_number'] if selected else ('All Meters' if source=='readings' else 'All Accounts'),rows=rows,date_from=date_from,date_to=date_to,generated_at=datetime.now(ZoneInfo('Africa/Johannesburg')),billing_month=args.get('billing_month',''))
+    prop=db.session.execute(text('SELECT id,name,address,manager_id FROM bil_property WHERE id=:p'),dict(p=p)).mappings().one()
+    groups=meter_histories(choices,rows,history) if key=='history' else []
+    if key=='history':rows.sort(key=lambda r:(r['reading_date'],r['id']))
+    data=dict(report=key,catalog=CATALOG,source_labels=SOURCES,meter_reports=groups,property=prop,source=source,title=dict(CATALOG[source])[key],choices=choices,all_choices=all_choices,item_id=item,item_label=selected['meter_number' if source=='readings' else 'account_number'] if selected else ('All Meters' if source=='readings' else 'All Accounts'),rows=rows,date_from=date_from,date_to=date_to,generated_at=datetime.now(ZoneInfo('Africa/Johannesburg')),billing_month=args.get('billing_month',''))
+    from .utilities_output_reports import populate
+    populate(data,args,db.session)
+    return data
+
 
 def digest(data):
     values=dict(property=dict(data['property']),rows=data['rows'],item_label=data['item_label'])
-    if data['source']=='readings':values['meter_reports']=data['meter_reports']
+    if data['report']=='history':values['meter_reports']=data['meter_reports']
+    if data['report_payload'] is not None:values['report_payload']=data['report_payload']
     return hashlib.sha256(json.dumps(values,sort_keys=True,default=str).encode()).hexdigest()
 
 def serializer():return URLSafeTimedSerializer(current_app.secret_key,salt='pm-utilities-output')
@@ -85,6 +95,12 @@ def verify_preview(data,token):
     data['generated_at']=datetime.fromisoformat(saved['generated_at'])
 
 def render_pdf(data):
+    if data['report']=='municipal_submission':
+        from .municipal_readings_pdf import render_pdf as municipal_pdf
+        return municipal_pdf(data['report_payload'])
+    if data['report']=='metsoa_statement':
+        from .municipal_metsoa import pdf_bytes
+        return pdf_bytes(data['report_markup'],test_mode=data['test_report']=='1')
     from app.utils.pdf_render import html_to_pdf_bytes
     return html_to_pdf_bytes(render_template('program_billing/utilities_report_pdf.html',**data))
 
@@ -93,7 +109,7 @@ def email_pdf(address,data,pdf):
     transport = current_app.extensions.get('mail')
     if current_app.config.get('MAIL_SUPPRESS_SEND') or getattr(transport, 'suppress', False):
         raise RuntimeError('Mail transport is suppressed; no SMTP acceptance occurred')
-    return send_pdf_email(address,data['property']['name']+' — '+data['title'],'Please find the requested Utilities report attached.',pdf,'Utilities-'+data['source']+'.pdf')
+    return send_pdf_email(address,data['property']['name']+' — '+data['title'],'Please find the requested Utilities report attached.',pdf,'Utilities-'+data['report']+'.pdf')
 
 def page(p):
     property_scope(p);args=request.form if request.method=='POST' else request.args
@@ -102,7 +118,9 @@ def page(p):
     except HTTPException as exc:
         if exc.code!=400:raise
         fallback=args.to_dict();fallback.pop('date_from',None);fallback.pop('date_to',None)
-        if fallback.get('source') not in ('readings','reconciliation'):fallback['source']='readings'
+        if fallback.get('source') not in CATALOG:fallback['source']='readings'
+        if fallback.get('report') not in dict(CATALOG[fallback['source']]):fallback['report']=CATALOG[fallback['source']][0][0]
+        fallback.pop('preview',None);fallback.pop('format',None);fallback.pop('action',None)
         data=report(p,fallback);data.update(date_from=args.get('date_from',''),date_to=args.get('date_to',''),rows=[],meter_reports=[])
         error=exc.description;status=400
     previewed=not error and args.get('preview')=='1'
@@ -119,7 +137,7 @@ def page(p):
                 try:pdf=render_pdf(data)
                 except Exception:
                     current_app.logger.exception('Utilities report PDF failed');abort(503,description='The PDF could not be generated. Please contact the administrator.')
-                if request.method=='GET':return send_file(BytesIO(pdf),mimetype='application/pdf',as_attachment=args.get('download')=='1',download_name='Utilities-'+data['source']+'.pdf')
+                if request.method=='GET':return send_file(BytesIO(pdf),mimetype='application/pdf',as_attachment=args.get('download')=='1',download_name='Utilities-'+data['report']+'.pdf')
                 try:
                     if not email_pdf(address,data,pdf):raise RuntimeError('Email delivery not confirmed')
                 except Exception:

@@ -229,6 +229,13 @@ def update_status(p,arrangement_id,values):
     return arrangement_id
 
 
+def register_rows(p,billing_month,account_id=None):
+    scope(p)
+    rows=[dict(r) for r in db.session.execute(text('SELECT a.*,m.account_number FROM bil_municipal_arrangement a JOIN bil_muni_account m ON m.id=a.account_id AND m.property_id=a.property_id WHERE a.property_id=:p AND (:account IS NULL OR a.account_id=:account) ORDER BY a.created_at DESC,a.id DESC'),dict(p=p,account=account_id)).mappings()]
+    for row in rows:row['scheduled_balance']=scheduled_balance(row,billing_month)
+    return rows
+
+
 def page(p,arrangement_id=None):
     scope(p)
     from .lease_management import render_pm_template
@@ -265,8 +272,7 @@ def page(p,arrangement_id=None):
             db.session.rollback();current_app.logger.exception('Municipal arrangement save failed');error='Saving failed; no changes were committed. Please contact the administrator.';status_code=503
     rows=[];selected=None;details=None;history=[];sources=[]
     if available:
-        rows=[dict(r) for r in db.session.execute(text('SELECT a.*,m.account_number FROM bil_municipal_arrangement a JOIN bil_muni_account m ON m.id=a.account_id AND m.property_id=a.property_id WHERE a.property_id=:p AND a.account_id=:account ORDER BY a.created_at DESC,a.id DESC'),dict(p=p,account=selected_account_id)).mappings()]
-        for row in rows:row['scheduled_balance']=scheduled_balance(row,utility_month)
+        rows=register_rows(p,utility_month,selected_account_id)
         if arrangement_id is not None:
             selected=record(p,arrangement_id);selected_account_id=selected['account_id'];details=summary(selected)
             history=[dict(r) for r in db.session.execute(text('SELECT * FROM bil_municipal_arrangement_event WHERE arrangement_id=:id ORDER BY recorded_at,id'),dict(id=arrangement_id)).mappings()]

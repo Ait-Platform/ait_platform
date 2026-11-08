@@ -3,12 +3,13 @@
 @media print{body{background:white!important}.mar-metsoa{max-width:none;margin:0;box-shadow:none;border:0;font-size:11px}.mar-metsoa .report{padding:0}.mar-metsoa .controls,nav{display:none!important}.mar-metsoa .details{break-inside:avoid}.mar-metsoa h2{break-after:avoid}.mar-metsoa tr{break-inside:avoid}.mar-metsoa thead{display:table-header-group}.mar-metsoa table{font-size:10px}.mar-metsoa th,.mar-metsoa td{padding:3px 4px}}
 </style>
 <div class="mar-metsoa" id="statement-container">
-<div class="controls print:hidden">
+{% if not pm_output_report|default(false) %}<div class="controls print:hidden">
 {% include 'partials/flash_messages.html' %}
 <div class="heading"><h1>METSOA &mdash; {{ property.name }} &mdash; {{ month }}</h1><a class="toolbar-link" href="{{ url_for('billing_bp.utilities_hub',property_id=property.id,billing_month=month) }}">Back to Utilities</a></div>
 {% include 'program_billing/metsoa_recipient_form.html' %}
-<div class="actions">{% for label,download in [('Open PDF',false),('Download PDF',true)] %}<a class="toolbar-link" href="{{ url_for('billing_bp.generate_municipal_metsoa',property_id=property.id,billing_month=month,recipient_id=pm_recipient.id if pm_recipient else None,generate='1',test_report='1' if pm_test_mode|default(false) else None,format='pdf',download='1' if download else None) }}">{{ label }}</a>{% endfor %}<button class="toolbar-link" onclick="window.print()">Print</button></div>
+<div class="actions"><a id="metsoa-output" class="toolbar-link" href="{{ url_for('billing_bp.utilities_output',property_id=property.id,source='metsoa',report='metsoa_statement',billing_month=month,recipient_id=pm_recipient.id if pm_recipient else None,test_report='1' if pm_test_mode|default(false) else None,preview='1') }}">Output</a></div>
 </div>
+{% endif %}
 <div class="report">
 {% if pm_test_mode|default(false) %}<div class="notice" role="alert"><strong>TEST / NOT FOR ISSUANCE</strong><p>Functional calculation test using existing dated tariffs and the domestic discharge calculation. Not a verification of municipal tariffs or a tenant invoice.</p></div>{% endif %}
 <h1>Statement For All Metro Meters &mdash; {{ property.name }}</h1>

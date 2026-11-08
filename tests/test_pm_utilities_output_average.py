@@ -68,22 +68,18 @@ class OutputAverageTests(unittest.TestCase):
         document=fitz.open(stream=response.data,filetype='pdf');images=Path('tmp/pdfs/output-average');images.mkdir(parents=True,exist_ok=True)
         for i,p in enumerate(document):p.get_pixmap(matrix=fitz.Matrix(1.25,1.25)).save(str(images/(str(i+1)+'.png')))
         self.assertEqual(before,self.fx.snapshot())
-    def test_hub_open_close_selection_and_download_dirty_protection(self):
+    def test_central_controls_are_visible_and_download_tracks_selection(self):
         from playwright.sync_api import sync_playwright
         initial=self.fx.client.get(self.fx.base,headers=self.fx.headers)
-        tree=html.fromstring(initial.data)
-        self.assertTrue(tree.xpath('//*[@id="output-workspace"]/@hidden'))
         self.assertIn('Utilities Output - Almond',initial.text)
-        self.assertIn('Back to Utilities',initial.text)
         with sync_playwright() as runtime:
             browser=runtime.chromium.launch(headless=True)
             try:
                 tab=browser.new_page();tab.route('**/*',lambda r:r.abort());tab.set_content(initial.text)
                 tab.add_script_tag(path='app/static/js/pm_utilities_output.js')
-                self.assertFalse(tab.locator('#output-workspace').is_visible())
-                tab.locator('#output-hub-open').click();self.assertTrue(tab.locator('#output-workspace').is_visible())
+                self.assertTrue(tab.locator('#output-filters').is_visible())
                 self.assertEqual(tab.locator('#output-item').input_value(),'')
-                tab.locator('#output-hub-close').click();self.assertFalse(tab.locator('#output-workspace').is_visible())
+                self.assertEqual(tab.locator('#output-report').input_value(),'history')
                 page=self.fx.preview(item='99',start='',end='');tab.set_content(page.text);tab.add_script_tag(path='app/static/js/pm_utilities_output.js')
                 self.assertTrue(tab.locator('#output-download').is_visible())
                 tab.select_option('#output-item','96');self.assertFalse(tab.locator('#output-download').is_visible())

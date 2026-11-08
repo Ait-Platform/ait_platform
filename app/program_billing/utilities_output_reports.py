@@ -29,10 +29,10 @@ def populate(data,args,session):
     data['report_markup']='';data['report_payload']=None
     data['billing_month']=str(args.get('billing_month') or '')
     if key in PERIOD_REPORTS or key in ('municipal_submission','arrangement_register'):
-        period=data['billing_month'] or (data['date_to'][:7] if data['date_to'] else None)
+        period=data.get('by_month') or data['billing_month'] or (data['date_to'][:7] if data['date_to'] else None)
         data['billing_month'],start,end=month_context(period)
     if key in PERIOD_REPORTS:
-        data.update(date_from=start.isoformat(),date_to=end.isoformat())
+        data.update(by_month=data['billing_month'],date_from=start.isoformat(),date_to=end.isoformat())
     if key=='municipal_submission':data.update(date_from=data['date_from'] or start.isoformat(),date_to=data['date_to'] or end.isoformat())
     if key=='account_register':data.update(date_from='',date_to='')
     wanted=args.get('preview')=='1' or args.get('format')=='pdf' or args.get('action')=='email'

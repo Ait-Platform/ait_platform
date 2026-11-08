@@ -113,14 +113,15 @@ class UtilitiesOutputTests(fixture.StatementFilterTests):
             self.assertIn('Delivery was not confirmed',result.text)
             sender.assert_not_called()
 
-    def test_output_actions_are_right_aligned_in_existing_filter_row(self):
+    def test_output_menu_is_right_aligned_above_selection_block(self):
         page=self.preview()
         tree=html.fromstring(page.data)
         actions=tree.xpath('//*[@id="output-actions"]')[0]
-        self.assertEqual(actions.getparent().get('id'),'output-filters')
-        self.assertIn('ml-auto',actions.get('class'))
+        self.assertNotEqual(actions.getparent().get('id'),'output-filters')
+        self.assertEqual(actions.get('aria-label'),'Output Menu')
+        self.assertTrue(actions.xpath('./button[@name="preview" and @form="output-filters"]'))
         self.assertIn('justify-end',actions.get('class'))
-        self.assertEqual(actions.xpath('./button/text()'),['Preview','Print','Email'])
+        self.assertEqual(actions.xpath('./button/text()|./a/text()'),['Preview','Print','Email','Download PDF'])
         self.assertEqual(tree.xpath('//form[@id="output-filters"]//select/@name'),['source','report','item_id','recipient_id'])
         self.assertEqual(tree.xpath('//form[@id="output-filters"]//input[@type="date"]/@name'),['date_from','date_to'])
 

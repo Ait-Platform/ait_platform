@@ -71,7 +71,7 @@ class OutputAverageTests(unittest.TestCase):
     def test_central_controls_are_visible_and_download_tracks_selection(self):
         from playwright.sync_api import sync_playwright
         initial=self.fx.client.get(self.fx.base,headers=self.fx.headers)
-        self.assertIn('Utilities Output - Almond',initial.text)
+        self.assertEqual(html.fromstring(initial.data).xpath('//h1/text()')[0],'Utilities Output \u2014 Almond')
         with sync_playwright() as runtime:
             browser=runtime.chromium.launch(headless=True)
             try:
@@ -82,7 +82,7 @@ class OutputAverageTests(unittest.TestCase):
                 self.assertEqual(tab.locator('#output-report').input_value(),'history')
                 page=self.fx.preview(item='99',start='',end='');tab.set_content(page.text);tab.add_script_tag(path='app/static/js/pm_utilities_output.js')
                 self.assertTrue(tab.locator('#output-download').is_visible())
-                tab.select_option('#output-item','96');self.assertFalse(tab.locator('#output-download').is_visible())
+                tab.select_option('#output-item','96');self.assertTrue(tab.locator('#output-download').is_visible());self.assertEqual(tab.locator('#output-download').get_attribute('aria-disabled'),'true')
             finally:browser.close()
     def test_utilities_menu_has_property_scoped_output(self):
         from flask import render_template

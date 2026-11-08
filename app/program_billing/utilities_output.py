@@ -13,7 +13,7 @@ from .metsoa_setup_safety import property_scope
 
 from .utilities_output_reports import CATALOG,SOURCES,PERIOD_REPORTS
 
-FILTERS=('source','report','item_id','date_from','date_to','billing_month','recipient_id','test_report')
+FILTERS=('source','report','item_id','by_month','date_from','date_to','billing_month','recipient_id','test_report')
 
 def meter_histories(choices,rows,history):
     """Use canonical saved-reading monthly consumption; never derived estimates."""
@@ -58,6 +58,11 @@ def report(p,args):
     selected=next((m for m in choices if str(m['id'])==item),None) if item else None
     if item and not selected:abort(403)
     date_from=args.get('date_from','');date_to=args.get('date_to','')
+    by_month=str(args.get('by_month') or '')
+    if by_month:
+        from .municipal_metsoa import month_context
+        _,month_start,month_end=month_context(by_month)
+        date_from=month_start.isoformat();date_to=month_end.isoformat()
     first=day(date_from) if date_from else None;last=day(date_to) if date_to else None
     if first and last and first>last:abort(400,description='Date From must not be later than Date To.')
     history=readings(p) if key=='history' else statements(p) if key=='metro_reconciliation' else []
@@ -70,7 +75,7 @@ def report(p,args):
     prop=db.session.execute(text('SELECT id,name,address,manager_id FROM bil_property WHERE id=:p'),dict(p=p)).mappings().one()
     groups=meter_histories(choices,rows,history) if key=='history' else []
     if key=='history':rows.sort(key=lambda r:(r['reading_date'],r['id']))
-    data=dict(report=key,catalog=CATALOG,source_labels=SOURCES,meter_reports=groups,property=prop,source=source,title=dict(CATALOG[source])[key],choices=choices,all_choices=all_choices,item_id=item,item_label=selected['meter_number' if source=='readings' else 'account_number'] if selected else ('All Meters' if source=='readings' else 'All Accounts'),rows=rows,date_from=date_from,date_to=date_to,generated_at=datetime.now(ZoneInfo('Africa/Johannesburg')),billing_month=args.get('billing_month',''))
+    data=dict(by_month=by_month,report=key,catalog=CATALOG,source_labels=SOURCES,meter_reports=groups,property=prop,source=source,title=dict(CATALOG[source])[key],choices=choices,all_choices=all_choices,item_id=item,item_label=selected['meter_number' if source=='readings' else 'account_number'] if selected else ('All Meters' if source=='readings' else 'All Accounts'),rows=rows,date_from=date_from,date_to=date_to,generated_at=datetime.now(ZoneInfo('Africa/Johannesburg')),billing_month=args.get('billing_month',''))
     from .utilities_output_reports import populate
     populate(data,args,db.session)
     return data
@@ -117,7 +122,7 @@ def page(p):
     try:data=report(p,args)
     except HTTPException as exc:
         if exc.code!=400:raise
-        fallback=args.to_dict();fallback.pop('date_from',None);fallback.pop('date_to',None)
+        fallback=args.to_dict();fallback.pop('date_from',None);fallback.pop('date_to',None);fallback.pop('by_month',None)
         if fallback.get('source') not in CATALOG:fallback['source']='readings'
         if fallback.get('report') not in dict(CATALOG[fallback['source']]):fallback['report']=CATALOG[fallback['source']][0][0]
         fallback.pop('preview',None);fallback.pop('format',None);fallback.pop('action',None)

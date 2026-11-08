@@ -70,7 +70,7 @@ class CentralOutputTests(unittest.TestCase):
         self.assertNotIn('Open PDF',response.text);self.assertNotIn('Download PDF',response.text)
         central=self.fx.client.get(links[0],headers=self.fx.headers);self.assertEqual(central.status_code,200,central.text)
         t=html.fromstring(central.data)
-        self.assertEqual(t.xpath('//input[@name="billing_month" and @id="output-month"]/@value'),['2026-10'])
+        self.assertEqual(t.xpath('//input[@name="by_month" and @id="output-month"]/@value'),['2026-10'])
         self.assertEqual(t.xpath('//select[@id="output-recipient"]/option[@selected]/@value'),['11'])
     def test_existing_comparison_and_arrangement_balances_are_reused(self):
         with self.fx.app.test_request_context():original=self.fx.metsoa.build(26,'2026-10',recipient_id=11)

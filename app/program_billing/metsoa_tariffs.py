@@ -5,6 +5,23 @@ from types import SimpleNamespace
 from sqlalchemy import text,inspect
 from app.extensions import db
 
+def _surcharge_has_per_kl_units(row):
+    unit=(row.unit or '').strip().lower().replace(' ','')
+    if unit in {'r/kl','zar/kl','perkl'}:
+        return True
+    # The established register stores a monetary rate per base unit. Its
+    # S_SURCHARGE / kL / factor=1 format therefore means unscaled R per kL.
+    # Do not infer this meaning for arbitrary codes, utilities or factors.
+    if (unit!='kl' or row.charge_component!='sewerage_surcharge'
+            or row.code.strip().casefold()!='s_surcharge'):
+        return False
+    try:
+        factor=Decimal(str(row.reduction_factor))
+        return factor.is_finite() and factor==1
+    except (InvalidOperation,ValueError,TypeError):
+        return False
+
+
 def select(billing_date,use_current=False):
     import re
     issues=[];catalog=inspect(db.session.connection())
@@ -99,7 +116,7 @@ def select(billing_date,use_current=False):
             side=key.split('_')[0]
             if key in seen_surcharges:
                 issues.append('Multiple '+side+' surcharge tariffs require review.');result[key]=None
-            elif (row.unit or '').strip().lower().replace(' ','') not in {'r/kl','zar/kl','perkl'}:issues.append('Tariff '+row.code+' needs verified per-kL units before its consumption surcharge can be applied.')
+            elif not _surcharge_has_per_kl_units(row):issues.append('Tariff '+row.code+' needs verified per-kL units before its consumption surcharge can be applied.')
             else:result[key]=row.rate
             seen_surcharges.add(key)
         elif kind in ('electricity','electrical'):electricity.append(row)

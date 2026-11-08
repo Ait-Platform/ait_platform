@@ -6,4 +6,5 @@
 <a href="{{ url_for('billing_bp.generate_municipal_metsoa',property_id=property.id) }}" class="rounded-lg bg-blue-100 px-4 py-2 font-semibold">Generate METSOA</a>
 <a href="{{ url_for('billing_bp.bulk_meter_linking',property_id=property.id,billing_month=metsoa_month) }}" class="rounded-lg bg-lime-100 px-4 py-2 font-semibold" {% if request.endpoint=='billing_bp.bulk_meter_linking' %}aria-current="page"{% endif %}>{{ menu_labels.get('Bulk Meter Linking','Bulk Meter Linking') }}</a>
 {% if can_manage_municipal_arrangements is defined and can_manage_municipal_arrangements() %}<a href="{{ url_for('billing_bp.municipal_payment_arrangements',property_id=property.id,billing_month=metsoa_month) }}" class="rounded-lg bg-amber-100 px-4 py-2 font-semibold">{{ menu_labels.get('Municipal Payment Arrangements','Municipal Payment Arrangements') }}</a>{% endif %}
+{% if show_utilities_output|default(false) %}<a href="{{ url_for('billing_bp.utilities_output',property_id=property.id,billing_month=metsoa_month) }}" class="rounded-lg bg-blue-100 px-4 py-2 font-semibold">Output</a>{% endif %}
 </nav>

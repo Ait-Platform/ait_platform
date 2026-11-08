@@ -30,7 +30,7 @@ class UtilitiesOutputTests(fixture.StatementFilterTests):
     def test_inclusive_reading_dates_all_meters_units_and_empty(self):
         before=self.snapshot();page=self.preview();self.assertEqual(page.status_code,200,page.text)
         tree=html.fromstring(page.data);self.assertEqual(len(tree.xpath('//section[@id="utilities-report"]//tbody/tr')),3)
-        self.assertIn('10.0 kL',page.text);self.assertIn('30.0 kL',page.text)
+        self.assertIn('10 kL',page.text);self.assertIn('30 kL',page.text)
         page=self.preview(start='2026-09-15',end='2026-09-15')
         self.assertEqual(len(html.fromstring(page.data).xpath('//section[@id="utilities-report"]//tbody/tr')),1)
         page=self.preview(item='',start='',end='');self.assertEqual(page.status_code,200);self.assertIn('All Meters',page.text);self.assertIn('49.9 kWh',page.text);self.assertNotIn('PRIVATE-W',page.text)

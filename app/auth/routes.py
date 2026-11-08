@@ -1618,16 +1618,6 @@ def reset(token):
         return redirect(url_for("auth_bp.login"))
     return render_template("auth/reset.html")
 
-@auth_bp.get("/debug/sendmail")
-def _debug_sendmail():
-    #from app.utils.emailer import send_email
-    ok = send_email(
-        "SMTP test (AIT)",
-        ["sanjith.nanhoo@gmail.com"],  # your external inbox
-        body="This is a test from AIT via Zoho SMTP."
-    )
-    return ("OK" if ok else "FAIL"), (200 if ok else 500)
-
 @auth_bp.get("/debug/mailconfig")
 def debug_mailconfig():
     from flask import current_app as app, jsonify

@@ -116,9 +116,52 @@ def email_pdf(address,data,pdf):
         raise RuntimeError('Mail transport is suppressed; no SMTP acceptance occurred')
     return send_pdf_email(address,data['property']['name']+' — '+data['title'],'Please find the requested Utilities report attached.',pdf,'Utilities-'+data['report']+'.pdf')
 
+
+def send_email_once(address, data, pdf, token):
+    """Durably claim one preview/recipient request before SMTP, across workers.
+
+    SMTP and PostgreSQL cannot commit atomically. Keep attempted receipts even
+    on failure/timeout so an uncertain outcome never causes an automatic resend.
+    A fresh explicit Preview creates a new request for an intentional retry.
+    """
+    key = hashlib.sha256(json.dumps([current_user.id, data['property']['id'],
+                                    token, address], separators=(',', ':')).encode()).hexdigest()
+    params = dict(p=data['property']['id'], u=current_user.id, key=key)
+    try:
+        db.session.execute(text('SELECT pg_advisory_xact_lock(hashtextextended(:key,0))'),
+                           dict(key='pm-utilities-email:' + key))
+        exists = db.session.execute(text("""SELECT id FROM bil_utilities_capture_audit
+            WHERE property_id=:p AND actor_id=:u AND kind='output_email'
+            AND after_data->>'request_key'=:key LIMIT 1"""), params).scalar()
+        if exists:
+            abort(409, description='This email request has already been submitted. It will not be sent again. Check the previous outcome before using Preview for an intentional new request.')
+        details = dict(request_key=key, status='attempted', report=data['report'])
+        db.session.execute(text("""INSERT INTO bil_utilities_capture_audit
+            (property_id,kind,record_id,actor_id,after_data)
+            VALUES(:p,'output_email',:p,:u,CAST(:details AS json))"""),
+            dict(params, details=json.dumps(details)))
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        raise
+    if not email_pdf(address, data, pdf):
+        raise RuntimeError('Email delivery not confirmed')
+    # Append acceptance evidence only after the mail transport returns success.
+    details['status'] = 'accepted'
+    try:
+        db.session.execute(text("""INSERT INTO bil_utilities_capture_audit
+            (property_id,kind,record_id,actor_id,after_data)
+            VALUES(:p,'output_email',:p,:u,CAST(:details AS json))"""),
+            dict(params, details=json.dumps(details)))
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        raise
+
+
 def page(p):
     property_scope(p);args=request.form if request.method=='POST' else request.args
-    error=None;status=200
+    error=None;status=200;verified_token=None
     try:data=report(p,args)
     except HTTPException as exc:
         if exc.code!=400:raise
@@ -134,6 +177,7 @@ def page(p):
         if not error:
             try:
                 verify_preview(data,args.get('preview_token'))
+                verified_token=args.get('preview_token')
                 if request.method=='POST':
                     if args.get('action')!='email':abort(400,description='Select Email to send this report.')
                     from email_validator import validate_email,EmailNotValidError
@@ -144,10 +188,12 @@ def page(p):
                     current_app.logger.exception('Utilities report PDF failed');abort(503,description='The PDF could not be generated. Please contact the administrator.')
                 if request.method=='GET':return send_file(BytesIO(pdf),mimetype='application/pdf',as_attachment=args.get('download')=='1',download_name='Utilities-'+data['report']+'.pdf')
                 try:
-                    if not email_pdf(address,data,pdf):raise RuntimeError('Email delivery not confirmed')
+                    send_email_once(address,data,pdf,args.get('preview_token'))
+                except HTTPException:
+                    raise
                 except Exception:
                     current_app.logger.exception('Utilities report email failed');abort(503,description='The report could not be emailed. Delivery was not confirmed; please try again or contact the administrator.')
                 flash('Mail transport accepted the Utilities report. Inbox delivery is not confirmed.','success')
                 return redirect(url_for('billing_bp.utilities_output',property_id=p,preview='1',**{k:data[k] for k in FILTERS}))
             except HTTPException as exc:error=exc.description;status=exc.code
-    return render_template('program_billing/utilities_output.html',**data,previewed=previewed,preview_token=preview_token(data) if previewed else '',email_to=address,error=error),status
+    return render_template('program_billing/utilities_output.html',**data,previewed=previewed,preview_token=(verified_token or preview_token(data)) if previewed else '',email_to=address,error=error),status

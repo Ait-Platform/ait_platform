@@ -30,5 +30,14 @@
   form.querySelectorAll('input,select').forEach(control=>control.addEventListener('change',dirty));
   print.addEventListener('click',()=>{if(!print.disabled)window.print();});
   email.addEventListener('click',()=>{if(email.disabled)return;emailForm.hidden=!emailForm.hidden;email.setAttribute('aria-expanded',String(!emailForm.hidden));if(!emailForm.hidden)document.getElementById('email-to').focus();});
+  emailForm.addEventListener('submit',event=>{
+    if(emailForm.dataset.sending==='true'){event.preventDefault();return;}
+    emailForm.dataset.sending='true';emailForm.setAttribute('aria-busy','true');
+    // Preserve the submit action when disabling the named submit button.
+    const action=document.createElement('input');action.type='hidden';action.name='action';action.value='email';emailForm.appendChild(action);
+    email.disabled=true;
+    emailForm.querySelectorAll('button[type="submit"],button:not([type])').forEach(button=>{button.disabled=true;button.textContent='Sending?';});
+  });
+  window.addEventListener('pageshow',event=>{if(event.persisted && emailForm.dataset.sending==='true')window.location.reload();});
   context();
 })();

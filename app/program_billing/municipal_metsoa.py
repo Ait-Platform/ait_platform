@@ -246,7 +246,7 @@ def build(p,month,recipient_id=None,use_current_tariffs=False,test_mode=False):
     if test_mode:report_status='TEST / NOT FOR ISSUANCE - '+('INCOMPLETE' if issues else 'PRICING COMPLETE')
     display_issues=[i for i in issues if not (i.startswith(('No applicable ','No electricity tariff','No verified effective W_LOSS','Tariff ')) and ('Rate unavailable' in i or 'No applicable ' in i or 'No electricity tariff' in i or 'No verified effective W_LOSS' in i))]
     if missing:display_issues.insert(0,'Rate unavailable for: '+', '.join(dict.fromkeys(r['component'] for r in missing))+'. See the unpriced components below.')
-    return dict(pm_test_mode=test_mode,property=prop,month=month,tenant=recipient,electricity=dict(rows=electricity,subtotal=electricity_total),water=dict(meters=water,total=water_total),grand_total=electricity_total+water_total,pm_sewerage_surcharge_configured=tariffs.get('sewerage_surcharge_applicable',False),pm_comparisons=comparisons,pm_consumption_rows=consumption_rows,pm_unpriced_components=list(grouped_components.values()),pm_substitute_dates=sorted({r.substitute_provenance['copied_on'] for r in tariffs['records'] if getattr(r,'substitute_provenance',None)}),pm_override_requested=use_current_tariffs,pm_estimated=estimated,pm_estimated_components=estimated_components,pm_current_tariff_date=tariffs.get('current_tariff_date'),pm_status=report_status,pm_pricing_complete=not issues,pm_tariff_statement=True,pm_complete=not test_mode and not issues and not estimated,pm_display_issues=display_issues,pm_issues=issues,pm_customer=recipient['name'] if recipient else '',pm_recipient=recipient,pm_recipients=recipient_choices,pm_recipient_issue=recipient_issue,pm_electricity_available=bool(electricity),pm_statement_date=end,pm_tariff_records=tariffs['records'],pm_bulk_notes=bulk_notes)
+    return dict(pm_test_mode=test_mode,property=prop,month=month,tenant=recipient,electricity=dict(rows=electricity,subtotal=electricity_total),water=dict(meters=water,total=water_total),grand_total=electricity_total+water_total,pm_sewerage_surcharge_configured=tariffs.get('sewerage_surcharge_applicable',False),pm_comparisons=comparisons,pm_consumption_rows=consumption_rows,pm_unpriced_components=list(grouped_components.values()),pm_substitute_dates=sorted({r.substitute_provenance['copied_on'] for r in tariffs['records'] if getattr(r,'substitute_provenance',None)}),pm_estimated=estimated,pm_estimated_components=estimated_components,pm_current_tariff_date=tariffs.get('current_tariff_date'),pm_status=report_status,pm_pricing_complete=not issues,pm_tariff_statement=True,pm_complete=not test_mode and not issues and not estimated,pm_display_issues=display_issues,pm_issues=issues,pm_customer=recipient['name'] if recipient else '',pm_recipient=recipient,pm_recipients=recipient_choices,pm_recipient_issue=recipient_issue,pm_electricity_available=bool(electricity),pm_statement_date=end,pm_tariff_records=tariffs['records'],pm_bulk_notes=bulk_notes)
 
 def pdf_bytes(html,test_mode=False):
     from playwright.sync_api import sync_playwright
@@ -266,12 +266,11 @@ def page(p):
     generate=request.args.get('generate')=='1'
     month=request.args.get('billing_month','') if generate else ''
     recipient=request.args.get('recipient_id','') if generate else ''
-    use_current=request.args.get('use_current_tariffs')=='1'
     if not generate or not month or not recipient:
-        return render_template('program_billing/metsoa_select.html',property=prop,month=month,pm_recipients=recipient_choices(p,prop['manager_id']),pm_recipient=None,pm_override_requested=use_current,error='Select a billing month and recipient.' if generate else None),400 if generate else 200
+        return render_template('program_billing/metsoa_select.html',property=prop,month=month,pm_recipients=recipient_choices(p,prop['manager_id']),pm_recipient=None,error='Select a billing month and recipient.' if generate else None),400 if generate else 200
     month_context(month)
     # Existing PM token-free access remains unchanged.
-    data=build(p,month,recipient_id=recipient,use_current_tariffs=use_current,test_mode=request.args.get('test_report')=='1')
+    data=build(p,month,recipient_id=recipient,test_mode=request.args.get('test_report')=='1')
     if data['pm_estimated']:
         current_app.logger.info('PM historical tariff estimate confirmed actor=%s property=%s month=%s current_schedule_date=%s components=%s',data['property']['manager_id'],p,month,data['pm_current_tariff_date'],','.join(r['code'] for r in data['pm_estimated_components']))
     html=render_template('program_billing/metsoa.html',**data)

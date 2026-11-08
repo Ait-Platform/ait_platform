@@ -7,7 +7,7 @@
 {% include 'partials/flash_messages.html' %}
 <div class="heading"><h1>METSOA &mdash; {{ property.name }} &mdash; {{ month }}</h1><a class="toolbar-link" href="{{ url_for('billing_bp.utilities_hub',property_id=property.id,billing_month=month) }}">Back to Utilities</a></div>
 {% include 'program_billing/metsoa_recipient_form.html' %}
-<div class="actions">{% for label,download in [('Open PDF',false),('Download PDF',true)] %}<a class="toolbar-link" href="{{ url_for('billing_bp.generate_municipal_metsoa',property_id=property.id,billing_month=month,recipient_id=pm_recipient.id if pm_recipient else None,generate='1',use_current_tariffs='1' if pm_override_requested else None,test_report='1' if pm_test_mode|default(false) else None,format='pdf',download='1' if download else None) }}">{{ label }}</a>{% endfor %}<button class="toolbar-link" onclick="window.print()">Print</button></div>
+<div class="actions">{% for label,download in [('Open PDF',false),('Download PDF',true)] %}<a class="toolbar-link" href="{{ url_for('billing_bp.generate_municipal_metsoa',property_id=property.id,billing_month=month,recipient_id=pm_recipient.id if pm_recipient else None,generate='1',test_report='1' if pm_test_mode|default(false) else None,format='pdf',download='1' if download else None) }}">{{ label }}</a>{% endfor %}<button class="toolbar-link" onclick="window.print()">Print</button></div>
 </div>
 <div class="report">
 {% if pm_test_mode|default(false) %}<div class="notice" role="alert"><strong>TEST / NOT FOR ISSUANCE</strong><p>Functional calculation test using existing dated tariffs and the domestic discharge calculation. Not a verification of municipal tariffs or a tenant invoice.</p></div>{% endif %}

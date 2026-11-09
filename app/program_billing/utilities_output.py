@@ -78,7 +78,19 @@ def report(p,args):
     data=dict(by_month=by_month,report=key,catalog=CATALOG,source_labels=SOURCES,meter_reports=groups,property=prop,source=source,title=dict(CATALOG[source])[key],choices=choices,all_choices=all_choices,item_id=item,item_label=selected['meter_number' if source=='readings' else 'account_number'] if selected else ('All Meters' if source=='readings' else 'All Accounts'),rows=rows,date_from=date_from,date_to=date_to,generated_at=datetime.now(ZoneInfo('Africa/Johannesburg')),billing_month=args.get('billing_month',''))
     from .utilities_output_reports import populate
     populate(data,args,db.session)
+    data['save_period_end']=report_end_date(data)
     return data
+
+
+def report_end_date(data):
+    """Filename date only; existing report periods and calculations are unchanged."""
+    if data['date_to']:return data['date_to']
+    if data['report']=='arrangement_register':
+        from .municipal_metsoa import month_context
+        return month_context(data['billing_month'])[2].isoformat()
+    dates=[row.get('reading_date') or row.get('statement_date') for row in data['rows']]
+    dates=[value for value in dates if value is not None]
+    return max(dates).isoformat() if dates else data['generated_at'].date().isoformat()
 
 
 def digest(data):

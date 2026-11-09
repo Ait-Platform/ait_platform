@@ -10,21 +10,21 @@ class OutputLocalSaveTests(unittest.TestCase):
             browser,page=open_browser(runtime)
             try:
                 result=page.evaluate("""async()=>{
-                    const a=AITDirectories,s={user:'7',property:'26'},root=await navigator.storage.getDirectory();
+                    const a=AITDirectories,s={user:'7',property:'26',period_end:'2026-10-31'},root=await navigator.storage.getDirectory();
                     const folder=await root.getDirectoryHandle('Exports',{create:true});
                     await a.set(s,folder);
                     const accounts=await (await folder.getDirectoryHandle('Municipal Accounts')).getDirectoryHandle('Account Register');
-                    const existing=await accounts.getFileHandle('091126_Account_Register.pdf',{create:true});
+                    const existing=await accounts.getFileHandle('311026_Account_Register.pdf',{create:true});
                     const writer=await existing.createWritable();await writer.write('%PDF-existing account report');await writer.close();
                     const codes=['history','municipal_submission','metro_reconciliation','utilities_reconciliation','metsoa_statement','account_register','arrangement_register'];
                     const metsoa=await (await folder.getDirectoryHandle('METSOA')).getDirectoryHandle('METSOA Statement');
                     window.fetch=async()=>new Response('%PDF-actual existing renderer',{status:200,headers:{'Content-Type':'application/pdf'}});
-                    const date=new Date(2026,10,9),names=[];
+                    const date=new Date(2026,9,31),names=[];
                     for(const code of codes)names.push(await a.save(s,code,'/existing-pdf',date));
                     names.push(await a.save(s,'metsoa_statement','/existing-pdf',date));
                     names.push(await a.save(s,'metsoa_statement','/existing-pdf',date));
                     const parallel=await Promise.all([a.save(s,'metsoa_statement','/existing-pdf',date),a.save(s,'metsoa_statement','/existing-pdf',date)]);
-                    const contents=await (await (await metsoa.getFileHandle('091126_METSOA.pdf')).getFile()).text();
+                    const contents=await (await (await metsoa.getFileHandle('311026_METSOA.pdf')).getFile()).text();
                     const errors=[];
                     for(const scope of [{user:'8',property:'26'},{user:'7',property:'28'}]){
                         try{await a.save(scope,'metsoa_statement','/existing-pdf',date);}catch(e){errors.push(e.message);}
@@ -32,11 +32,11 @@ class OutputLocalSaveTests(unittest.TestCase):
                     return {names,parallel,contents,errors,existing:await (await existing.getFile()).text()};
                 }""")
                 self.assertEqual(len(result['names']),9)
-                self.assertIn('091126_Account_Register(2).pdf',result['names'])
+                self.assertIn('311026_Account_Register(1).pdf',result['names'])
                 self.assertEqual(result['existing'],'%PDF-existing account report')
-                self.assertIn('091126_Metro_Reconciliation.pdf',result['names'])
-                self.assertEqual(result['names'][-2:],['091126_METSOA(2).pdf','091126_METSOA(3).pdf'])
-                self.assertEqual(set(result['parallel']),{'091126_METSOA(4).pdf','091126_METSOA(5).pdf'})
+                self.assertIn('311026_Metro_Reconciliation.pdf',result['names'])
+                self.assertEqual(result['names'][-2:],['311026_METSOA(1).pdf','311026_METSOA(2).pdf'])
+                self.assertEqual(set(result['parallel']),{'311026_METSOA(3).pdf','311026_METSOA(4).pdf'})
                 self.assertEqual(result['contents'],'%PDF-actual existing renderer')
                 self.assertEqual(len(result['errors']),2)
                 self.assertTrue(all('No main folder' in e for e in result['errors']))
@@ -47,9 +47,9 @@ class OutputLocalSaveTests(unittest.TestCase):
             browser,page=open_browser(runtime)
             try:
                 result=page.evaluate("""async()=>{
-                    const a=AITDirectories,s={user:'7',property:'26'},root=await navigator.storage.getDirectory();
+                    const a=AITDirectories,s={user:'7',property:'26',period_end:'2026-10-31'},root=await navigator.storage.getDirectory();
                     const old=await root.getDirectoryHandle('Old',{create:true}),updated=await root.getDirectoryHandle('New',{create:true});
-                    window.fetch=async()=>new Response('%PDF-preserved');const day=new Date(2026,10,9);
+                    window.fetch=async()=>new Response('%PDF-preserved');const day=new Date(2026,9,31);
                     await a.set(s,old);await a.save(s,'history','/pdf',day);
                     let denied=false;
                     try{await a.set(s,{kind:'directory',queryPermission:async()=>'denied',requestPermission:async()=>'denied'});}catch(_){denied=true;}
@@ -61,7 +61,7 @@ class OutputLocalSaveTests(unittest.TestCase):
                     const target=await readings.getDirectoryHandle('Municipal Reading Submission');
                     const newText=await (await (await target.getFileHandle(name)).getFile()).text();
                     const oldTarget=await (await old.getDirectoryHandle('Meter Readings')).getDirectoryHandle('Reading History');
-                    const oldText=await (await (await oldTarget.getFileHandle('091126_Reading_History.pdf')).getFile()).text();
+                    const oldText=await (await (await oldTarget.getFileHandle('311026_Reading_History.pdf')).getFile()).text();
                     return {denied,retained,current:(await a.get(s)).handle.name,newText,oldText};
                 }""")
                 self.assertEqual(result,dict(denied=True,retained='Old',current='New',newText='%PDF-preserved',oldText='%PDF-preserved'))
@@ -98,7 +98,7 @@ class OutputLocalSaveTests(unittest.TestCase):
                     window.fetch=async()=>{fetches++;return new Response('<html>login</html>');};
                     const handle={queryPermission:async()=>'prompt',requestPermission:async()=>{requests++;return 'denied';},getFileHandle:async()=>{writes++;}};
                     a.get=async()=>({handle});
-                    const run=async()=>{try{await a.save({user:'7',property:'26'},'history','/pdf');}catch(e){errors.push(e.name+': '+e.message);}};
+                    const run=async()=>{try{await a.save({user:'7',property:'26',period_end:'2026-10-31'},'history','/pdf');}catch(e){errors.push(e.name+': '+e.message);}};
                     await run();
                     handle.requestPermission=async()=>{throw new DOMException('Cancelled','AbortError');};await run();
                     handle.queryPermission=async()=>'granted';await run();
@@ -127,12 +127,12 @@ class OutputLocalSaveTests(unittest.TestCase):
                         getDirectoryHandle:(...args)=>folder.getDirectoryHandle(...args)
                     }});
                     window.fetch=async()=>{events.push('pdf');return new Response('%PDF-granted');};
-                    const name=await a.save({user:'7',property:'26'},'history','/pdf',new Date(2026,10,9));
+                    const name=await a.save({user:'7',property:'26',period_end:'2026-10-31'},'history','/pdf',new Date(2026,9,31));
                     const target=await (await folder.getDirectoryHandle('Meter Readings')).getDirectoryHandle('Reading History');
                     return {events,name,text:await (await (await target.getFileHandle(name)).getFile()).text()};
                 }""")
                 self.assertEqual(result['events'],['query','permission','pdf'])
-                self.assertEqual(result['name'],'091126_Reading_History.pdf')
+                self.assertEqual(result['name'],'311026_Reading_History.pdf')
                 self.assertEqual(result['text'],'%PDF-granted')
             finally:browser.close()
 
@@ -146,13 +146,13 @@ class OutputLocalSaveTests(unittest.TestCase):
                 self.assertTrue(page.locator('#output-save').is_disabled())
                 page.evaluate("document.getElementById('output-save').click()")
                 self.assertEqual(page.evaluate('calls'),1)
-                page.evaluate("complete('091126_Reading_History.pdf')")
-                page.wait_for_function("document.getElementById('output-save-message').textContent.includes('Saved 091126')")
+                page.evaluate("complete('311026_Reading_History.pdf')")
+                page.wait_for_function("document.getElementById('output-save-message').textContent.includes('Saved 311026')")
                 self.assertTrue(page.locator('#output-save').is_enabled())
-                page.evaluate("""()=>{AITDirectories.supported=()=>false;window.downloads=0;document.getElementById('output-download').addEventListener('click',e=>{e.preventDefault();downloads++;});}""")
+                page.evaluate("""()=>{AITDirectories.supported=()=>false;window.downloads=0;AITDirectories.download=async()=>{downloads++;return '311026_Reading_History.pdf';};}""")
                 page.locator('#output-save').click()
                 self.assertEqual(page.evaluate('downloads'),1)
-                self.assertIn('Downloading',page.locator('#output-save-message').inner_text())
+                page.wait_for_function("document.getElementById('output-save-message').textContent.includes('PDF download started')")
             finally:browser.close()
 
 

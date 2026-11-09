@@ -52,13 +52,7 @@
     }
   };
 
-  api.save=async(scope,report,url,date=new Date())=>{
-    if(!api.supported() || !navigator.locks)throw new Error('Direct folder saving is unavailable. Use Download PDF.');
-    const entry=reports().find(item=>item.code===report);
-    if(!entry)throw new Error('Select a supported report.');
-    const row=await api.get(scope);
-    if(!row)throw new Error('No main folder is registered. Open Folders or use Download PDF.');
-    if(!await api.permission(row.handle))throw new Error('Folder permission was not granted. Allow access and try again, or use Download PDF.');
+  async function fetchPdf(url){
     let response;
     try{response=await fetch(url,{credentials:'same-origin',cache:'no-store',headers:{Accept:'application/json'}});}
     catch(error){throw new Error('The PDF request could not reach AIT. Check your connection and try again. No file was saved.');}
@@ -73,15 +67,39 @@
     }
     const blob=await response.blob();
     if(await blob.slice(0,5).text()!=='%PDF-')throw new Error(response.redirected?'AIT redirected the PDF request. Your session may have expired; sign in and Preview again. No file was saved.':'AIT returned a page instead of a PDF. Check your session and Preview again. No file was saved.');
+    return blob;
+  }
+  function filenamePrefix(report,date){
+    const entry=reports().find(item=>item.code===report);
+    if(!entry)throw new Error('Select a supported report.');
     const pad=n=>String(n).padStart(2,'0');
-    const prefix=pad(date.getDate())+pad(date.getMonth()+1)+pad(date.getFullYear()%100)+'_'+(report==='metsoa_statement'?'METSOA':entry.title.replaceAll(' ','_'));
+    const iso=date instanceof Date?date.getFullYear()+'-'+pad(date.getMonth()+1)+'-'+pad(date.getDate()):date;
+    if(typeof iso!=='string' || !/^\d{4}-\d{2}-\d{2}$/.test(iso) || !Number.isFinite(Date.parse(iso+'T00:00:00Z')) || new Date(iso+'T00:00:00Z').toISOString().slice(0,10)!==iso)throw new Error('Preview the report again to refresh its reporting-period ending date.');
+    return iso.slice(8,10)+iso.slice(5,7)+iso.slice(2,4)+'_'+(report==='metsoa_statement'?'METSOA':entry.title.replaceAll(' ','_'));
+  }
+  api.download=async(scope,report,url)=>{
+    const name=filenamePrefix(report,scope.period_end)+'.pdf',blob=await fetchPdf(url);
+    const objectUrl=URL.createObjectURL(blob),link=document.createElement('a');
+    link.href=objectUrl;link.download=name;link.hidden=true;document.body.appendChild(link);
+    try{link.click();}finally{link.remove();setTimeout(()=>URL.revokeObjectURL(objectUrl),60000);}
+    return name;
+  };
+  api.save=async(scope,report,url,date=scope.period_end)=>{
+    if(!api.supported() || !navigator.locks)throw new Error('Direct folder saving is unavailable. Use Download PDF.');
+    const entry=reports().find(item=>item.code===report);
+    if(!entry)throw new Error('Select a supported report.');
+    const prefix=filenamePrefix(report,date);
+    const row=await api.get(scope);
+    if(!row)throw new Error('No main folder is registered. Open Folders or use Download PDF.');
+    if(!await api.permission(row.handle))throw new Error('Folder permission was not granted. Allow access and try again, or use Download PDF.');
+    const blob=await fetchPdf(url);
     // One origin-wide lock also covers different properties assigned the same
     // folder. Check for existing files while holding it; never reuse a name.
     return navigator.locks.request('ait-pm-local-report-save',async()=>{
       const folder=await destination(row.handle,report);
-      let number=1,name,file;
+      let number=0,name,file;
       while(true){
-        name=prefix+(number===1?'':'('+number+')')+'.pdf';
+        name=prefix+(number===0?'':'('+number+')')+'.pdf';
         try{await folder.getFileHandle(name);number++;}
         catch(error){if(error.name!=='NotFoundError')throw error;break;}
       }

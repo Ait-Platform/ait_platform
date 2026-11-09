@@ -10,7 +10,9 @@ from sqlalchemy import text
 from jinja2 import ChoiceLoader, DictLoader, FileSystemLoader
 
 ROOT=Path(__file__).resolve().parents[1]
-REPORTS=[dict(code=c,title=t) for c,t in [('history','Reading History'),('municipal_submission','Municipal Reading Submission'),('metro_reconciliation','Metro Reconciliation'),('utilities_reconciliation','Utilities Reconciliation'),('metsoa_statement','METSOA Statement'),('account_register','Account Register'),('arrangement_register','Arrangement Register')]]
+catalog_tree=ast.parse((ROOT/'app/program_billing/utilities_output_reports.py').read_text(encoding='utf-8'))
+values={n.targets[0].id:ast.literal_eval(n.value) for n in catalog_tree.body if isinstance(n,ast.Assign) and isinstance(n.targets[0],ast.Name) and n.targets[0].id in {'CATALOG','SOURCES'}}
+REPORTS=[dict(code=c,title=t,source=values['SOURCES'][source]) for source,items in values['CATALOG'].items() for c,t in items]
 
 
 def browser_html():
@@ -34,35 +36,33 @@ def open_browser(runtime,markup=None,init=''):
 
 
 class DirectoryRegisterTests(unittest.TestCase):
-    def test_hub_and_crud_persist_locally_and_isolate_user_property(self):
+    def test_main_folder_creates_structure_changes_persists_and_isolates(self):
         from playwright.sync_api import sync_playwright
         with sync_playwright() as runtime:
             browser,page=open_browser(runtime)
             try:
                 self.assertTrue(page.locator('#directory-workspace').is_hidden())
-                self.assertEqual(page.locator('#directory-report option').count(),7)
-                page.locator('#directory-add').click();page.locator('#directory-choose').click()
-                page.wait_for_function("document.getElementById('directory-folder').textContent==='Reports'")
-                page.locator('#directory-form button[type=submit]').click()
-                page.wait_for_function("document.getElementById('directory-message').textContent.includes('registered on')")
-                self.assertIn('Reading History',page.locator('#directory-rows').inner_text())
-                page.reload();page.locator('#directory-view').click()
-                page.locator('#directory-rows button').filter(has_text='Edit').click()
-                self.assertTrue(page.locator('#directory-report').is_disabled())
-                page.evaluate("window.showDirectoryPicker=async()=>{const root=await navigator.storage.getDirectory();return root.getDirectoryHandle('Updated',{create:true});};")
-                page.locator('#directory-choose').click();page.wait_for_function("document.getElementById('directory-folder').textContent==='Updated'")
-                page.locator('#directory-form button[type=submit]').click();page.wait_for_function("document.querySelector('#directory-rows').textContent.includes('Updated')")
-                result=page.evaluate("""async()=>{
-                    const a=AITDirectories,s={user:'7',property:'26'},row=await a.get(s,'history');
-                    await a.set(s,'metsoa_statement',row.handle);
-                    await a.set({user:'8',property:'26'},'history',row.handle);
-                    await a.set({user:'7',property:'28'},'history',row.handle);
-                    return [(await a.list(s)).length,(await a.list({user:'9',property:'26'})).length,(await a.get(s,'metsoa_statement')).handle.name];
+                self.assertEqual(page.locator('#directory-report').count(),0)
+                page.locator('#directory-select').click()
+                page.wait_for_function("document.getElementById('directory-message').textContent.includes('subfolders are ready')")
+                self.assertEqual(page.locator('#directory-folder').inner_text(),'Reports')
+                structure=page.evaluate("""async()=>{
+                    const row=await AITDirectories.get({user:'7',property:'26'}),names=[];
+                    for await(const [source,handle] of row.handle.entries()){
+                        for await(const [report] of handle.entries())names.push(source+'/'+report);
+                    }return names.sort();
                 }""")
-                self.assertEqual(result,[2,0,'Updated'])
-                page.locator('#directory-view').click();page.locator('#directory-rows tr').first.get_by_role('button',name='Remove').click()
-                page.wait_for_function("document.getElementById('directory-message').textContent.includes('removed')")
-                self.assertEqual(page.evaluate("async()=> (await AITDirectories.list({user:'7',property:'26'})).length"),1)
+                self.assertEqual(structure,sorted(r['source']+'/'+r['title'] for r in REPORTS))
+                page.evaluate("window.showDirectoryPicker=async()=>{const root=await navigator.storage.getDirectory();return root.getDirectoryHandle('Updated',{create:true});};")
+                page.locator('#directory-change').click();page.wait_for_function("document.getElementById('directory-folder').textContent==='Updated'")
+                page.reload();page.locator('#directory-view').click();page.wait_for_function("document.getElementById('directory-folder').textContent==='Updated'")
+                page.locator('#directory-reauthorise').click();page.wait_for_function("document.getElementById('directory-message').textContent.includes('access authorised')")
+                result=page.evaluate("""async()=>{
+                    const a=AITDirectories,root=await navigator.storage.getDirectory(),old=await root.getDirectoryHandle('Reports');
+                    await a.set({user:'8',property:'26'},old);await a.set({user:'7',property:'28'},old);
+                    return [(await a.get({user:'7',property:'26'})).handle.name,(await a.get({user:'8',property:'26'})).handle.name,(await a.get({user:'7',property:'28'})).handle.name,!!await a.get({user:'9',property:'26'})];
+                }""")
+                self.assertEqual(result,['Updated','Reports','Reports',False])
                 page.locator('#directory-close').click();self.assertTrue(page.locator('#directory-workspace').is_hidden())
             finally:browser.close()
 
@@ -71,7 +71,7 @@ class DirectoryRegisterTests(unittest.TestCase):
         with sync_playwright() as runtime:
             browser,page=open_browser(runtime,init='window.showDirectoryPicker=undefined;')
             try:
-                self.assertTrue(page.locator('#directory-add').is_disabled())
+                self.assertTrue(page.locator('#directory-select').is_disabled())
                 self.assertIn('Download PDF',page.locator('#directory-message').inner_text())
             finally:browser.close()
 
@@ -95,7 +95,7 @@ class DirectoryRegisterTests(unittest.TestCase):
         blueprint=Blueprint('billing_bp',__name__)
         tree=ast.parse((ROOT/'app/program_billing/directory_register.py').read_text())
         function=next(n for n in tree.body if isinstance(n,ast.FunctionDef))
-        namespace.update(billing_bp=blueprint,login_required=login_required,require_pm_user=lambda:None,request=request,current_app=current_app,CATALOG={'all':[(r['code'],r['title']) for r in REPORTS]},render_pm_template=lambda name,**kw:dict(user=kw['directory_context']['user'],properties=kw['properties']))
+        namespace.update(billing_bp=blueprint,login_required=login_required,require_pm_user=lambda:None,request=request,current_app=current_app,SOURCES={'all':'Utilities'},CATALOG={'all':[(r['code'],r['title']) for r in REPORTS]},render_pm_template=lambda name,**kw:dict(user=kw['directory_context']['user'],properties=kw['properties']))
         exec(compile(ast.Module(body=[function],type_ignores=[]),'<real-directory-route>','exec'),namespace)
         app.register_blueprint(blueprint);client=app.test_client()
         self.assertEqual(client.get('/billing/directory-register').status_code,401)

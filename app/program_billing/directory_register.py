@@ -6,7 +6,7 @@ from app.extensions import db
 from .routes import billing_bp
 from .lease_management import require_pm_user, render_pm_template
 from .metsoa_setup_safety import property_scope
-from .utilities_output_reports import CATALOG
+from .utilities_output_reports import CATALOG, SOURCES
 
 
 @billing_bp.get('/billing/directory-register', endpoint='directory_register')
@@ -23,6 +23,6 @@ def directory_register():
     response = current_app.make_response(render_pm_template('program_billing/directory_register.html',
         properties=properties, selected_property=selected,
         directory_context=dict(user=str(current_user.id), property=str(selected['id']) if selected else ''),
-        directory_reports=[dict(code=code,title=title) for reports in CATALOG.values() for code,title in reports]))
+        directory_reports=[dict(code=code,title=title,source=SOURCES[source]) for source,reports in CATALOG.items() for code,title in reports]))
     response.headers['Cache-Control'] = 'private, no-store'
     return response

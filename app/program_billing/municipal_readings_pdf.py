@@ -45,6 +45,17 @@ def report(property_id,period):
     return dict(month=month,groups=grouped)
 
 
+def presentation(data):
+    """Shared display metadata; never replace differing saved reading dates."""
+    from datetime import datetime
+    try:month_label=datetime.strptime(data['month'],'%Y-%m').strftime('%B %Y')
+    except ValueError:month_label=data['month']
+    dates={row['reading_date'] for rows in data['groups'].values() for row in rows}
+    common_date=next(iter(dates)) if len(dates)==1 else None
+    date_label=(str(common_date.day)+' '+common_date.strftime('%B %Y')) if common_date else None
+    return dict(month_label=month_label,common_date=common_date,reading_date_label=date_label,has_readings=bool(dates))
+
+
 def render_pdf(data):
     from pathlib import Path
     import reportlab
@@ -60,42 +71,44 @@ def render_pdf(data):
     if 'MunicipalVera' not in pdfmetrics.getRegisteredFontNames():
         pdfmetrics.registerFont(TTFont('MunicipalVera',str(fonts/'Vera.ttf')))
         pdfmetrics.registerFont(TTFont('MunicipalVeraBold',str(fonts/'VeraBd.ttf')))
-    normal=ParagraphStyle('body',fontName='MunicipalVera',fontSize=9,leading=13)
-    heading=ParagraphStyle('heading',parent=normal,fontName='MunicipalVeraBold',fontSize=12,leading=17,spaceBefore=12,spaceAfter=7,keepWithNext=False)
+    display=presentation(data)
+    normal=ParagraphStyle('body',fontName='MunicipalVera',fontSize=9,leading=11)
+    heading=ParagraphStyle('heading',parent=normal,fontName='MunicipalVeraBold',fontSize=11,leading=14,spaceBefore=7,spaceAfter=4,keepWithNext=False)
     small=ParagraphStyle('small',parent=normal,fontSize=7.5,leading=10)
     def paragraph(value,style=normal):return Paragraph(escape(str(value or '')),style)
     class Checkbox(Flowable):
-        def __init__(self):super().__init__();self.width=12;self.height=12
-        def draw(self):self.canv.setLineWidth(.7);self.canv.rect(1,1,10,10,stroke=1,fill=0)
+        def __init__(self):super().__init__();self.width=14;self.height=14
+        def draw(self):self.canv.setLineWidth(.7);self.canv.rect(0,0,14,14,stroke=1,fill=0)
     class Acknowledgement(Flowable):
         def wrap(self,width,height):
-            self.width=width;self.height=max(200,height-1);return self.width,self.height
+            self.width=width;self.height=196;return self.width,self.height
         def draw(self):
             c=self.canv;c.setStrokeColor(colors.HexColor('#555555'));c.setLineWidth(.6)
             c.setFont('MunicipalVeraBold',10)
-            c.drawString(0,184,'MUNICIPAL ACKNOWLEDGEMENT OF RECEIPT')
+            c.drawString(0,180,'MUNICIPAL ACKNOWLEDGEMENT OF RECEIPT')
             c.setFont('MunicipalVera',10)
-            for label,y in [('Name:',156),('Signature:',128),('Date:',100)]:
+            for label,y in [('Name:',150),('Signature:',118),('Date:',86)]:
                 c.drawString(0,y,label);c.line(65,y-2,255,y-2)
-            c.drawString(300,156,'Municipal Stamp:')
-            c.rect(300,12,self.width-300,132,stroke=1,fill=0)
+            c.drawString(285,150,'Municipal Stamp:')
+            c.rect(285,12,self.width-285,128,stroke=1,fill=0)
     buffer=BytesIO()
     document=SimpleDocTemplate(buffer,pagesize=A4,rightMargin=16*mm,leftMargin=16*mm,topMargin=16*mm,bottomMargin=16*mm,title='Municipal Meter Readings - '+data['month'],author='Property Management')
-    story=[Paragraph('MUNICIPAL METER READINGS',ParagraphStyle('title',parent=heading,fontSize=16,leading=21)),
-           paragraph('Reporting period: '+data['month']),
-           paragraph('Authorized property portfolio | Recorded readings only',small),
-           paragraph('Captured is for the municipal official to tick manually. Reading dates appear below each saved value.',small),Spacer(1,5*mm)]
+    story=[Paragraph('MUNICIPAL METER READINGS',ParagraphStyle('title',parent=heading,fontSize=16,leading=20,spaceBefore=0)),
+           paragraph('Reporting Month: '+display['month_label'])]
+    if display['reading_date_label']:story.append(paragraph('Reading Date: '+display['reading_date_label']))
+    elif display['has_readings']:story.append(paragraph('Reading dates vary; shown with each reading.',small))
+    story.append(Spacer(1,3*mm))
     for utility,title in [('electricity','Electricity Readings (kWh)'),('water','Water Readings (kL)')]:
         story.extend([CondPageBreak(100),paragraph(title,heading)])
         rows=[[paragraph(label) for label in ['Account','Reference','Meter','Reading','Captured']]]
         for row in data['groups'][utility]:
-            reading=Paragraph(escape(row['reading'])+'<br/><font size="7">'+row['reading_date'].isoformat()+'</font>',normal)
+            reading=paragraph(row['reading']) if display['common_date'] else Paragraph(escape(row['reading'])+'<br/><font size="7">'+row['reading_date'].isoformat()+'</font>',normal)
             rows.append([paragraph(row['account_number']),paragraph(row['municipal_reference']),paragraph(row['meter_number']),reading,Checkbox()])
         if len(rows)==1:rows.append([paragraph('No recorded readings for this period.'),'','','',''])
         table=Table(rows,colWidths=[document.width*.22,document.width*.23,document.width*.22,document.width*.21,document.width*.12],repeatRows=1,hAlign='LEFT')
-        commands=[('GRID',(0,0),(-1,-1),.4,colors.HexColor('#888888')),('BACKGROUND',(0,0),(-1,0),colors.HexColor('#eeeeee')),('VALIGN',(0,0),(-1,-1),'MIDDLE'),('TOPPADDING',(0,0),(-1,-1),9),('BOTTOMPADDING',(0,0),(-1,-1),9),('ALIGN',(-1,1),(-1,-1),'CENTER')]
+        commands=[('GRID',(0,0),(-1,-1),.4,colors.HexColor('#888888')),('BACKGROUND',(0,0),(-1,0),colors.HexColor('#eeeeee')),('VALIGN',(0,0),(-1,-1),'MIDDLE'),('TOPPADDING',(0,0),(-1,-1),3),('BOTTOMPADDING',(0,0),(-1,-1),3),('ALIGN',(-1,1),(-1,-1),'CENTER')]
         if len(rows)==2 and not data['groups'][utility]:commands.append(('SPAN',(0,1),(-1,1)))
-        table.setStyle(TableStyle(commands));story.extend([table,Spacer(1,5*mm)])
+        table.setStyle(TableStyle(commands));story.extend([table,Spacer(1,2*mm)])
     story.append(Acknowledgement())
     def footer(canvas,doc):
         canvas.setFont('MunicipalVera',7)

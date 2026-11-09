@@ -1,3 +1,23 @@
-<h3>MUNICIPAL METER READINGS - {{ month }}</h3><p>Authorized property portfolio | Recorded readings only</p>
-{% for utility,label in [('electricity','Electricity Readings (kWh)'),('water','Water Readings (kL)')] %}<h3>{{ label }}</h3><table class="report-table"><thead><tr>{% for title in ['Account','Reference','Meter','Reading','Captured'] %}<th>{{ title }}</th>{% endfor %}</tr></thead><tbody>{% for row in groups[utility] %}<tr><td>{{ row.account_number }}</td><td>{{ row.municipal_reference or '' }}</td><td>{{ row.meter_number }}</td><td>{{ row.reading }}<br>{{ row.reading_date }}</td><td>&#9633;</td></tr>{% else %}<tr><td colspan="5">No recorded readings for this period.</td></tr>{% endfor %}</tbody></table>{% endfor %}
-<h3>MUNICIPAL ACKNOWLEDGEMENT OF RECEIPT</h3><p>Name: ________________________</p><p>Signature: ________________________</p><p>Date: ________________________</p><div style="min-height:130px">Municipal Stamp:</div>
+<div class="municipal-submission">
+<h2>MUNICIPAL METER READINGS</h2><p>Reporting Month: {{ month_label }}</p>
+{% if reading_date_label %}<p>Reading Date: {{ reading_date_label }}</p>{% elif has_readings %}<p>Reading dates vary; shown with each reading.</p>{% endif %}
+{% for utility,label in [('electricity','Electricity Readings (kWh)'),('water','Water Readings (kL)')] %}<h3>{{ label }}</h3><table class="report-table"><colgroup><col style="width:22%"><col style="width:23%"><col style="width:22%"><col style="width:21%"><col style="width:12%"></colgroup><thead><tr>{% for title in ['Account','Reference','Meter','Reading','Captured'] %}<th>{{ title }}</th>{% endfor %}</tr></thead><tbody>{% for row in groups[utility] %}<tr><td>{{ row.account_number }}</td><td>{{ row.municipal_reference or '' }}</td><td>{{ row.meter_number }}</td><td>{{ row.reading }}{% if not common_date %}<br><span class="reading-date">{{ row.reading_date }}</span>{% endif %}</td><td class="captured"><span class="capture-checkbox" aria-label="Captured"></span></td></tr>{% else %}<tr><td colspan="5">No recorded readings for this period.</td></tr>{% endfor %}</tbody></table>{% endfor %}
+<section class="municipal-receipt"><h3>MUNICIPAL ACKNOWLEDGEMENT OF RECEIPT</h3><div class="receipt-fields"><div><p>Name: ________________________</p><p>Signature: ________________________</p><p>Date: ________________________</p></div><div>Municipal Stamp:<div class="municipal-stamp"></div></div></div></section>
+</div>
+<style>
+#utilities-report .municipal-submission{font-family:Arial,sans-serif;font-size:9pt;line-height:1.2;color:#111}
+#utilities-report .municipal-submission h2{font-size:16pt;margin:0 0 5pt;font-weight:bold}
+#utilities-report .municipal-submission h3{font-size:11pt;margin:8pt 0 4pt;font-weight:bold}
+#utilities-report .municipal-submission p{margin:3pt 0}
+#utilities-report .municipal-submission .report-table{width:100%;border-collapse:collapse;table-layout:fixed}
+#utilities-report .municipal-submission th,#utilities-report .municipal-submission td{border:0.4pt solid #888;padding:3pt 5pt;text-align:left;vertical-align:middle;overflow-wrap:anywhere;font-size:9pt;line-height:11pt}
+#utilities-report .municipal-submission .captured{text-align:center}
+#utilities-report .municipal-submission th:last-child{white-space:nowrap}
+.municipal-submission .capture-checkbox{display:inline-block;width:14pt;height:14pt;border:0.7pt solid #111;vertical-align:middle;box-sizing:border-box}
+.municipal-submission .reading-date{font-size:7pt}
+.municipal-submission .municipal-receipt{break-inside:avoid;page-break-inside:avoid;margin-top:10pt}
+.municipal-submission .receipt-fields{display:grid;grid-template-columns:1fr 1fr;gap:12mm;margin-top:6mm}
+#utilities-report .receipt-fields p{margin:0 0 6mm}
+.municipal-submission .municipal-stamp{height:45mm;border:0.6pt solid #555;margin-top:3mm}
+@media print{.municipal-submission table tr{break-inside:avoid}.municipal-submission thead{display:table-header-group}@page{size:A4 portrait;margin:16mm}}
+</style>

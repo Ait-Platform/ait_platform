@@ -38,7 +38,7 @@ def populate(data,args,session):
     wanted=args.get('preview')=='1' or args.get('format')=='pdf' or args.get('action')=='email'
     if key=='history' or key=='metro_reconciliation' or not wanted:return
     if key=='municipal_submission':
-        from .municipal_readings_pdf import report
+        from .municipal_readings_pdf import report,presentation
         first=date.fromisoformat(data['date_from']) if data['date_from'] else start
         last=date.fromisoformat(data['date_to']) if data['date_to'] else end
         groups={'electricity':[],'water':[]};cursor=first.replace(day=1)
@@ -49,7 +49,7 @@ def populate(data,args,session):
             cursor=date(cursor.year+cursor.month//12,cursor.month%12+1,1)
         payload=dict(month=first.strftime('%Y-%m') if first.replace(day=1)==last.replace(day=1) else first.isoformat()+' to '+last.isoformat(),groups=groups)
         data['report_payload']=payload
-        data['report_markup']=render_template('program_billing/output_municipal_submission.html',**payload)
+        data['report_markup']=render_template('program_billing/output_municipal_submission.html',**payload,**presentation(payload))
     elif key in PERIOD_REPORTS:
         from .municipal_metsoa import build
         if not data['recipient_id']:abort(400,description='Select a reporting month and registered recipient.')

@@ -46,7 +46,7 @@ class CentralOutputTests(unittest.TestCase):
                         self.assertEqual(response.status_code,200,response.text)
                         tree=html.fromstring(response.data)
                         self.assertEqual(len(tree.xpath('//*[@id="output-preview"]')),1)
-                        self.assertIn(label,tree.xpath('//*[@id="utilities-report"]')[0].text_content())
+                        self.assertIn('MUNICIPAL METER READINGS' if report=='municipal_submission' else label,tree.xpath('//*[@id="utilities-report"]')[0].text_content())
                         self.assertTrue(tree.xpath('//button[@id="output-print" and not(@disabled)]'))
                         self.assertTrue(tree.xpath('//button[@id="output-email" and not(@disabled)]'))
                         if report=='metsoa_statement':

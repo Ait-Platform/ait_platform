@@ -121,7 +121,7 @@ class UtilitiesOutputTests(fixture.StatementFilterTests):
         self.assertEqual(actions.get('aria-label'),'Output Menu')
         self.assertTrue(tree.xpath('//form[@id="output-filters"]/button[@name="preview"]'))
         self.assertIn('justify-end',actions.get('class'))
-        self.assertEqual(actions.xpath('./button/text()|./a/text()'),['Print','Email','Download PDF'])
+        self.assertEqual(actions.xpath('./button/text()|./a/text()'),['Print','Email','Download PDF','Save Report'])
         self.assertEqual(tree.xpath('//form[@id="output-filters"]//select/@name'),['source','report','item_id','recipient_id'])
         self.assertEqual(tree.xpath('//form[@id="output-filters"]//input[@type="date"]/@name'),['date_from','date_to'])
 

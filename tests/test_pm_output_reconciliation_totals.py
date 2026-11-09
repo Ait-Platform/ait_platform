@@ -22,7 +22,7 @@ class OutputReconciliationTotalsTests(unittest.TestCase):
         self.assertEqual(form[-1].get('name'),'preview')
         self.assertIn('ml-auto',form[-1].get('class'))
         self.assertLess(list(form).index(tree.get_element_by_id('output-to').getparent()),len(form)-1)
-        self.assertEqual(tree.get_element_by_id('output-actions').xpath('./button/text()|./a/text()'),['Print','Email','Download PDF'])
+        self.assertEqual(tree.get_element_by_id('output-actions').xpath('./button/text()|./a/text()'),['Print','Email','Download PDF','Save Report'])
 
     def test_both_filtered_reports_totals_and_pdf_email_share_markup(self):
         for key,columns in [('metro_reconciliation',['arrears','balance','due','paid']),('utilities_reconciliation',['calculated','billed','difference'])]:

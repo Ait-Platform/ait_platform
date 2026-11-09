@@ -1,0 +1,19 @@
+{% extends 'layout.html' %}{% block title %}Directory Register{% endblock %}{% block flashes %}{% endblock %}
+{% block content %}
+<div id="directory-register" class="mx-auto max-w-6xl px-4 py-10"><div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow"><div class="h-2 bg-green-500"></div><div class="p-6">
+<div class="flex items-center justify-between gap-3"><h1 class="text-2xl font-semibold">Directory Register</h1><a href="{{ url_for('billing_bp.learner_dashboard') }}" class="rounded-lg bg-slate-100 px-4 py-2">Back to Property Management</a></div>
+{% set pm_menu_active='directories' %}{% include 'program_billing/menu.html' %}
+<form method="GET" class="my-4"><label for="directory-property" class="font-semibold">Property</label> <select id="directory-property" name="property_id" onchange="this.form.submit()">{% for item in properties %}<option value="{{ item.id }}" {% if selected_property and item.id==selected_property.id %}selected{% endif %}>{{ item.name }}</option>{% endfor %}</select></form>
+<div class="flex flex-wrap justify-end gap-2"><button id="directory-add" type="button" class="rounded-lg bg-green-100 px-4 py-2 font-semibold">Add Directory</button><button id="directory-view" type="button" class="rounded-lg bg-blue-100 px-4 py-2 font-semibold">View Register</button></div>
+<p id="directory-message" role="status" aria-live="polite" class="my-3"></p>
+<p class="text-sm text-slate-600">Assignments are saved only in this browser for the selected user and property. Clearing browser data removes them. Folder selection lets you select or create a folder on this PC.</p>
+<section id="directory-workspace" hidden class="mt-4 rounded-lg border border-slate-200 p-4"><div class="flex justify-between"><h2 id="directory-workspace-title" class="text-xl font-semibold"></h2><button id="directory-close" type="button" class="rounded-lg bg-slate-100 px-4 py-2">Close</button></div>
+<form id="directory-form" hidden class="mt-4"><label for="directory-report" class="font-semibold">Report type</label> <select id="directory-report" required>{% for report in directory_reports %}<option value="{{ report.code }}">{{ report.title }}</option>{% endfor %}</select>
+<button id="directory-choose" type="button" class="rounded-lg bg-blue-100 px-4 py-2">Select or Create Folder</button><span id="directory-folder" class="mx-2">No folder selected</span>
+<div class="mt-4 flex gap-2"><button id="directory-cancel" type="button" class="rounded-lg bg-slate-100 px-4 py-2">Cancel</button><button type="submit" class="rounded-lg bg-green-100 px-4 py-2">Save</button></div></form>
+<div id="directory-table" hidden class="mt-4 overflow-x-auto"><table class="w-full"><thead><tr><th>Report</th><th>Folder on this PC</th><th>Action</th></tr></thead><tbody id="directory-rows"></tbody></table></div>
+</section></div></div></div>
+<style>#directory-register{background:#f8fafc}#directory-register select{border:1px solid #b8cde6;border-radius:6px;min-height:42px;padding:8px 12px;background:white}#directory-register th,#directory-register td{text-align:left;padding:10px;border-bottom:1px solid #e2e8f0}#directory-register [hidden]{display:none}</style>
+<script id="directory-context" type="application/json">{{ directory_context|tojson }}</script><script id="directory-reports" type="application/json">{{ directory_reports|tojson }}</script>
+<script src="{{ url_for('static',filename='js/pm_local_directories.js') }}" defer></script><script src="{{ url_for('static',filename='js/pm_directory_register.js') }}" defer></script>
+{% endblock %}

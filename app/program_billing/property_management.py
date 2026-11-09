@@ -189,3 +189,6 @@ def portfolio_print():
         print_mode=True,**portfolio_context()),mimetype="text/html")
     response.headers['Cache-Control']='private, no-store'
     return response
+
+# Browser-local Utilities report directory assignments.
+from . import directory_register as _directory_register

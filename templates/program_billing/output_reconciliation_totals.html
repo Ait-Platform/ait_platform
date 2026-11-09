@@ -1,0 +1,3 @@
+{% macro totals(rows, keys, label_columns=1) -%}
+<tfoot><tr><th colspan="{{ label_columns }}"><strong>TOTAL</strong></th>{% for key in keys %}{% set column=namespace(total=0,available=true) %}{% for row in rows %}{% if row[key] is none %}{% set column.available=false %}{% else %}{% set column.total=column.total + row[key]|round(2) %}{% endif %}{% endfor %}<td class="money"><strong>{{ 'R{:,.2f}'.format(column.total) if column.available else 'Unavailable' }}</strong></td>{% endfor %}</tr></tfoot>
+{%- endmacro %}

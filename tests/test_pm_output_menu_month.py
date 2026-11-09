@@ -14,15 +14,15 @@ class OutputMenuMonthTests(unittest.TestCase):
         response=self.get();self.assertEqual(response.status_code,200,response.text)
         tree=html.fromstring(response.data)
         menu=tree.get_element_by_id('output-actions');filters=tree.get_element_by_id('output-filters')
-        self.assertEqual(menu.xpath('./button/text()|./a/text()'),['Print','Email','Download PDF','Save Report'])
+        self.assertEqual(menu.xpath('./button/text()|./a/text()'),['Print','Email','Save Report','Folders'])
         self.assertTrue(filters.xpath('./button[@name="preview"]'))
         self.assertIn('justify-end',menu.get('class'))
         children=list(menu.getparent())
         self.assertLess(children.index(tree.get_element_by_id('output-heading')),children.index(menu))
         self.assertLess(children.index(menu),children.index(filters))
         self.assertEqual(filters.xpath('./label/*/@name'),['source','report','item_id','by_month','date_from','date_to'])
-        self.assertEqual(menu.xpath('./a[@id="output-download"]/@aria-disabled'),['true'])
-        self.assertFalse(menu.xpath('./a[@id="output-download"]/@href'))
+        self.assertEqual(tree.xpath('//*[@id="output-download"]/@aria-disabled'),['true'])
+        self.assertFalse(tree.xpath('//*[@id="output-download"]/@href'))
     def test_by_month_sets_full_calendar_boundaries_without_javascript(self):
         for month,first,last in [('2024-02','2024-02-01','2024-02-29'),('2026-02','2026-02-01','2026-02-28'),('2026-12','2026-12-01','2026-12-31')]:
             with self.subTest(month=month),self.fx.app.test_request_context():
@@ -59,7 +59,7 @@ class OutputMenuMonthTests(unittest.TestCase):
                 page.locator('#output-from').fill('2024-02-07');page.locator('#output-from').dispatch_event('change')
                 self.assertEqual(page.locator('#output-month').input_value(),'')
                 self.assertEqual(page.locator('#output-from').input_value(),'2024-02-07')
-                self.assertTrue(page.locator('#output-download').is_visible())
+                self.assertTrue(page.locator('#output-download').is_hidden())
                 self.assertEqual(page.locator('#output-download').get_attribute('aria-disabled'),'true')
                 self.assertTrue(page.locator('#output-save').is_disabled())
                 self.assertIsNone(page.locator('#output-download').get_attribute('href'))
@@ -76,6 +76,6 @@ class OutputMenuMonthTests(unittest.TestCase):
         fields=self.owner.fields(response);self.assertEqual(fields['by_month'],'2026-10')
         tree=html.fromstring(response.data)
         self.assertIn('by_month=2026-10',tree.get_element_by_id('output-download').get('href'))
-        self.assertTrue(tree.xpath('//*[@id="output-actions"]/a[@id="output-download" and @href]'))
+        self.assertTrue(tree.xpath('//*[@id="output-download" and @href and @hidden]'))
 
 if __name__=='__main__':unittest.main()

@@ -81,8 +81,8 @@ class OutputAverageTests(unittest.TestCase):
                 self.assertEqual(tab.locator('#output-item').input_value(),'')
                 self.assertEqual(tab.locator('#output-report').input_value(),'history')
                 page=self.fx.preview(item='99',start='',end='');tab.set_content(page.text);tab.add_script_tag(path='app/static/js/pm_utilities_output.js')
-                self.assertTrue(tab.locator('#output-download').is_visible())
-                tab.select_option('#output-item','96');self.assertTrue(tab.locator('#output-download').is_visible());self.assertEqual(tab.locator('#output-download').get_attribute('aria-disabled'),'true')
+                self.assertTrue(tab.locator('#output-download').is_hidden())
+                tab.select_option('#output-item','96');self.assertTrue(tab.locator('#output-download').is_hidden());self.assertEqual(tab.locator('#output-download').get_attribute('aria-disabled'),'true')
             finally:browser.close()
     def test_utilities_menu_has_property_scoped_output(self):
         from flask import render_template

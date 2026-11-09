@@ -59,10 +59,20 @@
     const row=await api.get(scope);
     if(!row)throw new Error('No main folder is registered. Open Folders or use Download PDF.');
     if(!await api.permission(row.handle))throw new Error('Folder permission was not granted. Allow access and try again, or use Download PDF.');
-    const response=await fetch(url,{credentials:'same-origin',cache:'no-store'});
-    if(!response.ok)throw new Error('The report could not be generated. Preview it again or use Download PDF.');
+    let response;
+    try{response=await fetch(url,{credentials:'same-origin',cache:'no-store',headers:{Accept:'application/json'}});}
+    catch(error){throw new Error('The PDF request could not reach AIT. Check your connection and try again. No file was saved.');}
+    if(!response.ok){
+      let detail='';
+      try{
+        if((response.headers.get('content-type') || '').includes('application/json')){const failure=await response.json();if(typeof failure.error==='string')detail=failure.error;}
+        else{const document=new DOMParser().parseFromString(await response.text(),'text/html');detail=document.querySelector('[role="alert"]')?.textContent.trim() || '';}
+      }catch(_){}
+      const defaults={400:'The PDF request could not be validated. Preview the report again.',401:'Your session has expired. Sign in again, then Preview the report.',403:'Access to this report was denied.',409:'Report records changed after Preview. Preview the current records again.',502:'The PDF server gateway could not complete the request.',503:'The server could not prepare the PDF. Please contact the administrator.',504:'The PDF request timed out at the server gateway.'};
+      throw new Error((detail || defaults[response.status] || 'The PDF request failed.')+' (HTTP '+response.status+'). No file was saved.');
+    }
     const blob=await response.blob();
-    if(await blob.slice(0,5).text()!=='%PDF-')throw new Error('The server did not return a PDF. No file was saved.');
+    if(await blob.slice(0,5).text()!=='%PDF-')throw new Error(response.redirected?'AIT redirected the PDF request. Your session may have expired; sign in and Preview again. No file was saved.':'AIT returned a page instead of a PDF. Check your session and Preview again. No file was saved.');
     const pad=n=>String(n).padStart(2,'0');
     const prefix=pad(date.getDate())+pad(date.getMonth()+1)+pad(date.getFullYear()%100)+'_'+(report==='metsoa_statement'?'METSOA':entry.title.replaceAll(' ','_'));
     // One origin-wide lock also covers different properties assigned the same

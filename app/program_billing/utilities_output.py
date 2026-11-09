@@ -3,7 +3,7 @@ import hashlib,json
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from io import BytesIO
-from flask import request,render_template,abort,current_app,flash,redirect,url_for,send_file
+from flask import request,render_template,abort,current_app,flash,redirect,url_for,send_file,jsonify
 from flask_login import current_user
 from sqlalchemy import text
 from itsdangerous import URLSafeTimedSerializer,BadSignature,SignatureExpired
@@ -94,9 +94,10 @@ def preview_token(data):
 
 def verify_preview(data,token):
     try:saved=serializer().loads(token or '',max_age=1800)
-    except (BadSignature,SignatureExpired):abort(400,description='Preview this report again before printing a PDF or emailing it.')
-    if saved.get('user')!=current_user.id or saved.get('property')!=data['property']['id'] or saved.get('filters')!={k:data[k] for k in FILTERS}:abort(400,description='Report selection changed. Preview it again before emailing.')
-    if saved.get('digest')!=digest(data):abort(409,description='Report records changed after preview. Preview the latest records before emailing.')
+    except SignatureExpired:abort(400,description='This preview expired after 30 minutes. Click Preview again before saving, printing or emailing the report.')
+    except BadSignature:abort(400,description='The preview could not be validated. Click Preview again before saving, printing or emailing the report.')
+    if saved.get('user')!=current_user.id or saved.get('property')!=data['property']['id'] or saved.get('filters')!={k:data[k] for k in FILTERS}:abort(400,description='Report selection changed. Click Preview again before saving, printing or emailing.')
+    if saved.get('digest')!=digest(data):abort(409,description='Report records changed after preview. Click Preview again before saving, printing or emailing.')
     data['generated_at']=datetime.fromisoformat(saved['generated_at'])
 
 def render_pdf(data):
@@ -184,8 +185,12 @@ def page(p):
                     try:address=validate_email(address,check_deliverability=False).normalized
                     except EmailNotValidError:abort(400,description='Enter a valid recipient email address.')
                 try:pdf=render_pdf(data)
-                except Exception:
-                    current_app.logger.exception('Utilities report PDF failed');abort(503,description='The PDF could not be generated. Please contact the administrator.')
+                except Exception as exc:
+                    current_app.logger.exception('Utilities report PDF failed')
+                    message='The PDF could not be generated. The preview is HTML; the PDF renderer failed. Please contact the administrator.'
+                    if data['report']=='metsoa_statement' and "Executable doesn't exist" in str(exc):
+                        message='The METSOA PDF browser is unavailable on the server. An administrator must restore the configured Chromium installation. Previewing again will not repair it.'
+                    abort(503,description=message)
                 if request.method=='GET':return send_file(BytesIO(pdf),mimetype='application/pdf',as_attachment=args.get('download')=='1',download_name='Utilities-'+data['report']+'.pdf')
                 try:
                     send_email_once(address,data,pdf,args.get('preview_token'))
@@ -196,4 +201,6 @@ def page(p):
                 flash('Mail transport accepted the Utilities report. Inbox delivery is not confirmed.','success')
                 return redirect(url_for('billing_bp.utilities_output',property_id=p,preview='1',**{k:data[k] for k in FILTERS}))
             except HTTPException as exc:error=exc.description;status=exc.code
+    if error and request.method=='GET' and args.get('format')=='pdf' and request.accept_mimetypes.best=='application/json':
+        return jsonify(error=error),status
     return render_template('program_billing/utilities_output.html',**data,previewed=previewed,preview_token=(verified_token or preview_token(data)) if previewed else '',email_to=address,error=error),status

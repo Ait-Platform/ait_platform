@@ -110,8 +110,8 @@ class OutputLocalSaveTests(unittest.TestCase):
                 self.assertEqual(result['fetches'],2)
                 self.assertIn('permission was not granted',result['errors'][0])
                 self.assertIn('AbortError',result['errors'][1])
-                self.assertIn('did not return a PDF',result['errors'][2])
-                self.assertIn('could not be generated',result['errors'][3])
+                self.assertIn('instead of a PDF',result['errors'][2])
+                self.assertIn('HTTP 503',result['errors'][3])
             finally:browser.close()
 
     def test_prompt_permission_can_be_granted_before_fetch_and_write(self):

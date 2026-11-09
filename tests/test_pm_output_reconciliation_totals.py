@@ -37,7 +37,10 @@ class OutputReconciliationTotalsTests(unittest.TestCase):
                 rows=data['rows'] if key=='metro_reconciliation' else data['report_payload']['pm_comparisons']
                 expected=[]
                 for column in columns:
-                    expected.append('Unavailable' if any(r[column] is None for r in rows) else 'R{:,.2f}'.format(sum((Decimal(str(r[column])).quantize(Decimal('.01')) for r in rows),Decimal(0))))
+                    if any(r[column] is None for r in rows):expected.append('Unavailable')
+                    else:
+                        total=sum((Decimal(str(r[column])).quantize(Decimal('.01')) for r in rows),Decimal(0))
+                        expected.append('-R{:,.2f}'.format(abs(total)) if column=='difference' and total<0 else 'R{:,.2f}'.format(total))
                 self.assertEqual(tree.xpath('//*[@id="utilities-report"]//tfoot/tr/td/strong/text()'),expected)
                 self.assertEqual(tree.xpath('//*[@id="utilities-report"]//tfoot/tr/th/strong/text()'),['TOTAL'])
                 text=' '.join(page.extract_text() or '' for page in PdfReader(BytesIO(pdf)).pages)

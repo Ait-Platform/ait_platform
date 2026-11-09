@@ -98,14 +98,15 @@ def render_pdf(data):
     if display['reading_date_label']:story.append(paragraph('Reading Date: '+display['reading_date_label']))
     elif display['has_readings']:story.append(paragraph('Reading dates vary; shown with each reading.',small))
     story.append(Spacer(1,3*mm))
+    section_heading=ParagraphStyle('section',parent=heading,leftIndent=(document.width-152*mm)/2)
     for utility,title in [('electricity','Electricity Readings (kWh)'),('water','Water Readings (kL)')]:
-        story.extend([CondPageBreak(100),paragraph(title,heading)])
+        story.extend([CondPageBreak(100),paragraph(title,section_heading)])
         rows=[[paragraph(label) for label in ['Account','Reference','Meter','Reading','Captured']]]
         for row in data['groups'][utility]:
             reading=paragraph(row['reading']) if display['common_date'] else Paragraph(escape(row['reading'])+'<br/><font size="7">'+row['reading_date'].isoformat()+'</font>',normal)
             rows.append([paragraph(row['account_number']),paragraph(row['municipal_reference']),paragraph(row['meter_number']),reading,Checkbox()])
         if len(rows)==1:rows.append([paragraph('No recorded readings for this period.'),'','','',''])
-        table=Table(rows,colWidths=[document.width*.22,document.width*.23,document.width*.22,document.width*.21,document.width*.12],repeatRows=1,hAlign='LEFT')
+        table=Table(rows,colWidths=[width*mm for width in (32,36,38,25,21)],repeatRows=1,hAlign='CENTER')
         commands=[('GRID',(0,0),(-1,-1),.4,colors.HexColor('#888888')),('BACKGROUND',(0,0),(-1,0),colors.HexColor('#eeeeee')),('VALIGN',(0,0),(-1,-1),'MIDDLE'),('TOPPADDING',(0,0),(-1,-1),3),('BOTTOMPADDING',(0,0),(-1,-1),3),('ALIGN',(-1,1),(-1,-1),'CENTER')]
         if len(rows)==2 and not data['groups'][utility]:commands.append(('SPAN',(0,1),(-1,1)))
         table.setStyle(TableStyle(commands));story.extend([table,Spacer(1,2*mm)])

@@ -1,6 +1,7 @@
 {% extends "admin/programs/billing/tariff_layout.html" %}
 {% block tariff_title %}Annual Municipal Tariff Register{% endblock %}
 {% block tariff_actions %}
+<div class="tariff-actions" style="padding-bottom:0"><a class="tariff-button add" href="{{ url_for('admin_bp.billing_tariff_publications',financial_year=financial_year) }}">Download Municipal Tariffs</a></div>
 <form id="annual-tariff-hub" class="tariff-actions annual-controls" method="get">
   <label for="financial-year">Financial year
     <select id="financial-year" name="financial_year" autofocus>{% for year in years %}<option value="{{ year }}" {% if year == financial_year %}selected{% endif %}>{{ year }} — 1 July to 30 June</option>{% endfor %}</select>

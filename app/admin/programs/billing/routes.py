@@ -75,6 +75,18 @@ def billing_tariff_annual_activate(code):
     return page(_render_billing_template, code)
 
 
+@admin_bp.route("/billing/tariffs/municipal-publications", methods=["GET", "POST"])
+def billing_tariff_publications():
+    from app.admin.programs.billing.municipal_tariff_download import page
+    return page(_render_billing_template)
+
+
+@admin_bp.route("/billing/tariffs/municipal-publications/<year>/<receipt>/pdf", methods=["GET"])
+def billing_tariff_publication_pdf(year, receipt):
+    from app.admin.programs.billing.municipal_tariff_download import download
+    return download(year.replace('-', '/'), receipt)
+
+
 @admin_bp.route("/billing/tariffs/recovered", methods=["GET"])
 def billing_tariff_recovered():
     from app.admin.programs.billing.tariff_management import recovered_review

@@ -42,7 +42,8 @@ def page(render):
             if len(discovered)>source.MAX_DOWNLOADS:
                 issues.append('Download limited to '+str(source.MAX_DOWNLOADS)+' publications per request. Additional source links are shown below.')
         # Retrieve the whole bounded publication batch before considering activation.
-        for record in saved:
+        if saved and issues:issues.append('Automatic activation was not attempted because the publication download batch was incomplete.')
+        for record in saved if not issues else []:
             try:
                 activations.append(import_module('app.admin.programs.billing.municipal_tariff_auto_activation').automatic(management,documents,store,year,record['receipt_id']))
             except Exception:

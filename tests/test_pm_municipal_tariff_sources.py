@@ -22,7 +22,7 @@ class PublicationTests(AnnualRegisterTests):
     def setUp(self):
         super().setUp()
         self.modules={}
-        for short in ('municipal_tariff_sources','municipal_tariff_documents','municipal_tariff_download'):
+        for short in ('municipal_tariff_sources','municipal_tariff_documents','municipal_tariff_download','municipal_tariff_auto_activation'):
             name='app.admin.programs.billing.'+short
             module=types.ModuleType(name)
             if short=='municipal_tariff_documents':

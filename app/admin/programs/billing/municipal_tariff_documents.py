@@ -46,6 +46,12 @@ class Disk:
 
     def get(self, key):return self.path(key).read_bytes()
 
+    def keys(self, scope):
+        folder=self.path(scope)
+        if not folder.exists():return []
+        return sorted(str(path.relative_to(self.root)).replace('\\','/') for path in folder.rglob('*.json') if path.is_file())
+
+
     def receipts(self, year):
         folder=self.path(prefix(year)+'receipts')
         return sorted(folder.glob('*.json'),key=lambda path:path.stat().st_mtime,reverse=True)[:20] if folder.exists() else []
@@ -62,6 +68,20 @@ class R2:
     def __init__(self):self.api=import_module('app.utils.cloudflare_r2')
     def put(self,key,content,mime):self.api.upload_bytes_to_r2(key,content,content_type=mime)
     def get(self,key):return self.api.read_file_from_r2(key)
+    def keys(self,scope):
+        client,bucket=self.api.r2_client()
+        keys=[];continuation=None
+        while True:
+            values=dict(Bucket=bucket,Prefix=scope,MaxKeys=1000)
+            if continuation:values['ContinuationToken']=continuation
+            response=client.list_objects_v2(**values)
+            keys.extend(row['Key'] for row in response.get('Contents',[]) if row['Key'].endswith('.json'))
+            if len(keys)>10000:raise StorageError('Monitoring history exceeds supported scope; no history was discarded.')
+            if not response.get('IsTruncated'):return sorted(keys)
+            following=response.get('NextContinuationToken')
+            if not following or following==continuation:raise StorageError('Monitoring history pagination failed.')
+            continuation=following
+
     def listing(self,year):
         client,bucket=self.api.r2_client()
         response=client.list_objects_v2(Bucket=bucket,Prefix=prefix(year)+'receipts/',MaxKeys=1000)
@@ -74,6 +94,7 @@ class R2:
 def backend():
     configured=current_app.config.get('PM_TARIFF_DOCUMENT_ROOT') or os.getenv('PM_TARIFF_DOCUMENT_ROOT')
     if configured:return Disk(configured)
+    if current_app.testing:raise StorageError('Tests must configure isolated municipal document storage.')
     if all(os.getenv(key) for key in ('R2_ENDPOINT_URL','R2_ACCESS_KEY','R2_SECRET_KEY','R2_BUCKET_NAME')):
         return R2()
     if os.getenv('RENDER'):

@@ -180,5 +180,7 @@ def page(render):
         data = review(stored, evidence, year)
         from app.admin.programs.billing.annual_tariff_activation import options
         data['activation_options'] = options(stored, evidence, year, today())
+    from app.admin.programs.billing.municipal_tariff_monitor import summary
+    data['monitoring_checks']=summary()
     return render('admin/programs/billing/annual_tariff_register.html', years=YEARS,
                   financial_year=year, opened=opened, **data)

@@ -29,6 +29,12 @@ class AnnualRegisterTests(ManagementTests):
         exec(compile(tree, module.__file__, 'exec'), module.__dict__)
         mocked = patch.dict(sys.modules, {name: module})
         mocked.start();self.addCleanup(mocked.stop)
+        # Legacy register tests isolate new monitoring infrastructure; dedicated
+        # monitor tests replace this stub with the real service and private storage.
+        monitor_name='app.admin.programs.billing.municipal_tariff_monitor'
+        monitor=types.ModuleType(monitor_name);monitor.summary=lambda:[]
+        monitor_patch=patch.dict(sys.modules,{monitor_name:monitor})
+        monitor_patch.start();self.addCleanup(monitor_patch.stop)
         self.review = module
         activation_name='app.admin.programs.billing.annual_tariff_activation'
         activation=types.ModuleType(activation_name)

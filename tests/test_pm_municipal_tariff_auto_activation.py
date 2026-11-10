@@ -83,6 +83,17 @@ class AutomaticActivationTests(VerificationTests):
             result=self.activate();self.assertEqual(result['status'],'DISABLED')
         self.assertEqual(before,self.snapshot())
 
+    def test_audit_actor_does_not_inherit_logged_in_administrator_authority(self):
+        import sys,types
+        fake=types.ModuleType('app.models.auth');fake.User=object
+        self.app.config['PM_TARIFF_AUTOMATION_ACTOR_ID']=7
+        actor=types.SimpleNamespace(id=7,role='manager',is_admin=False,is_active=True)
+        with self.app.test_request_context(),patch.dict(sys.modules,{'app.models.auth':fake}),patch.object(self.tariff_service.db.session,'get',return_value=actor):
+            with self.assertRaises(ValueError):self.auto.audit_actor(self.tariff_service)
+            actor.role='admin';self.assertEqual(self.auto.audit_actor(self.tariff_service),7)
+            actor.is_active=False
+            with self.assertRaises(ValueError):self.auto.audit_actor(self.tariff_service)
+
     def test_future_versions_are_selected_only_from_effective_date(self):
         self.tariff_service.today=lambda:date(2026,6,1)
         with self.supported():

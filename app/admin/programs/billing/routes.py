@@ -57,6 +57,12 @@ def billing_meters():
 
 
 
+@admin_bp.record_once
+def install_municipal_tariff_monitor(state):
+    from app.admin.programs.billing.municipal_tariff_monitor import install
+    install(state.app)
+
+
 @admin_bp.route("/billing/tariffs", methods=["GET", "POST"], endpoint="billing_tariffs")
 def billing_tariffs():
     from app.admin.programs.billing.tariff_management import listing

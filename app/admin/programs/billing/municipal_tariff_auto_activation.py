@@ -19,9 +19,9 @@ def audit_actor(service):
     identifier=current_app.config.get('PM_TARIFF_AUTOMATION_ACTOR_ID')
     if not identifier:raise ValueError('Automatic activation audit actor is not configured.')
     from app.models.auth import User
-    from app.utils.roles import is_admin
     actor=service.db.session.get(User,int(identifier))
-    if actor is None or not is_admin(actor) or getattr(actor,'is_active',True) is False:
+    if (actor is None or not (getattr(actor,'is_admin',False) is True or str(getattr(actor,'role','')).casefold()=='admin')
+            or not bool(getattr(actor,'is_active',True))):
         raise ValueError('Configured automation audit actor is not an active administrator.')
     return int(actor.id)
 

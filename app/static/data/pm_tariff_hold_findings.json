@@ -1,0 +1,96 @@
+{
+  "financial_year": "2026/27",
+  "reviewed_on": "2026-11-10",
+  "findings": [
+    {
+      "item": "Official adoption",
+      "status": "HOLD",
+      "documented": "MTREF PDF19 submits resolutions for consideration/adjustment. PDF30 item 1.2.12 refers to circulated tariffs but specifies R1.50/kL infrastructure surcharges; the tariff tables PDF288 specify R1.48/kL.",
+      "outstanding": "Obtain the adopted Council decision and identified final/amended tariff annexure or municipal clarification binding the exact table and resolving the surcharge conflict. A final filename or general budget announcement is insufficient.",
+      "sources": [
+        {
+          "url": "https://www.durban.gov.za/uploads/0000/11/2026/06/05/ethekwini-municipality-20262027-mtref.pdf#page=19",
+          "sha256": "29da334d9645dce308eb110d5ca57a68933d42116f878f8e553f425abfe079d8",
+          "page": 19
+        },
+        {
+          "url": "https://www.durban.gov.za/uploads/0000/11/2026/06/05/ethekwini-municipality-20262027-mtref.pdf#page=30",
+          "sha256": "29da334d9645dce308eb110d5ca57a68933d42116f878f8e553f425abfe079d8",
+          "page": 30
+        },
+        {
+          "url": "https://www.durban.gov.za/uploads/0000/13/2026/06/22/eth-final-2026-2027-tariff-tables.pdf#page=288",
+          "sha256": "59b640ec20d9a8a408ebd92a378dae66632470e703a7f3fed2509a5bf9c6a56e",
+          "page": 288
+        }
+      ]
+    },
+    {
+      "item": "Electricity scale",
+      "status": "HOLD",
+      "documented": "Booklet PDF2/10 states 357.47 cents/kWh = R3.5747/kWh excluding VAT from 1 July 2026 for residential Scales 3, 4, 8, 9 and 13; service charge is included. PDF9 describes applicability.",
+      "outstanding": "Confirm the actual municipal scale using account/bill evidence in existing tariff verification. Do not assume FBE Scale12, net billing, TOU or business tariffs are interchangeable. Source rate/unit/date extraction is supported; account applicability is not thereby certified.",
+      "sources": [
+        {
+          "url": "https://electricity.durban.gov.za/uploads/0000/17/2026/10/06/tariffs-and-charges-2026-2027.pdf#page=2",
+          "sha256": "70dcd2237fcf7fc70877b6f37e965b86ca256812d1ab4a3d841586c64dd0f119",
+          "page": 2
+        },
+        {
+          "url": "https://electricity.durban.gov.za/uploads/0000/17/2026/10/06/tariffs-and-charges-2026-2027.pdf#page=9",
+          "sha256": "70dcd2237fcf7fc70877b6f37e965b86ca256812d1ab4a3d841586c64dd0f119",
+          "page": 9
+        },
+        {
+          "url": "https://electricity.durban.gov.za/uploads/0000/17/2026/10/06/tariffs-and-charges-2026-2027.pdf#page=10",
+          "sha256": "70dcd2237fcf7fc70877b6f37e965b86ca256812d1ab4a3d841586c64dd0f119",
+          "page": 10
+        }
+      ]
+    },
+    {
+      "item": "Water management charge",
+      "status": "HOLD",
+      "documented": "Tariff tables PDF272: CCMGMT, monthly distribution charge payable per submeter, R30.50 for 2026/27 excluding VAT. This is a per-submeter amount.",
+      "outstanding": "No evidence equates CCMGMT directly to the existing W_MGT aggregate property charge. Verify service and quantity/allocation basis. Do not copy R30.50 into an aggregate charge, multiply by an assumed meter count, or alter W_MGT calculations.",
+      "sources": [
+        {
+          "url": "https://www.durban.gov.za/uploads/0000/13/2026/06/22/eth-final-2026-2027-tariff-tables.pdf#page=272",
+          "sha256": "59b640ec20d9a8a408ebd92a378dae66632470e703a7f3fed2509a5bf9c6a56e",
+          "page": 272
+        }
+      ]
+    },
+    {
+      "item": "Water-loss charge",
+      "status": "HOLD",
+      "documented": "Tariff tables PDF270 lists R21.60 for underground leaks for individual dwellings. MTREF PDF31 describes proposed policy clarification of a fixed monthly levy on domestic water customers.",
+      "outstanding": "The monthly basis is described, but adopted policy and applicability to individual/bulk meters or dwellings are not established. Do not silently equate per-dwelling/per-customer wording with every registered meter.",
+      "sources": [
+        {
+          "url": "https://www.durban.gov.za/uploads/0000/13/2026/06/22/eth-final-2026-2027-tariff-tables.pdf#page=270",
+          "sha256": "59b640ec20d9a8a408ebd92a378dae66632470e703a7f3fed2509a5bf9c6a56e",
+          "page": 270
+        },
+        {
+          "url": "https://www.durban.gov.za/uploads/0000/11/2026/06/05/ethekwini-municipality-20262027-mtref.pdf#page=31",
+          "sha256": "29da334d9645dce308eb110d5ca57a68933d42116f878f8e553f425abfe079d8",
+          "page": 31
+        }
+      ]
+    },
+    {
+      "item": "Refuse classification",
+      "status": "HOLD",
+      "documented": "Tariff tables PDF262: domestic bag collection once weekly, per month or part; exemption at valuation <=R400000; charged categories R62.53, R107.83, R139.04, R184.23, R246.98 and R305.95 excluding VAT.",
+      "outstanding": "Confirm exact municipal valuation and service/billing category. Knowing only that valuation exceeds R350000 does not choose a 2026/27 bracket or establish non-exemption. An existing amount matching an old band is not proof of classification.",
+      "sources": [
+        {
+          "url": "https://www.durban.gov.za/uploads/0000/13/2026/06/22/eth-final-2026-2027-tariff-tables.pdf#page=262",
+          "sha256": "59b640ec20d9a8a408ebd92a378dae66632470e703a7f3fed2509a5bf9c6a56e",
+          "page": 262
+        }
+      ]
+    }
+  ]
+}

@@ -71,6 +71,16 @@ def extract(data, metadata):
             for line in text.splitlines():
                 if re.search(r'kWh|per month|fixed charge',line,re.I) and re.search(r'\d+\.\d{2,4}',line):
                     observations.append(dict(page=number,text=line[:500],status='HOLD: category, VAT basis and calculation mapping require verification'))
+        # The electricity booklet explicitly states VAT basis, cents/kWh and
+        # 1 July effective date. Extract its residential family without selecting
+        # a property's scale or assuming Council/NERSA adoption.
+        if (re.search(r'ALL PRICES EXCLUDE VAT',flat,re.I)
+                and re.search(r'TARIFF INCREASES - EFFECTIVE: 01 JULY '+str(year_start(year)),flat,re.I)):
+            match=re.findall(r'Residential Customers Description Tariff Increase \(%\) Amount Scale 3, 4, 8, 9, 13 \d+(?:\.\d+)?% Energy Charge (\d+\.\d{2}) \(c/kWh\)',flat,re.I)
+            if len(match)==1 and len(match[0])<=12:
+                rate=Decimal(match[0])/100
+                if rate.is_finite() and rate>=0 and rate==rate.quantize(Decimal('.0001')):
+                    output.setdefault('ELEC01',[]).append(dict(code='ELEC01',rate=str(rate),unit='kWh',utility_type='electricity',category='Residential Scales 3/4/8/9/13; excludes FBE, net billing and TOU',effective_date=str(year_start(year))+'-07-01',source_url=metadata['source_url'],sha256=metadata['sha256'],page=number,excerpt=flat[:1000],supported=True,block_start=0,block_end=0,reduction_factor='1'))
         if not column(text,year):continue
         def retain(code, section, utility, unit, category=CATEGORY, supported=True):
             rates=five_rates(section)
@@ -105,10 +115,10 @@ def extract(data, metadata):
                 if match:retain(code,' '.join(match[0]),kind,'R/kL',kind.replace('_',' '))
         if 'Water loss charge for under ground leaks for individual dwellings' in flat:
             section=flat.split('Water loss charge for under ground leaks for individual dwellings')[1].split('3. Connection')[0]
-            retain('W_LOSS',section,'water_fixed','fixed','Water loss levy ? monthly basis requires verification',False)
+            retain('W_LOSS',section,'water_fixed','R/individual dwelling; billing basis unverified','Water loss levy: monthly wording documented; dwelling/account/meter applicability unverified',False)
         if 'CCMGMT' in flat:
             section=flat.split('CCMGMT',1)[1].split('WATS0089CC')[0]
-            retain('W_MGT',section,'water_fixed','fixed','Monthly distribution charge per sub meter',False)
+            retain('W_MGT',section,'water_fixed','R/submeter/month','Monthly distribution charge per sub meter',False)
     # Fractions must be explicitly in the same official publication. This parser
     # does not reinterpret percentages or legacy reduction_factor as band widths.
     discharge_page=next((n for n,text in enumerate(pages,1) if 'development does not exceed' in compact(text) and re.findall(r'(\d+)%',text)==['65','60','90','90','95','75','75']),None)
@@ -133,7 +143,8 @@ def compare(extraction, stored, evidence):
         values=extraction['extracted'].get(code,[]);candidate=values[0] if len(values)==1 else None
         reasons=list(problems)
         if len(values)!=1:reasons.append('Required tariff absent, duplicated or unsupported in extracted official table.')
-        if candidate and not candidate['supported']:reasons.append('Calculation/category mapping is unsupported; existing treatment is preserved.')
+        if candidate and not candidate['supported']:
+            reasons.append({'W_LOSS':'Adopted monthly water-loss applicability per dwelling/account/meter is not verified; existing allocation is unchanged.','W_MGT':'CCMGMT is per submeter and is not verified as equivalent to the existing aggregate W_MGT property charge.'}.get(code,'Calculation/category mapping is unsupported; existing treatment is preserved.'))
         if len({identity(v) for v in versions})>1:reasons.append('Multiple stored tariff identities map to this component.')
         old=selected[0] if len(selected)==1 else None
         if candidate and old:
@@ -143,6 +154,14 @@ def compare(extraction, stored, evidence):
             if prior.get('municipality') and token(prior['municipality']) not in ('ethekwini','ethekwinimunicipality'):reasons.append('Stored municipality conflicts.')
             if prior.get('municipal_category') and code.startswith(('W0','S0')) and not token(prior['municipal_category']).startswith('domestic'):reasons.append('Stored consumer category conflicts.')
             if code.startswith(('W0','S0')) and Decimal(str(old.get('block_start') or 0))!=candidate['block_start']:reasons.append('Stored band boundary conflicts.')
+        if code=='ELEC01' and candidate:
+            prior=(evidence or {}).get(old['id'],{}) if old else {}
+            categories={'residentialscale'+str(scale) for scale in (3,4,8,9,13)}
+            if (token(prior.get('municipal_category')) not in categories
+                    or not all(prior.get(field) for field in ('source_reference','verified_by','verified_at'))):
+                reasons.append('The applicable verified residential electricity scale (3, 4, 8, 9 or 13) is missing. FBE, net billing and TOU cannot use this mapping.')
+            else:
+                candidate=dict(candidate,category=prior['municipal_category'])
         if not extraction['adoption']:reasons.append('Adoption not verified.')
         if evidence is None:reasons.append('Existing tariff verification storage is unavailable.')
         classification='EXCEPTION' if reasons else 'NEW' if old is None else 'UNCHANGED' if Decimal(str(old['rate']))==Decimal(candidate['rate']) else 'UPDATED'

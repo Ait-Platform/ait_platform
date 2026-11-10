@@ -39,6 +39,7 @@ def page(render, year, receipt):
         except (ValueError,OSError,SQLAlchemyError) as exc:
             service.db.session.rollback();error=str(exc) if isinstance(exc,ValueError) else 'Review storage or database lock failed. Existing tariffs and earlier decisions were preserved.'
             error_status=409 if isinstance(exc,ValueError) else 503
+    data['hold_findings']=policy.hold_findings(year)
     data['source_token']=policy.issue_token(int(current_user.id),year,receipt,'approve_source',policy.digest(data['source']))
     for row in data['rows']:
         row['approve_token']=policy.issue_token(int(current_user.id),year,receipt,'approve',row['review']['key'])

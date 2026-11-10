@@ -19,18 +19,17 @@ def digest(value):return sha256(json.dumps(value,sort_keys=True,default=str).enc
 
 def backend():
     documents=import_module('app.admin.programs.billing.municipal_tariff_documents')
-    root=current_app.config.get('PM_TARIFF_REVIEW_ROOT') or os.getenv('PM_TARIFF_REVIEW_ROOT')
-    document_root=current_app.config.get('PM_TARIFF_DOCUMENT_ROOT') or os.getenv('PM_TARIFF_DOCUMENT_ROOT')
-    if not root and document_root:
-        root=Path(document_root)/'private-review'
-    if not root and os.getenv('RENDER'):raise ValueError('Private tariff review storage must be configured on persistent disk. Public R2 evidence storage cannot hold administrator decisions.')
-    return documents.Disk(root or Path(current_app.instance_path)/'pm_tariff_review')
+    storage=import_module('app.admin.programs.billing.municipal_tariff_audit_storage')
+    return storage.backend(documents)
 
 
-def signer():return URLSafeSerializer(current_app.secret_key,salt='pm-tariff-review-ledger-v1')
+def signing_keys():return [*(current_app.config.get('SECRET_KEY_FALLBACKS') or []),current_app.secret_key]
 
 
-def form_signer():return URLSafeTimedSerializer(current_app.secret_key,salt='pm-tariff-review-form-v1')
+def signer():return URLSafeSerializer(signing_keys(),salt='pm-tariff-review-ledger-v1')
+
+
+def form_signer():return URLSafeTimedSerializer(signing_keys(),salt='pm-tariff-review-form-v1')
 
 
 def events(store,scope):
@@ -40,7 +39,7 @@ def events(store,scope):
             row=signer().loads(store.get(key).decode())
             if row.get('scope')!=scope or key!=PREFIX+scope+'/'+row['id']+'.json':raise ValueError('Audit scope mismatch.')
             result.append(row)
-        except (BadSignature,ValueError,UnicodeError):raise ValueError('Tariff review audit integrity failed.') from None
+        except (BadSignature,ValueError,UnicodeError,KeyError,TypeError):raise ValueError('Tariff review audit integrity failed.') from None
     return sorted(result,key=lambda row:(row['recorded_at'],row['id']))
 
 
@@ -133,7 +132,10 @@ def decide(store,actor,year,receipt,action,signed,report):
     identifier=digest(dict(token=signed,action=action))
     scope='sources' if action=='approve_source' else 'rates/'+bound['key']
     key=PREFIX+scope+'/'+identifier+'.json'
-    if key in store.keys(PREFIX+scope+'/'):return False
+    if key in store.keys(PREFIX+scope+'/'):
+        existing=next((row for row in events(store,scope) if row['id']==identifier),None)
+        if not existing or any(existing.get(name)!=value for name,value in dict(recorded_by=actor,year=year,receipt=receipt,action=action).items()):raise ValueError('Existing approval audit could not be verified; no approval was confirmed.')
+        return False
     if action=='approve_source':
         if bound['key']!=digest(report['source']):raise ValueError('Municipal source evidence changed. Reload the register.')
         sources=import_module('app.admin.programs.billing.municipal_tariff_sources')
@@ -146,6 +148,15 @@ def decide(store,actor,year,receipt,action,signed,report):
     record=dict(id=identifier,scope=scope,action=action,recorded_by=actor,recorded_at=datetime.now(timezone.utc).isoformat(),year=year,receipt=receipt,**details)
     # PostgreSQL returns Decimal/date/datetime values in tariff/audit rows.
     payload=json.loads(json.dumps(record,default=str))
-    store.put(key,signer().dumps(payload).encode(),'application/json')
+    content=signer().dumps(payload).encode()
+    store.put(key,content,'application/json')
+    if store.get(key)!=content:raise ValueError('Approval audit read-back failed; no approval was confirmed.')
+    events(store,scope) # Verify signature and scope before acknowledging success.
     current_app.logger.info('Municipal tariff review actor=%s action=%s evidence=%s',actor,action,identifier)
     return True
+
+
+def hold_findings(year):
+    path=Path(current_app.root_path)/'static/data/pm_tariff_hold_findings.json'
+    data=json.loads(path.read_text(encoding='utf8'))
+    return data['findings'] if year==data['financial_year'] else []

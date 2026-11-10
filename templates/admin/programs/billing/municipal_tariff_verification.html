@@ -1,0 +1,17 @@
+{% extends "admin/programs/billing/tariff_layout.html" %}
+{% block tariff_title %}Annual Municipal Tariff Register{% endblock %}
+{% block tariff_back %}{{ url_for('admin_bp.billing_tariff_annual') }}{% endblock %}
+{% block tariff_back_label %}Back to Annual Register{% endblock %}
+{% block tariff_actions %}<div class="tariff-actions"><a class="tariff-button add" href="{{ url_for('admin_bp.billing_tariff_publications',financial_year=report.year) }}">Download Municipal Tariffs</a><strong>Verification Status</strong><span>Activation Status: {{ activation_status|default('Not activated — verification only') }}</span></div>{% endblock %}
+{% block tariff_body %}
+<h2 class="text-lg font-semibold">{{ report.year }} — Verification Status</h2>
+<p>Effective date: {{ report.year[:4] }}-07-01. Last successful retrieval: {{ report.source.retrieved_at }}.</p>
+<p><a class="underline" href="{{ report.source.source_url }}" rel="noopener noreferrer" target="_blank">Official municipal source</a> — SHA256 {{ report.source.sha256 }}</p>
+<p>Adoption: {{ report.adoption.statement if report.adoption else 'HOLD — not confirmed for these specific tariff tables' }}.</p>
+{% for issue in report.issues %}<p role="alert" class="tariff-flash error">{{ issue }}</p>{% endfor %}
+<table class="tariff-table"><thead><tr><th>Component</th><th>Existing</th><th>Extracted / unit</th><th>Classification</th><th>Verification / evidence</th></tr></thead><tbody>
+{% for row in report.rows %}<tr data-component="{{ row.code }}"><td>{{ row.code }}</td><td>{{ row.existing.rate if row.existing else 'Missing' }}</td><td>{{ row.candidate.rate if row.candidate else 'Unavailable' }} {{ row.candidate.unit if row.candidate else '' }}</td><td>{{ row.classification }}</td><td><strong>{{ row.status }}</strong>{% for reason in row.reasons %}<small style="display:block">{{ reason }}</small>{% endfor %}{% if row.candidate %}<small style="display:block">{{ row.candidate.category }} · PDF page {{ row.candidate.page }}<br>{{ row.candidate.excerpt }}</small>{% endif %}</td></tr>{% endfor %}
+</tbody></table>
+{% if report.observations %}<details><summary>Unmapped electricity/refuse source observations — HOLD</summary>{% for observation in report.observations %}<p>Page {{ observation.page }}: {{ observation.text }} — {{ observation.status }}</p>{% endfor %}</details>{% endif %}
+<p>No draft, missing, ambiguous or unsupported component is eligible for automatic activation. Existing historical versions are preserved.</p>
+{% endblock %}

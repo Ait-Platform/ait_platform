@@ -87,6 +87,12 @@ def billing_tariff_publication_pdf(year, receipt):
     return download(year.replace('-', '/'), receipt)
 
 
+@admin_bp.route("/billing/tariffs/municipal-publications/<year>/<receipt>/verification", methods=["GET"])
+def billing_tariff_publication_verification(year, receipt):
+    from app.admin.programs.billing.municipal_tariff_workflow import page
+    return page(_render_billing_template, year.replace('-', '/'), receipt)
+
+
 @admin_bp.route("/billing/tariffs/recovered", methods=["GET"])
 def billing_tariff_recovered():
     from app.admin.programs.billing.tariff_management import recovered_review

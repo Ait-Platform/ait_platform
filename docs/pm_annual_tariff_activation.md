@@ -49,7 +49,7 @@ updated or deleted. The audit records actor/timestamps through the established
 service and includes official source, checksum, band, discharge basis, superseded
 version and approval snapshot.
 
-Existing family dimensions are copied unchanged. Unknown units, invalid metadata,
+Existing family band dimensions are copied unchanged. Unsupported units, invalid metadata,
 conflicting identities/categories or absent source evidence block activation.
 Legacy S04 factor 999 remains unchanged: the corrected sewerage calculator applies
 its own finite fourth-band width and separate fifth band. A genuinely missing band
@@ -67,6 +67,30 @@ cover this mechanism.
 Before any separately authorised production activation, inspect actual stored
 units, bands, identities and source/category evidence. A pre-existing 1 July 2026
 version is a conflict and cannot be overwritten here. Missing verification storage
-or unknown units remains a blocker rather than triggering a migration or silent
+or unsupported units remains a blocker rather than triggering a migration or silent
 metadata correction. Historical water-source conflicts and management/refuse
 questions remain HOLD. W_MGT's amount and meter allocation are untouched.
+
+## Stage 2A — blank historical units
+
+The official source prices water per kL consumed (PDF page 268) and sewerage per
+kL discharged (PDF page 284). The existing calculator multiplies the appropriate
+measured/chargeable kL by those rates; daily band widths and discharge percentages
+are separate quantities. The verified candidate evidence establishes R/kL excluding
+VAT. A unit is not inferred merely from a tariff code or description.
+
+For eligible 2026/27 water/sewerage families only, NULL/empty/whitespace historical
+units may reach confirmation after all existing source, mapping, category and band
+checks pass. The confirmation shows the official rate unit and source, the missing
+historical metadata, and `kL` as the proposed new-version quantity unit, consistent
+with existing tariff administration. A separate unchecked unit-confirmation box
+is mandatory on the server as well as in the browser. The rate/category confirmation
+is still required. Existing supported nonblank units are preserved.
+
+Only the new version receives the confirmed unit. Historical rows and verification
+evidence remain unchanged. The audit records the confirmed R/kL rate basis, stored
+new-version unit and previous unit; the signed approval snapshot binds that proposal
+and the historical unit values. A concurrent metadata change requires fresh review.
+Unsupported nonblank units, inconsistent component mappings, missing source evidence,
+HOLD status or conflicting bands remain blocked. No production activation or historical
+metadata backfill was performed while implementing Stage 2A.

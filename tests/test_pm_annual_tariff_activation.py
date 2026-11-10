@@ -24,7 +24,7 @@ class ActivationTests(AnnualRegisterTests):
         response=self.client.get(self.path(code),query_string=dict(financial_year='2026/27'))
         self.assertEqual(response.status_code,200,response.text)
         fields={node.get('name'):node.get('value') for node in html.fromstring(response.data).xpath('//input[@type="hidden"]')}
-        return dict(fields,confirmed='yes')
+        return dict(fields,confirmed='yes',unit_confirmed='R/kL')
 
     def submit(self, code, fields):
         response=self.client.post(self.path(code),data=fields)
@@ -161,7 +161,7 @@ class ActivationTests(AnnualRegisterTests):
                     signed=approval.confirmation_token(prepared)
                     barrier.wait(timeout=10)
                     try:
-                        approval.activate(service,'2026/27','S01',signed,'yes')
+                        approval.activate(service,'2026/27','S01',signed,'yes','R/kL')
                         connection.commit();return 'saved'
                     except ValueError:
                         session.rollback();connection.rollback();return 'rejected'
@@ -174,7 +174,9 @@ class ActivationTests(AnnualRegisterTests):
         from playwright.sync_api import sync_playwright
         from urllib.parse import urlsplit
         from test_pm_admin_landing import ROOT
-        self.seed_band('S01');before=self.snapshot()
+        self.seed_band('S01')
+        self.conn.execute(text('UPDATE bil_tariff SET unit=NULL WHERE id=10'));self.conn.commit()
+        before=self.snapshot()
         def route_request(route):
             url=urlsplit(route.request.url)
             # Follow the real Flask redirect within this offline transport;
@@ -192,18 +194,75 @@ class ActivationTests(AnnualRegisterTests):
                 page.goto('http://tariff-activation.test'+self.url+'?financial_year=2026/27&workspace=register')
                 page.locator('[data-component="S01"]').get_by_role('link',name='Approve and Activate').click()
                 self.assertIn('R6.5300',page.locator('body').inner_text())
+                self.assertIn('Historical unit: not recorded',page.locator('body').inner_text())
+                self.assertFalse(page.locator('[name="unit_confirmed"]').is_checked())
                 self.assertIn('superseded',page.locator('body').inner_text())
                 artifact=ROOT/'output/annual_tariff_register_stage2';artifact.mkdir(parents=True,exist_ok=True)
                 page.screenshot(path=str(artifact/'confirmation-desktop.png'),full_page=True)
                 page.get_by_role('link',name='Cancel',exact=True).click()
                 self.assertEqual(before,self.snapshot())
                 page.locator('[data-component="S01"]').get_by_role('link',name='Approve and Activate').click()
-                page.get_by_role('checkbox').check()
+                page.locator('[name="unit_confirmed"]').check()
+                page.locator('[name="confirmed"]').check()
                 page.get_by_role('button',name='Confirm Approve and Activate').click()
                 page.locator('[data-component="S01"]').wait_for()
                 self.assertIn('approved and activated',page.locator('body').inner_text())
                 self.assertIn('R6.5300',page.locator('[data-component="S01"]').inner_text())
             finally:browser.close()
+
+    def test_blank_historical_units_are_stored_only_on_confirmed_new_versions(self):
+        for code,old_unit in [('W01',None),('W02',''),('S01','   '),('S04',None)]:
+            with self.subTest(code=code,old_unit=old_unit):
+                identifier=10+int(code[-1])+(10 if code.startswith('S') else 0)
+                self.seed_band(code,identifier)
+                self.conn.execute(text('UPDATE bil_tariff SET unit=:unit WHERE id=:id'),dict(unit=old_unit,id=identifier));self.conn.commit()
+                before=self.snapshot()['bil_tariff']
+                fields=self.approval(code)
+                self.assertEqual(before,self.snapshot()['bil_tariff'])
+                response=self.submit(code,dict(fields,unit='kWh'))
+                self.assertEqual(response.status_code,302,response.text)
+                rows=self.snapshot()['bil_tariff']
+                for original in before:self.assertIn(original,rows)
+                new=next(row for row in rows if row['code']==code and row['effective_date']=='2026-07-01')
+                self.assertEqual(new['unit'],'kL')
+                audit=self.conn.execute(text('SELECT source_reference FROM bil_tariff_verification WHERE tariff_id=:id'),dict(id=new['id'])).scalar()
+                self.assertIn('confirmed rate unit R/kL; new version unit kL',audit)
+
+    def test_unit_confirmation_is_explicit_and_unsupported_unit_values_are_rejected(self):
+        self.seed_band('S01')
+        self.conn.execute(text('UPDATE bil_tariff SET unit=NULL WHERE id=10'));self.conn.commit()
+        fields=self.approval('S01');before=self.snapshot()
+        for value in (None,'','kWh','kL/day','kL'):
+            with self.subTest(value=value):
+                submitted=dict(fields)
+                if value is None:submitted.pop('unit_confirmed')
+                else:submitted['unit_confirmed']=value
+                response=self.submit('S01',submitted)
+                self.assertEqual(response.status_code,409)
+                self.assertIn('R/kL rate unit is required',response.text)
+                self.assertEqual(before,self.snapshot())
+
+    def test_blank_unit_cannot_bypass_conflicting_mapping_or_band_checks(self):
+        self.seed_band('W01')
+        self.conn.execute(text("UPDATE bil_tariff SET unit=NULL,utility_type='sewerage' WHERE id=10"));self.conn.commit()
+        before=self.snapshot()
+        response=self.client.get(self.path('W01'))
+        self.assertEqual(response.status_code,400);self.assertIn('component mapping conflicts',response.text)
+        self.assertEqual(before,self.snapshot())
+        self.conn.execute(text("UPDATE bil_tariff SET utility_type='water',block_start=999 WHERE id=10"));self.conn.commit()
+        before=self.snapshot();response=self.client.get(self.path('W01'))
+        self.assertEqual(response.status_code,400);self.assertIn('band threshold conflicts',response.text)
+        self.assertEqual(before,self.snapshot())
+
+    def test_unit_metadata_change_after_review_requires_a_fresh_confirmation(self):
+        self.seed_band('S01')
+        self.conn.execute(text('UPDATE bil_tariff SET unit=NULL WHERE id=10'));self.conn.commit()
+        fields=self.approval('S01')
+        # Simulate a separately committed change while the administrator's form is open.
+        self.conn.execute(text("UPDATE bil_tariff SET unit='kL' WHERE id=10"));self.conn.commit()
+        before=self.snapshot();response=self.submit('S01',fields)
+        self.assertEqual(response.status_code,409);self.assertIn('changed',response.text)
+        self.assertEqual(before,self.snapshot())
 
     def test_backdated_annual_version_does_not_replace_a_later_period(self):
         self.seed_band('S01')
@@ -217,9 +276,9 @@ class ActivationTests(AnnualRegisterTests):
 
     def test_admin_access_and_unverified_units(self):
         self.seed_band('S01');fields=self.approval('S01');before=self.snapshot()
-        self.conn.execute(text('UPDATE bil_tariff SET unit=NULL WHERE id=10'));self.conn.commit()
+        self.conn.execute(text("UPDATE bil_tariff SET unit='kWh' WHERE id=10"));self.conn.commit()
         blocked=self.client.get(self.path('S01'));self.assertEqual(blocked.status_code,400)
-        self.assertIn('units need verification',blocked.text)
+        self.assertIn('units are unsupported',blocked.text)
         self.conn.execute(text("UPDATE pm_admin_test_identity SET role='manager'"));self.conn.commit()
         self.assertEqual(self.client.get(self.path('S01')).status_code,403)
         self.assertEqual(self.submit('S01',fields).status_code,403)
@@ -240,6 +299,8 @@ class ActivationTests(AnnualRegisterTests):
         for side,rates in [('S',['5.45','9.20','17.54','27.38','34.78']),('W',['39.39','46.70','62.17','95.91','105.39'])]:
             for index,rate in enumerate(rates,1):
                 code=side+str(index).zfill(2);self.seed_band(code,10+index+(10 if side=='W' else 0),rate)
+                if code!='S05':
+                    self.conn.execute(text('UPDATE bil_tariff SET unit=NULL WHERE code=:code'),dict(code=code));self.conn.commit()
                 self.assertEqual(self.submit(code,self.approval(code)).status_code,302)
         from pathlib import Path
         from test_pm_admin_landing import ROOT, function

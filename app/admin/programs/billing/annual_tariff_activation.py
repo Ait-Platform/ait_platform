@@ -45,6 +45,8 @@ def plan(stored, evidence, year, code, today):
         raise ValueError('Verified source, category, units and effective-date evidence are required.')
     if code.startswith('S') and decimal(candidate.get('Discharge fraction')) != Decimal(FRACTIONS[index]):
         raise ValueError('Verified domestic discharge evidence is missing or conflicting.')
+    if any(token(row.get('code')) == token(code) and component(row, evidence.get(row['id'], {})) != code for row in stored):
+        raise ValueError('Stored component mapping conflicts with the verified tariff; no unit was inferred.')
     versions = [dict(row) for row in stored if component(row, evidence.get(row['id'], {})) == code]
     _, issues = resolve(versions, date.max)
     if issues:
@@ -60,8 +62,8 @@ def plan(stored, evidence, year, code, today):
     utility = source['utility_type'] if source else ('sewerage' if code.startswith('S') else 'water')
     if source:
         unit = str(source.get('unit') or '').casefold().replace(' ', '')
-        if unit not in ('kl', 'r/kl', 'zar/kl'):
-            raise ValueError('Stored rate units need verification; activation cannot rename or infer them.')
+        if unit and unit not in ('kl', 'r/kl', 'zar/kl'):
+            raise ValueError('Stored rate units are unsupported; activation cannot replace conflicting units.')
         if decimal(source.get('block_start')) != LOWERS[index]:
             raise ValueError('Stored band threshold conflicts with the verified component.')
         factor = decimal(source.get('reduction_factor'))
@@ -84,21 +86,27 @@ def plan(stored, evidence, year, code, today):
         if ('tank' in category and not any(label in category for label in ('noindividual', 'withoutindividual', 'directsupply'))
                 or any(label in category for label in ('exceedstwostoreys', 'morethantwostoreys', 'threestoreys'))):
             raise ValueError('Stored tank/development category conflicts with the verified applicability.')
-    # Keep all dimensions and identifiers on existing families, including the
+    # Keep band dimensions and identifiers on existing families, including the
     # legacy S04 factor 999. Corrected sewerage widths/fractions are independent.
     new = dict(source) if source else dict(utility_type=utility, code=code,
             description=('Sewerage' if code.startswith('S') else 'Water')+' '+candidate['Municipal band'],
             block_start=LOWERS[index], block_end=UPPERS[index], reduction_factor=WIDTHS[index], unit='kL')
+    previous_unit = source.get('unit') if source else None
+    unit_missing = bool(source) and not str(previous_unit or '').strip()
+    # This is only a proposal. The verified source above establishes R per kL;
+    # the administrator must separately confirm that basis before any INSERT.
+    if unit_missing:
+        new['unit'] = 'kL'
     new.update(rate=Decimal(candidate['Candidate municipal rate - NOT approved']), effective_date=START.isoformat())
     new['description'] = re.sub(r'^\s*CURRENT-RATE SUBSTITUTE FOR \d{4}/(?:\d{4}|\d{2})\s*-\s*', '', new.get('description') or '', flags=re.I)
     future = [date.fromisoformat(str(row['effective_date'])) for row in versions if str(row['effective_date']) > START.isoformat()]
     end = min(future)-timedelta(days=1) if future else None
-    snapshot = dict(candidate=candidate, review_date=today.isoformat(), versions=sorted(versions,key=lambda row:row['id']),
+    snapshot = dict(candidate=candidate, review_date=today.isoformat(), rate_unit='R/kL', new_unit=new['unit'], versions=sorted(versions,key=lambda row:row['id']),
                     evidence={str(row['id']):evidence.get(row['id']) for row in versions})
     digest = hashlib.sha256(json.dumps(snapshot,sort_keys=True,default=str).encode()).hexdigest()
     return dict(candidate=candidate, code=code, year=year, new=new, previous=previous,
                 active=active[0] if active else None, end=end, versions=versions,
-                digest=digest, lock=(utility,new['code']))
+                digest=digest, lock=(utility,new['code']), unit_missing=unit_missing, previous_unit=previous_unit)
 
 
 def options(stored, evidence, year, today):
@@ -123,10 +131,12 @@ def confirmation_token(prepared):
                                    code=prepared['code'], digest=prepared['digest']))
 
 
-def activate(service, year, code, signed, confirmed):
+def activate(service, year, code, signed, confirmed, unit_confirmed=None):
     service.authorised()
     if confirmed != 'yes':
         raise ValueError('Explicit confirmation of the source and domestic applicability is required.')
+    if unit_confirmed != 'R/kL':
+        raise ValueError('Explicit confirmation of the verified R/kL rate unit is required.')
     try:
         approved=serializer().loads(signed, max_age=900)
     except (BadSignature, SignatureExpired, TypeError):
@@ -145,6 +155,8 @@ def activate(service, year, code, signed, confirmed):
                '; band '+candidate['Municipal band']+
                ('; discharge '+candidate['Discharge fraction']+' (official PDF page287)' if code.startswith('S') else '')+
                '; supersedes '+str(prepared['previous']['id'] if prepared['previous'] else 'no earlier version')+
+               '; confirmed rate unit R/kL; new version unit '+str(prepared['new']['unit'])+
+               '; previous unit '+str(prepared['previous_unit'] if prepared['previous_unit'] not in (None,'') else 'not recorded')+
                '; confirmed domestic applicability; snapshot '+prepared['digest'])
     evidence=service.verification_input(dict(municipality='eThekwini Municipality',
             municipal_category=candidate['Applicable category'], source_reference=reference))
@@ -158,7 +170,7 @@ def page(render, code):
     error=None;status=200;prepared=None
     try:
         if request.method == 'POST':
-            activate(service,year,code,request.form.get('approval_token'),request.form.get('confirmed'))
+            activate(service,year,code,request.form.get('approval_token'),request.form.get('confirmed'),request.form.get('unit_confirmed'))
             flash(code+' annual tariff approved and activated from 2026-07-01. Historical versions were preserved.','success')
             return redirect(url_for('admin_bp.billing_tariff_annual',financial_year=year,workspace='register'))
         prepared=plan(service.records(),service.verification_records(),year,code,service.today())

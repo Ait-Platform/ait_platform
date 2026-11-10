@@ -30,9 +30,21 @@ class AnnualRegisterTests(ManagementTests):
         mocked = patch.dict(sys.modules, {name: module})
         mocked.start();self.addCleanup(mocked.stop)
         self.review = module
+        activation_name='app.admin.programs.billing.annual_tariff_activation'
+        activation=types.ModuleType(activation_name)
+        activation.__dict__.update({key:getattr(module,key) for key in ('identity','resolve','candidates','component','decimal','token')})
+        activation_tree=ast.parse((ROOT/'app/admin/programs/billing/annual_tariff_activation.py').read_text(encoding='utf8'))
+        activation_tree.body=[node for node in activation_tree.body if not (
+            isinstance(node,ast.ImportFrom) and (node.module or '').startswith('app.'))]
+        exec(compile(activation_tree,'annual_tariff_activation.py','exec'),activation.__dict__)
+        mocked_activation=patch.dict(sys.modules,{activation_name:activation})
+        mocked_activation.start();self.addCleanup(mocked_activation.stop)
+        self.activation=activation
         env = self.app.view_functions['admin_bp.billing_tariffs'].__globals__
         self.app.view_functions['admin_bp.billing_tariff_annual'] = function(
             'app/admin/programs/billing/routes.py', 'billing_tariff_annual', env)
+        self.app.view_functions['admin_bp.billing_tariff_annual_activate']=function(
+            'app/admin/programs/billing/routes.py','billing_tariff_annual_activate',env)
         self.conn.execute(text("UPDATE bil_tariff SET code='ELEC01',effective_date='2025-07-01' WHERE id=1"))
         self.conn.commit()
 

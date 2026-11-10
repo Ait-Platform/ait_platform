@@ -166,7 +166,7 @@ def review(stored, verification, year):
 
 
 def page(render):
-    from app.admin.programs.billing.tariff_management import authorised, records, verification_records
+    from app.admin.programs.billing.tariff_management import authorised, records, verification_records, today
     authorised()
     if request.method != 'GET':
         abort(405)
@@ -174,6 +174,11 @@ def page(render):
     if year not in YEARS:
         abort(400, description='Select a supported financial year.')
     opened = request.args.get('workspace') == 'register'
-    data = review(records(), verification_records(), year) if opened else {}
+    data = {}
+    if opened:
+        stored, evidence = records(), verification_records()
+        data = review(stored, evidence, year)
+        from app.admin.programs.billing.annual_tariff_activation import options
+        data['activation_options'] = options(stored, evidence, year, today())
     return render('admin/programs/billing/annual_tariff_register.html', years=YEARS,
                   financial_year=year, opened=opened, **data)

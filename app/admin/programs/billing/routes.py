@@ -69,6 +69,12 @@ def billing_tariff_annual():
     return page(_render_billing_template)
 
 
+@admin_bp.route("/billing/tariffs/annual/<code>/activate", methods=["GET", "POST"])
+def billing_tariff_annual_activate(code):
+    from app.admin.programs.billing.annual_tariff_activation import page
+    return page(_render_billing_template, code)
+
+
 @admin_bp.route("/billing/tariffs/recovered", methods=["GET"])
 def billing_tariff_recovered():
     from app.admin.programs.billing.tariff_management import recovered_review

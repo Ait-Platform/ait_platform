@@ -1,0 +1,32 @@
+{% extends "admin/programs/billing/tariff_layout.html" %}
+{% block tariff_title %}Annual Municipal Tariff Register{% endblock %}
+{% block tariff_back %}{{ url_for('admin_bp.billing_tariff_annual',financial_year=financial_year,workspace='register') }}{% endblock %}
+{% block tariff_back_label %}Back to Annual Register{% endblock %}
+{% block tariff_actions %}<div class="tariff-actions">Financial year: {{ financial_year }}</div>{% endblock %}
+{% block tariff_body %}
+<style>.tariff-workspace:has(#annual-approval-title){background:#f1f5f9;border-radius:12px;font-family:Arial,sans-serif}.tariff-workspace:has(#annual-approval-title) .tariff-strip{background:#22a06b}.tariff-fields dt{font-weight:600;margin-bottom:5px}.tariff-fields dd{margin:0;font-size:14px;line-height:1.45}</style>
+{% if error %}<div class="tariff-flash error" role="alert">{{ error }} <a href="{{ url_for('admin_bp.billing_tariff_annual',financial_year=financial_year,workspace='register') }}">Return to the register to review again.</a></div>{% endif %}
+{% if prepared %}{% set p=prepared %}
+<section aria-labelledby="annual-approval-title" class="tariff-form">
+<h2 id="annual-approval-title" class="text-lg font-semibold">Approve and Activate {{ p.code }}</h2>
+<dl class="tariff-fields" style="margin-top:16px">
+  <div><dt>Tariff code and description</dt><dd>{{ p.new.code }} — {{ p.new.description }}</dd></div>
+  <div><dt>Existing active rate</dt><dd>{% if p.active %}R{{ '%.4f'|format(p.active.rate) }} · version {{ p.active.id }} · {{ p.active.effective_date }}{% else %}No applicable stored rate today{% endif %}</dd></div>
+  <div><dt>Proposed rate</dt><dd>R{{ '%.4f'|format(p.new.rate) }}/kL excluding VAT</dd></div>
+  <div><dt>Effective date</dt><dd>{{ p.new.effective_date }}{% if p.end %} to {{ p.end }} (next stored version preserved){% endif %}</dd></div>
+  <div><dt>Existing version being superseded</dt><dd>{% if p.previous %}ID {{ p.previous.id }} · {{ p.previous.effective_date }} · R{{ '%.4f'|format(p.previous.rate) }}{% else %}No earlier version; this adds previously missing coverage{% endif %}</dd></div>
+  <div><dt>Category and units</dt><dd>{{ p.candidate['Applicable category'] }}. {{ p.candidate['Rate unit'] }}.</dd></div>
+  <div><dt>Band and discharge</dt><dd>{{ p.candidate['Municipal band'] }}.{% if p.candidate['Discharge fraction'] %} Discharge fraction: {{ p.candidate['Discharge fraction'] }} (official PDF page 287).{% endif %} Existing daily calculation conventions remain unchanged.</dd></div>
+  <div><dt>Stored calculation metadata preserved</dt><dd>Unit: {{ p.new.unit }}; from {{ p.new.block_start }} to {{ p.new.block_end if p.new.block_end is not none else 'open' }}; factor {{ p.new.reduction_factor }}. Sewerage fractions are separate from these legacy factors.</dd></div>
+</dl>
+<p style="margin-top:16px">Municipal source: <a class="underline" href="{{ p.candidate['Source / PDF page'] }}" target="_blank" rel="noopener noreferrer">eThekwini final 2026/27 tariff table</a>. Source checked {{ p.candidate['Source verified'] }}. For the first band, the R350,000 valuation exemption must not apply.</p>
+<p class="tariff-flash" style="margin-top:16px">Historical impact: a new dated version will be inserted. Dates before 1 July 2026 retain their prior rates. Regenerated calculations from that date use the approved rate until any later stored version. Reading periods crossing the boundary keep the existing day-proportional pricing. No historical rows, readings or posted financial records are overwritten. This approves only {{ p.code }}.</p>
+<form method="post">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <input type="hidden" name="financial_year" value="{{ financial_year }}">
+  <input type="hidden" name="approval_token" value="{{ approval_token }}">
+  <label style="display:block;margin-top:16px"><input type="checkbox" name="confirmed" value="yes" required> I have reviewed the official source, band, units, domestic/tank/development category and exemption applicability shown above. I explicitly approve this single rate and its effective date.</label>
+  <div class="tariff-form-actions"><a class="tariff-button" href="{{ url_for('admin_bp.billing_tariff_annual',financial_year=financial_year,workspace='register') }}">Cancel</a><button type="submit" class="tariff-button save">Confirm Approve and Activate</button></div>
+</form>
+</section>{% endif %}
+{% endblock %}

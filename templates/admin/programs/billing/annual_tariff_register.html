@@ -1,0 +1,43 @@
+{% extends "admin/programs/billing/tariff_layout.html" %}
+{% block tariff_title %}Annual Municipal Tariff Register{% endblock %}
+{% block tariff_actions %}
+<form id="annual-tariff-hub" class="tariff-actions annual-controls" method="get">
+  <label for="financial-year">Financial year
+    <select id="financial-year" name="financial_year" autofocus>{% for year in years %}<option value="{{ year }}" {% if year == financial_year %}selected{% endif %}>{{ year }} — 1 July to 30 June</option>{% endfor %}</select>
+  </label>
+  <button class="tariff-button history" name="workspace" value="register">View Register</button>
+</form>
+{% endblock %}
+{% block tariff_body %}
+<style>
+.tariff-workspace:has(#annual-tariff-hub) .tariff-strip{background:#22a06b}.tariff-workspace:has(#annual-tariff-hub){background:#f1f5f9;border-radius:12px;font-family:Arial,sans-serif}.annual-controls{flex-wrap:wrap}.annual-controls .history{background:#dbeafe}.annual-controls label{font-size:14px;font-weight:600}.annual-controls select{margin-left:8px;border:1px solid #b8cde6;border-radius:6px;min-height:38px;padding:7px;background:white;color:#17202a}.annual-controls select:focus{outline:2px solid #b8cde6;outline-offset:2px;border-color:#4a90d9}.annual-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:16px 0}.annual-table{font-size:13px}.annual-table th,.annual-table td{padding:9px 6px}.annual-table .money{text-align:right;font-variant-numeric:tabular-nums}.annual-table small{display:block;margin-top:5px;color:#475569}.annual-status{font-weight:bold}.annual-versions{margin-top:7px}.annual-versions li{margin-top:5px}.annual-warning{color:#92400e}.annual-notice{border:1px solid #b8cde6;background:#eff6ff;padding:12px;border-radius:7px;margin-bottom:12px}
+</style>
+<p class="annual-notice">Read-only review. Candidate rates are <strong>NOT APPROVED</strong> and do not change active tariffs. No approval or activation is available here.</p>
+{% if opened %}
+<section id="annual-tariff-workspace" aria-labelledby="annual-register-title">
+  <div class="annual-toolbar"><h2 id="annual-register-title" class="text-lg font-semibold">{{ financial_year }} tariff review</h2><a class="tariff-button" href="{{ url_for('admin_bp.billing_tariff_annual',financial_year=financial_year) }}">Close</a></div>
+  <p class="tariff-hint">Selection as at {{ end }}. The latest eligible stored version is shown, including any scheduled within-year version; this is not a claim that it is active today. Actual dates are preserved. Difference = proposed minus existing; numeric comparisons do not establish category applicability.</p>
+  {% if not verification_available %}<p class="annual-warning" role="status">Tariff verification records are unavailable. Existing rates cannot be presented as verified.</p>{% endif %}
+  <table class="tariff-table annual-table">
+    <colgroup><col style="width:10%"><col style="width:19%"><col style="width:15%"><col style="width:11%"><col style="width:11%"><col style="width:10%"><col style="width:11%"><col style="width:13%"></colgroup>
+    <thead><tr><th>Tariff code</th><th>Description</th><th>Effective date</th><th class="money">Existing rate</th><th class="money">Proposed rate</th><th class="money">Difference</th><th>Source</th><th>Status</th></tr></thead>
+    <tbody>{% for item in rows %}{% set r=item.existing %}
+      <tr data-component="{{ item.component }}">
+        <td>{{ r.code if r else 'No selected code' }}<small>Component: {{ item.component }}{% if r %}<br>Version ID: {{ r.id }}{% endif %}</small></td>
+        <td>{{ r.description or 'No stored description' if r else 'No applicable stored version' }}
+          {% if r %}<small>Category: {{ item.verification.municipal_category or 'Not verified' }}<br>Municipality: {{ item.verification.municipality or 'Not verified' }}</small>{% endif %}
+          {% if item.versions %}<details class="annual-versions"><summary>Stored versions ({{ item.versions|length }})</summary><ul>{% for v in item.versions %}<li>ID {{ v.id }} · {{ v.code }} · {{ v.effective_date }} · {{ v.rate }} · {{ v.unit or 'Unit unrecorded' }}</li>{% endfor %}</ul></details>{% endif %}
+        </td>
+        <td>{{ r.effective_date if r else 'Unavailable' }}<small class="annual-warning">{{ item.coverage }}</small></td>
+        <td class="money">{% if item.rate is not none %}R{{ '%.4f'|format(item.rate) }}{% else %}Unavailable{% endif %}<small>{{ r.unit or 'Unit unrecorded' if r else 'No stored unit' }}</small></td>
+        <td class="money">{% if item.proposed is not none %}R{{ '%.4f'|format(item.proposed) }}{% else %}Unavailable{% endif %}<small>{{ item.candidate['Basis excluding VAT'] }}<br>Unapproved candidate</small></td>
+        <td class="money">{% if item.difference is not none %}{{ '-R' if item.difference < 0 else '+R' }}{{ '%.4f'|format(item.difference|abs) }}{% else %}Not comparable{% endif %}</td>
+        <td><a class="underline" href="{{ item.candidate['Source / PDF page'] }}" target="_blank" rel="noopener noreferrer">Municipal document</a><small>Candidate source, not activation evidence</small>{% if item.verification.source_reference %}<details><summary>Stored source</summary><p>{{ item.verification.source_reference }}</p></details>{% endif %}</td>
+        <td><span class="annual-status">{{ item.status }}</span>{% if item.estimated %}<small>Estimated / substitute provenance: not verified municipal rates.</small>{% endif %}{% if item.hold %}<small class="annual-warning">HOLD</small>{% endif %}<small>{{ item.candidate['Review status'] }}</small>{% for issue in item.issues %}<p class="annual-warning">{{ issue }}</p>{% endfor %}{% if item.status == 'Verified' %}<small>Matching stored source evidence recorded; candidate approval is still pending.</small>{% endif %}</td>
+      </tr>
+    {% endfor %}</tbody>
+  </table>
+  {% if unmapped %}<details class="annual-versions"><summary>Other stored tariff records — pending component mapping ({{ unmapped|length }})</summary><ul>{% for row in unmapped %}<li>ID {{ row.id }} · {{ row.code }} · {{ row.utility_type }} · {{ row.effective_date }} · {{ row.rate }} {{ row.unit or '' }}. No candidate was assumed.</li>{% endfor %}</ul></details>{% endif %}
+</section>
+{% endif %}
+{% endblock %}

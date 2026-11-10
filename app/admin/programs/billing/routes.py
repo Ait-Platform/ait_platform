@@ -63,6 +63,12 @@ def billing_tariffs():
     return listing(_render_billing_template)
 
 
+@admin_bp.route("/billing/tariffs/annual", methods=["GET"])
+def billing_tariff_annual():
+    from app.admin.programs.billing.annual_tariff_register import page
+    return page(_render_billing_template)
+
+
 @admin_bp.route("/billing/tariffs/recovered", methods=["GET"])
 def billing_tariff_recovered():
     from app.admin.programs.billing.tariff_management import recovered_review

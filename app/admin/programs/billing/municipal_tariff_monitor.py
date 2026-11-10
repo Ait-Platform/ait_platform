@@ -75,7 +75,17 @@ def check_year(store,year,today):
     retrieval_details=list(errors)
     if errors:issues.append('Official publication retrieval failed or is incomplete.')
     if not found:issues.append('No official annual tariff publication was retrieved.')
+    policy=import_module('app.admin.programs.billing.municipal_tariff_policy')
+    try:review_store=policy.backend()
+    except (ValueError,OSError):review_store=None
     for candidate in found[:source.MAX_DOWNLOADS]:
+        try:source_trusted=review_store is not None and policy.trusted(review_store,candidate)
+        except (ValueError,OSError):
+            issues.append('Source approval audit could not be verified; administrator investigation is required.')
+            continue
+        if not source_trusted:
+            issues.append('First-time administrator approval of the official download source is required.')
+            continue
         try:
             data,details=source.retrieve(candidate,deadline=deadline)
             saved.append(documents.save(store,data,details))

@@ -25,7 +25,7 @@ class AutomaticActivationTests(VerificationTests):
 
     @contextmanager
     def supported(self):
-        with self.app.app_context(),patch.object(self.verification,'REQUIRED',('W01','S01')),patch.object(self.verification,'extract',side_effect=lambda *args:deepcopy(self.verified)):
+        with self.app.app_context(),patch.object(self.policy,'decorate',side_effect=lambda report,*args,**kwargs:report),patch.object(self.verification,'REQUIRED',('W01','S01')),patch.object(self.verification,'extract',side_effect=lambda *args:deepcopy(self.verified)):
             yield
 
     def activate(self):

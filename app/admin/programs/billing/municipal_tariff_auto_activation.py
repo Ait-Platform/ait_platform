@@ -46,7 +46,7 @@ def activate(service, documents, verification, store, year, receipt, actor_id):
             utility=old['utility_type'] if old else candidate['utility_type']
             code=old['code'] if old else row['code']
             locks.update(((utility,'__code_allocation__'),(utility,code)))
-        for utility,code in sorted(locks):service.lock_identity(utility,code)
+        for utility,code in sorted(locks,key=lambda key:(key[0],key[1]!='__code_allocation__',key[1].casefold())):service.lock_identity(utility,code)
         prepared=report(service,documents,verification,store,year,receipt)
         if not prepared['adoption'] or any(row['status']!='VERIFIED' for row in prepared['rows']):
             raise ValueError('Annual evidence or stored versions changed while acquiring locks.')

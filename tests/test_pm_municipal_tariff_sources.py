@@ -22,7 +22,7 @@ class PublicationTests(AnnualRegisterTests):
     def setUp(self):
         super().setUp()
         self.modules={}
-        for short in ('municipal_tariff_sources','municipal_tariff_documents','municipal_tariff_download','municipal_tariff_auto_activation'):
+        for short in ('municipal_tariff_sources','municipal_tariff_documents','municipal_tariff_download','municipal_tariff_auto_activation','municipal_tariff_policy'):
             name='app.admin.programs.billing.'+short
             module=types.ModuleType(name)
             if short=='municipal_tariff_documents':
@@ -34,6 +34,7 @@ class PublicationTests(AnnualRegisterTests):
             if short=='municipal_tariff_sources':self.source=module
             if short=='municipal_tariff_documents':self.documents=module
             if short=='municipal_tariff_download':self.controller=module
+            if short=='municipal_tariff_policy':self.policy=module
         patched=patch.dict(sys.modules,self.modules);patched.start();self.addCleanup(patched.stop)
         self.controller.services=lambda:(self.tariff_service,self.source,self.documents)
         self.folder=tempfile.TemporaryDirectory();self.addCleanup(self.folder.cleanup)

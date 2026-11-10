@@ -14,6 +14,13 @@ class MonitorTests(VerificationTests):
         self.auto=self.load('municipal_tariff_auto_activation',{})
         self.monitor=self.load('municipal_tariff_monitor',{})
         self.monitor.services=lambda:(self.tariff_service,self.source,self.documents,self.verification,self.workflow,self.auto)
+        # Existing approved source; adoption and individual rates stay unverified.
+        self.run_download()
+        with self.app.app_context():
+            source=self.documents.listing(self.documents.backend(),'2026/27')[0]
+            signed=self.policy.issue_token(7,'2026/27',source['receipt_id'],'approve_source',self.policy.digest(source))
+            self.policy.decide(self.policy.backend(),7,'2026/27',source['receipt_id'],'approve_source',signed,dict(source=source))
+
         @contextmanager
         def single(service):yield True
         self.single=single
@@ -40,7 +47,7 @@ class MonitorTests(VerificationTests):
             self.assertIn('Publication adoption is not confirmed',str(check['issues']))
             self.assertIn('late',str(check['issues']))
             self.assertEqual(check['activation']['status'],'DISABLED')
-            self.assertEqual(len(self.documents.listing(self.documents.backend(),'2026/27')),3)
+            self.assertEqual(len(self.documents.listing(self.documents.backend(),'2026/27')),6)
         self.assertEqual(self.snapshot(),before)
 
     def test_daily_retry_and_alert_deduplication(self):

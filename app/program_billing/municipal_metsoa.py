@@ -82,7 +82,17 @@ def bulk_consumption(meter,meters,pairs,issues,notes):
             reason=cp['error'] or 'Validated consumption is not available for the selected billing month.'
             issues.append(meter['meter_number']+': linked meter '+child['meter_number']+' monthly consumption for '+str(pair['billing_month'])+' cannot be established: '+reason+' Bulk adjustment is incomplete.');return None
         if (cp['previous']['date'],cp['current']['date']) != (pair['previous']['date'],pair['current']['date']):
-            issues.append(meter['meter_number']+': linked meter '+child['meter_number']+' has incompatible reading intervals ('+str(cp['previous']['date'])+' to '+str(cp['current']['date'])+'; bulk '+str(pair['previous']['date'])+' to '+str(pair['current']['date'])+'). No bulk adjustment was calculated.')
+            differing = [label for endpoint, label in (('previous', 'Previous date'), ('current', 'Current date'))
+                         if cp[endpoint]['date'] != pair[endpoint]['date']]
+            issues.append(
+                'Reading Date Mismatch — '+meter['meter_number']+'\n\n'
+                'Bulk meter: '+meter['meter_number']+'\n'
+                'Reading period: '+str(pair['previous']['date'])+' to '+str(pair['current']['date'])+'\n\n'
+                'Linked meter: '+child['meter_number']+'\n'
+                'Reading period: '+str(cp['previous']['date'])+' to '+str(cp['current']['date'])+'\n\n'
+                'Dates differing: '+', '.join(differing)+'.\n'
+                'Correction required: The reading dates do not match. Check the recorded dates and correct any incorrect entries.\n\n'
+                'METSOA cannot calculate the final amount until the discrepancy is resolved.')
             return None
     deducted=sum((pairs[c['id']]['difference'] for c in children),Decimal(0))
     adjusted=pair['difference']-deducted

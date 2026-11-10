@@ -6,6 +6,8 @@ import test_pm_municipal_metsoa as fixture
 class BulkMetsoaTests(fixture.MunicipalMetsoaTests):
     def setup_bulk(self):
         # Existing property meters, validated monthly pairs, with a future reading ignored.
+        # A fully priced bulk fixture needs the now-supported fifth sewerage band.
+        self.session.execute(text("INSERT INTO bil_tariff(utility_type,code,description,rate,block_start,block_end,reduction_factor,unit,effective_date) VALUES('sewerage','S05','Above 1500',34.78,1501,NULL,999,'kL/day','2025-07-01')"))
         self.session.execute(text("UPDATE bil_meter SET parent_meter_id=5 WHERE id IN(1,2)"))
         self.session.execute(text("UPDATE bil_meter_reading SET reading_date='2026-09-30' WHERE meter_id IN(1,2) AND reading_date<'2026-10-01'"))
         self.session.execute(text("UPDATE bil_meter_reading SET reading_date='2026-10-30' WHERE meter_id IN(1,2,5) AND reading_date BETWEEN '2026-10-01' AND '2026-10-31'"))
@@ -49,7 +51,7 @@ class BulkMetsoaTests(fixture.MunicipalMetsoaTests):
         self.assertNotIn('2188802S',rows)
         self.assertEqual(rows['7150696S']['consumption'],Decimal(15))
         self.assertFalse(data['pm_complete'])
-        self.assertIn('incompatible reading intervals',str(data['pm_issues']))
+        self.assertIn('Reading Date Mismatch',str(data['pm_issues']))
         self.assertEqual(before,self.snapshot())
 
     def test_missing_monthly_consumption_identifies_meter_and_reason(self):
@@ -73,7 +75,7 @@ class BulkMetsoaTests(fixture.MunicipalMetsoaTests):
         self.assertTrue(water['ANG489']['consumption_unavailable'])
         self.assertIn('CXN998',water)
         self.assertFalse(data['pm_complete'])
-        self.assertIn('incompatible reading intervals',str(data['pm_issues']))
+        self.assertIn('Reading Date Mismatch',str(data['pm_issues']))
         page=self.client.get(self.generation_url,headers=self.headers)
         self.assertIn('INCOMPLETE',page.text)
         self.assertIn('Final amount due unavailable',page.text)
@@ -84,6 +86,61 @@ class BulkMetsoaTests(fixture.MunicipalMetsoaTests):
         contents=' '.join(p.extract_text() or '' for p in PdfReader(BytesIO(pdf.data)).pages)
         self.assertIn('INCOMPLETE',contents)
         self.assertEqual(before,self.snapshot())
+
+    def test_mismatch_identifies_previous_current_or_both_dates(self):
+        self.setup_bulk()
+        for previous, current, label in [
+            ('2026-09-29', '2026-10-30', 'Previous date'),
+            ('2026-09-30', '2026-10-29', 'Current date'),
+            ('2026-09-29', '2026-10-29', 'Previous date, Current date'),
+        ]:
+            with self.subTest(label=label):
+                self.session.execute(text("UPDATE bil_meter_reading SET reading_date=:d WHERE meter_id=1 AND reading_date<'2026-10-01'"),dict(d=previous))
+                self.session.execute(text("UPDATE bil_meter_reading SET reading_date=:d WHERE meter_id=1 AND reading_date BETWEEN '2026-10-01' AND '2026-10-31'"),dict(d=current))
+                self.session.commit();self.conn.commit();before=self.snapshot()
+                data=self.data()
+                issue=next(i for i in data['pm_issues'] if i.startswith('Reading Date Mismatch'))
+                self.assertIn('Reading Date Mismatch — ANG489',issue)
+                self.assertIn('Bulk meter: ANG489\nReading period: 2026-09-30 to 2026-10-30',issue)
+                self.assertIn('Linked meter: CEL888\nReading period: '+previous+' to '+current,issue)
+                self.assertIn('Dates differing: '+label+'.',issue)
+                self.assertIn('Correction required: The reading dates do not match.',issue)
+                self.assertIn('METSOA cannot calculate the final amount until the discrepancy is resolved.',issue)
+                self.assertFalse(data['pm_pricing_complete']);self.assertFalse(data['pm_complete'])
+                self.assertEqual(before,self.snapshot())
+
+    def test_almond_july_opening_mismatch_screen_pdf_and_corrected_date(self):
+        self.setup_bulk()
+        self.session.execute(text("UPDATE bil_meter SET meter_number='CWA074_CEL888' WHERE id=1"))
+        self.session.execute(text("UPDATE bil_meter_reading SET reading_date='2026-07-31' WHERE meter_id IN (1,2,5) AND reading_date='2026-09-30'"))
+        self.session.execute(text("UPDATE bil_meter_reading SET reading_date='2026-08-31' WHERE meter_id IN (1,2,5) AND reading_date='2026-10-30'"))
+        self.session.execute(text("UPDATE bil_meter_reading SET reading_date='2026-07-30' WHERE meter_id=1 AND reading_date='2026-07-31'"))
+        self.session.commit();self.conn.commit();before=self.snapshot()
+        url=self.generation_url.replace('2026-10','2026-08')
+        page=self.client.get(url,headers=self.headers)
+        self.assertEqual(page.status_code,200)
+        from lxml import html
+        warning=html.fromstring(page.data).xpath('//p[contains(text(), "Reading Date Mismatch")]')[0]
+        self.assertEqual(warning.get('style'),'white-space: pre-line')
+        for value in ('ANG489','CWA074_CEL888','2026-07-30','2026-07-31','2026-08-31','Dates differing: Previous date.'):
+            self.assertIn(value,warning.text_content())
+        self.assertIn('NOT A FINAL AMOUNT DUE',page.text)
+        self.assertNotIn('Amount Due R',page.text)
+        from io import BytesIO
+        from pypdf import PdfReader
+        pdf=self.client.get(url+'&format=pdf',headers=self.headers)
+        self.assertEqual(pdf.status_code,200)
+        contents=' '.join(p.extract_text() or '' for p in PdfReader(BytesIO(pdf.data)).pages)
+        for value in ('Reading Date Mismatch','CWA074_CEL888','2026-07-30','2026-07-31','2026-08-31','NOT A FINAL AMOUNT DUE'):
+            self.assertIn(value,contents)
+        self.assertEqual(before,self.snapshot())
+        # Only the test fixture corrects the saved date; report generation never does.
+        self.session.execute(text("UPDATE bil_meter_reading SET reading_date='2026-07-31' WHERE meter_id=1 AND reading_date='2026-07-30'"))
+        self.session.commit();self.conn.commit()
+        with self.app.test_request_context():data=self.metsoa.build(26,'2026-08',recipient_id=11)
+        self.assertFalse(any('Reading Date Mismatch' in i for i in data['pm_issues']))
+        bulk=next(w for w in data['water']['meters'] if w['meter_number']=='ANG489')
+        self.assertEqual(bulk['summary']['consumption'],Decimal(68))
 
     def test_negative_bulk_difference_is_shown_without_negative_charge(self):
         self.setup_bulk();self.session.execute(text("UPDATE bil_meter_reading SET reading_value=20 WHERE meter_id=5 AND reading_date='2026-10-30'"));self.session.commit();self.conn.commit()

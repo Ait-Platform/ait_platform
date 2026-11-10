@@ -170,7 +170,7 @@ def retrieve(candidate, fetch=read_url, deadline=None):
     except Exception:
         raise RetrievalError('Municipal PDF is damaged, encrypted or unsupported; it was not accepted.') from None
     declared=years_in(text)
-    issues=['Adoption/approval is not verified. No tariff extraction or activation is performed in Stage 3A.']
+    issues=['Adoption/approval is not verified by retrieval alone; verification and activation require separate checks.']
     final_years=years_in(urlsplit(final).path)
     if final_years and candidate['financial_year'] not in final_years:
         issues.append('Redirected PDF filename year conflicts with the municipal listing.')

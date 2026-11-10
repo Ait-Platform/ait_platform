@@ -21,7 +21,7 @@ def page(render):
     years=[str(year)+'/'+str(year+1)[-2:] for year in range(2024,current+2)]
     year=request.values.get('financial_year',str(current)+'/'+str(current+1)[-2:])
     if year not in years:abort(400,description='Select an available current, historical or upcoming financial year.')
-    issues=[];saved=[];records=[];discovered=[]
+    issues=[];saved=[];records=[];discovered=[];activations=[]
     try:store=documents.backend()
     except (documents.StorageError,OSError) as exc:
         store=None;issues.append(str(exc))
@@ -41,11 +41,18 @@ def page(render):
                     issues.append('Document storage/read-back failed. No complete receipt was accepted for '+candidate['source_url']+'. Existing tariffs are unchanged.')
             if len(discovered)>source.MAX_DOWNLOADS:
                 issues.append('Download limited to '+str(source.MAX_DOWNLOADS)+' publications per request. Additional source links are shown below.')
+        # Retrieve the whole bounded publication batch before considering activation.
+        for record in saved:
+            try:
+                activations.append(import_module('app.admin.programs.billing.municipal_tariff_auto_activation').automatic(management,documents,store,year,record['receipt_id']))
+            except Exception:
+                current_app.logger.exception('Automatic annual tariff activation failed or remains on HOLD')
+                issues.append('Automatic activation did not complete. Source evidence was retained; the tariff transaction was rolled back. Review Verification Status.')
         try:records=documents.listing(store,year)
         except Exception:
             issues.append('Stored municipal evidence could not be listed or verified. Existing files and tariffs were not replaced.')
     return render('admin/programs/billing/municipal_tariff_download.html',years=years,financial_year=year,
-                  documents=records,saved=saved,issues=issues,discovered=discovered,storage_ready=store is not None)
+                  documents=records,saved=saved,issues=issues,discovered=discovered,storage_ready=store is not None,activations=activations)
 
 
 def download(year,receipt):

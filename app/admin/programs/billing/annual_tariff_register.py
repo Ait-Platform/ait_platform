@@ -182,5 +182,7 @@ def page(render):
         data['activation_options'] = options(stored, evidence, year, today())
     from app.admin.programs.billing.municipal_tariff_monitor import summary
     data['monitoring_checks']=summary()
+    from app.admin.programs.billing.municipal_tariff_overview import build
+    data['overview']=build(year)
     return render('admin/programs/billing/annual_tariff_register.html', years=YEARS,
                   financial_year=year, opened=opened, **data)

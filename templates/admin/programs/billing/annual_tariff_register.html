@@ -1,30 +1,30 @@
 {% extends "admin/programs/billing/tariff_layout.html" %}
 {% block tariff_title %}Annual Municipal Tariff Register{% endblock %}
 {% block tariff_actions %}
-<div class="tariff-actions" style="padding-bottom:0"><a class="tariff-button add" href="{{ url_for('admin_bp.billing_tariff_publications',financial_year=financial_year) }}">Download Municipal Tariffs</a></div>
-<form id="annual-tariff-hub" class="tariff-actions annual-controls" method="get">
-  <label for="financial-year">Financial year
-    <select id="financial-year" name="financial_year" autofocus>{% for year in years %}<option value="{{ year }}" {% if year == financial_year %}selected{% endif %}>{{ year }} — 1 July to 30 June</option>{% endfor %}</select>
-  </label>
-  <button class="tariff-button history" name="workspace" value="register">View Register</button>
+<form id="annual-tariff-hub" class="tariff-actions annual-controls" method="get" action="{{ url_for('admin_bp.billing_tariff_annual') }}">
+  <button class="tariff-button add" formaction="{{ url_for('admin_bp.billing_tariff_publications') }}">Download New Tariffs</button>
+  <button class="tariff-button history" name="workspace" value="register">Review Exceptions</button>
 </form>
 {% endblock %}
 {% block tariff_body %}
 <style>
-.tariff-workspace:has(#annual-tariff-hub) .tariff-strip{background:#22a06b}.tariff-workspace:has(#annual-tariff-hub){background:#f1f5f9;border-radius:12px;font-family:Arial,sans-serif}.annual-controls{flex-wrap:wrap}.annual-controls .history{background:#dbeafe}.annual-controls label{font-size:14px;font-weight:600}.annual-controls select{margin-left:8px;border:1px solid #b8cde6;border-radius:6px;min-height:38px;padding:7px;background:white;color:#17202a}.annual-controls select:focus{outline:2px solid #b8cde6;outline-offset:2px;border-color:#4a90d9}.annual-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:16px 0}.annual-table{font-size:13px}.annual-table th,.annual-table td{padding:9px 6px}.annual-table .money{text-align:right;font-variant-numeric:tabular-nums}.annual-table small{display:block;margin-top:5px;color:#475569}.annual-status{font-weight:bold}.annual-versions{margin-top:7px}.annual-versions li{margin-top:5px}.annual-warning{color:#92400e}.annual-notice{border:1px solid #b8cde6;background:#eff6ff;padding:12px;border-radius:7px;margin-bottom:12px}
+.tariff-workspace:has(#annual-tariff-hub) .tariff-strip{background:#22a06b}.tariff-workspace:has(#annual-tariff-hub){background:#f1f5f9;border-radius:12px;font-family:Arial,sans-serif}.annual-controls{flex-wrap:wrap}.annual-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:4px 0 16px}.annual-summary>div{padding:14px;border:1px solid #dbe5ef;border-radius:8px;background:#fff}.annual-summary dt{font-size:13px;color:#475569}.annual-summary dd{font-size:20px;font-weight:700;margin-top:6px}@media(max-width:640px){.annual-summary{grid-template-columns:1fr}}.annual-controls .history{background:#dbeafe}.annual-controls label{font-size:14px;font-weight:600}.annual-summary select{margin-left:8px;border:1px solid #b8cde6;border-radius:6px;min-height:38px;padding:7px;background:white;color:#17202a}.annual-summary select:focus{outline:2px solid #b8cde6;outline-offset:2px;border-color:#4a90d9}.annual-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:16px 0}.annual-table{font-size:13px}.annual-table th,.annual-table td{padding:9px 6px}.annual-table .money{text-align:right;font-variant-numeric:tabular-nums}.annual-table small{display:block;margin-top:5px;color:#475569}.annual-status{font-weight:bold}.annual-versions{margin-top:7px}.annual-versions li{margin-top:5px}.annual-warning{color:#92400e}.annual-notice{border:1px solid #b8cde6;background:#eff6ff;padding:12px;border-radius:7px;margin-bottom:12px}
 </style>
-<p class="annual-notice">Candidate rates are <strong>NOT APPROVED</strong> until official evidence and calculation mapping are verified. Opening this register never changes tariffs. The normal workflow is Download Municipal Tariffs ? Verification Status ? Activation Status. Production automatic activation remains disabled pending authorisation. Individual approval remains an exception fallback.</p>
-{% if monitoring_checks %}<section aria-label="Annual monitoring status"><h2 class="text-lg font-semibold">Annual monitoring status</h2>{% for check in monitoring_checks %}<p><strong>{{ check.year }}</strong> ? Last check: {{ check.checked_on }} ? Last successful retrieval: {{ check.last_successful_check or 'None' }} ? Effective: {{ check.effective_date or 'Not established' }} ? Activation Status: {{ check.activation.status }} ? Verified components: {{ check.verified_components|join(', ') or 'None' }}</p>{% for issue in check.issues %}<p role="alert" class="annual-warning">{{ issue }}</p>{% endfor %}{% if check.retrieval_details %}<details><summary>Retrieval details</summary>{% for detail in check.retrieval_details %}<p>{{ detail }}</p>{% endfor %}</details>{% endif %}{% endfor %}</section>{% endif %}
+<dl id="annual-tariff-summary" class="annual-summary">
+  {% for label,value in [('Financial year',financial_year),('Municipal PDF download status',overview.download_status),('Rates extracted',overview.extracted),('Passing verification and 10% variance check',overview.passing),('Exceptions',overview.exceptions),('Tariffs updated',overview.updated)] %}
+  <div><dt>{% if label=='Financial year' %}<label for="financial-year">{{ label }}</label>{% else %}{{ label }}{% endif %}</dt><dd>{% if label=='Financial year' %}<select id="financial-year" name="financial_year" form="annual-tariff-hub" autofocus onchange="this.form.requestSubmit()">{% for year in years %}<option value="{{ year }}" {% if year==financial_year %}selected{% endif %}>{{ year }}</option>{% endfor %}</select>{% else %}{{ value if value is not none else 'Not checked' }}{% endif %}</dd></div>
+  {% endfor %}
+</dl>
 {% if opened %}
 <section id="annual-tariff-workspace" aria-labelledby="annual-register-title">
-  <div class="annual-toolbar"><h2 id="annual-register-title" class="text-lg font-semibold">{{ financial_year }} tariff review</h2><a class="tariff-button" href="{{ url_for('admin_bp.billing_tariff_annual',financial_year=financial_year) }}">Close</a></div>
-  <p class="tariff-hint">Selection as at {{ end }}. The latest eligible stored version is shown, including any scheduled within-year version; this is not a claim that it is active today. Actual dates are preserved. Difference = proposed minus existing; numeric comparisons do not establish category applicability.</p>
+  <div class="annual-toolbar"><h2 id="annual-register-title" class="text-lg font-semibold">{{ financial_year }} exceptions</h2><a class="tariff-button" href="{{ url_for('admin_bp.billing_tariff_annual',financial_year=financial_year) }}">Close</a></div>
+  {% for check in monitoring_checks if check.year==financial_year or check.year=='Monitoring' %}{% for issue in check.issues %}<p role="alert" class="annual-warning">{{ issue }}</p>{% endfor %}{% endfor %}
   {% if not verification_available %}<p class="annual-warning" role="status">Tariff verification records are unavailable. Existing rates cannot be presented as verified.</p>{% endif %}
   <table class="tariff-table annual-table">
     <colgroup><col style="width:10%"><col style="width:19%"><col style="width:15%"><col style="width:11%"><col style="width:11%"><col style="width:10%"><col style="width:11%"><col style="width:13%"></colgroup>
     <thead><tr><th>Tariff code</th><th>Description</th><th>Effective date</th><th class="money">Existing rate</th><th class="money">Proposed rate</th><th class="money">Difference</th><th>Source</th><th>Status</th></tr></thead>
     <tbody>{% for item in rows %}{% set r=item.existing %}
-      <tr data-component="{{ item.component }}">
+      <tr data-component="{{ item.component }}" {% if item.status == 'Verified' %}hidden{% endif %}>
         <td>{{ r.code if r else 'No selected code' }}<small>Component: {{ item.component }}{% if r %}<br>Version ID: {{ r.id }}{% endif %}</small></td>
         <td>{{ r.description or 'No stored description' if r else 'No applicable stored version' }}
           {% if r %}<small>Category: {{ item.verification.municipal_category or 'Not verified' }}<br>Municipality: {{ item.verification.municipality or 'Not verified' }}</small>{% endif %}

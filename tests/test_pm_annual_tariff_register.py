@@ -35,6 +35,11 @@ class AnnualRegisterTests(ManagementTests):
         monitor=types.ModuleType(monitor_name);monitor.summary=lambda:[]
         monitor_patch=patch.dict(sys.modules,{monitor_name:monitor})
         monitor_patch.start();self.addCleanup(monitor_patch.stop)
+        overview_name='app.admin.programs.billing.municipal_tariff_overview'
+        overview=types.ModuleType(overview_name)
+        overview.build=lambda year:dict(download_status='Not downloaded',extracted=0,passing=0,exceptions=None,updated=0)
+        overview_patch=patch.dict(sys.modules,{overview_name:overview})
+        overview_patch.start();self.addCleanup(overview_patch.stop)
         self.review = module
         activation_name='app.admin.programs.billing.annual_tariff_activation'
         activation=types.ModuleType(activation_name)
@@ -69,7 +74,8 @@ class AnnualRegisterTests(ManagementTests):
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, 200)
         self.assertNotIn('id="annual-tariff-workspace"', response.text)
-        self.assertIn('NOT APPROVED', response.text)
+        self.assertIn('Rates extracted', response.text)
+        self.assertNotIn('NOT APPROVED',response.text)
         self.assertIn('Annual Tariff Register', self.client.get('/admin/billing/tariffs').text)
         self.assertIn('financial_year=2025/26', self.get('2025/26').text)
         with self.client.session_transaction() as state: state.clear()
@@ -182,8 +188,10 @@ class AnnualRegisterTests(ManagementTests):
                 page.route('http://tariff-review.test/**',route_request)
                 page.goto('http://tariff-review.test'+self.url)
                 self.assertEqual(page.locator('#annual-tariff-workspace').count(),0)
+                artifact=ROOT/'output/annual_tariff_register_simplified';artifact.mkdir(parents=True,exist_ok=True)
+                page.screenshot(path=str(artifact/'hub.png'),full_page=True)
                 page.select_option('#financial-year','2025/26')
-                page.get_by_role('button',name='View Register').click()
+                page.get_by_role('button',name='Review Exceptions').click()
                 self.assertTrue(page.locator('#annual-tariff-workspace').is_visible())
                 self.assertEqual(page.locator('tr[data-component]').count(),16)
                 self.assertIn('HOLD',page.locator('[data-component="W_MGT"]').inner_text())

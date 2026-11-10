@@ -73,12 +73,11 @@ class MonitorTests(VerificationTests):
 
     def test_administrator_register_displays_persistent_notifications(self):
         with self.deterministic():self.monitor.run(date(2026,7,1))
-        response=self.client.get(self.url)
+        response=self.client.get(self.url,query_string=dict(workspace='register',financial_year='2026/27'))
         self.assertEqual(response.status_code,200,response.text)
-        self.assertIn('Annual monitoring status',response.text)
+        self.assertIn('2026/27 exceptions',response.text)
         self.assertIn('Publication adoption is not confirmed',response.text)
-        self.assertIn('2026-07-01',response.text)
-        self.assertIn('DISABLED',response.text)
+        self.assertIn('Exceptions',response.text)
 
     def test_native_worker_and_activation_disabled_by_default(self):
         from flask import Flask

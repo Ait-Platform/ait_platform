@@ -126,7 +126,7 @@ class PublicationTests(AnnualRegisterTests):
         path=html.fromstring(response.data).xpath('//a[contains(text(),"Download stored PDF")]/@href')[0]
         stored=self.client.get(path);self.assertEqual(stored.status_code,200);self.assertEqual(stored.data,self.pdf)
         self.assertEqual(stored.headers['X-Content-Type-Options'],'nosniff')
-        self.assertIn('Download Municipal Tariffs',self.client.get(self.url).text)
+        self.assertIn('Download New Tariffs',self.client.get(self.url).text)
         self.conn.execute(text("UPDATE pm_admin_test_identity SET role='manager'"));self.conn.commit()
         self.assertEqual(self.client.get(self.publication_url).status_code,403)
         self.assertEqual(self.client.get(path).status_code,403)
@@ -192,7 +192,7 @@ class PublicationTests(AnnualRegisterTests):
                 page=browser.new_page(viewport=dict(width=1440,height=1000))
                 page.route('http://tariff-review.test/**',route_request)
                 page.goto('http://tariff-review.test'+self.url)
-                page.get_by_role('link',name='Download Municipal Tariffs',exact=True).click()
+                page.get_by_role('button',name='Download New Tariffs',exact=True).click()
                 page.select_option('#publication-year','2026/27')
                 page.get_by_role('button',name='Download Municipal Tariffs',exact=True).click()
                 self.assertIn('3 municipal source document(s) retained',page.locator('[role=status]').inner_text())

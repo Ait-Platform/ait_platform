@@ -249,6 +249,13 @@ def modes_checkpoint_route():
         case ("admin", "admin"):
             return redirect(url_for(subj.start_endpoint))
 
+        # --- Paid + Free mode (ProTrade) ---
+        case ("paid", "free"):
+            if not enrollment or getattr(enrollment, "status", None) not in ("active", "completed"):
+                flash("Enrollment required.", "warning")
+                return redirect(url_for("bridge_bp.bridge"))
+            return redirect(url_for(subj.start_endpoint))
+
         # --- Fallback ---
         case _:
             user_id = baton.get("user_id") or session.get("user_id")

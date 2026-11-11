@@ -145,6 +145,18 @@ class AuthBridgeTests(unittest.TestCase):
         self.assertIn('AIT Bridge', response.get_data(as_text=True))
         self.assertIn('Property Management', response.get_data(as_text=True))
 
+    def test_protrade_enrolled_user_645_reaches_bridge_without_resolver_error(self):
+        self.user.id = 645
+        self.subjects = [types.SimpleNamespace(id=24, slug='mechanic', name='ProTrade',
+            program_type='paid', commercial_mode='free', is_hidden_on_bridge=False)]
+        self.enrollments = [types.SimpleNamespace(subject_id=24, user_id=645, id=10, status='active')]
+        self.login()
+        response = self.client.get('/dashboard', follow_redirects=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('AIT Bridge', response.get_data(as_text=True))
+        self.assertIn('ProTrade', response.get_data(as_text=True))
+        self.assertNotIn('could not be resolved', response.get_data(as_text=True))
+
     def test_anonymous_or_forged_identity_cannot_enter_dashboard_or_bridge(self):
         with self.client.session_transaction() as data:
             data.update(email=self.user.email,is_authenticated=True,is_admin=True)

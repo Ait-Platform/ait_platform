@@ -163,6 +163,25 @@ def bridge_dashboard():
                         "message": "Your paid program is active.",
                         "href": url_for("modes_bp.modes_checkpoint_route", subject_slug=subj.slug)
                     })
+
+                case ("paid", "free"):
+                    if getattr(enrollment, "status", "active") in ("active", "completed"):
+                        tiles.append({
+                            "subject": subj,
+                            "slug": subj.slug,
+                            "name": subj.name,
+                            "access_level": "enrolled",
+                            "message": "Your paid program is active.",
+                            "href": url_for("modes_bp.modes_checkpoint_route", subject_slug=subj.slug)
+                        })
+                    else:
+                        tiles.append({
+                            "subject": subj,
+                            "slug": subj.slug,
+                            "name": subj.name,
+                            "access_level": "locked",
+                            "href": url_for("payment_bp.pricing_base", subject=subj.slug)
+                        })
                     
                 case ("system", "free") | (None, "free") | ("subscription", "free"):
                     ensure_free_enrollment(session["user_id"], subj.slug)

@@ -197,6 +197,8 @@ def page(p):
                     try:address=validate_email(address,check_deliverability=False).normalized
                     except EmailNotValidError:abort(400,description='Enter a valid recipient email address.')
                 try:pdf=render_pdf(data)
+                except HTTPException:
+                    raise
                 except Exception as exc:
                     current_app.logger.exception('Utilities report PDF failed')
                     message='The PDF could not be generated. The preview is HTML; the PDF renderer failed. Please contact the administrator.'

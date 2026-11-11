@@ -260,7 +260,8 @@ def build(p,month,recipient_id=None,use_current_tariffs=False,test_mode=False):
 
 def pdf_bytes(html,test_mode=False):
     from playwright.sync_api import sync_playwright
-    with sync_playwright() as runtime:
+    from .metsoa_pdf_capacity import browser_slot
+    with browser_slot(), sync_playwright() as runtime:
         browser=runtime.chromium.launch(headless=True)
         try:
             page=browser.new_page()

@@ -95,6 +95,17 @@ class CentralOutputTests(unittest.TestCase):
         self.fx.session.commit();self.fx.conn.commit()
         self.assertEqual(self.get('arrangements','arrangement_register').status_code,403)
 
+    def test_metsoa_busy_capacity_returns_clear_503_without_launch(self):
+        from app.program_billing.metsoa_pdf_capacity import browser_slot
+        page=self.get('metsoa','metsoa_statement',recipient_id='11')
+        self.assertEqual(page.status_code,200,page.text)
+        fields=self.fields(page)
+        with browser_slot(), patch('playwright.sync_api.sync_playwright') as launch:
+            response=self.fx.client.get(self.url,query_string=dict(fields,format='pdf'),headers=self.fx.headers)
+        self.assertEqual(response.status_code,503)
+        self.assertIn('Another PDF is being generated',response.text)
+        launch.assert_not_called()
+
     def test_pdf_and_email_dispatch_preserve_original_renderers(self):
         cases=[('readings','history'),('readings','municipal_submission'),('reconciliation','metro_reconciliation'),('reconciliation','utilities_reconciliation'),('metsoa','metsoa_statement'),('accounts','account_register'),('arrangements','arrangement_register')]
         output=Path('tmp/pdfs/central-output');output.mkdir(parents=True,exist_ok=True)

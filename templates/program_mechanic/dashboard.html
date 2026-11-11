@@ -23,53 +23,118 @@
         <a href="{{ url_for('bridge_bp.bridge') }}" class="rounded-lg bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-200 transition">Back</a>
       </div>
 
-      <!-- Permanent Menu: 4 Dashboard Actions -->
+      <!-- One Horizontal Menu Row: Styled like Property Management with Different Light Pastel Colours -->
       {% set protrade_menu_active = 'dashboard' %}{% include 'program_mechanic/menu.html' %}
 
-      {% if not active_shop %}
-      <!-- Shop Setup Prompt when no active profile -->
-      <div class="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-4">
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h3 class="font-semibold text-amber-900">Shop Profile Setup Required</h3>
-            <p class="text-sm text-amber-700 mt-0.5">Complete your business details to enable full quoting, letterheads, and invoicing.</p>
+      <!-- Working Area (Blank Initially on Page Load) -->
+      <div id="working-area" class="mt-4 mb-6 rounded-xl border border-slate-200 bg-slate-50/50 p-6 shadow-sm hidden">
+        
+        <!-- Workspace: Add Client -->
+        <div id="workspace-add-client" class="workspace-panel hidden">
+          <div class="flex items-center justify-between pb-3 border-b border-slate-200">
+            <h3 class="text-lg font-semibold text-slate-900">Add New Client</h3>
+            <button type="button" onclick="closeWorkingArea()" class="rounded-lg bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-200 transition">Close</button>
           </div>
-          <button type="button" onclick="document.getElementById('manual-setup-modal').classList.remove('hidden')" class="rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-700 transition shrink-0">
-            Complete Shop Setup
-          </button>
+          <style>
+            #client-name, #client-contact, #client-service { border: 1px solid #b8cbd7; }
+            #client-name:focus, #client-contact:focus, #client-service:focus { border-color: #5289b0; outline: none; box-shadow: 0 0 0 3px #e4eff7; }
+          </style>
+          <form method="POST" action="{{ url_for('mechanic_bp.mechanic_dashboard') }}" class="mt-4 flex flex-wrap items-end gap-3">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="add_client">
+            <div class="min-w-0 flex-1">
+              <label for="client-name" class="mb-2 block text-sm font-semibold text-slate-700">Client Name</label>
+              <input id="client-name" name="name" value="{{ client_name or '' }}" maxlength="150" required autofocus class="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900" placeholder="e.g. John Doe">
+            </div>
+            <div class="min-w-0 flex-1">
+              <label for="client-contact" class="mb-2 block text-sm font-semibold text-slate-700">Contact</label>
+              <input id="client-contact" name="contact" value="{{ client_contact or '' }}" maxlength="150" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900" placeholder="Phone or email">
+            </div>
+            <div class="min-w-0 flex-1">
+              <label for="client-service" class="mb-2 block text-sm font-semibold text-slate-700">Service</label>
+              <input id="client-service" name="service" value="{{ client_service or '' }}" maxlength="150" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900" placeholder="e.g. Brake Service / Toyota Hilux">
+            </div>
+            <button type="submit" class="rounded-lg bg-slate-800 px-4 py-2 font-semibold text-white hover:bg-slate-900 transition">Save Client</button>
+          </form>
+          {% if error %}<p role="alert" class="mt-3 text-sm text-red-700">{{ error }}</p>{% endif %}
         </div>
+
+        <!-- Workspace: Tokens (Combines Wallet balance and Transfer access) -->
+        <div id="workspace-tokens" class="workspace-panel hidden">
+          <div class="flex items-center justify-between pb-3 border-b border-slate-200">
+            <h3 class="text-lg font-semibold text-slate-900">Tokens &amp; Wallet</h3>
+            <button type="button" onclick="closeWorkingArea()" class="rounded-lg bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-200 transition">Close</button>
+          </div>
+          <div class="mt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-xl bg-teal-50/70 border border-teal-200">
+            <div>
+              <p class="text-xs font-bold uppercase tracking-wider text-teal-800">Available Wallet Balance</p>
+              <p class="text-2xl font-extrabold text-teal-900 mt-0.5">{{ wallet.balance if wallet else 0 }} Tokens</p>
+              <p class="text-xs text-teal-700 mt-1">Tokens are used to generate quotes, invoice documents, and debtor schedules.</p>
+            </div>
+            <div class="flex flex-wrap items-center gap-3">
+              <a href="{{ url_for('mechanic_bp.price_page') }}" class="inline-flex items-center gap-1.5 rounded-lg bg-teal-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-teal-700 shadow-sm transition">
+                <i class="fas fa-coins text-xs"></i> Top Up Tokens
+              </a>
+              <a href="{{ url_for('cultural_bp.wallet_transfer_page') }}" class="inline-flex items-center gap-1.5 rounded-lg bg-white border border-teal-300 px-4 py-2.5 text-sm font-semibold text-teal-900 hover:bg-teal-50 shadow-sm transition">
+                <i class="fas fa-exchange-alt text-xs"></i> Transfer Tokens
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <!-- Workspace: Setup (Existing Shop Profile Setup) -->
+        <div id="workspace-setup" class="workspace-panel hidden">
+          <div class="flex items-center justify-between pb-3 border-b border-slate-200">
+            <h3 class="text-lg font-semibold text-slate-900">Shop Profile Setup</h3>
+            <button type="button" onclick="closeWorkingArea()" class="rounded-lg bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-200 transition">Close</button>
+          </div>
+          <div class="mt-4 p-5 rounded-xl bg-orange-50/70 border border-orange-200">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <p class="text-sm font-bold text-orange-950">
+                  {% if active_shop %}
+                    Active Profile: <strong class="text-slate-900">{{ active_shop.business_name }}</strong>
+                  {% else %}
+                    Shop profile setup is incomplete.
+                  {% endif %}
+                </p>
+                <p class="text-xs text-orange-800 mt-0.5">Configure business name, address, tax/VAT registration, shop logo, letterhead banner, and terms.</p>
+              </div>
+              <div class="flex flex-wrap items-center gap-3">
+                <button type="button" onclick="document.getElementById('manual-setup-modal').classList.remove('hidden')" class="inline-flex items-center gap-1.5 rounded-lg bg-orange-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-orange-700 shadow-sm transition">
+                  <i class="fas fa-edit text-xs"></i> Edit Profile &amp; Letterhead
+                </button>
+                <a href="{{ url_for('mechanic_bp.bank_accounts') }}" class="inline-flex items-center gap-1.5 rounded-lg bg-white border border-orange-300 px-4 py-2.5 text-sm font-semibold text-orange-900 hover:bg-orange-50 shadow-sm transition">
+                  Bank Accounts
+                </a>
+                <a href="{{ url_for('mechanic_bp.document_preview') }}" class="inline-flex items-center gap-1.5 rounded-lg bg-white border border-orange-300 px-4 py-2.5 text-sm font-semibold text-orange-900 hover:bg-orange-50 shadow-sm transition">
+                  Document Preview
+                </a>
+                <a href="{{ url_for('mechanic_bp.communication_logs') }}" class="inline-flex items-center gap-1.5 rounded-lg bg-white border border-orange-300 px-4 py-2.5 text-sm font-semibold text-orange-900 hover:bg-orange-50 shadow-sm transition">
+                  Logs
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+
       </div>
-      {% endif %}
 
       <!-- Client Register Working Area -->
-      <h2 class="mt-4 text-xl font-semibold text-slate-800">Client Register</h2>
-      <style>
-        #client-name, #client-contact, #client-service { border: 1px solid #b8cbd7; }
-        #client-name:focus, #client-contact:focus, #client-service:focus { border-color: #5289b0; outline: none; box-shadow: 0 0 0 3px #e4eff7; }
-      </style>
-      <form method="POST" action="{{ url_for('mechanic_bp.mechanic_dashboard') }}" class="mt-4 flex flex-wrap items-end gap-3">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <input type="hidden" name="action" value="add_client">
-        <div class="min-w-0 flex-1">
-          <label for="client-name" class="mb-2 block text-sm font-semibold text-slate-700">Client Name</label>
-          <input id="client-name" name="name" value="{{ client_name or '' }}" maxlength="150" required autofocus class="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900" placeholder="e.g. John Doe">
+      <div class="mt-6 flex flex-wrap items-center justify-between gap-4">
+        <div class="flex items-center gap-3">
+          <h2 class="text-lg font-semibold text-slate-800">Client Register</h2>
+          <span id="client-counter" class="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-bold text-slate-700">
+            {{ clients|length }} client{{ 's' if clients|length != 1 else '' }}
+          </span>
         </div>
-        <div class="min-w-0 flex-1">
-          <label for="client-contact" class="mb-2 block text-sm font-semibold text-slate-700">Contact</label>
-          <input id="client-contact" name="contact" value="{{ client_contact or '' }}" maxlength="150" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900" placeholder="Phone or email">
-        </div>
-        <div class="min-w-0 flex-1">
-          <label for="client-service" class="mb-2 block text-sm font-semibold text-slate-700">Service</label>
-          <input id="client-service" name="service" value="{{ client_service or '' }}" maxlength="150" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900" placeholder="e.g. Brake Service / Toyota Hilux">
-        </div>
-        <button type="submit" class="rounded-lg bg-slate-800 px-4 py-2 font-semibold text-white hover:bg-slate-900 transition">Add Client</button>
-      </form>
-      {% if error %}<p role="alert" class="mt-3 text-sm text-red-700">{{ error }}</p>{% endif %}
-
-      <!-- Client Table -->
-      <h2 class="mt-8 text-lg font-semibold text-slate-800">My Clients</h2>
+        <button type="button" id="open-add-client-btn" onclick="openWorkingArea('add-client')" class="inline-flex items-center gap-1.5 rounded-lg bg-slate-800 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-900 transition shadow-sm">
+          <span>+ Add Client</span>
+        </button>
+      </div>
       <p class="mt-1 text-sm text-slate-600">Existing clients are listed automatically. Client names open client details; View Client opens that client's ledger.</p>
 
+      <!-- Client Table -->
       <div class="mt-4 overflow-x-auto rounded-lg border border-slate-200">
         <table id="client-register-table" class="w-full table-fixed text-left text-sm">
           <thead class="bg-slate-50">
@@ -81,9 +146,9 @@
               <th class="p-3 font-semibold text-slate-700 text-right" style="width: 12%;">Action</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody id="client-table-body">
             {% for row in clients %}
-            <tr class="border-t border-slate-200 hover:bg-slate-50 transition">
+            <tr class="border-t border-slate-200 hover:bg-slate-50 transition client-row {% if loop.index > 5 %}hidden client-row-hidden{% endif %}">
               <td class="p-3 font-semibold truncate">
                 <a href="{{ url_for('mechanic_bp.view_client', client_id=row.client.id) }}" class="text-blue-700 underline">{{ row.client.name }}</a>
               </td>
@@ -100,45 +165,91 @@
             </tr>
             {% else %}
             <tr>
-              <td colspan="5" class="p-6 text-slate-600">No clients registered yet. Enter a client name above to begin.</td>
+              <td colspan="5" class="p-6 text-center text-slate-600">No clients registered yet. Enter a client name above to begin.</td>
             </tr>
             {% endfor %}
           </tbody>
         </table>
       </div>
 
-      <!-- Preserved Profile & Tool Utilities -->
-      <div class="mt-8 pt-6 border-t border-slate-200 flex flex-wrap items-center justify-between gap-4 text-sm text-slate-600">
-        <div class="flex flex-wrap items-center gap-3">
-          {% if active_shop %}
-          <button type="button" onclick="document.getElementById('manual-setup-modal').classList.remove('hidden')" class="inline-flex items-center gap-1 font-semibold text-blue-700 hover:underline">
-            <i class="fas fa-store text-xs"></i> Update Shop Profile
-          </button>
-          <span class="text-slate-300">|</span>
-          <a href="{{ url_for('mechanic_bp.document_preview') }}" class="inline-flex items-center gap-1 font-semibold text-teal-700 hover:underline">
-            <i class="fas fa-file-pdf text-xs"></i> Document Preview
-          </a>
-          <span class="text-slate-300">|</span>
-          <a href="{{ url_for('mechanic_bp.communication_logs') }}" class="inline-flex items-center gap-1 font-semibold text-pink-700 hover:underline">
-            <i class="fas fa-comment-dots text-xs"></i> Communication Logs
-          </a>
-          {% endif %}
-        </div>
-        <div class="flex items-center gap-3">
-          <a href="{{ url_for('mechanic_bp.price_page') }}" class="inline-flex items-center gap-1 rounded-lg bg-teal-50 border border-teal-200 px-3 py-1.5 font-semibold text-teal-800 hover:bg-teal-100 transition">
-            <i class="fas fa-coins text-xs"></i> Wallet: {{ wallet.balance if wallet else 0 }} Tokens
-          </a>
-          <a href="{{ url_for('cultural_bp.wallet_transfer_page') }}" class="inline-flex items-center gap-1 rounded-lg bg-orange-50 border border-orange-200 px-3 py-1.5 font-semibold text-orange-800 hover:bg-orange-100 transition">
-            <i class="fas fa-exchange-alt text-xs"></i> Transfer
-          </a>
-        </div>
+      <!-- Show More / Show Less with Visible Client Counter -->
+      {% if clients|length > 5 %}
+      <div class="mt-4 flex items-center justify-between border-t border-slate-100 pt-3">
+        <span id="client-visible-indicator" class="text-xs text-slate-500 font-medium">Showing 5 of {{ clients|length }} clients</span>
+        <button type="button" id="client-toggle-btn" data-expanded="false" onclick="toggleClientRows()" class="inline-flex items-center gap-1.5 rounded-lg bg-blue-100 px-4 py-2 text-sm font-semibold text-slate-800 hover:bg-blue-200 transition">
+          <span id="client-toggle-text">Show More (5 of {{ clients|length }}) &darr;</span>
+        </button>
       </div>
+      {% endif %}
 
     </div>
   </div>
 </div>
 
 <script>
+  // Working Area Management
+  function openWorkingArea(name) {
+    const area = document.getElementById('working-area');
+    if (!area) return;
+    const panels = area.querySelectorAll('.workspace-panel');
+    panels.forEach(p => p.classList.add('hidden'));
+
+    const target = document.getElementById('workspace-' + name);
+    if (target) {
+      target.classList.remove('hidden');
+      area.classList.remove('hidden');
+      if (name === 'add-client') {
+        const input = document.getElementById('client-name');
+        if (input) input.focus();
+      }
+    }
+  }
+
+  function closeWorkingArea() {
+    const area = document.getElementById('working-area');
+    if (!area) return;
+    area.classList.add('hidden');
+    const panels = area.querySelectorAll('.workspace-panel');
+    panels.forEach(p => p.classList.add('hidden'));
+  }
+
+  // Show More / Show Less for Client Register Table
+  function toggleClientRows() {
+    const hiddenRows = document.querySelectorAll('.client-row-hidden');
+    const btn = document.getElementById('client-toggle-btn');
+    const toggleText = document.getElementById('client-toggle-text');
+    const indicator = document.getElementById('client-visible-indicator');
+    const total = {{ clients|length }};
+    
+    if (!btn) return;
+    const isExpanded = btn.getAttribute('data-expanded') === 'true';
+
+    if (isExpanded) {
+      hiddenRows.forEach(r => r.classList.add('hidden'));
+      btn.setAttribute('data-expanded', 'false');
+      if (toggleText) toggleText.innerHTML = `Show More (5 of ${total}) &darr;`;
+      if (indicator) indicator.textContent = `Showing 5 of ${total} clients`;
+    } else {
+      hiddenRows.forEach(r => r.classList.remove('hidden'));
+      btn.setAttribute('data-expanded', 'true');
+      if (toggleText) toggleText.innerHTML = `Show Less (${total} of ${total}) &uarr;`;
+      if (indicator) indicator.textContent = `Showing all ${total} clients`;
+    }
+  }
+
+  // Handle URL action parameters on page load
+  document.addEventListener('DOMContentLoaded', function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const action = urlParams.get('action');
+    if (action === 'tokens') {
+      openWorkingArea('tokens');
+    } else if (action === 'setup') {
+      openWorkingArea('setup');
+    } else if (action === 'add_client' || action === 'add-client') {
+      openWorkingArea('add-client');
+    }
+  });
+
   const tcTemplates = {
     'mechanic': '1. All quotes are valid for 7 days.\n2. 50% deposit required on special order parts.\n3. Vehicles left at owner\'s risk.\n4. Full payment required upon collection.\n5. Warranty on parts as per manufacturer.',
     'panel': '1. All quotes are valid for 14 days.\n2. 60% deposit required before ordering panels/paint.\n3. Vehicles left at owner\'s risk.\n4. Full payment required before vehicle release.\n5. Paint matching subject to original vehicle condition.',

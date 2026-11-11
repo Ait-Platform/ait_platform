@@ -418,7 +418,7 @@ class ProTradeDashboardTests(unittest.TestCase):
             sess["_fresh"] = True
 
     def test_retains_four_dashboard_actions_in_permanent_menu(self):
-        """Action 1 & 2: Retain 4 dashboard actions and routes in a clean permanent menu."""
+        """Action 1 & 2: Place all dashboard buttons in one horizontal menu row with different light pastel colours."""
         self.login(645)
         response = self.client.get("/mechanic/dashboard")
         self.assertEqual(response.status_code, 200)
@@ -427,25 +427,83 @@ class ProTradeDashboardTests(unittest.TestCase):
         menu = tree.xpath('//nav[@aria-label="ProTrade"]')
         self.assertTrue(len(menu) > 0, "ProTrade permanent menu must be present")
 
-        menu_links = menu[0].xpath('.//a')
-        self.assertEqual(len(menu_links), 4, "Menu must retain exactly 4 dashboard actions")
+        menu_items = menu[0].xpath('.//a | .//button')
+        self.assertEqual(len(menu_items), 6, "Menu must contain exactly 6 dashboard actions in one row")
 
-        expected_actions = {
-            "Create Quote": "/mechanic/quote/new",
-            "Job Cards": "/mechanic/jobs",
-            "Manage Catalog": "/mechanic/catalog",
-            "Debtors Accounts": "/mechanic/client_accounts",
-        }
+        labels = ["".join(item.itertext()).strip() for item in menu_items]
+        self.assertEqual(labels, ["Quote", "Invoice", "Price List", "Debtor", "Tokens", "Setup"])
 
-        found_actions = {}
-        for link in menu_links:
-            text = "".join(link.itertext()).strip()
-            href = link.get("href")
-            found_actions[text] = href
+        # Check preserved routes for the four core actions
+        hrefs = {item.text_content().strip(): item.get("href") for item in menu_items if item.get("href")}
+        self.assertEqual(hrefs.get("Quote"), "/mechanic/quote/new")
+        self.assertEqual(hrefs.get("Invoice"), "/mechanic/jobs")
+        self.assertEqual(hrefs.get("Price List"), "/mechanic/catalog")
+        self.assertEqual(hrefs.get("Debtor"), "/mechanic/client_accounts")
 
-        for label, href in expected_actions.items():
-            self.assertIn(label, found_actions, f"Action '{label}' should be in the permanent menu")
-            self.assertEqual(found_actions[label], href, f"Route for '{label}' should be '{href}'")
+        # Check distinct light pastel background colors
+        pastel_bgs = [item.get("style", "") for item in menu_items]
+        self.assertIn("#eff6ff", pastel_bgs[0])  # Quote
+        self.assertIn("#f0fdf4", pastel_bgs[1])  # Invoice
+        self.assertIn("#fefce8", pastel_bgs[2])  # Price List
+        self.assertIn("#f5f3ff", pastel_bgs[3])  # Debtor
+        self.assertIn("#f0fdfa", pastel_bgs[4])  # Tokens
+        self.assertIn("#fff7ed", pastel_bgs[5])  # Setup
+
+    def test_working_area_blank_initially_and_close_button(self):
+        """Action 3: Working area blank initially; actions have Close buttons to return to blank."""
+        self.login(645)
+        response = self.client.get("/mechanic/dashboard")
+        self.assertEqual(response.status_code, 200)
+
+        tree = html.fromstring(response.data)
+        working_area = tree.xpath('//*[@id="working-area"]')
+        self.assertTrue(len(working_area) > 0)
+        # Blank initially: must have class 'hidden'
+        self.assertIn("hidden", working_area[0].get("class", ""))
+
+        # Close buttons present in workspaces
+        close_buttons = working_area[0].xpath('.//button[contains(text(), "Close")]')
+        self.assertTrue(len(close_buttons) >= 3, "Each workspace panel must have a Close button")
+
+        # Tokens workspace combines balance and transfer
+        tokens_panel = working_area[0].xpath('//*[@id="workspace-tokens"]')
+        self.assertTrue(len(tokens_panel) > 0)
+        tokens_text = "".join(tokens_panel[0].itertext())
+        self.assertIn("120 Tokens", tokens_text)
+        self.assertTrue(len(tokens_panel[0].xpath('.//a[@href="/mechanic/price"]')) > 0)
+        self.assertTrue(len(tokens_panel[0].xpath('.//a[@href="/cultural/wallet/transfer"]')) > 0)
+
+        # Setup workspace exists with profile edit
+        setup_panel = working_area[0].xpath('//*[@id="workspace-setup"]')
+        self.assertTrue(len(setup_panel) > 0)
+        self.assertIn("Alpha Auto Care", "".join(setup_panel[0].itertext()))
+
+    def test_client_register_counter_and_show_more_show_less(self):
+        """Action 4: Visible client counter and Show More / Show Less when table grows."""
+        # Add 7 clients for operator 645
+        for i in range(1, 8):
+            self.db_session.add(MechClient(name=f"Client {i}", phone=f"082000000{i}", user_id=645))
+        self.db_session.commit()
+
+        self.login(645)
+        response = self.client.get("/mechanic/dashboard")
+        self.assertEqual(response.status_code, 200)
+
+        tree = html.fromstring(response.data)
+        counter = tree.xpath('//*[@id="client-counter"]')
+        self.assertTrue(len(counter) > 0)
+        self.assertIn("7 clients", counter[0].text_content().strip())
+
+        # Table rows check: 5 visible, 2 hidden
+        all_rows = tree.xpath('//table[@id="client-register-table"]/tbody/tr')
+        self.assertEqual(len(all_rows), 7)
+        hidden_rows = tree.xpath('//table[@id="client-register-table"]/tbody/tr[contains(@class, "client-row-hidden")]')
+        self.assertEqual(len(hidden_rows), 2)
+
+        # Show More button
+        toggle_btn = tree.xpath('//*[@id="client-toggle-btn"]')
+        self.assertTrue(len(toggle_btn) > 0)
+        self.assertIn("Show More (5 of 7)", toggle_btn[0].text_content())
 
     def test_property_management_hub_styling_and_layout(self):
         """Action 8: Follow PM styling with central tile, top strip, header + Back button, input borders, autofocus."""

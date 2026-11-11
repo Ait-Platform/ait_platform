@@ -17,6 +17,45 @@ MAX_PDF = 25 * 1024 * 1024
 MAX_HTML = 2 * 1024 * 1024
 MAX_DOWNLOADS = 3
 
+SECTIGO_INTERMEDIATE = (
+    "-----BEGIN CERTIFICATE-----\n"
+    "MIIGTDCCBDSgAwIBAgIQOXpmzCdWNi4NqofKbqvjsTANBgkqhkiG9w0BAQwFADBf\n"
+    "MQswCQYDVQQGEwJHQjEYMBYGA1UEChMPU2VjdGlnbyBMaW1pdGVkMTYwNAYDVQQD\n"
+    "Ey1TZWN0aWdvIFB1YmxpYyBTZXJ2ZXIgQXV0aGVudGljYXRpb24gUm9vdCBSNDYw\n"
+    "HhcNMjEwMzIyMDAwMDAwWhcNMzYwMzIxMjM1OTU5WjBgMQswCQYDVQQGEwJHQjEY\n"
+    "MBYGA1UEChMPU2VjdGlnbyBMaW1pdGVkMTcwNQYDVQQDEy5TZWN0aWdvIFB1Ymxp\n"
+    "YyBTZXJ2ZXIgQXV0aGVudGljYXRpb24gQ0EgRFYgUjM2MIIBojANBgkqhkiG9w0B\n"
+    "AQEFAAOCAY8AMIIBigKCAYEAljZf2HIz7+SPUPQCQObZYcrxLTHYdf1ZtMRe7Yeq\n"
+    "RPSwygz16qJ9cAWtWNTcuICc++p8Dct7zNGxCpqmEtqifO7NvuB5dEVexXn9RFFH\n"
+    "12Hm+NtPRQgXIFjx6MSJcNWuVO3XGE57L1mHlcQYj+g4hny90aFh2SCZCDEVkAja\n"
+    "EMMfYPKuCjHuuF+bzHFb/9gV8P9+ekcHENF2nR1efGWSKwnfG5RawlkaQDpRtZTm\n"
+    "M64TIsv/r7cyFO4nSjs1jLdXYdz5q3a4L0NoabZfbdxVb+CUEHfB0bpulZQtH1Rv\n"
+    "38e/lIdP7OTTIlZh6OYL6NhxP8So0/sht/4J9mqIGxRFc0/pC8suja+wcIUna0HB\n"
+    "pXKfXTKpzgis+zmXDL06ASJf5E4A2/m+Hp6b84sfPAwQ766rI65mh50S0Di9E3Pn\n"
+    "2WcaJc+PILsBmYpgtmgWTR9eV9otfKRUBfzHUHcVgarub/XluEpRlTtZudU5xbFN\n"
+    "xx/DgMrXLUAPaI60fZ6wA+PTAgMBAAGjggGBMIIBfTAfBgNVHSMEGDAWgBRWc1hk\n"
+    "lfmSGrASKgRieaFAFYghSTAdBgNVHQ4EFgQUaMASFhgOr872h6YyV6NGUV3LBycw\n"
+    "DgYDVR0PAQH/BAQDAgGGMBIGA1UdEwEB/wQIMAYBAf8CAQAwHQYDVR0lBBYwFAYI\n"
+    "KwYBBQUHAwEGCCsGAQUFBwMCMBsGA1UdIAQUMBIwBgYEVR0gADAIBgZngQwBAgEw\n"
+    "VAYDVR0fBE0wSzBJoEegRYZDaHR0cDovL2NybC5zZWN0aWdvLmNvbS9TZWN0aWdv\n"
+    "UHVibGljU2VydmVyQXV0aGVudGljYXRpb25Sb290UjQ2LmNybDCBhAYIKwYBBQUH\n"
+    "AQEEeDB2ME8GCCsGAQUFBzAChkNodHRwOi8vY3J0LnNlY3RpZ28uY29tL1NlY3Rp\n"
+    "Z29QdWJsaWNTZXJ2ZXJBdXRoZW50aWNhdGlvblJvb3RSNDYucDdjMCMGCCsGAQUF\n"
+    "BzABhhdodHRwOi8vb2NzcC5zZWN0aWdvLmNvbTANBgkqhkiG9w0BAQwFAAOCAgEA\n"
+    "YtOC9Fy+TqECFw40IospI92kLGgoSZGPOSQXMBqmsGWZUQ7rux7cj1du6d9rD6C8\n"
+    "ze1B2eQjkrGkIL/OF1s7vSmgYVafsRoZd/IHUrkoQvX8FZwUsmPu7amgBfaY3g+d\n"
+    "q1x0jNGKb6I6Bzdl6LgMD9qxp+3i7GQOnd9J8LFSietY6Z4jUBzVoOoz8iAU84OF\n"
+    "h2HhAuiPw1ai0VnY38RTI+8kepGWVfGxfBWzwH9uIjeooIeaosVFvE8cmYUB4TSH\n"
+    "5dUyD0jHct2+8ceKEtIoFU/FfHq/mDaVnvcDCZXtIgitdMFQdMZaVehmObyhRdDD\n"
+    "4NQCs0gaI9AAgFj4L9QtkARzhQLNyRf87Kln+YU0lgCGr9HLg3rGO8q+Y4ppLsOd\n"
+    "unQZ6ZxPNGIfOApbPVf5hCe58EZwiWdHIMn9lPP6+F404y8NNugbQixBber+x536\n"
+    "WrZhFZLjEkhp7fFXf9r32rNPfb74X/U90Bdy4lzp3+X1ukh1BuMxA/EEhDoTOS3l\n"
+    "7ABvc7BYSQubQ2490OcdkIzUh3ZwDrakMVrbaTxUM2p24N6dB+ns2zptWCva6jzW\n"
+    "r8IWKIMxzxLPv5Kt3ePKcUdvkBU/smqujSczTzzSjIoR5QqQA6lN1ZRSnuHIWCvh\n"
+    "JEltkYnTAH41QJ6SAWO66GrrUESwN/cgZzL4JLEqz1Y=\n"
+    "-----END CERTIFICATE-----\n"
+)
+
 
 class RetrievalError(ValueError):
     pass
@@ -52,13 +91,28 @@ class NoRedirect(HTTPRedirectHandler):
 
 def read_url(url, limit, deadline):
     """TLS verification, bounded reads and separately validated redirects."""
-    opener = build_opener(HTTPSHandler(context=ssl.create_default_context()),NoRedirect())
+    try:
+        import certifi
+        ssl_ctx = ssl.create_default_context(cafile=certifi.where())
+    except Exception:
+        ssl_ctx = ssl.create_default_context()
+    try:
+        ssl_ctx.load_verify_locations(cadata=SECTIGO_INTERMEDIATE)
+    except Exception:
+        pass
+    opener = build_opener(HTTPSHandler(context=ssl_ctx),NoRedirect())
     for _ in range(4):
         url = official_url(url,pdf=limit==MAX_PDF)
         if time.monotonic() >= deadline:
             raise RetrievalError('Municipal retrieval time limit reached; existing tariffs are unchanged.')
         try:
-            response = opener.open(Request(url,headers={'User-Agent':'AIT-Municipal-Tariff-Review/1.0'}),timeout=10)
+            remaining = deadline - time.monotonic()
+            req_timeout = 15 if remaining > 15 else max(5, remaining)
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 AIT-Municipal-Tariff-Review/1.0',
+                'Accept': 'text/html,application/xhtml+xml,application/pdf,*/*;q=0.8',
+            }
+            response = opener.open(Request(url,headers=headers),timeout=req_timeout)
         except HTTPError as exc:
             if exc.code in (301,302,303,307,308) and exc.headers.get('Location'):
                 url = official_url(urljoin(url,exc.headers['Location']),pdf=limit==MAX_PDF)
@@ -122,6 +176,8 @@ def publication_date(label):
 def discovery(year, fetch=read_url, deadline=None):
     first=year_start(year);deadline=deadline or time.monotonic()+75
     indexes=[
+        'https://www.durban.gov.za/pages/government/documents?'+urlencode({'d':'Tariffs'}),
+        'https://electricity.durban.gov.za/pages/government/documents?'+urlencode({'d':'Tariffs'}),
         'https://www.durban.gov.za/pages/government/documents?'+urlencode({'d':f'Tariffs {first} - {first+1}'}),
         'https://electricity.durban.gov.za/pages/government/documents?'+urlencode({'d':f'{first}_{first+1}'}),
         'https://www.durban.gov.za/pages/government/documents?'+urlencode({'d':'Service Tariffs'})]
@@ -147,7 +203,8 @@ def discovery(year, fetch=read_url, deadline=None):
                 kind=('DRAFT' if re.search(r'\bdraft\b',words) else
                       'PROPOSED' if re.search(r'\bproposed\b',words) else
                       'FINAL_LABELLED' if re.search(r'\bfinal\b',words) else 'UNCLASSIFIED')
-                found.setdefault(candidate,dict(source_url=candidate,index_url=final,label=label,
+                key=urlsplit(candidate).path
+                found.setdefault(key,dict(source_url=candidate,index_url=final,label=label,
                     financial_year=year,declared_years=declared,publication_status=kind,
                     publication_date=publication_date(label),publication_date_basis='Municipal listing date, not adoption date' if publication_date(label) else 'Not stated'))
         except RetrievalError as exc:

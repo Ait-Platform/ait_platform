@@ -68,6 +68,18 @@ class PublicationTests(AnnualRegisterTests):
         self.assertTrue(all('evil.example' not in row['source_url'] for row in rows))
         self.assertEqual(self.source.years_in('tariffs-20262027.pdf'),['2026/27'])
 
+    def test_discovery_for_financial_year_2025_2026(self):
+        rows,issues=self.source.discovery('2025/26',fetch=self.fetch)
+        self.assertFalse(issues)
+        self.assertEqual(len(rows),1)
+        self.assertEqual(rows[0]['financial_year'],'2025/26')
+        self.assertEqual(rows[0]['publication_status'],'FINAL_LABELLED')
+        self.assertIn('2025/26',rows[0]['declared_years'])
+
+    def test_ssl_context_loads_intermediate_certificate(self):
+        self.assertTrue(hasattr(self.source,'SECTIGO_INTERMEDIATE'))
+        self.assertIn('BEGIN CERTIFICATE',self.source.SECTIGO_INTERMEDIATE)
+
     def test_retrieval_validates_pdf_and_never_confirms_adoption(self):
         candidate=self.source.discovery('2026/27',fetch=self.fetch)[0][0]
         content,record=self.source.retrieve(candidate,fetch=self.fetch)

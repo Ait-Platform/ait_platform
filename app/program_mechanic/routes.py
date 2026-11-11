@@ -221,11 +221,81 @@ def document_preview():
     return render_template("program_mechanic/invoice_view.html", job_card=mock_job, shop=active_shop)
 
 
-@mechanic_bp.route("/mechanic/dashboard")
+@mechanic_bp.route("/mechanic/dashboard", methods=["GET", "POST"])
 @login_required
 def mechanic_dashboard():
     # Auto-migrate payment_method column if it doesn't exist
-    from sqlalchemy import inspect, text
+    from sqlalchemy import inspect, text, func
+    from app.models.mechanic import MechClient, MechVehicle
+    from app.models.debtors import Debtor, SenderProfile
+
+    if request.method == "POST":
+        name = request.form.get("name", "").strip()
+        if not name or len(name) > 150:
+            flash("Please enter a valid client name.", "danger")
+            return redirect(url_for("mechanic_bp.mechanic_dashboard"))
+
+        existing = MechClient.query.filter(
+            MechClient.user_id == current_user.id,
+            func.lower(MechClient.name) == func.lower(name)
+        ).first()
+
+        if existing:
+            flash("That client is already in your register. Use their existing record below.", "info")
+            return redirect(url_for("mechanic_bp.mechanic_dashboard"))
+
+        contact = request.form.get("contact", "").strip()
+        phone = request.form.get("phone", "").strip()
+        email = request.form.get("email", "").strip()
+        if contact and not phone and not email:
+            if "@" in contact:
+                email = contact
+            else:
+                phone = contact
+        service = request.form.get("service", "").strip()
+
+        client = MechClient(
+            user_id=current_user.id,
+            name=name,
+            phone=phone or None,
+            email=email or None
+        )
+        db.session.add(client)
+        db.session.flush()
+
+        # Sync to Debtor record
+        sender_profile = SenderProfile.query.filter_by(user_id=current_user.id, is_default=True).first()
+        debtor = Debtor(
+            user_id=current_user.id,
+            name=client.name,
+            phone=client.phone,
+            email=client.email,
+            slug_reference='mechanic',
+            reference_id=client.id,
+            sender_profile_id=sender_profile.id if sender_profile else None
+        )
+        db.session.add(debtor)
+
+        if service:
+            vehicle = MechVehicle(
+                client_id=client.id,
+                make=service[:50]
+            )
+            db.session.add(vehicle)
+            db.session.flush()
+            import uuid
+            job_card = MechJobCard(
+                job_number=f"JOB-{uuid.uuid4().hex[:6].upper()}",
+                vehicle_id=vehicle.id,
+                status='Active',
+                description=service
+            )
+            db.session.add(job_card)
+
+        db.session.commit()
+        flash(f"Client '{name}' added successfully.", "success")
+        return redirect(url_for("mechanic_bp.mechanic_dashboard"))
+
     try:
         inspector = inspect(db.engine)
         columns = [col['name'] for col in inspector.get_columns('mech_job_cards')]
@@ -264,6 +334,53 @@ def mechanic_dashboard():
     job_cards = MechJobCard.query.order_by(
         MechJobCard.created_at.desc()).limit(10).all()
 
+    # Query operator's own clients strictly
+    raw_clients = MechClient.query.filter_by(user_id=current_user.id).order_by(MechClient.created_at.desc(), MechClient.id.desc()).all()
+    client_rows = []
+    for c in raw_clients:
+        contact_parts = [p for p in (c.phone, c.email) if p]
+        contact_str = " | ".join(contact_parts) if contact_parts else ""
+
+        latest_job = None
+        latest_veh = None
+        for v in c.vehicles:
+            if not latest_veh:
+                latest_veh = v
+            for jc in v.job_cards:
+                if not latest_job or (jc.created_at and latest_job.created_at and jc.created_at > latest_job.created_at):
+                    latest_job = jc
+                    latest_veh = v
+
+        if latest_job:
+            service_str = latest_job.description or f"{latest_veh.make or ''} {latest_veh.model or ''} ({latest_veh.license_plate or ''})".strip() or "General Service"
+            status_str = latest_job.status or "Active"
+        elif latest_veh:
+            service_str = f"{latest_veh.make or ''} {latest_veh.model or ''} ({latest_veh.license_plate or ''})".strip() or "Vehicle Registered"
+            status_str = "Active"
+        else:
+            service_str = ""
+            status_str = "Active"
+
+        status_lower = status_str.lower()
+        if 'quote' in status_lower:
+            badge_class = "bg-amber-100 text-amber-800"
+        elif 'approved' in status_lower or 'progress' in status_lower:
+            badge_class = "bg-blue-100 text-blue-800"
+        elif 'ready' in status_lower or 'active' in status_lower:
+            badge_class = "bg-emerald-100 text-emerald-800"
+        elif 'billed' in status_lower:
+            badge_class = "bg-slate-100 text-slate-800"
+        else:
+            badge_class = "bg-slate-100 text-slate-700"
+
+        client_rows.append({
+            'client': c,
+            'contact': contact_str,
+            'service': service_str,
+            'status': status_str,
+            'status_badge_class': badge_class
+        })
+
     # Seed some default parts if none exist
     if MechCatalogPart.query.count() == 0:
         default_parts = [
@@ -290,7 +407,46 @@ def mechanic_dashboard():
                            job_cards=job_cards,
                            draft_shop=draft_shop,
                            active_shop=active_shop,
-                           wallet=wallet)
+                           wallet=wallet,
+                           clients=client_rows,
+                           client_rows=client_rows)
+
+
+@mechanic_bp.route("/mechanic/client/<int:client_id>", methods=["GET"])
+@login_required
+def view_client(client_id):
+    from app.models.mechanic import MechClient
+    from app.models.debtors import Debtor, SenderProfile
+
+    client = MechClient.query.filter_by(id=client_id, user_id=current_user.id).first_or_404()
+
+    debtor = Debtor.query.filter_by(reference_id=client.id, slug_reference='mechanic', user_id=current_user.id).first()
+    if not debtor:
+        debtor = Debtor.query.filter_by(name=client.name, slug_reference='mechanic', user_id=current_user.id).first()
+    if not debtor:
+        sender_profile = SenderProfile.query.filter_by(user_id=current_user.id, is_default=True).first()
+        debtor = Debtor(
+            user_id=current_user.id,
+            name=client.name,
+            phone=client.phone,
+            email=client.email,
+            slug_reference='mechanic',
+            reference_id=client.id,
+            sender_profile_id=sender_profile.id if sender_profile else None
+        )
+        db.session.add(debtor)
+        db.session.commit()
+    elif not debtor.reference_id:
+        debtor.reference_id = client.id
+        db.session.commit()
+
+    return redirect(url_for('mechanic_bp.client_ledger', debtor_id=debtor.id))
+
+
+@mechanic_bp.route("/mechanic/client/add", methods=["POST"])
+@login_required
+def add_client():
+    return mechanic_dashboard()
 
 
 @mechanic_bp.route("/mechanic/onboarding/start", methods=["POST"])

@@ -8,6 +8,124 @@ from sqlalchemy import text
 from app.extensions import db
 from . import mechanic_bp
 
+AVAILABLE_TRADES = [
+    ('mechanic', 'General Mechanic'),
+    ('panel', 'Panel Beater'),
+    ('auto_elec', 'Auto Electrician'),
+    ('generic', 'Generic Business'),
+    ('protrade', 'ProTrade Default')
+]
+
+
+def ensure_sender_profile_synced(shop):
+    """Sync active shop profile with SenderProfile for Debtors/Company Register."""
+    if not shop or not shop.business_name:
+        return
+    try:
+        from app.models.debtors import SenderProfile
+        sp = SenderProfile.query.filter_by(user_id=shop.user_id, business_name=shop.business_name).first()
+        if not sp:
+            sp = SenderProfile.query.filter_by(user_id=shop.user_id, is_default=True).first()
+        if not sp:
+            sp = SenderProfile(user_id=shop.user_id, is_default=True)
+            db.session.add(sp)
+        sp.business_name = shop.business_name
+        sp.address = shop.address
+        sp.phone = shop.phone
+        sp.email = shop.email
+        sp.logo_url = shop.logo_url
+        sp.letterhead_url = shop.letterhead_url
+        sp.use_custom_letterhead = shop.use_custom_letterhead
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+
+
+def get_active_shop(user_id, trade=None, shop_id=None):
+    """Resolve the active shop profile for the operator and selected trade.
+
+    Self-healing & Resilience:
+    - If a specific trade or shop_id is requested, prioritize it.
+    - If a completed profile exists with business_name but non-active status, heals onboarding_status to 'active'.
+    - If no MechShop is found, checks Debtors SenderProfile (Company Register) and backfills.
+    - Synchronizes to SenderProfile so it appears in the Company Register without duplicating records.
+    """
+    from app.models.mechanic import MechShop
+    from app.models.debtors import SenderProfile
+
+    # 1. By explicit shop_id
+    if shop_id:
+        shop = MechShop.query.filter_by(id=shop_id, user_id=user_id).first()
+        if shop:
+            return shop
+
+    # 2. By explicit trade
+    target_trade = trade or session.get("active_trade")
+    if target_trade:
+        shop = MechShop.query.filter_by(user_id=user_id, trade=target_trade).first()
+        if shop:
+            if shop.onboarding_status != 'active' and shop.business_name:
+                shop.onboarding_status = 'active'
+                try:
+                    db.session.commit()
+                except Exception:
+                    db.session.rollback()
+            return shop
+
+    # 3. By session active_shop_id
+    sess_shop_id = session.get("active_shop_id")
+    if sess_shop_id:
+        shop = MechShop.query.filter_by(id=sess_shop_id, user_id=user_id).first()
+        if shop:
+            return shop
+
+    # 4. Standard active shop
+    shop = MechShop.query.filter_by(user_id=user_id, onboarding_status='active').first()
+    if shop:
+        return shop
+
+    # 5. Happiness profile repair: check any shop record where business_name was completed
+    shop = MechShop.query.filter(
+        MechShop.user_id == user_id,
+        MechShop.business_name.isnot(None),
+        MechShop.business_name != ''
+    ).first()
+    if shop:
+        shop.onboarding_status = 'active'
+        if not getattr(shop, 'trade', None):
+            shop.trade = 'mechanic'
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+        return shop
+
+    # 6. Fallback from Debtors SenderProfile (Company Register)
+    sp = SenderProfile.query.filter_by(user_id=user_id).order_by(SenderProfile.is_default.desc(), SenderProfile.id.desc()).first()
+    if sp and sp.business_name:
+        shop = MechShop.query.filter_by(user_id=user_id).first()
+        if not shop:
+            shop = MechShop(user_id=user_id)
+            db.session.add(shop)
+        shop.business_name = sp.business_name
+        shop.address = sp.address
+        shop.phone = sp.phone
+        shop.email = sp.email
+        shop.logo_url = sp.logo_url
+        shop.letterhead_url = sp.letterhead_url
+        shop.use_custom_letterhead = sp.use_custom_letterhead
+        shop.onboarding_status = 'active'
+        shop.trade = getattr(shop, 'trade', None) or 'mechanic'
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+        return shop
+
+    # 7. Fallback to any existing record
+    return MechShop.query.filter_by(user_id=user_id).first()
+
+
 @mechanic_bp.route("/mechanic/debug_graham", methods=["GET"])
 @login_required
 def debug_graham():
@@ -172,8 +290,7 @@ def price_page():
 @mechanic_bp.route("/mechanic/mock_bill")
 @login_required
 def mock_bill():
-    active_shop = MechShop.query.filter_by(
-        user_id=current_user.id, onboarding_status='active').first()
+    active_shop = get_active_shop(current_user.id)
     if not active_shop:
         return redirect(url_for('mechanic_bp.mechanic_dashboard'))
     return render_template("program_mechanic/mock_bill.html", shop=active_shop)
@@ -182,8 +299,7 @@ def mock_bill():
 @mechanic_bp.route("/mechanic/document_preview")
 @login_required
 def document_preview():
-    active_shop = MechShop.query.filter_by(
-        user_id=current_user.id, onboarding_status='active').first()
+    active_shop = get_active_shop(current_user.id)
     if not active_shop:
         flash("You must complete your shop setup first.", "warning")
         return redirect(url_for('mechanic_bp.mechanic_dashboard'))
@@ -321,14 +437,47 @@ def mechanic_dashboard():
         db.session.commit()
     except Exception as e:
         db.session.rollback()
+
+    # Multi-trade handling: determine selected trade or shop
+    selected_trade = request.args.get("trade")
+    selected_shop_id = request.args.get("shop_id", type=int)
+    if selected_trade:
+        session["active_trade"] = selected_trade
+    elif selected_shop_id:
+        session["active_shop_id"] = selected_shop_id
+
+    # Auto-migrate trade column on mech_shops if needed
+    try:
+        inspector = inspect(db.engine)
+        columns = [col['name'] for col in inspector.get_columns('mech_shops')]
+        if 'trade' not in columns:
+            db.session.execute(text("ALTER TABLE mech_shops ADD COLUMN trade VARCHAR(50) DEFAULT 'mechanic'"))
+            db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+
+    active_shop = get_active_shop(current_user.id, trade=selected_trade, shop_id=selected_shop_id)
+    if active_shop:
+        ensure_sender_profile_synced(active_shop)
+        current_trade = getattr(active_shop, 'trade', 'mechanic') or 'mechanic'
+    else:
+        current_trade = selected_trade or session.get("active_trade") or "mechanic"
+
+    session["active_trade"] = current_trade
+    if active_shop:
+        session["active_shop_id"] = active_shop.id
+
+    # Query all user shops for trade switcher
+    user_shops = MechShop.query.filter_by(user_id=current_user.id).all()
+    shops_by_trade = {}
+    for s in user_shops:
+        t = getattr(s, 'trade', None) or 'mechanic'
+        if t not in shops_by_trade or s.onboarding_status == 'active':
+            shops_by_trade[t] = s
+
     draft_shop = MechShop.query.filter(
         MechShop.user_id == current_user.id,
         MechShop.onboarding_status.like('draft_%')
-    ).first()
-
-    active_shop = MechShop.query.filter(
-        MechShop.user_id == current_user.id,
-        MechShop.onboarding_status == 'active'
     ).first()
 
     job_cards = MechJobCard.query.order_by(
@@ -409,7 +558,12 @@ def mechanic_dashboard():
                            active_shop=active_shop,
                            wallet=wallet,
                            clients=client_rows,
-                           client_rows=client_rows)
+                           client_rows=client_rows,
+                           available_trades=AVAILABLE_TRADES,
+                           current_trade=current_trade,
+                           active_trade_name=dict(AVAILABLE_TRADES).get(current_trade, 'General Mechanic'),
+                           shops_by_trade=shops_by_trade,
+                           user_shops=user_shops)
 
 
 @mechanic_bp.route("/mechanic/client/<int:client_id>", methods=["GET"])
@@ -479,15 +633,24 @@ def onboarding_start():
 @mechanic_bp.route("/mechanic/onboarding/process", methods=["POST"])
 @login_required
 def onboarding_process():
-    shop = MechShop.query.filter_by(user_id=current_user.id).first()
+    trade = (request.form.get("trade") or session.get("active_trade") or "mechanic").strip()
+
+    # Reuse existing shop profile for this trade or with no trade assigned
+    shop = MechShop.query.filter_by(user_id=current_user.id, trade=trade).first()
+    if not shop:
+        shop = MechShop.query.filter(
+            MechShop.user_id == current_user.id,
+            (MechShop.trade.is_(None)) | (MechShop.trade == '')
+        ).first()
     if not shop:
         shop = MechShop(
             user_id=current_user.id,
+            trade=trade,
             onboarding_status='active'
         )
         db.session.add(shop)
 
-    
+    shop.trade = trade
     shop.business_name = request.form.get("business_name") or shop.business_name or "My Mechanic Shop"
     shop.address = request.form.get("address")
     shop.phone = request.form.get("phone")
@@ -542,24 +705,17 @@ def onboarding_process():
         shop.use_custom_letterhead = False
 
     db.session.commit()
-    
-    # Sync with SenderProfile for Debtors module
-    from app.models.debtors import SenderProfile
-    sender_profile = SenderProfile.query.filter_by(user_id=current_user.id, is_default=True).first()
-    if not sender_profile:
-        sender_profile = SenderProfile(user_id=current_user.id, is_default=True)
-        db.session.add(sender_profile)
-    sender_profile.business_name = shop.business_name
-    sender_profile.address = shop.address
-    sender_profile.phone = shop.phone
-    sender_profile.email = shop.email
-    sender_profile.logo_url = shop.logo_url
-    sender_profile.letterhead_url = shop.letterhead_url
-    sender_profile.use_custom_letterhead = shop.use_custom_letterhead
-    db.session.commit()
-    flash("Shop profile successfully saved!", "success")
 
-    return redirect(url_for("mechanic_bp.mechanic_dashboard"))
+    # Track selected trade & profile in session
+    session["active_trade"] = trade
+    session["active_shop_id"] = shop.id
+
+    # Sync with SenderProfile for Debtors module / Company Register
+    ensure_sender_profile_synced(shop)
+    trade_name = dict(AVAILABLE_TRADES).get(trade, trade)
+    flash(f"Shop profile for {trade_name} successfully saved!", "success")
+
+    return redirect(url_for("mechanic_bp.mechanic_dashboard", trade=trade))
 
 
 @mechanic_bp.route("/mechanic/intake", methods=["GET", "POST"])
@@ -636,7 +792,7 @@ def job_card_detail(id):
         ).first()
 
     from app.models.mechanic import MechShop
-    active_shop = MechShop.query.filter_by(user_id=current_user.id, onboarding_status='active').first()
+    active_shop = get_active_shop(current_user.id)
     
     from app.models.debtors import BusinessBankAccount
     bank_account = BusinessBankAccount.query.filter_by(user_id=current_user.id).order_by(BusinessBankAccount.is_default.desc()).first()
@@ -660,7 +816,7 @@ def download_document(id):
         flash("Please fill in the client's email, phone, and vehicle VIN before generating documents.", "warning")
         return redirect(url_for('mechanic_bp.job_card_detail', id=job_card.id))
         
-    active_shop = MechShop.query.filter_by(user_id=current_user.id, onboarding_status='active').first()
+    active_shop = get_active_shop(current_user.id)
     from app.models.debtors import BusinessBankAccount
     bank_account = BusinessBankAccount.query.filter_by(user_id=(active_shop.user_id if "active_shop" in locals() and active_shop else shop.user_id)).order_by(BusinessBankAccount.is_default.desc()).first()
     
@@ -710,7 +866,7 @@ def email_document(id):
             flash("Please provide an email address.", "warning")
             return redirect(url_for('mechanic_bp.email_document', id=id))
 
-        active_shop = MechShop.query.filter_by(user_id=current_user.id, onboarding_status='active').first()
+        active_shop = get_active_shop(current_user.id)
         subject = f"Your {doc_type} #{job_card.job_number} from {active_shop.business_name if active_shop else 'AIT ProTrade'}"
         
         # VERY IMPORTANT: doc_url must be the public job card URL
@@ -900,8 +1056,7 @@ def messages():
 @mechanic_bp.route('/mechanic/catalog', methods=['GET', 'POST'])
 @login_required
 def catalog_manage():
-    active_shop = MechShop.query.filter_by(
-        user_id=current_user.id, onboarding_status='active').first()
+    active_shop = get_active_shop(current_user.id)
     if not active_shop:
         flash('You must complete your shop setup first.', 'warning')
         return redirect(url_for('mechanic_bp.mechanic_dashboard'))
@@ -980,7 +1135,7 @@ def edit_quote(id):
         flash("Only Quotes can be edited. This job card has already progressed.", "warning")
         return redirect(url_for('mechanic_bp.job_card_detail', id=id))
         
-    active_shop = MechShop.query.filter_by(user_id=current_user.id, onboarding_status='active').first()
+    active_shop = get_active_shop(current_user.id)
     
     if request.method == "POST":
         # Process dynamic labor and parts arrays
@@ -1104,7 +1259,7 @@ def edit_quote(id):
 @mechanic_bp.route("/mechanic/quote/new", methods=["GET", "POST"])
 @login_required
 def new_quote():
-    active_shop = MechShop.query.filter_by(user_id=current_user.id, onboarding_status='active').first()
+    active_shop = get_active_shop(current_user.id)
     if not active_shop:
         flash("You must complete your shop setup first.", "warning")
         return redirect(url_for("mechanic_bp.mechanic_dashboard"))
@@ -1442,7 +1597,7 @@ def job_cards_list():
     except Exception as e:
         current_app.logger.error(f"Migration error: {e}")
 
-    active_shop = MechShop.query.filter_by(user_id=current_user.id, onboarding_status='active').first()
+    active_shop = get_active_shop(current_user.id)
     job_cards = []
     if active_shop:
         job_cards = MechJobCard.query.join(MechVehicle).join(MechClient).filter(
@@ -1655,7 +1810,7 @@ def log_call(job_id):
     job_card = MechJobCard.query.get_or_404(job_id)
     
     # Ensure they own it
-    active_shop = MechShop.query.filter_by(user_id=current_user.id, onboarding_status='active').first()
+    active_shop = get_active_shop(current_user.id)
     if not active_shop or job_card.vehicle.client.user_id != current_user.id:
         return {"error": "Unauthorized"}, 403
         
@@ -1803,7 +1958,7 @@ def accept_quote(id):
         # AUTO-EMAIL TAX INVOICE LOGIC
         if client and client.email:
             try:
-                active_shop = MechShop.query.filter_by(user_id=current_user.id, onboarding_status='active').first()
+                active_shop = get_active_shop(current_user.id)
                 from app.models.debtors import BusinessBankAccount
                 bank_account = BusinessBankAccount.query.filter_by(user_id=current_user.id).order_by(BusinessBankAccount.is_default.desc()).first()
                 

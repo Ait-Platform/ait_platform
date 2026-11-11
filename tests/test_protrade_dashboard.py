@@ -49,6 +49,7 @@ class MechShop(Base):
     letterhead_url = Column(String(255))
     use_custom_letterhead = Column(Boolean, default=False)
     terms_and_conditions = Column(Text)
+    trade = Column(String(50), default="mechanic")
     onboarding_status = Column(String(50), default="active")
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
@@ -218,9 +219,103 @@ class ProTradeDashboardTests(unittest.TestCase):
         def bank_accounts():
             return "Bank Accounts"
 
+        AVAILABLE_TRADES = [
+            ('mechanic', 'General Mechanic'),
+            ('panel', 'Panel Beater'),
+            ('auto_elec', 'Auto Electrician'),
+            ('generic', 'Generic Business'),
+            ('protrade', 'ProTrade Default')
+        ]
+
+        def test_ensure_sender_profile_synced(shop):
+            if not shop or not shop.business_name:
+                return
+            sp = self.db_session.query(SenderProfile).filter_by(user_id=shop.user_id, business_name=shop.business_name).first()
+            if not sp:
+                sp = self.db_session.query(SenderProfile).filter_by(user_id=shop.user_id, is_default=True).first()
+            if not sp:
+                sp = SenderProfile(user_id=shop.user_id, is_default=True)
+                self.db_session.add(sp)
+            sp.business_name = shop.business_name
+            sp.address = shop.address
+            sp.phone = shop.phone
+            sp.email = shop.email
+            self.db_session.commit()
+
+        def test_get_active_shop(user_id, trade=None, shop_id=None):
+            if shop_id:
+                shop = self.db_session.query(MechShop).filter_by(id=shop_id, user_id=user_id).first()
+                if shop:
+                    return shop
+            target_trade = trade or session.get("active_trade")
+            if target_trade:
+                shop = self.db_session.query(MechShop).filter_by(user_id=user_id, trade=target_trade).first()
+                if shop:
+                    if shop.onboarding_status != "active" and shop.business_name:
+                        shop.onboarding_status = "active"
+                        self.db_session.commit()
+                    return shop
+            sess_shop_id = session.get("active_shop_id")
+            if sess_shop_id:
+                shop = self.db_session.query(MechShop).filter_by(id=sess_shop_id, user_id=user_id).first()
+                if shop:
+                    return shop
+            shop = self.db_session.query(MechShop).filter_by(user_id=user_id, onboarding_status="active").first()
+            if shop:
+                return shop
+            # Happiness profile self-healing: completed business_name with non-active status
+            shop = self.db_session.query(MechShop).filter(
+                MechShop.user_id == user_id,
+                MechShop.business_name.isnot(None),
+                MechShop.business_name != ""
+            ).first()
+            if shop:
+                shop.onboarding_status = "active"
+                if not getattr(shop, "trade", None):
+                    shop.trade = "mechanic"
+                self.db_session.commit()
+                return shop
+            # Company Register fallback
+            sp = self.db_session.query(SenderProfile).filter_by(user_id=user_id).order_by(SenderProfile.is_default.desc(), SenderProfile.id.desc()).first()
+            if sp and sp.business_name:
+                shop = self.db_session.query(MechShop).filter_by(user_id=user_id).first()
+                if not shop:
+                    shop = MechShop(user_id=user_id)
+                    self.db_session.add(shop)
+                shop.business_name = sp.business_name
+                shop.address = sp.address
+                shop.phone = sp.phone
+                shop.email = sp.email
+                shop.onboarding_status = "active"
+                shop.trade = getattr(shop, "trade", None) or "mechanic"
+                self.db_session.commit()
+                return shop
+            return self.db_session.query(MechShop).filter_by(user_id=user_id).first()
+
         @mechanic_bp.route("/mechanic/onboarding/process", methods=["POST"])
         def onboarding_process():
-            return "Onboarding Process"
+            trade = (request.form.get("trade") or session.get("active_trade") or "mechanic").strip()
+            shop = self.db_session.query(MechShop).filter_by(user_id=current_user.id, trade=trade).first()
+            if not shop:
+                shop = self.db_session.query(MechShop).filter(
+                    MechShop.user_id == current_user.id,
+                    (MechShop.trade.is_(None)) | (MechShop.trade == '')
+                ).first()
+            if not shop:
+                shop = MechShop(user_id=current_user.id, trade=trade, onboarding_status="active")
+                self.db_session.add(shop)
+            shop.trade = trade
+            shop.business_name = request.form.get("business_name") or shop.business_name or "My Mechanic Shop"
+            shop.address = request.form.get("address")
+            shop.phone = request.form.get("phone")
+            shop.email = request.form.get("email")
+            shop.terms_and_conditions = request.form.get("terms_and_conditions")
+            shop.onboarding_status = "active"
+            self.db_session.commit()
+            session["active_trade"] = trade
+            session["active_shop_id"] = shop.id
+            test_ensure_sender_profile_synced(shop)
+            return redirect(url_for("mechanic_bp.mechanic_dashboard", trade=trade))
 
         @mechanic_bp.route("/upload_business_card", methods=["POST"])
         def upload_business_card():
@@ -303,7 +398,31 @@ class ProTradeDashboardTests(unittest.TestCase):
                 flash(f"Client '{name}' added successfully.", "success")
                 return redirect(url_for("mechanic_bp.mechanic_dashboard"))
 
-            active_shop = self.db_session.query(MechShop).filter_by(user_id=current_user.id, onboarding_status="active").first()
+            selected_trade = request.args.get("trade")
+            selected_shop_id = request.args.get("shop_id", type=int)
+            if selected_trade:
+                session["active_trade"] = selected_trade
+            elif selected_shop_id:
+                session["active_shop_id"] = selected_shop_id
+
+            active_shop = test_get_active_shop(current_user.id, trade=selected_trade, shop_id=selected_shop_id)
+            if active_shop:
+                test_ensure_sender_profile_synced(active_shop)
+                current_trade = getattr(active_shop, 'trade', 'mechanic') or 'mechanic'
+            else:
+                current_trade = selected_trade or session.get("active_trade") or "mechanic"
+
+            session["active_trade"] = current_trade
+            if active_shop:
+                session["active_shop_id"] = active_shop.id
+
+            user_shops = self.db_session.query(MechShop).filter_by(user_id=current_user.id).all()
+            shops_by_trade = {}
+            for s in user_shops:
+                t = getattr(s, 'trade', None) or 'mechanic'
+                if t not in shops_by_trade or s.onboarding_status == 'active':
+                    shops_by_trade[t] = s
+
             raw_clients = self.db_session.query(MechClient).filter_by(user_id=current_user.id).order_by(MechClient.created_at.desc(), MechClient.id.desc()).all()
             client_rows = []
             for c in raw_clients:
@@ -356,7 +475,12 @@ class ProTradeDashboardTests(unittest.TestCase):
                 active_shop=active_shop,
                 wallet=wallet,
                 clients=client_rows,
-                client_rows=client_rows
+                client_rows=client_rows,
+                available_trades=AVAILABLE_TRADES,
+                current_trade=current_trade,
+                active_trade_name=dict(AVAILABLE_TRADES).get(current_trade, 'General Mechanic'),
+                shops_by_trade=shops_by_trade,
+                user_shops=user_shops
             )
 
         @mechanic_bp.route("/mechanic/client/<int:client_id>", methods=["GET"])
@@ -627,6 +751,128 @@ class ProTradeDashboardTests(unittest.TestCase):
         self.login(777)
         res2 = self.client.get(f"/mechanic/client/{client1.id}")
         self.assertEqual(res2.status_code, 404, "Operator 2 cannot view Operator 1's client")
+
+    def test_ai_autofill_removed_and_manual_fields_present(self):
+        """Correction 1: AI Auto-Fill removed from Shop Profile Setup modal. Manual entry retained."""
+        self.login(645)
+        response = self.client.get("/mechanic/dashboard")
+        self.assertEqual(response.status_code, 200)
+
+        tree = html.fromstring(response.data)
+
+        # AI tabs and AI upload container must NOT exist
+        ai_tab_btn = tree.xpath('//*[@id="tab-btn-ai"]')
+        self.assertEqual(len(ai_tab_btn), 0, "AI Auto-Fill tab button must be removed")
+        ai_tab_content = tree.xpath('//*[@id="tab-content-ai"]')
+        self.assertEqual(len(ai_tab_content), 0, "AI Auto-Fill upload container must be removed")
+        ai_upload_input = tree.xpath('//*[@id="ajax_card_upload"]')
+        self.assertEqual(len(ai_upload_input), 0, "AI card upload input must be removed")
+
+        # Manual Entry form must be directly visible inside modal
+        manual_content = tree.xpath('//*[@id="tab-content-manual"]')
+        self.assertTrue(len(manual_content) > 0, "Manual entry section must be present")
+        self.assertNotIn("hidden", manual_content[0].get("class", ""), "Manual entry must not be hidden")
+
+        # All manual fields must be present
+        self.assertTrue(len(tree.xpath('//select[@name="trade"]')) > 0, "Trade selector must be present")
+        self.assertTrue(len(tree.xpath('//input[@name="business_name"]')) > 0, "Business Name field must be present")
+        self.assertTrue(len(tree.xpath('//input[@name="address"]')) > 0, "Address field must be present")
+        self.assertTrue(len(tree.xpath('//input[@name="phone"]')) > 0, "Phone field must be present")
+        self.assertTrue(len(tree.xpath('//input[@name="email"]')) > 0, "Email field must be present")
+        self.assertTrue(len(tree.xpath('//input[@name="tax_number"]')) > 0, "Tax Number field must be present")
+        self.assertTrue(len(tree.xpath('//input[@name="vat_rate"]')) > 0, "VAT Rate field must be present")
+        self.assertTrue(len(tree.xpath('//input[@name="logo_file"]')) > 0, "Logo upload must be present")
+        self.assertTrue(len(tree.xpath('//input[@name="letterhead_file"]')) > 0, "Letterhead upload must be present")
+        self.assertTrue(len(tree.xpath('//select[@id="tc-template-select"]')) > 0, "T&C template selector must be present")
+        self.assertTrue(len(tree.xpath('//textarea[@name="terms_and_conditions"]')) > 0, "Terms textarea must be present")
+        self.assertTrue(len(tree.xpath('//button[@type="submit" and contains(text(), "Save Profile")]')) > 0, "Save Profile button must be present")
+
+    def test_happiness_shop_profile_loads_and_syncs_to_company_register(self):
+        """Correction 2: Happiness's completed profile loads correctly and syncs to Company Register."""
+        # Create user Happiness (user 888) with an existing completed profile that had draft_setup status
+        happiness = User(id=888, name="Happiness", email="happiness@example.com")
+        self.db_session.add(happiness)
+        self.db_session.commit()
+
+        # Previous completed profile with non-active status
+        h_shop = MechShop(
+            user_id=888,
+            business_name="Happiness Auto Care",
+            address="45 Commissioner St, Johannesburg",
+            phone="011 555 7890",
+            email="happiness@autocare.co.za",
+            onboarding_status="draft_setup"  # Previously prevented loading
+        )
+        self.db_session.add(h_shop)
+        self.db_session.commit()
+
+        # Login as Happiness
+        self.login(888)
+        res = self.client.get("/mechanic/dashboard")
+        self.assertEqual(res.status_code, 200)
+
+        # Profile loads and self-heals
+        self.assertIn("Happiness Auto Care", res.get_data(as_text=True))
+        
+        # Verify self-healing in database
+        updated_shop = self.db_session.query(MechShop).filter_by(user_id=888).first()
+        self.assertEqual(updated_shop.onboarding_status, "active", "Profile status should self-heal to active")
+
+        # Verify it appears in Company Register (SenderProfile) without duplication
+        sp = self.db_session.query(SenderProfile).filter_by(user_id=888, business_name="Happiness Auto Care").all()
+        self.assertEqual(len(sp), 1, "Must exist in Company Register (SenderProfile) without duplicates")
+
+    def test_multiple_trades_separate_profiles_and_selection(self):
+        """Correction 3: Each operator can maintain separate shop profiles for each trade and select between them."""
+        self.login(645)
+
+        # Operator 645 has existing mechanic shop: "Alpha Auto Care" (seeded in setUp)
+        # Create second trade shop for panel beating
+        panel_shop = MechShop(
+            user_id=645,
+            business_name="Alpha Panel Beaters",
+            trade="panel",
+            phone="011 999 0001",
+            onboarding_status="active"
+        )
+        self.db_session.add(panel_shop)
+        self.db_session.commit()
+
+        # 1. Dashboard has trade switcher dropdown
+        res = self.client.get("/mechanic/dashboard")
+        self.assertEqual(res.status_code, 200)
+        tree = html.fromstring(res.data)
+        trade_nav = tree.xpath('//select[@id="trade-select-nav"]')
+        self.assertTrue(len(trade_nav) > 0, "Trade switcher dropdown must be present on dashboard")
+
+        # 2. Selecting panel trade loads the panel profile
+        res_panel = self.client.get("/mechanic/dashboard?trade=panel")
+        self.assertEqual(res_panel.status_code, 200)
+        self.assertIn("Alpha Panel Beaters", res_panel.get_data(as_text=True))
+
+        # 3. Selecting mechanic trade loads the mechanic profile
+        res_mech = self.client.get("/mechanic/dashboard?trade=mechanic")
+        self.assertEqual(res_mech.status_code, 200)
+        self.assertIn("Alpha Auto Care", res_mech.get_data(as_text=True))
+
+        # 4. Save a new profile under auto_elec trade
+        post_data = {
+            "trade": "auto_elec",
+            "business_name": "Alpha Auto Electrical",
+            "phone": "011 999 0002",
+            "terms_and_conditions": "3 months warranty on electrical parts."
+        }
+        res_save = self.client.post("/mechanic/onboarding/process", data=post_data, follow_redirects=True)
+        self.assertEqual(res_save.status_code, 200)
+
+        # Verify separate record was created
+        auto_elec = self.db_session.query(MechShop).filter_by(user_id=645, trade="auto_elec").first()
+        self.assertIsNotNone(auto_elec, "auto_elec shop profile must be created")
+        self.assertEqual(auto_elec.business_name, "Alpha Auto Electrical")
+
+        # Verify original mechanic profile remains untouched
+        original_mech = self.db_session.query(MechShop).filter_by(user_id=645, trade="mechanic").first()
+        self.assertEqual(original_mech.business_name, "Alpha Auto Care")
 
 
 if __name__ == "__main__":

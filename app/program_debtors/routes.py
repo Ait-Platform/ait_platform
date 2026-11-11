@@ -103,6 +103,32 @@ def profile():
 
     sender_profiles = SenderProfile.query.filter_by(
         user_id=current_user.id).order_by(SenderProfile.created_at.desc()).all()
+    if not sender_profiles:
+        from app.models.mechanic import MechShop
+        shops = MechShop.query.filter(
+            MechShop.user_id == current_user.id,
+            MechShop.business_name.isnot(None),
+            MechShop.business_name != ''
+        ).all()
+        for s in shops:
+            sp = SenderProfile(
+                user_id=current_user.id,
+                business_name=s.business_name,
+                address=s.address,
+                phone=s.phone,
+                email=s.email,
+                logo_url=s.logo_url,
+                letterhead_url=s.letterhead_url,
+                use_custom_letterhead=s.use_custom_letterhead,
+                is_default=(len(sender_profiles) == 0)
+            )
+            db.session.add(sp)
+            sender_profiles.append(sp)
+        if shops:
+            try:
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
     sender_form = SenderProfileForm()
 
     return render_template("program_debtors/profile.html", form=form, profile=profile_record,

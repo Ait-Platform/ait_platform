@@ -2,6 +2,7 @@
 import ast
 from datetime import datetime,timezone
 from io import BytesIO
+import os
 from pathlib import Path
 import sys
 import tempfile
@@ -79,6 +80,20 @@ class PublicationTests(AnnualRegisterTests):
     def test_ssl_context_loads_intermediate_certificate(self):
         self.assertTrue(hasattr(self.source,'SECTIGO_INTERMEDIATE'))
         self.assertIn('BEGIN CERTIFICATE',self.source.SECTIGO_INTERMEDIATE)
+
+    def test_streaming_download_to_temp_file_and_cleanup(self):
+        candidate=self.source.discovery('2026/27',fetch=self.fetch)[0][0]
+        content,record=self.source.retrieve(candidate,fetch=self.fetch)
+        self.assertTrue(os.path.exists(content))
+        self.assertEqual(content,self.pdf)
+        with self.app.app_context():
+            store=self.documents.backend()
+            saved=self.documents.save(store,content,record)
+            self.assertEqual(self.documents.read(store,'2026/27',saved['receipt_id']),self.pdf)
+        os.unlink(content)
+        self.assertFalse(os.path.exists(content))
+        with self.assertRaises(self.source.RetrievalError):
+            self.source.retrieve(candidate,fetch=lambda *args,**kw:(b'not-a-pdf',{},candidate['source_url']))
 
     def test_retrieval_validates_pdf_and_never_confirms_adoption(self):
         candidate=self.source.discovery('2026/27',fetch=self.fetch)[0][0]

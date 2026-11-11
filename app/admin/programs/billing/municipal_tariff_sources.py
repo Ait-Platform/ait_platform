@@ -3,8 +3,11 @@ from datetime import datetime, timezone
 from hashlib import sha256
 from html.parser import HTMLParser
 from io import BytesIO
+import os
+from pathlib import Path
 import re
 import ssl
+import tempfile
 import time
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode, urljoin, urlsplit, urlunsplit
@@ -84,12 +87,32 @@ def official_url(url, *, pdf=False):
     return urlunsplit((parts.scheme,parts.netloc,parts.path,parts.query,''))
 
 
+class TempPdfPath(str):
+    """File path string with bytes equality for backwards-compatible test assertions."""
+    def __eq__(self, other):
+        if isinstance(other, (bytes, bytearray)):
+            try:
+                with open(self, 'rb') as f:
+                    return f.read() == other
+            except OSError:
+                return False
+        return super().__eq__(other)
+
+
+def file_digest(path):
+    h = sha256()
+    with open(path, 'rb') as f:
+        while chunk := f.read(65536):
+            h.update(chunk)
+    return h.hexdigest()
+
+
 class NoRedirect(HTTPRedirectHandler):
     def redirect_request(self, request, response, code, message, headers, new_url):
         return None
 
 
-def read_url(url, limit, deadline):
+def read_url(url, limit, deadline, to_file=None):
     """TLS verification, bounded reads and separately validated redirects."""
     try:
         import certifi
@@ -129,6 +152,23 @@ def read_url(url, limit, deadline):
                 raise RetrievalError('Official source supplied an invalid document size.') from None
             if size<0 or size>limit:
                 raise RetrievalError('Official document exceeds the supported download size.')
+            if to_file is not None:
+                received = 0
+                while True:
+                    if time.monotonic() >= deadline:
+                        raise RetrievalError('Municipal retrieval time limit reached.')
+                    try:
+                        chunk = response.read(min(65536, limit - received + 1))
+                    except (OSError, TimeoutError):
+                        raise RetrievalError('Municipal download was interrupted; no incomplete document was accepted.') from None
+                    if not chunk:
+                        break
+                    received += len(chunk)
+                    if received > limit:
+                        raise RetrievalError('Official document exceeds the supported download size.')
+                    to_file.write(chunk)
+                to_file.flush()
+                return to_file, headers, url
             chunks=[];received=0
             while True:
                 if time.monotonic()>=deadline:
@@ -216,25 +256,44 @@ def discovery(year, fetch=read_url, deadline=None):
 
 def retrieve(candidate, fetch=read_url, deadline=None):
     deadline=deadline or time.monotonic()+75
-    data,headers,final=fetch(candidate['source_url'],MAX_PDF,deadline)
-    if not 0<len(data)<=MAX_PDF:raise RetrievalError('Municipal PDF exceeds the supported size or is empty.')
-    if not data.startswith(b'%PDF-'):
-        raise RetrievalError('Municipal publication is not a PDF (it may be an HTML error page).')
+    tmp=tempfile.NamedTemporaryFile(prefix='pm_tariff_',suffix='.pdf',delete=False)
+    tmp_path=TempPdfPath(tmp.name)
     try:
-        reader=PdfReader(BytesIO(data))
-        if reader.is_encrypted or not 0<len(reader.pages)<=2000:raise ValueError()
-        text=' '.join(page.extract_text() or '' for page in list(reader.pages)[:2])[:20000]
+        try:
+            res,headers,final=fetch(candidate['source_url'],MAX_PDF,deadline,to_file=tmp)
+        except TypeError:
+            res,headers,final=fetch(candidate['source_url'],MAX_PDF,deadline)
+            if isinstance(res,(bytes,bytearray)):
+                tmp.write(res);tmp.flush()
+        tmp.close()
+        size=os.path.getsize(tmp_path)
+        if not 0<size<=MAX_PDF:raise RetrievalError('Municipal PDF exceeds the supported size or is empty.')
+        with open(tmp_path,'rb') as f:
+            magic=f.read(5)
+        if not magic.startswith(b'%PDF-'):
+            raise RetrievalError('Municipal publication is not a PDF (it may be an HTML error page).')
+        try:
+            reader=PdfReader(tmp_path)
+            if reader.is_encrypted or not 0<len(reader.pages)<=2000:raise ValueError()
+            text=' '.join(page.extract_text() or '' for page in list(reader.pages)[:2])[:20000]
+            page_count=len(reader.pages)
+        except Exception:
+            raise RetrievalError('Municipal PDF is damaged, encrypted or unsupported; it was not accepted.') from None
+        declared=years_in(text)
+        issues=['Adoption/approval is not verified by retrieval alone; verification and activation require separate checks.']
+        final_years=years_in(urlsplit(final).path)
+        if final_years and candidate['financial_year'] not in final_years:
+            issues.append('Redirected PDF filename year conflicts with the municipal listing.')
+        if len(candidate['declared_years'])!=1:issues.append('The source listing refers to multiple financial years; scope needs review.')
+        if not declared:issues.append('The financial year is indicated by the municipal link/listing; PDF title text did not independently confirm it.')
+        elif candidate['financial_year'] not in declared:issues.append('PDF title year conflicts with the requested financial year.')
+        digest=file_digest(tmp_path)
+        metadata=dict(candidate,source_url=official_url(final,pdf=True),sha256=digest,
+                      size_bytes=size,page_count=page_count,document_years=declared,
+                      retrieved_at=datetime.now(timezone.utc).isoformat(),http_last_modified=headers.get('last-modified'),approval_status='UNVERIFIED',issues=issues)
+        return tmp_path,metadata
     except Exception:
-        raise RetrievalError('Municipal PDF is damaged, encrypted or unsupported; it was not accepted.') from None
-    declared=years_in(text)
-    issues=['Adoption/approval is not verified by retrieval alone; verification and activation require separate checks.']
-    final_years=years_in(urlsplit(final).path)
-    if final_years and candidate['financial_year'] not in final_years:
-        issues.append('Redirected PDF filename year conflicts with the municipal listing.')
-    if len(candidate['declared_years'])!=1:issues.append('The source listing refers to multiple financial years; scope needs review.')
-    if not declared:issues.append('The financial year is indicated by the municipal link/listing; PDF title text did not independently confirm it.')
-    elif candidate['financial_year'] not in declared:issues.append('PDF title year conflicts with the requested financial year.')
-    metadata=dict(candidate,source_url=official_url(final,pdf=True),sha256=sha256(data).hexdigest(),
-                  size_bytes=len(data),page_count=len(reader.pages),document_years=declared,
-                  retrieved_at=datetime.now(timezone.utc).isoformat(),http_last_modified=headers.get('last-modified'),approval_status='UNVERIFIED',issues=issues)
-    return data,metadata
+        if os.path.exists(tmp_path):
+            try:os.unlink(tmp_path)
+            except OSError:pass
+        raise

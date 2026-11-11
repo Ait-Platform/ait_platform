@@ -1,10 +1,12 @@
 """Daily annual municipal checks; native worker/CLI, opt-in and no email retries."""
 from contextlib import contextmanager
 from datetime import date,datetime
+import gc
 from hashlib import sha256
 from importlib import import_module
 import json
 import os
+from pathlib import Path
 import threading
 import time
 from zoneinfo import ZoneInfo
@@ -86,6 +88,7 @@ def check_year(store,year,today):
         if not source_trusted:
             issues.append('First-time administrator approval of the official download source is required.')
             continue
+        data = None
         try:
             data,details=source.retrieve(candidate,deadline=deadline)
             saved.append(documents.save(store,data,details))
@@ -96,6 +99,11 @@ def check_year(store,year,today):
         except Exception:
             current_app.logger.exception('Municipal evidence retention failed')
             issues.append('Official document storage or integrity verification failed.')
+        finally:
+            if data and isinstance(data, (str, Path)) and os.path.exists(data):
+                try:os.unlink(data)
+                except OSError:pass
+            gc.collect()
     if len(found)>source.MAX_DOWNLOADS:issues.append('Additional municipal publications require review; automatic batch limit reached.')
     report=None;result=dict(status='DISABLED' if not activation.enabled() else 'HOLD',created=0)
     if saved:

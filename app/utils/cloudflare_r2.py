@@ -106,6 +106,25 @@ def _put_immutable(client, bucket, key, content, content_type):
         client.meta.events.unregister(event, condition)
 
 
+def _matches_r2(client, bucket, key, content):
+    from hashlib import sha256
+    response = client.get_object(Bucket=bucket, Key=key)
+    hasher = sha256()
+    try:
+        while chunk := response["Body"].read(65536):
+            hasher.update(chunk)
+    finally:
+        response["Body"].close()
+    r2_hash = hasher.hexdigest()
+    if isinstance(content, (str, os.PathLike)):
+        local_hasher = sha256()
+        with open(content, "rb") as f:
+            while chunk := f.read(65536):
+                local_hasher.update(chunk)
+        return r2_hash == local_hasher.hexdigest()
+    return r2_hash == sha256(content).hexdigest()
+
+
 def upload_bytes_to_r2(key, content, *, bucket=None, content_type="application/pdf"):
     """Create an exact immutable key, returning only its key, never a URL.
 
@@ -113,14 +132,19 @@ def upload_bytes_to_r2(key, content, *, bucket=None, content_type="application/p
     An existing object is accepted only when its actual bytes match.
     """
     client, bucket = r2_client(bucket=bucket)
+    is_path = isinstance(content, (str, os.PathLike))
     try:
-        _put_immutable(client, bucket, key, content, content_type)
+        if is_path:
+            with open(content, "rb") as stream:
+                _put_immutable(client, bucket, key, stream, content_type)
+        else:
+            _put_immutable(client, bucket, key, content, content_type)
     except ClientError as exc:
         code = str(exc.response.get("Error", {}).get("Code"))
         if code not in {"412", "PreconditionFailed", "409", "ConditionalRequestConflict"}:
             raise
-        if read_file_from_r2(key, bucket=bucket) != content:
+        if not _matches_r2(client, bucket, key, content):
             raise R2KeyCollision("Immutable R2 key contains different content.") from exc
-    if read_file_from_r2(key, bucket=bucket) != content:
+    if not _matches_r2(client, bucket, key, content):
         raise R2KeyCollision("R2 content did not match the uploaded bytes.")
     return key

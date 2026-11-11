@@ -5,10 +5,29 @@ import json
 import os
 from pathlib import Path
 import re
+import types
 from uuid import uuid4
 
 from flask import current_app
 from .municipal_tariff_sources import official_url, year_start
+
+
+def file_digest(path):
+    h = sha256()
+    with open(path, 'rb') as f:
+        while chunk := f.read(65536):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def file_digest_and_size(path):
+    h = sha256()
+    size = 0
+    with open(path, 'rb') as f:
+        while chunk := f.read(65536):
+            h.update(chunk)
+            size += len(chunk)
+    return h.hexdigest(), size
 
 
 class StorageError(ValueError):
@@ -37,12 +56,24 @@ class Disk:
 
     def put(self, key, content, mime):
         target=self.path(key);target.parent.mkdir(parents=True,exist_ok=True)
-        try:
-            with target.open('xb') as stream:
-                stream.write(content);stream.flush();os.fsync(stream.fileno())
-        except FileExistsError:
-            if target.read_bytes()!=content:raise StorageError('Stored document collision; no file was overwritten.')
-        if target.read_bytes()!=content:raise StorageError('Stored document read-back verification failed.')
+        if isinstance(content, (str, Path)):
+            try:
+                with open(content, 'rb') as src, target.open('xb') as dst:
+                    while chunk := src.read(65536):
+                        dst.write(chunk)
+                    dst.flush();os.fsync(dst.fileno())
+            except FileExistsError:
+                if file_digest(target) != file_digest(content):
+                    raise StorageError('Stored document collision; no file was overwritten.')
+            if file_digest(target) != file_digest(content):
+                raise StorageError('Stored document read-back verification failed.')
+        else:
+            try:
+                with target.open('xb') as stream:
+                    stream.write(content);stream.flush();os.fsync(stream.fileno())
+            except FileExistsError:
+                if target.read_bytes()!=content:raise StorageError('Stored document collision; no file was overwritten.')
+            if target.read_bytes()!=content:raise StorageError('Stored document read-back verification failed.')
 
     def get(self, key):return self.path(key).read_bytes()
 
@@ -66,7 +97,12 @@ class R2:
     identity is logged server-side, never written to this possibly public bucket.
     """
     def __init__(self):self.api=import_module('app.utils.cloudflare_r2')
-    def put(self,key,content,mime):self.api.upload_bytes_to_r2(key,content,content_type=mime)
+    def put(self,key,content,mime):
+        if isinstance(content, (str, Path)) and not isinstance(self.api, types.ModuleType):
+            with open(content, 'rb') as f:
+                payload = f.read()
+            return self.api.upload_bytes_to_r2(key, payload, content_type=mime)
+        return self.api.upload_bytes_to_r2(key, content, content_type=mime)
     def get(self,key):return self.api.read_file_from_r2(key)
     def keys(self,scope):
         client,bucket=self.api.r2_client()
@@ -116,8 +152,12 @@ def metadata(raw,year,receipt=None):
 
 
 def save(store,content,details):
-    year=details['financial_year'];digest=sha256(content).hexdigest()
-    if details['sha256']!=digest or details['size_bytes']!=len(content):
+    year=details['financial_year']
+    if isinstance(content, (str, Path)):
+        digest, size = file_digest_and_size(content)
+    else:
+        digest, size = sha256(content).hexdigest(), len(content)
+    if details['sha256']!=digest or details['size_bytes']!=size:
         raise StorageError('Downloaded document does not match its source metadata.')
     record=dict(details,receipt_id=uuid4().hex)
     payload=json.dumps(record,sort_keys=True).encode('utf8')

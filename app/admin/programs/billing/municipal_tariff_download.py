@@ -1,7 +1,10 @@
 """Admin-only Stage 3A controller. No tariff extraction, approval or scheduling."""
 from datetime import datetime
+import gc
 from importlib import import_module
 from io import BytesIO
+import os
+from pathlib import Path
 import time
 from zoneinfo import ZoneInfo
 from flask import abort,current_app,request,send_file
@@ -31,6 +34,7 @@ def page(render):
             discovered,discovery_issues=source.discovery(year,deadline=deadline)
             issues.extend(discovery_issues)
             for candidate in discovered[:source.MAX_DOWNLOADS]:
+                content = None
                 try:
                     content,details=source.retrieve(candidate,deadline=deadline)
                     record=documents.save(store,content,details);saved.append(record)
@@ -39,6 +43,11 @@ def page(render):
                 except Exception as exc:
                     current_app.logger.warning('Municipal evidence storage failed (%s)',type(exc).__name__)
                     issues.append('Document storage/read-back failed. No complete receipt was accepted for '+candidate['source_url']+'. Existing tariffs are unchanged.')
+                finally:
+                    if content and isinstance(content, (str, Path)) and os.path.exists(content):
+                        try:os.unlink(content)
+                        except OSError:pass
+                    gc.collect()
             if len(discovered)>source.MAX_DOWNLOADS:
                 issues.append('Download limited to '+str(source.MAX_DOWNLOADS)+' publications per request. Additional source links are shown below.')
         # Retrieve the whole bounded publication batch before considering activation.

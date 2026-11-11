@@ -42,27 +42,25 @@ class OutputSavePeriodTests(unittest.TestCase):
                 self.assertEqual(result['contents'],['%PDF-1','%PDF-2','%PDF-3'])
             finally:browser.close()
 
-    def test_metsoa_stays_disabled_during_generation_then_counts_ten_seconds(self):
+    def test_metsoa_native_print_title_no_fetch_and_ten_second_cooldown(self):
         with sync_playwright() as runtime:
             browser,page=open_browser(runtime,markup=self.page().text)
             try:
-                page.clock.install(time=datetime(2026,11,9,12,0))
-                page.evaluate("""()=>{window.calls=0;AITDirectories.save=()=>{calls++;return new Promise((resolve,reject)=>{window.finish=resolve;window.fail=reject;});};}""")
-                page.locator('#output-save').click();self.assertTrue(page.locator('#output-save').is_disabled())
+                page.clock.install();old_title=page.title()
+                page.evaluate("""()=>{window.printCalls=[];window.fetch=()=>{throw new Error('Unexpected PDF request');};AITDirectories.save=()=>{throw new Error('Unexpected folder save');};window.print=()=>printCalls.push(document.title);}""")
+                page.locator('#output-save').click()
                 page.evaluate("document.getElementById('output-save').dispatchEvent(new MouseEvent('click'))")
-                page.clock.fast_forward(15000);self.assertEqual(page.evaluate('calls'),1)
-                self.assertEqual(page.locator('#output-save').inner_text(),'Saving...')
-                page.evaluate("finish('311026_METSOA.pdf')")
-                page.wait_for_function("document.getElementById('output-save').textContent==='Save Report (10s)'")
-                page.evaluate("document.getElementById('output-save').dispatchEvent(new MouseEvent('click'))")
-                self.assertEqual(page.evaluate('calls'),1)
-                page.clock.fast_forward(9000);self.assertEqual(page.locator('#output-save').inner_text(),'Save Report (1s)')
+                self.assertEqual(page.evaluate('printCalls'),['311026_METSOA'])
                 self.assertTrue(page.locator('#output-save').is_disabled())
-                page.clock.fast_forward(1000);self.assertTrue(page.locator('#output-save').is_enabled())
-                page.locator('#output-save').click();self.assertEqual(page.evaluate('calls'),2)
-                page.evaluate("fail(new Error('Controlled PDF error'))")
-                page.wait_for_function("!document.getElementById('output-save').disabled")
-                self.assertIn('Controlled PDF error',page.locator('#output-save-message').inner_text())
+                self.assertTrue(page.locator('html').evaluate("e=>e.hasAttribute('data-metsoa-native-save')"))
+                self.assertIn('Saving or cancellation is controlled by your browser',page.locator('#output-save-message').inner_text())
+                page.evaluate("window.dispatchEvent(new Event('afterprint'))")
+                self.assertEqual(page.title(),old_title)
+                self.assertFalse(page.locator('html').evaluate("e=>e.hasAttribute('data-metsoa-native-save')"))
+                self.assertEqual(page.locator('#output-save').inner_text(),'Save Report (10s)')
+                page.clock.fast_forward(10000);self.assertTrue(page.locator('#output-save').is_enabled())
+                page.locator('#output-month').fill('2026-07');page.locator('#output-month').dispatch_event('change')
+                self.assertTrue(page.locator('#output-save').is_disabled())
             finally:browser.close()
 
     def test_other_reports_have_no_cooldown_and_dirty_selection_stays_disabled(self):
@@ -79,21 +77,18 @@ class OutputSavePeriodTests(unittest.TestCase):
                 self.assertTrue(page.locator('#output-save').is_disabled())
             finally:browser.close()
 
-    def test_metsoa_download_fallback_waits_for_pdf_and_uses_period_filename(self):
+    def test_metsoa_native_print_failure_restores_title_and_download(self):
         with sync_playwright() as runtime:
             browser,page=open_browser(runtime,markup=self.page().text)
             try:
-                page.clock.install()
-                page.evaluate("""()=>{AITDirectories.supported=()=>false;window.calls=0;window.fetch=()=>{calls++;return new Promise(resolve=>{window.completePDF=resolve;});};}""")
+                old_title=page.title();url=page.locator('#output-download').get_attribute('href')
+                page.evaluate("()=>{window.print=()=>{throw new Error('Print unavailable');};}")
                 page.locator('#output-save').click()
-                page.evaluate("document.getElementById('output-save').dispatchEvent(new MouseEvent('click'))")
-                self.assertEqual(page.evaluate('calls'),1);self.assertTrue(page.locator('#output-save').is_disabled())
-                with page.expect_download() as download:
-                    page.evaluate("completePDF(new Response('%PDF-download'))")
-                self.assertEqual(download.value.suggested_filename,'311026_METSOA.pdf')
-                page.wait_for_function("document.getElementById('output-save').textContent==='Save Report (10s)'")
-                self.assertIn('Browser completion is not confirmed',page.locator('#output-save-message').inner_text())
-                page.clock.fast_forward(10000);self.assertTrue(page.locator('#output-save').is_enabled())
+                self.assertEqual(page.title(),old_title)
+                self.assertFalse(page.locator('html').evaluate("e=>e.hasAttribute('data-metsoa-native-save')"))
+                self.assertTrue(page.locator('#output-save').is_enabled())
+                self.assertEqual(page.locator('#output-download').get_attribute('href'),url)
+                self.assertIn('No PDF saving was confirmed',page.locator('#output-save-message').inner_text())
             finally:browser.close()
 
 

@@ -48,9 +48,10 @@ class OutputPDFFailureTests(unittest.TestCase):
         self.assertEqual(response.status_code,503);self.assertIn('PDF renderer failed',response.json['error'])
         self.assertNotIn('Synthetic render error',response.json['error'])
 
-    def test_save_report_displays_server_error_and_does_not_write_a_pdf(self):
+    def test_other_report_save_displays_server_error_and_does_not_write_a_pdf(self):
         from playwright.sync_api import sync_playwright
-        page_response,url=self.preview()
+        page_response=self.owner.get('readings','history')
+        url=html.fromstring(page_response.data).get_element_by_id('output-download').get('href')
         with patch.object(self.output,'render_pdf',side_effect=RuntimeError('Synthetic renderer failure')):
             with self.assertLogs(self.fx.app.logger,level='ERROR'):failure=self.request(url)
         with sync_playwright() as runtime:
@@ -64,7 +65,7 @@ class OutputPDFFailureTests(unittest.TestCase):
                 page.locator('#output-save').click();page.wait_for_function("document.getElementById('output-save-message').textContent.includes('HTTP 503')")
                 self.assertIn('PDF renderer failed',page.locator('#output-save-message').inner_text())
                 self.assertTrue(page.locator('#output-preview').is_visible());self.assertTrue(page.locator('#output-download').is_visible())
-                files=page.evaluate("""async()=>{const root=await navigator.storage.getDirectory(),folder=await (await root.getDirectoryHandle('METSOA')).getDirectoryHandle('METSOA Statement');const names=[];for await(const [name] of folder.entries())names.push(name);return names;}""")
+                files=page.evaluate("""async()=>{const root=await navigator.storage.getDirectory(),folder=await (await root.getDirectoryHandle('Meter Readings')).getDirectoryHandle('Reading History');const names=[];for await(const [name] of folder.entries())names.push(name);return names;}""")
                 self.assertEqual(files,[])
             finally:browser.close()
 

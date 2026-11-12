@@ -41,6 +41,22 @@ def ensure_sender_profile_synced(shop):
         db.session.rollback()
 
 
+def shop_register_rows(user_id):
+    """Display canonical saved shops without creating customer or shop copies."""
+    shops = MechShop.query.filter(
+        MechShop.user_id == user_id,
+        MechShop.business_name.isnot(None),
+        MechShop.business_name != ''
+    ).order_by(MechShop.created_at.desc(), MechShop.id.desc()).all()
+    return [{
+        'shop': shop,
+        'contact': ' | '.join(p for p in (shop.phone, shop.email) if p),
+        'service': dict(AVAILABLE_TRADES).get(shop.trade, shop.trade or 'General Mechanic'),
+        'status': 'Saved shop',
+        'status_badge_class': 'bg-emerald-100 text-emerald-800',
+    } for shop in shops if shop.business_name.strip()]
+
+
 def get_active_shop(user_id, trade=None, shop_id=None):
     """Resolve the active shop profile for the operator and selected trade.
 
@@ -530,6 +546,8 @@ def mechanic_dashboard():
             'status_badge_class': badge_class
         })
 
+    client_rows = shop_register_rows(current_user.id) + client_rows
+
     # Seed some default parts if none exist
     if MechCatalogPart.query.count() == 0:
         default_parts = [
@@ -635,8 +653,19 @@ def onboarding_start():
 def onboarding_process():
     trade = (request.form.get("trade") or session.get("active_trade") or "mechanic").strip()
 
-    # Reuse existing shop profile for this trade or with no trade assigned
-    shop = MechShop.query.filter_by(user_id=current_user.id, trade=trade).first()
+    # An edited register row must keep its identity and owner. Switching trade
+    # in setup retains the existing per-trade creation/selection behavior.
+    shop = None
+    shop_id = request.form.get("shop_id", type=int)
+    if request.form.get("shop_id"):
+        from flask import abort
+        selected = MechShop.query.filter_by(id=shop_id, user_id=current_user.id).first()
+        if not selected:
+            abort(404)
+        if (selected.trade or 'mechanic') == trade:
+            shop = selected
+    if not shop:
+        shop = MechShop.query.filter_by(user_id=current_user.id, trade=trade).first()
     if not shop:
         shop = MechShop.query.filter(
             MechShop.user_id == current_user.id,

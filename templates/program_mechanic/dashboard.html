@@ -147,7 +147,7 @@
           <span>+ Add Client</span>
         </button>
       </div>
-      <p class="mt-1 text-sm text-slate-600">Existing clients are listed automatically. Client names open client details; View Client opens that client's ledger.</p>
+      <p class="mt-1 text-sm text-slate-600">Saved shops and existing clients are listed automatically. Shop names open their saved profile; View Client opens a client's ledger.</p>
 
       <!-- Client Table -->
       <div class="mt-4 overflow-x-auto rounded-lg border border-slate-200">
@@ -163,9 +163,11 @@
           </thead>
           <tbody id="client-table-body">
             {% for row in clients %}
+            {% set row_url = url_for('mechanic_bp.mechanic_dashboard', shop_id=row.shop.id, action='setup') if row.shop is defined else url_for('mechanic_bp.view_client', client_id=row.client.id) %}
+            {% set row_name = row.shop.business_name if row.shop is defined else row.client.name %}
             <tr class="border-t border-slate-200 hover:bg-slate-50 transition client-row {% if loop.index > 5 %}hidden client-row-hidden{% endif %}">
               <td class="p-3 font-semibold truncate">
-                <a href="{{ url_for('mechanic_bp.view_client', client_id=row.client.id) }}" class="text-blue-700 underline">{{ row.client.name }}</a>
+                <a href="{{ row_url }}" class="text-blue-700 underline">{{ row_name }}</a>
               </td>
               <td class="p-3 text-slate-600 break-words whitespace-normal">{{ row.contact or '—' }}</td>
               <td class="p-3 text-slate-600 break-words whitespace-normal">{{ row.service or '—' }}</td>
@@ -175,7 +177,7 @@
                 </span>
               </td>
               <td class="p-3 text-right">
-                <a href="{{ url_for('mechanic_bp.view_client', client_id=row.client.id) }}" class="inline-flex rounded-lg bg-blue-100 px-3 py-2 font-semibold text-slate-900 hover:bg-blue-200 transition" aria-label="View Client {{ row.client.name }}">View Client</a>
+                <a href="{{ row_url }}" class="inline-flex rounded-lg bg-blue-100 px-3 py-2 font-semibold text-slate-900 hover:bg-blue-200 transition" aria-label="{{ 'View Shop' if row.shop is defined else 'View Client' }} {{ row_name }}">{{ 'View Shop' if row.shop is defined else 'View Client' }}</a>
               </td>
             </tr>
             {% else %}
@@ -260,6 +262,7 @@
       openWorkingArea('tokens');
     } else if (action === 'setup') {
       openWorkingArea('setup');
+      if (urlParams.has('shop_id')) document.getElementById('manual-setup-modal').classList.remove('hidden');
     } else if (action === 'add_client' || action === 'add-client') {
       openWorkingArea('add-client');
     }
@@ -294,6 +297,7 @@
     </div>
 
     <form action="{{ url_for('mechanic_bp.onboarding_process') }}" method="POST" enctype="multipart/form-data">
+      <input type="hidden" name="shop_id" value="{{ active_shop.id if active_shop else '' }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
       
       <div class="p-8 space-y-6">

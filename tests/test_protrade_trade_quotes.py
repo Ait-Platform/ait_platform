@@ -12,11 +12,6 @@ import sqlalchemy as sa
 import test_protrade_carpentry_boq as base
 from test_protrade_shop_register import ProTradeBoqQuote, models, catalog_db, catalog_globals
 
-# Real mechanic line models; only wallet/audit dependencies are isolated fixtures.
-for name in ('MechLaborLine', 'MechPartLine'):
-    node = next(n for n in ast.parse((base.ROOT / 'app/models/mechanic.py').read_text()).body if isinstance(n, ast.ClassDef) and n.name == name)
-    exec(compile(ast.Module(body=[node], type_ignores=[]), 'mechanic_line_model', 'exec'), catalog_globals)
-
 class TokenTransaction(models.Base):
     __tablename__ = 'quote_test_token_transactions'
     id = sa.Column(sa.Integer, primary_key=True)

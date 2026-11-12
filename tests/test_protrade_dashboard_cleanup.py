@@ -47,14 +47,15 @@ class DashboardCleanupTests(unittest.TestCase):
         self.assertEqual(self.conn.exec_driver_sql('SELECT * FROM mech_shops ORDER BY id').all(), before)
         self.assertEqual(self.conn.exec_driver_sql('SELECT * FROM mech_clients ORDER BY id').all(), clients_before)
 
-    def test_dashboard_menu_hides_quote_only_on_dashboard(self):
+    def test_dashboard_menu_has_one_combined_document_link(self):
         carpentry, _, _ = self.fixtures()
         source = (base.ROOT / 'templates/program_mechanic/menu.html').read_text(encoding='utf-8')
         with self.app.test_request_context('/'):
             dashboard = self.app.jinja_env.from_string(source).render(protrade_menu_active='dashboard', active_shop=carpentry)
             existing = self.app.jinja_env.from_string(source).render(protrade_menu_active='quote', active_shop=carpentry)
         self.assertFalse(html.fromstring(dashboard).xpath('//a[text()="Quote"]'))
-        self.assertTrue(html.fromstring(existing).xpath('//a[text()="Quote"]'))
+        self.assertEqual(len(html.fromstring(dashboard).xpath('//a[text()="Quote / Invoice"]')), 1)
+        self.assertEqual(len(html.fromstring(existing).xpath('//a[text()="Quote / Invoice"]')), 1)
         self.assertIn('Price List', dashboard)
         self.assertIn('Invoice', dashboard)
 

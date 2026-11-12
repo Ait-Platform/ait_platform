@@ -49,6 +49,11 @@ quote_node = next(n for n in ast.parse((ROOT / 'app/models/mechanic.py').read_te
                   if isinstance(n, ast.ClassDef) and n.name == 'ProTradeBoqQuote')
 exec(compile(ast.Module(body=[quote_node], type_ignores=[]), 'production_boq_quote_model', 'exec'), catalog_globals)
 ProTradeBoqQuote = catalog_globals['ProTradeBoqQuote']
+for class_name in ('MechLaborLine', 'MechPartLine', 'MechInvoice'):
+    node = next(n for n in ast.parse((ROOT / 'app/models/mechanic.py').read_text()).body
+                if isinstance(n, ast.ClassDef) and n.name == class_name)
+    exec(compile(ast.Module(body=[node], type_ignores=[]), 'production_document_model', 'exec'), catalog_globals)
+
 models.MechJobCard.shop_id = sa.Column(sa.Integer, sa.ForeignKey('mech_shops.id'))
 
 
@@ -93,11 +98,12 @@ class ShopRegisterTests(unittest.TestCase):
         names = {'ensure_sender_profile_synced', 'shop_register_rows', 'get_active_shop', 'mechanic_dashboard', 'onboarding_process',
                  'registered_trade_name', 'price_list_shop', 'price_list_query',
                  'selected_price_list', 'catalog_manage', 'carpentry_boq_price_list', 'client_register_quote', 'shop_register_quote',
-                 'register_trade_quote', 'carpentry_quote_form', 'carpentry_quote_view', 'new_quote'}
+                 'register_trade_quote', 'carpentry_quote_form', 'carpentry_quote_view', 'new_quote', 'quote_invoice_register'}
         nodes = [n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name in names or isinstance(n, ast.Assign) and any(isinstance(t, ast.Name) and t.id == 'AVAILABLE_TRADES' for t in n.targets)]
         catalogue = MechCatalogPart
         self.ns = dict(vars(models), db=SimpleNamespace(session=self.db_session, engine=self.conn),
-                       mechanic_bp=bp, MechCatalogPart=catalogue, ProTradeBoqItem=ProTradeBoqItem, ProTradeBoqQuote=ProTradeBoqQuote, request=request, session=session,
+                       mechanic_bp=bp, MechCatalogPart=catalogue, ProTradeBoqItem=ProTradeBoqItem, ProTradeBoqQuote=ProTradeBoqQuote, MechInvoice=catalog_globals['MechInvoice'],
+                       MechLaborLine=catalog_globals['MechLaborLine'], MechPartLine=catalog_globals['MechPartLine'], request=request, session=session,
                        flash=flash, redirect=redirect, url_for=url_for, render_template=render_template,
                        current_app=current_app, current_user=current_user, login_required=login_required)
         code = ast.fix_missing_locations(ProductionImports().visit(ast.Module(body=nodes, type_ignores=[])))
@@ -106,6 +112,7 @@ class ShopRegisterTests(unittest.TestCase):
         template = (ROOT / 'templates/program_mechanic/dashboard.html').read_text(encoding='utf-8')
         template += (ROOT / 'templates/program_mechanic/menu.html').read_text(encoding='utf-8')
         template += (ROOT / 'templates/program_mechanic/quote_form.html').read_text(encoding='utf-8')
+        template += (ROOT / 'templates/program_mechanic/quote_invoice_register.html').read_text(encoding='utf-8')
         endpoints = set(re.findall(r"url_for\('([^']+)'", template)) | {'mechanic_bp.view_client', 'mechanic_bp.job_card_detail', 'mechanic_bp.mock_bill'}
         for endpoint in endpoints:
             if endpoint not in self.app.view_functions:

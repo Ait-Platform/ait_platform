@@ -874,7 +874,13 @@ def job_card_detail(id):
         ).first()
 
     from app.models.mechanic import MechShop
-    active_shop = get_active_shop(current_user.id)
+    if request.args.get('shop_id') is not None:
+        from flask import abort
+        active_shop = MechShop.query.filter_by(id=request.args.get('shop_id', type=int), user_id=current_user.id).first()
+        if not active_shop or job_card.shop_id != active_shop.id or not job_card.vehicle or not job_card.vehicle.client or job_card.vehicle.client.user_id != current_user.id:
+            abort(404)
+    else:
+        active_shop = get_active_shop(current_user.id)
     
     from app.models.debtors import BusinessBankAccount
     bank_account = BusinessBankAccount.query.filter_by(user_id=current_user.id).order_by(BusinessBankAccount.is_default.desc()).first()
@@ -1133,6 +1139,56 @@ def messages():
     msgs = DirectMessage.query.filter_by(user_id=current_user.id, subject='mechanic').order_by(
         DirectMessage.created_at.desc()).all()
     return render_template('program_mechanic/messages.html', messages=msgs)
+
+
+@mechanic_bp.route('/mechanic/quote-invoice', methods=['GET'])
+@login_required
+def quote_invoice_register():
+    from flask import abort
+    from decimal import Decimal
+    from app.models.mechanic import (MechClient, MechVehicle, MechJobCard, MechInvoice,
+                                      MechLaborLine, MechPartLine, ProTradeBoqQuote)
+    shops = MechShop.query.filter_by(user_id=current_user.id).order_by(MechShop.business_name, MechShop.id).all()
+    raw_shop_id = request.args.get('shop_id', session.get('active_shop_id'))
+    shop = None
+    if raw_shop_id is not None:
+        try:
+            identifier = int(raw_shop_id)
+        except (ValueError, TypeError):
+            abort(404)
+        shop = MechShop.query.filter_by(id=identifier, user_id=current_user.id).first()
+        if not shop:
+            abort(404)
+    rows = []
+    legacy_count = 0
+    if shop and shop.trade == 'carpentry':
+        quotes = ProTradeBoqQuote.query.filter_by(user_id=current_user.id, shop_id=shop.id, trade='carpentry').all()
+        for quote in quotes:
+            rows.append(dict(kind='Quotation', number=quote.quote_number, client=quote.client_name,
+                             status='Saved', amount=quote.grand_total, date=quote.created_at,
+                             href=url_for('mechanic_bp.carpentry_quote_view', shop_id=shop.id, quote_id=quote.id)))
+    elif shop and (shop.trade or 'mechanic') == 'mechanic':
+        owned_jobs = MechJobCard.query.join(MechVehicle).join(MechClient).filter(MechClient.user_id == current_user.id)
+        legacy_count = owned_jobs.filter(MechJobCard.shop_id.is_(None)).count()
+        for job in owned_jobs.filter(MechJobCard.shop_id == shop.id).all():
+            href = url_for('mechanic_bp.job_card_detail', id=job.id, shop_id=shop.id)
+            invoices = MechInvoice.query.filter_by(job_card_id=job.id).all()
+            if not invoices or job.status != 'Billed':
+                labour = MechLaborLine.query.filter_by(job_card_id=job.id).all()
+                parts = MechPartLine.query.filter_by(job_card_id=job.id).all()
+                subtotal = sum((line.hours or 0) * (line.rate_per_hour or 0) for line in labour)
+                subtotal += sum((line.quantity or 0) * (line.markup_price or 0) for line in parts)
+                amount = subtotal * (1 + (job.vat_rate or 0) / 100)
+                rows.append(dict(kind='Invoice (legacy)' if job.status == 'Billed' else 'Quotation',
+                                 number=job.job_number, client=job.vehicle.client.name, status=job.status,
+                                 amount=Decimal(str(amount)), date=job.created_at, href=href))
+            for invoice in invoices:
+                rows.append(dict(kind='Invoice', number=job.job_number, client=job.vehicle.client.name,
+                                 status=invoice.status, amount=Decimal(str(invoice.total or 0)),
+                                 date=invoice.created_at, href=href))
+    rows.sort(key=lambda row: (row['date'].isoformat() if row['date'] else '', row['number']), reverse=True)
+    return render_template('program_mechanic/quote_invoice_register.html', shop=shop,
+                           user_shops=shops, documents=rows, legacy_count=legacy_count)
 
 
 @mechanic_bp.route('/mechanic/client/<int:client_id>/quote', methods=['GET', 'POST'])

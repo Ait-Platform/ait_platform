@@ -88,13 +88,17 @@ document.addEventListener('DOMContentLoaded', function() {
 
           <form action="{{ url_for('mechanic_bp.new_quote') }}" method="POST" enctype="multipart/form-data">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+        <input type="hidden" name="shop_id" value="{{ shop.id }}">
+        {% if request.values.get('client_id') %}<input type="hidden" name="client_id" value="{{ request.values.get('client_id') }}">{% endif %}
+        {% if request.values.get('register_shop_id') %}<input type="hidden" name="register_shop_id" value="{{ request.values.get('register_shop_id') }}">{% endif %}
+        {% if quote_client %}<p class="px-6 pt-4 text-sm text-slate-600">{{ quote_client.name }} &middot; {{ quote_client.phone or '' }} &middot; {{ quote_client.email or '' }} &middot; {{ quote_client.address or '' }}</p>{% endif %}
         
         <div class="p-6">
           <h3 class="text-lg font-bold text-slate-800 mb-4">Customer & Vehicle Details</h3>
           <div class="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-2 lg:grid-cols-3 mb-8 border-b border-slate-100 pb-8">
             <div>
               <label class="block text-sm font-medium text-slate-700 mb-1">Customer Name</label>
-              <input type="text" name="customer_name" required autofocus class="block" value="{{ edit_card.vehicle.client.name if edit_card and edit_card.vehicle and edit_card.vehicle.client else '' }}" w-full rounded-md border border-slate-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 sm:text-sm">
+              <input type="text" name="customer_name" required autofocus class="block" value="{{ edit_card.vehicle.client.name if edit_card and edit_card.vehicle and edit_card.vehicle.client else (quote_client.name if quote_client else '') }}" w-full rounded-md border border-slate-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 sm:text-sm">
             </div>
             <div>
               <label class="block text-sm font-medium text-slate-700 mb-1">Vehicle Registration</label>

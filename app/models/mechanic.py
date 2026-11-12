@@ -61,6 +61,28 @@ class ProTradeBoqItem(db.Model):
         db.CheckConstraint('material_rate BETWEEN 0 AND 999999999999.99 AND labour_rate BETWEEN 0 AND 999999999999.99', name='ck_protrade_boq_rates'),
     )
 
+
+class ProTradeBoqQuote(db.Model):
+    """Saved BOQ quote snapshots, independent of vehicle job cards."""
+    __tablename__ = 'protrade_boq_quotes'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    shop_id = db.Column(db.Integer, db.ForeignKey('mech_shops.id'), nullable=False)
+    client_id = db.Column(db.Integer, db.ForeignKey('mech_clients.id'), nullable=True)
+    trade = db.Column(db.String(50), nullable=False)
+    quote_number = db.Column(db.String(50), nullable=False, unique=True)
+    client_name = db.Column(db.String(150), nullable=False)
+    client_phone = db.Column(db.String(50))
+    client_email = db.Column(db.String(150))
+    client_address = db.Column(db.Text)
+    items = db.Column(db.JSON, nullable=False)
+    grand_total = db.Column(db.Numeric(28, 2), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    __table_args__ = (
+        db.CheckConstraint("trade = 'carpentry'", name='ck_protrade_boq_quote_trade'),
+        db.CheckConstraint('grand_total >= 0', name='ck_protrade_boq_quote_total'),
+    )
+
 class MechClient(db.Model):
     __tablename__ = 'mech_clients'
     id = db.Column(db.Integer, primary_key=True)
@@ -95,6 +117,7 @@ class MechVehicle(db.Model):
 class MechJobCard(db.Model):
     __tablename__ = 'mech_job_cards'
     id = db.Column(db.Integer, primary_key=True)
+    shop_id = db.Column(db.Integer, db.ForeignKey('mech_shops.id'), nullable=True)
     job_number = db.Column(db.String(50), unique=True, nullable=False)
     vehicle_id = db.Column(db.Integer, db.ForeignKey('mech_vehicles.id'), nullable=False)
     status = db.Column(db.String(50), default='Quote') # Quote, Approved, In Progress, Quality Check, Ready, Billed

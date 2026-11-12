@@ -1135,6 +1135,141 @@ def messages():
     return render_template('program_mechanic/messages.html', messages=msgs)
 
 
+@mechanic_bp.route('/mechanic/client/<int:client_id>/quote', methods=['GET', 'POST'])
+@login_required
+def client_register_quote(client_id):
+    shop_id = request.values.get('shop_id', type=int)
+    if not shop_id:
+        flash('Select a shop before opening Quote for this customer.', 'warning')
+        return redirect(url_for('mechanic_bp.mechanic_dashboard'))
+    return register_trade_quote(shop_id, client_id)
+
+
+@mechanic_bp.route('/mechanic/shop/<int:shop_id>/quote', methods=['GET', 'POST'])
+@login_required
+def shop_register_quote(shop_id):
+    from flask import abort
+    raw_client = request.values.get('client_id')
+    client_id = request.values.get('client_id', type=int)
+    if raw_client is not None and not client_id:
+        abort(404)
+    return register_trade_quote(shop_id, client_id)
+
+
+def register_trade_quote(shop_id, client_id=None):
+    from flask import abort
+    from app.models.mechanic import MechClient
+    shop = MechShop.query.filter_by(id=shop_id, user_id=current_user.id).first()
+    if not shop:
+        abort(404)
+    customer = None
+    if client_id is not None:
+        customer = MechClient.query.filter_by(id=client_id, user_id=current_user.id).first()
+        if not customer:
+            abort(404)
+    if (shop.trade or 'mechanic') == 'mechanic':
+        return redirect(url_for('mechanic_bp.new_quote', shop_id=shop.id,
+                                client_id=customer.id if customer else None,
+                                register_shop_id=shop.id if customer is None else None))
+    if shop.trade != 'carpentry':
+        abort(404)
+    return carpentry_quote_form(shop, customer)
+
+
+def carpentry_quote_form(shop, customer=None):
+    from decimal import Decimal, InvalidOperation, ROUND_HALF_UP, localcontext
+    from uuid import uuid4, UUID
+    from app.models.mechanic import ProTradeBoqItem, ProTradeBoqQuote
+    from sqlalchemy.exc import IntegrityError
+    items = ProTradeBoqItem.query.filter_by(user_id=current_user.id, shop_id=shop.id, trade='carpentry').order_by(ProTradeBoqItem.code).all()
+    details = dict(name=customer.name if customer else shop.business_name,
+                   phone=customer.phone if customer else shop.phone,
+                   email=customer.email if customer else shop.email,
+                   address=customer.address if customer else shop.address)
+    selected_ids = set()
+    quantities = {}
+    error, status = None, 200
+    quote_key = uuid4().hex
+    if request.method == 'POST':
+        try:
+            try:
+                quote_key = UUID(request.form.get('quote_key', '')).hex
+            except (ValueError, AttributeError):
+                raise ValueError('Reopen the quote form before saving.') from None
+            number = 'CAR-Q-' + quote_key.upper()
+            saved = ProTradeBoqQuote.query.filter_by(quote_number=number, user_id=current_user.id,
+                                                     shop_id=shop.id, trade='carpentry',
+                                                     client_id=customer.id if customer else None).first()
+            if saved:
+                return redirect(url_for('mechanic_bp.carpentry_quote_view', shop_id=shop.id, quote_id=saved.id))
+            raw_ids = request.form.getlist('item_id[]')
+            if not raw_ids or len(raw_ids) != len(set(raw_ids)):
+                raise ValueError('Select at least one BOQ item without duplicates.')
+            try:
+                selected_ids = {int(value) for value in raw_ids}
+            except ValueError:
+                raise ValueError('Select valid items from this shop Price List.') from None
+            allowed = {item.id: item for item in items}
+            if not selected_ids <= allowed.keys():
+                raise ValueError('Select valid items from this shop Price List.')
+            lines, grand_total = [], Decimal('0.00')
+            for identifier in sorted(selected_ids):
+                item = allowed[identifier]
+                raw = request.form.get(f'quantity_{identifier}', '').strip()
+                quantities[identifier] = raw
+                try:
+                    quantity = Decimal(raw)
+                except InvalidOperation:
+                    raise ValueError('Enter valid quantities.') from None
+                if not quantity.is_finite() or quantity <= 0 or quantity > Decimal('99999999999.999'):
+                    raise ValueError('Quantities must be positive and at most 99999999999.999.')
+                if quantity != quantity.quantize(Decimal('0.001')):
+                    raise ValueError('Quantities may have at most three decimal places.')
+                if item.unit == 'Each' and quantity != quantity.to_integral_value():
+                    raise ValueError('Each requires a whole-number quantity.')
+                with localcontext() as decimal_context:
+                    decimal_context.prec = 50
+                    amount = (quantity * (item.material_rate + item.labour_rate)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+                lines.append(dict(source_item_id=item.id, code=item.code, description=item.description, unit=item.unit,
+                                  quantity=str(quantity), material_rate=str(item.material_rate),
+                                  labour_rate=str(item.labour_rate), total=str(amount)))
+                grand_total += amount
+            if grand_total > Decimal('99999999999999999999999999.99'):
+                raise ValueError('Quotation total is too large to save.')
+            quote = ProTradeBoqQuote(user_id=current_user.id, shop_id=shop.id,
+                                    client_id=customer.id if customer else None, trade='carpentry', quote_number=number,
+                                    client_name=details['name'], client_phone=details['phone'], client_email=details['email'],
+                                    client_address=details['address'], items=lines, grand_total=grand_total)
+            db.session.add(quote)
+            db.session.commit()
+            flash('Carpentry quote saved.', 'success')
+            return redirect(url_for('mechanic_bp.carpentry_quote_view', shop_id=shop.id, quote_id=quote.id))
+        except ValueError as exc:
+            error, status = str(exc), 400
+        except IntegrityError:
+            db.session.rollback()
+            error, status = 'This quote could not be saved. Reopen the form and try again.', 409
+    recent = ProTradeBoqQuote.query.filter_by(user_id=current_user.id, shop_id=shop.id,
+                                             trade='carpentry', client_id=customer.id if customer else None).order_by(ProTradeBoqQuote.id.desc()).limit(10).all()
+    return render_template('program_mechanic/carpentry_quote.html', shop=shop, customer=customer,
+                           details=details, boq_items=items, quote_key=quote_key, selected_ids=selected_ids,
+                           quantities=quantities, error=error, saved_quote=None, recent_quotes=recent), status
+
+
+@mechanic_bp.route('/mechanic/shop/<int:shop_id>/quotes/<int:quote_id>')
+@login_required
+def carpentry_quote_view(shop_id, quote_id):
+    from flask import abort
+    from app.models.mechanic import ProTradeBoqQuote
+    shop = MechShop.query.filter_by(id=shop_id, user_id=current_user.id, trade='carpentry').first()
+    quote = ProTradeBoqQuote.query.filter_by(id=quote_id, shop_id=shop_id, user_id=current_user.id, trade='carpentry').first()
+    if not shop or not quote:
+        abort(404)
+    details = dict(name=quote.client_name, phone=quote.client_phone, email=quote.client_email, address=quote.client_address)
+    return render_template('program_mechanic/carpentry_quote.html', shop=shop, details=details,
+                           saved_quote=quote, recent_quotes=[])
+
+
 def carpentry_boq_price_list(shop):
     """Carpentry adapter for the shared, shop-scoped BOQ price-item model."""
     from decimal import Decimal, InvalidOperation
@@ -1413,6 +1548,22 @@ def new_quote():
         flash("You must complete your shop setup first.", "warning")
         return redirect(url_for("mechanic_bp.mechanic_dashboard"))
         
+    from app.models.mechanic import MechClient
+    from flask import abort
+    quote_client = None
+    selected_client = None
+    raw_client = request.values.get('client_id')
+    if raw_client is not None:
+        selected_client = MechClient.query.filter_by(id=request.values.get('client_id', type=int), user_id=current_user.id).first()
+        if not selected_client:
+            abort(404)
+        quote_client = selected_client
+    elif request.values.get('register_shop_id'):
+        if request.values.get('register_shop_id', type=int) != active_shop.id:
+            abort(404)
+        from types import SimpleNamespace
+        quote_client = SimpleNamespace(name=active_shop.business_name, phone=active_shop.phone,
+                                       email=active_shop.email, address=active_shop.address)
     catalog_parts = selected_price_list(active_shop)
     
     if request.method == "POST":
@@ -1468,7 +1619,7 @@ def new_quote():
         import uuid
         
         # Mock finding or creating client
-        client = MechClient.query.filter_by(name=customer_name, user_id=current_user.id).first()
+        client = selected_client or MechClient.query.filter_by(name=customer_name, user_id=current_user.id).first()
         if not client:
             client = MechClient(name=customer_name, user_id=current_user.id)
             db.session.add(client)
@@ -1511,6 +1662,7 @@ def new_quote():
             
         job_card = MechJobCard(
             job_number=job_number,
+            shop_id=active_shop.id,
             vehicle_id=vehicle.id,
             status='Quote',
             vat_rate=active_shop.vat_rate
@@ -1594,7 +1746,7 @@ def new_quote():
             flash(f"An error occurred while saving the quote. Your tokens were refunded. Error: {str(e).split('DETAIL:')[0].strip()[:100]}", "danger")
             return redirect(url_for('mechanic_bp.new_quote'))
         
-    return render_template("program_mechanic/quote_form.html", catalog_parts=catalog_parts, shop=active_shop)
+    return render_template("program_mechanic/quote_form.html", catalog_parts=catalog_parts, shop=active_shop, quote_client=quote_client)
 
 from app.models.auth import DirectMessage
 

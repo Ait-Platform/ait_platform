@@ -34,7 +34,7 @@ from datetime import datetime
 catalog_node = next(n for n in ast.parse((ROOT / 'app/models/mechanic.py').read_text()).body
                     if isinstance(n, ast.ClassDef) and n.name == 'MechCatalogPart')
 catalog_db = SimpleNamespace(Model=models.Base, Column=sa.Column, Integer=sa.Integer,
-                             String=sa.String, Float=sa.Float, DateTime=sa.DateTime,
+                             String=sa.String, Float=sa.Float, DateTime=sa.DateTime, JSON=sa.JSON,
                              Text=sa.Text, Numeric=sa.Numeric, Computed=sa.Computed,
                              UniqueConstraint=sa.UniqueConstraint, CheckConstraint=sa.CheckConstraint,
                              ForeignKey=lambda name: sa.ForeignKey('users.id' if name == 'user.id' else name))
@@ -45,6 +45,12 @@ boq_node = next(n for n in ast.parse((ROOT / 'app/models/mechanic.py').read_text
                 if isinstance(n, ast.ClassDef) and n.name == 'ProTradeBoqItem')
 exec(compile(ast.Module(body=[boq_node], type_ignores=[]), 'production_boq_model', 'exec'), catalog_globals)
 ProTradeBoqItem = catalog_globals['ProTradeBoqItem']
+quote_node = next(n for n in ast.parse((ROOT / 'app/models/mechanic.py').read_text()).body
+                  if isinstance(n, ast.ClassDef) and n.name == 'ProTradeBoqQuote')
+exec(compile(ast.Module(body=[quote_node], type_ignores=[]), 'production_boq_quote_model', 'exec'), catalog_globals)
+ProTradeBoqQuote = catalog_globals['ProTradeBoqQuote']
+models.MechJobCard.shop_id = sa.Column(sa.Integer, sa.ForeignKey('mech_shops.id'))
+
 
 
 
@@ -86,11 +92,12 @@ class ShopRegisterTests(unittest.TestCase):
         tree = ast.parse((ROOT / 'app/program_mechanic/routes.py').read_text(encoding='utf-8'))
         names = {'ensure_sender_profile_synced', 'shop_register_rows', 'get_active_shop', 'mechanic_dashboard', 'onboarding_process',
                  'registered_trade_name', 'price_list_shop', 'price_list_query',
-                 'selected_price_list', 'catalog_manage', 'carpentry_boq_price_list'}
+                 'selected_price_list', 'catalog_manage', 'carpentry_boq_price_list', 'client_register_quote', 'shop_register_quote',
+                 'register_trade_quote', 'carpentry_quote_form', 'carpentry_quote_view', 'new_quote'}
         nodes = [n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name in names or isinstance(n, ast.Assign) and any(isinstance(t, ast.Name) and t.id == 'AVAILABLE_TRADES' for t in n.targets)]
         catalogue = MechCatalogPart
         self.ns = dict(vars(models), db=SimpleNamespace(session=self.db_session, engine=self.conn),
-                       mechanic_bp=bp, MechCatalogPart=catalogue, ProTradeBoqItem=ProTradeBoqItem, request=request, session=session,
+                       mechanic_bp=bp, MechCatalogPart=catalogue, ProTradeBoqItem=ProTradeBoqItem, ProTradeBoqQuote=ProTradeBoqQuote, request=request, session=session,
                        flash=flash, redirect=redirect, url_for=url_for, render_template=render_template,
                        current_app=current_app, current_user=current_user, login_required=login_required)
         code = ast.fix_missing_locations(ProductionImports().visit(ast.Module(body=nodes, type_ignores=[])))
@@ -98,10 +105,11 @@ class ShopRegisterTests(unittest.TestCase):
         self.app.register_blueprint(bp)
         template = (ROOT / 'templates/program_mechanic/dashboard.html').read_text(encoding='utf-8')
         template += (ROOT / 'templates/program_mechanic/menu.html').read_text(encoding='utf-8')
-        endpoints = set(re.findall(r"url_for\('([^']+)'", template)) | {'mechanic_bp.view_client'}
+        template += (ROOT / 'templates/program_mechanic/quote_form.html').read_text(encoding='utf-8')
+        endpoints = set(re.findall(r"url_for\('([^']+)'", template)) | {'mechanic_bp.view_client', 'mechanic_bp.job_card_detail', 'mechanic_bp.mock_bill'}
         for endpoint in endpoints:
             if endpoint not in self.app.view_functions:
-                self.app.add_url_rule('/stub/' + endpoint + '/<int:client_id>' if endpoint.endswith('view_client') else '/stub/' + endpoint,
+                self.app.add_url_rule('/stub/' + endpoint + '/<int:client_id>' if endpoint.endswith(('view_client', 'update_client')) else '/stub/' + endpoint + '/<int:id>' if endpoint.endswith('job_card_detail') else '/stub/' + endpoint,
                                       endpoint, lambda **kw: 'stub')
         self.db_session.add_all([models.User(id=1, name='Owner', email='one@example.test'), models.User(id=2, name='Other', email='two@example.test')])
         self.db_session.commit()
@@ -175,7 +183,7 @@ class ShopRegisterTests(unittest.TestCase):
         self.assertIn('6 clients', tree.get_element_by_id('client-counter').text_content())
         self.assertEqual(len(tree.xpath('//tr[contains(@class,"client-row-hidden")]')), 1)
         self.assertIn('Show More (5 of 6)', tree.get_element_by_id('client-toggle-btn').text_content())
-        self.assertEqual(len(tree.xpath('//a[contains(@aria-label,"View Shop")]')), 6)
+        self.assertEqual(len(tree.xpath('//a[contains(@aria-label,"Edit Shop")]')), 6)
 
     def test_foreign_owner_profile_cannot_be_saved(self):
         other = self.shop(owner=2, name='Other Owner Shop')

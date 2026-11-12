@@ -1,0 +1,87 @@
+﻿{% extends 'layout.html' %}
+{% block title %}Carpentry BOQ Quotation{% endblock %}
+{% block flashes %}{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-6xl px-4 py-10">
+  <div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow">
+    <div class="h-2 w-full bg-slate-700"></div>
+    <div class="p-6">
+      {% include 'partials/flash_messages.html' %}
+      <div class="flex items-center justify-between gap-4">
+        <div><h1 class="text-2xl font-semibold text-slate-900">Carpentry BOQ Quotation</h1>
+          <p class="mt-1 text-sm text-slate-600">{{ shop.business_name }}{% if saved_quote %} &middot; {{ saved_quote.quote_number }}{% endif %}</p></div>
+        <a href="{{ url_for('mechanic_bp.mechanic_dashboard', shop_id=shop.id) }}" class="rounded-lg bg-slate-100 px-4 py-2 font-semibold text-slate-700">Back</a>
+      </div>
+      <h2 class="mt-6 text-lg font-semibold">Client Details</h2>
+      <dl class="mt-3 grid grid-cols-1 gap-3 rounded-lg border border-slate-200 bg-slate-50 p-4 sm:grid-cols-2">
+        <div><dt class="text-sm text-slate-500">Name</dt><dd id="quote-client-name" class="font-semibold">{{ details.name }}</dd></div>
+        <div><dt class="text-sm text-slate-500">Phone</dt><dd>{{ details.phone or '' }}</dd></div>
+        <div><dt class="text-sm text-slate-500">Email</dt><dd>{{ details.email or '' }}</dd></div>
+        <div><dt class="text-sm text-slate-500">Address</dt><dd>{{ details.address or '' }}</dd></div>
+      </dl>
+      {% if saved_quote %}
+      <h2 class="mt-6 text-lg font-semibold">Saved Carpentry BOQ Items</h2>
+      <div class="mt-3 overflow-x-auto rounded-lg border border-slate-200">
+        <table class="w-full text-left text-sm"><thead class="bg-slate-50"><tr>
+          {% for heading in ['BOQ Code', 'Description', 'Unit', 'Quantity', 'Material R/unit', 'Labour R/unit', 'Total R'] %}<th class="p-3">{{ heading }}</th>{% endfor %}
+        </tr></thead><tbody>
+        {% for line in saved_quote.items %}<tr class="border-t border-slate-200">
+          <td class="p-3">{{ line.code }}</td><td class="p-3">{{ line.description }}</td><td class="p-3">{{ line.unit }}</td><td class="p-3">{{ line.quantity }}</td>
+          <td class="p-3">{{ line.material_rate }}</td><td class="p-3">{{ line.labour_rate }}</td><td class="p-3 font-semibold">{{ line.total }}</td>
+        </tr>{% endfor %}
+        </tbody></table>
+      </div>
+      <p class="mt-4 text-right text-xl font-semibold">Grand Total: R <span id="quote-grand-total">{{ '{:.2f}'.format(saved_quote.grand_total) }}</span></p>
+      {% else %}
+      <form id="carpentry-quote-form" method="POST" action="{{ url_for('mechanic_bp.shop_register_quote', shop_id=shop.id, client_id=customer.id if customer else none) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="quote_key" value="{{ quote_key }}">
+        {% if customer %}<input type="hidden" name="client_id" value="{{ customer.id }}">{% endif %}
+        <h2 class="mt-6 text-lg font-semibold">Carpentry BOQ Items</h2>
+        <p class="mt-1 text-sm text-slate-600">Select work from this shop's Price List and enter the quantities for this quotation. Rates are per unit.</p>
+        {% if error %}<p role="alert" class="mt-3 text-sm font-semibold text-red-700">{{ error }}</p>{% endif %}
+        <div class="mt-3 overflow-x-auto rounded-lg border border-slate-200">
+          <table id="quote-boq-items" class="w-full text-left text-sm"><thead class="bg-slate-50"><tr>
+            {% for heading in ['Include', 'BOQ Code', 'Description', 'Unit', 'Quantity', 'Material R/unit', 'Labour R/unit', 'Total R'] %}<th class="p-3">{{ heading }}</th>{% endfor %}
+          </tr></thead><tbody>
+          {% for item in boq_items %}<tr class="quote-line border-t border-slate-200" data-rate-cents="{{ ((item.material_rate + item.labour_rate) * 100)|int }}">
+            <td class="p-3"><input type="checkbox" name="item_id[]" value="{{ item.id }}" aria-label="Include {{ item.code }}" {% if item.id in selected_ids %}checked{% endif %}></td>
+            <td class="p-3">{{ item.code }}</td><td class="p-3">{{ item.description }}</td><td class="p-3">{{ item.unit }}</td>
+            <td class="p-3"><input name="quantity_{{ item.id }}" type="number" value="{{ quantities.get(item.id, 1) }}" min="{{ '1' if item.unit == 'Each' else '0.001' }}" max="99999999999.999" step="{{ '1' if item.unit == 'Each' else '0.001' }}" aria-label="Quantity {{ item.code }}" {% if loop.first %}autofocus{% endif %} required class="w-28 rounded-lg border border-slate-300 px-3 py-2"></td>
+            <td class="p-3">{{ '{:.2f}'.format(item.material_rate) }}</td><td class="p-3">{{ '{:.2f}'.format(item.labour_rate) }}</td>
+            <td class="line-total p-3 font-semibold">0.00</td>
+          </tr>{% else %}<tr><td colspan="8" class="p-6 text-center text-slate-600">No Carpentry BOQ items in this shop's Price List. Add items before creating a quotation.</td></tr>{% endfor %}
+          </tbody></table>
+        </div>
+        <p class="mt-4 text-right text-xl font-semibold">Grand Total: R <output id="quote-grand-total" aria-live="polite">0.00</output></p>
+        <div class="mt-4 flex justify-end"><button type="submit" {% if not boq_items %}disabled{% endif %} class="rounded-lg bg-slate-800 px-4 py-2 font-semibold text-white disabled:opacity-50">Save Quote</button></div>
+      </form>
+      {% if recent_quotes %}<h2 class="mt-6 text-lg font-semibold">Saved Quotes</h2><ul class="mt-2 space-y-2">{% for quote in recent_quotes %}<li><a class="text-blue-700 underline" href="{{ url_for('mechanic_bp.carpentry_quote_view', shop_id=shop.id, quote_id=quote.id) }}">{{ quote.quote_number }} &middot; R {{ '{:.2f}'.format(quote.grand_total) }}</a></li>{% endfor %}</ul>{% endif %}
+      <script>
+      (() => {
+        const rows = document.querySelectorAll('.quote-line');
+        const money = cents => `${cents / 100n}.${String(cents % 100n).padStart(2, '0')}`;
+        function calculate() {
+          let grand = 0n;
+          rows.forEach(row => {
+            const quantity = row.querySelector('input[type=number]').value;
+            const match = /^(\d+)(?:\.(\d{0,3}))?$/.exec(quantity);
+            let cents = 0n;
+            if (row.querySelector('input[type=checkbox]').checked && match) {
+              const millis = BigInt(match[1]) * 1000n + BigInt((match[2] || '').padEnd(3, '0'));
+              cents = (millis * BigInt(row.dataset.rateCents) + 500n) / 1000n;
+            }
+            row.querySelector('.line-total').textContent = money(cents);
+            grand += cents;
+          });
+          document.getElementById('quote-grand-total').value = money(grand);
+        }
+        rows.forEach(row => row.querySelectorAll('input').forEach(input => input.addEventListener('input', calculate)));
+        calculate();
+      })();
+      </script>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

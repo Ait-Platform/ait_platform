@@ -156,9 +156,9 @@
             <tr>
               <th class="p-3 font-semibold text-slate-700" style="width: 25%;">Client</th>
               <th class="p-3 font-semibold text-slate-700" style="width: 25%;">Contact</th>
-              <th class="p-3 font-semibold text-slate-700" style="width: 25%;">Service</th>
+              <th class="p-3 font-semibold text-slate-700" style="width: 23%;">Service</th>
               <th class="p-3 font-semibold text-slate-700" style="width: 13%;">Status</th>
-              <th class="p-3 font-semibold text-slate-700 text-right" style="width: 12%;">Action</th>
+              <th class="p-3 font-semibold text-slate-700 text-right" style="width: 14%;">Action</th>
             </tr>
           </thead>
           <tbody id="client-table-body">
@@ -177,7 +177,22 @@
                 </span>
               </td>
               <td class="p-3 text-right">
-                <a href="{{ row_url }}" class="inline-flex rounded-lg bg-blue-100 px-3 py-2 font-semibold text-slate-900 hover:bg-blue-200 transition" aria-label="{{ 'View Shop' if row.shop is defined else 'View Client' }} {{ row_name }}">{{ 'View Shop' if row.shop is defined else 'View Client' }}</a>
+                <a href="{{ row_url }}" class="inline-flex rounded-lg bg-blue-100 px-3 py-2 font-semibold text-slate-900 hover:bg-blue-200 transition" aria-label="{{ 'Edit Shop' if row.shop is defined else 'View Client' }} {{ row_name }}">{{ 'Edit' if row.shop is defined else 'View Client' }}</a>
+                {% if row.shop is defined and (row.shop.trade or 'mechanic') in ['mechanic', 'carpentry'] %}
+                <a href="{{ url_for('mechanic_bp.shop_register_quote', shop_id=row.shop.id) }}" class="inline-flex rounded-lg bg-slate-800 px-3 py-2 font-semibold text-white" aria-label="Quote {{ row_name }}">Quote</a>
+                {% elif row.shop is not defined %}
+                <details class="inline-block text-left">
+                  <summary class="inline-flex cursor-pointer rounded-lg bg-blue-100 px-3 py-2 font-semibold text-slate-900">Edit</summary>
+                  <form method="POST" action="{{ url_for('mechanic_bp.update_client', client_id=row.client.id) }}" class="mt-2 space-y-2 rounded-lg border border-slate-200 bg-white p-3">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input name="name" value="{{ row.client.name }}" required aria-label="Client name" class="rounded border border-slate-300 px-2 py-1">
+                    <input name="phone" value="{{ row.client.phone or '' }}" aria-label="Client phone" class="rounded border border-slate-300 px-2 py-1">
+                    <input name="email" value="{{ row.client.email or '' }}" aria-label="Client email" class="rounded border border-slate-300 px-2 py-1">
+                    <button type="submit" class="rounded bg-slate-800 px-3 py-2 text-white">Save</button>
+                  </form>
+                </details>
+                <a href="{{ url_for('mechanic_bp.client_register_quote', client_id=row.client.id, shop_id=active_shop.id if active_shop else none) }}" class="inline-flex rounded-lg bg-slate-800 px-3 py-2 font-semibold text-white" aria-label="Quote {{ row_name }}">Quote</a>
+                {% endif %}
               </td>
             </tr>
             {% else %}

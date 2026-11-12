@@ -10,6 +10,11 @@ from . import mechanic_bp
 
 AVAILABLE_TRADES = [
     ('mechanic', 'General Mechanic'),
+    ('carpentry', 'Carpentry'),
+    ('plumbing', 'Plumbing'),
+    ('electrical', 'Electrical'),
+    ('painting', 'Painting'),
+    ('building', 'Building'),
     ('panel', 'Panel Beater'),
     ('auto_elec', 'Auto Electrician'),
     ('generic', 'Generic Business'),
@@ -39,6 +44,54 @@ def ensure_sender_profile_synced(shop):
         db.session.commit()
     except Exception as e:
         db.session.rollback()
+
+
+def registered_trade_name(shop):
+    trade = (shop.trade or 'mechanic') if shop else 'mechanic'
+    return dict(AVAILABLE_TRADES).get(trade, trade.replace('_', ' ').title())
+
+
+def price_list_shop():
+    """Validate explicit shop context; a posted trade cannot change scope."""
+    from flask import abort
+    raw_id = request.form.get('shop_id') if request.method == 'POST' else request.args.get('shop_id')
+    if raw_id is not None:
+        try:
+            shop_id = int(raw_id)
+        except (ValueError, TypeError):
+            abort(404)
+        shop = MechShop.query.filter_by(id=shop_id, user_id=current_user.id).first()
+        if not shop:
+            abort(404)
+        return shop
+    return get_active_shop(current_user.id, shop_id=session.get('active_shop_id'))
+
+
+def price_list_query(shop):
+    """Scoped items plus the unchanged legacy mechanic baseline."""
+    from sqlalchemy import and_, or_
+    trade = shop.trade or 'mechanic'
+    scoped = and_(MechCatalogPart.user_id == shop.user_id,
+                  MechCatalogPart.shop_id == shop.id, MechCatalogPart.trade == trade)
+    legacy = and_(MechCatalogPart.shop_id.is_(None),
+                  or_(MechCatalogPart.trade.is_(None), MechCatalogPart.trade == 'mechanic'))
+    if trade != 'mechanic':
+        return MechCatalogPart.query.filter(scoped)
+    # Pre-scope custom prices belong to the owner's first mechanic profile.
+    legacy_shop = MechShop.query.filter(
+        MechShop.user_id == shop.user_id,
+        or_(MechShop.trade == 'mechanic', MechShop.trade.is_(None), MechShop.trade == '')
+    ).order_by(MechShop.id).first()
+    legacy_owner = MechCatalogPart.user_id == shop.user_id if legacy_shop and legacy_shop.id == shop.id else False
+    return MechCatalogPart.query.filter(or_(scoped, and_(legacy, or_(MechCatalogPart.user_id.is_(None), legacy_owner))))
+
+
+def selected_price_list(shop):
+    # Shop prices override owner legacy prices, which override global defaults.
+    parts = price_list_query(shop).order_by(MechCatalogPart.id).all()
+    parts.sort(key=lambda p: (p.user_id is not None, p.shop_id is not None))
+    by_name = {p.part_name.lower().strip(): p for p in parts}
+    return sorted(by_name.values(), key=lambda p: p.part_name.lower())
 
 
 def shop_register_rows(user_id):
@@ -579,7 +632,7 @@ def mechanic_dashboard():
                            client_rows=client_rows,
                            available_trades=AVAILABLE_TRADES,
                            current_trade=current_trade,
-                           active_trade_name=dict(AVAILABLE_TRADES).get(current_trade, 'General Mechanic'),
+                           active_trade_name=registered_trade_name(active_shop),
                            shops_by_trade=shops_by_trade,
                            user_shops=user_shops)
 
@@ -1085,61 +1138,43 @@ def messages():
 @mechanic_bp.route('/mechanic/catalog', methods=['GET', 'POST'])
 @login_required
 def catalog_manage():
-    active_shop = get_active_shop(current_user.id)
+    active_shop = price_list_shop()
     if not active_shop:
         flash('You must complete your shop setup first.', 'warning')
         return redirect(url_for('mechanic_bp.mechanic_dashboard'))
 
     if request.method == 'POST':
         action = request.form.get('action')
+        own_parts = price_list_query(active_shop).filter(MechCatalogPart.user_id == current_user.id)
         if action == 'add':
-            part_name = request.form.get('part_name')
+            part_name = (request.form.get('part_name') or '').strip()
             category = request.form.get('category', 'Custom')
             price = request.form.get('price', type=float, default=0.0)
-
             if part_name:
-                existing = MechCatalogPart.query.filter_by(
-                    user_id=current_user.id, part_name=part_name).first()
+                from sqlalchemy import func
+                existing = own_parts.filter(func.lower(func.trim(MechCatalogPart.part_name)) == part_name.lower()).order_by(MechCatalogPart.shop_id.desc().nullslast(), MechCatalogPart.id).first()
                 if existing:
                     existing.default_price = price
                     existing.category = category
                     flash(f'Updated price for {part_name}', 'success')
                 else:
-                    new_part = MechCatalogPart(
-                        user_id=current_user.id, part_name=part_name, category=category, default_price=price)
-                    db.session.add(new_part)
-                    flash(f'Added {part_name} to your catalog', 'success')
+                    db.session.add(MechCatalogPart(
+                        user_id=current_user.id, shop_id=active_shop.id,
+                        trade=active_shop.trade or 'mechanic', part_name=part_name,
+                        category=category, default_price=price))
+                    flash(f'Added {part_name} to your price list', 'success')
                 db.session.commit()
-
         elif action == 'delete':
-            part_id = request.form.get('part_id')
-            part = MechCatalogPart.query.filter_by(
-                id=part_id, user_id=current_user.id).first()
+            part = own_parts.filter(MechCatalogPart.id == request.form.get('part_id', type=int)).first()
             if part:
                 db.session.delete(part)
                 db.session.commit()
-                flash('Part removed from your catalog.', 'success')
+                flash('Item removed from your price list.', 'success')
+        return redirect(url_for('mechanic_bp.catalog_manage', shop_id=active_shop.id))
 
-        return redirect(url_for('mechanic_bp.catalog_manage'))
-
-    all_parts = MechCatalogPart.query.filter(
-        (MechCatalogPart.user_id == None) | (
-            MechCatalogPart.user_id == current_user.id)
-    ).all()
-
-    part_dict = {}
-    for p in all_parts:
-        name_lower = p.part_name.lower().strip()
-        if name_lower not in part_dict:
-            part_dict[name_lower] = p
-        else:
-            if p.user_id == current_user.id:
-                part_dict[name_lower] = p
-
-    catalog_parts = list(part_dict.values())
-    catalog_parts.sort(key=lambda x: x.part_name)
-
-    return render_template('program_mechanic/catalog_manage.html', catalog_parts=catalog_parts, shop=active_shop)
+    return render_template('program_mechanic/catalog_manage.html',
+                           catalog_parts=selected_price_list(active_shop), shop=active_shop,
+                           active_trade_name=registered_trade_name(active_shop))
 
 
 @mechanic_bp.route('/mechanic/client_soa/<int:client_id>')
@@ -1164,7 +1199,7 @@ def edit_quote(id):
         flash("Only Quotes can be edited. This job card has already progressed.", "warning")
         return redirect(url_for('mechanic_bp.job_card_detail', id=id))
         
-    active_shop = get_active_shop(current_user.id)
+    active_shop = price_list_shop()
     
     if request.method == "POST":
         # Process dynamic labor and parts arrays
@@ -1265,21 +1300,7 @@ def edit_quote(id):
             flash(f"An error occurred while updating the quote. Error: {str(e)[:100]}", "danger")
             
     # GET Request: render form
-    all_parts = MechCatalogPart.query.filter(
-        (MechCatalogPart.user_id == None) | (MechCatalogPart.user_id == current_user.id)
-    ).all()
-    
-    part_dict = {}
-    for p in all_parts:
-        name_lower = p.part_name.lower().strip()
-        if name_lower not in part_dict:
-            part_dict[name_lower] = p
-        else:
-            if p.user_id == current_user.id:
-                part_dict[name_lower] = p
-    
-    catalog_parts = list(part_dict.values())
-    catalog_parts.sort(key=lambda x: x.part_name)
+    catalog_parts = selected_price_list(active_shop)
     
     return render_template("program_mechanic/quote_form.html", catalog_parts=catalog_parts, shop=active_shop, edit_card=job_card)
 
@@ -1288,26 +1309,12 @@ def edit_quote(id):
 @mechanic_bp.route("/mechanic/quote/new", methods=["GET", "POST"])
 @login_required
 def new_quote():
-    active_shop = get_active_shop(current_user.id)
+    active_shop = price_list_shop()
     if not active_shop:
         flash("You must complete your shop setup first.", "warning")
         return redirect(url_for("mechanic_bp.mechanic_dashboard"))
         
-    all_parts = MechCatalogPart.query.filter(
-        (MechCatalogPart.user_id == None) | (MechCatalogPart.user_id == current_user.id)
-    ).all()
-    
-    part_dict = {}
-    for p in all_parts:
-        name_lower = p.part_name.lower().strip()
-        if name_lower not in part_dict:
-            part_dict[name_lower] = p
-        else:
-            if p.user_id == current_user.id:
-                part_dict[name_lower] = p
-    
-    catalog_parts = list(part_dict.values())
-    catalog_parts.sort(key=lambda x: x.part_name)
+    catalog_parts = selected_price_list(active_shop)
     
     if request.method == "POST":
         setting = db.session.execute(text("SELECT value FROM system_settings WHERE key = 'mechanic_quote_cents'")).fetchone()

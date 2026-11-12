@@ -18,7 +18,7 @@
           <h1 class="text-2xl font-semibold text-slate-900">ProTrade Dashboard</h1>
           <div class="flex flex-wrap items-center gap-3 mt-1">
             {% if active_shop %}
-            <p class="text-xs text-slate-500">Active Profile: <strong class="text-slate-700">{{ active_shop.business_name }}</strong></p>
+            <p class="text-xs text-slate-500">{{ active_trade_name }} &middot; Active Profile: <strong class="text-slate-700">{{ active_shop.business_name }}</strong></p>
             {% else %}
             <p class="text-xs text-amber-700 font-medium">Profile Incomplete</p>
             {% endif %}

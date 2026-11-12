@@ -103,6 +103,10 @@ def create_app(test_config=None, *, operator_mode=False):
                 except Exception as e:
                     app.logger.error(f"Auto-migration skipped or failed: {e}")
 
+                # Additive ProTrade upgrade, independent of legacy Alembic heads.
+                from app.protrade_price_schema import ensure_price_list_schema
+                ensure_price_list_schema(db.engine)
+
 
 
             try:

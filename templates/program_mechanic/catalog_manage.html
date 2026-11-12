@@ -1,5 +1,5 @@
 {% extends 'layout.html' %}
-{% block title %}ProTrade - Manage Catalog{% endblock %}
+{% block title %}ProTrade - Manage Price List{% endblock %}
 {% block flashes %}{% endblock %}
 
 {% block content %}
@@ -16,10 +16,10 @@
     <!-- First Row: Title & Back Button -->
     <div class="flex items-center justify-between border-b border-slate-100 px-6 pb-4">
       <div>
-        <h1 class="text-2xl md:text-3xl font-bold text-slate-900">Manage Catalog</h1>
-        <p class="mt-1 text-sm text-slate-500">Shop: {{ shop.business_name }}</p>
+        <h1 class="text-2xl md:text-3xl font-bold text-slate-900">Manage Price List</h1>
+        <p class="mt-1 text-sm text-slate-500">Shop: {{ shop.business_name }} &middot; Trade: {{ active_trade_name }}</p>
       </div>
-      <a href="{{ url_for('mechanic_bp.mechanic_dashboard') }}" class="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition shadow-sm">
+      <a href="{{ url_for('mechanic_bp.mechanic_dashboard', shop_id=shop.id) }}" class="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition shadow-sm">
         <span>&larr;</span><span>Back</span>
       </a>
     </div>
@@ -28,13 +28,14 @@
       
       <!-- Add New Part -->
       <div class="bg-indigo-50 border border-indigo-200 rounded-xl p-6 mb-8">
-        <h3 class="text-lg font-bold text-indigo-900 mb-4">Add or Update Custom Part</h3>
-        <form action="{{ url_for('mechanic_bp.catalog_manage') }}" method="POST" class="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
+        <h3 class="text-lg font-bold text-indigo-900 mb-4">Add or Update Price List Item</h3>
+        <form action="{{ url_for('mechanic_bp.catalog_manage', shop_id=shop.id) }}" method="POST" class="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
+          <input type="hidden" name="shop_id" value="{{ shop.id }}"/>
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
           <input type="hidden" name="action" value="add"/>
           
           <div>
-            <label class="block text-sm font-semibold text-indigo-700 mb-1">Part Name</label>
+            <label class="block text-sm font-semibold text-indigo-700 mb-1">Item Name</label>
             <input type="text" name="part_name" required autofocus class="block w-full rounded-md border border-indigo-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 sm:text-sm">
           </div>
           <div>
@@ -43,7 +44,7 @@
           </div>
           <div>
             <button type="submit" class="w-full inline-flex justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition">
-              Save Part
+              Save Item
             </button>
           </div>
         </form>
@@ -51,12 +52,12 @@
       </div>
 
       <!-- Parts List -->
-      <h3 class="text-lg font-bold text-slate-800 mb-4">Your Active Catalog</h3>
+      <h3 class="text-lg font-bold text-slate-800 mb-4">Your Active Price List</h3>
       <div class="border border-slate-200 rounded-xl overflow-hidden shadow-sm">
         <table class="min-w-full divide-y divide-slate-200">
           <thead class="bg-slate-50">
             <tr>
-              <th scope="col" class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Part Name</th>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Item Name</th>
               <th scope="col" class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Category</th>
               <th scope="col" class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Price</th>
               <th scope="col" class="px-6 py-3 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Source</th>
@@ -78,11 +79,12 @@
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                 {% if part.user_id %}
-                <form action="{{ url_for('mechanic_bp.catalog_manage') }}" method="POST" class="inline">
+                <form action="{{ url_for('mechanic_bp.catalog_manage', shop_id=shop.id) }}" method="POST" class="inline">
+                  <input type="hidden" name="shop_id" value="{{ shop.id }}"/>
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                   <input type="hidden" name="action" value="delete"/>
                   <input type="hidden" name="part_id" value="{{ part.id }}"/>
-                  <button type="submit" onclick="return confirm('Remove this part from your catalog?')" class="text-red-600 hover:text-red-900">Delete</button>
+                  <button type="submit" onclick="return confirm('Remove this part from your price list?')" class="text-red-600 hover:text-red-900">Delete</button>
                 </form>
                 {% endif %}
               </td>
@@ -90,7 +92,7 @@
             {% endfor %}
             {% if not catalog_parts %}
             <tr>
-              <td colspan="5" class="px-6 py-8 text-center text-sm text-slate-500">No parts found in catalog.</td>
+              <td colspan="5" class="px-6 py-8 text-center text-sm text-slate-500">No items in this shop's price list.</td>
             </tr>
             {% endif %}
           </tbody>

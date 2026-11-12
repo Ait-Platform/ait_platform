@@ -27,6 +27,8 @@ class MechCatalogPart(db.Model):
     __tablename__ = 'mech_catalog_parts'
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True) # Null for global pre-populated, specific for learned
+    shop_id = db.Column(db.Integer, db.ForeignKey('mech_shops.id'), nullable=True)
+    trade = db.Column(db.String(50), nullable=True) # NULL denotes legacy mechanic pricing
     part_name = db.Column(db.String(150), nullable=False)
     category = db.Column(db.String(50)) # e.g. Engine, Brakes, Suspension
     default_price = db.Column(db.Float, default=0.0)

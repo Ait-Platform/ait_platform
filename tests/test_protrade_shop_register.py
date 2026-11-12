@@ -26,6 +26,18 @@ for field in ('logo_url', 'letterhead_url'):
     setattr(models.SenderProfile, field, sa.Column(sa.String(255)))
 models.SenderProfile.use_custom_letterhead = sa.Column(sa.Boolean, default=False)
 
+# Load the actual price-item mapping without initializing the application.
+from datetime import datetime
+catalog_node = next(n for n in ast.parse((ROOT / 'app/models/mechanic.py').read_text()).body
+                    if isinstance(n, ast.ClassDef) and n.name == 'MechCatalogPart')
+catalog_db = SimpleNamespace(Model=models.Base, Column=sa.Column, Integer=sa.Integer,
+                             String=sa.String, Float=sa.Float, DateTime=sa.DateTime,
+                             ForeignKey=lambda name: sa.ForeignKey('users.id' if name == 'user.id' else name))
+catalog_globals = dict(db=catalog_db, datetime=datetime)
+exec(compile(ast.Module(body=[catalog_node], type_ignores=[]), 'production_catalog_model', 'exec'), catalog_globals)
+MechCatalogPart = catalog_globals['MechCatalogPart']
+
+
 
 class ProductionImports(ast.NodeTransformer):
     def visit_ImportFrom(self, node):
@@ -62,9 +74,11 @@ class ShopRegisterTests(unittest.TestCase):
         manager.user_loader(lambda uid: self.db_session.get(models.User, int(uid)))
         bp = Blueprint('mechanic_bp', __name__)
         tree = ast.parse((ROOT / 'app/program_mechanic/routes.py').read_text(encoding='utf-8'))
-        names = {'ensure_sender_profile_synced', 'shop_register_rows', 'get_active_shop', 'mechanic_dashboard', 'onboarding_process'}
+        names = {'ensure_sender_profile_synced', 'shop_register_rows', 'get_active_shop', 'mechanic_dashboard', 'onboarding_process',
+                 'registered_trade_name', 'price_list_shop', 'price_list_query',
+                 'selected_price_list', 'catalog_manage'}
         nodes = [n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name in names or isinstance(n, ast.Assign) and any(isinstance(t, ast.Name) and t.id == 'AVAILABLE_TRADES' for t in n.targets)]
-        catalogue = SimpleNamespace(query=SimpleNamespace(count=lambda: 1))
+        catalogue = MechCatalogPart
         self.ns = dict(vars(models), db=SimpleNamespace(session=self.db_session, engine=self.conn),
                        mechanic_bp=bp, MechCatalogPart=catalogue, request=request, session=session,
                        flash=flash, redirect=redirect, url_for=url_for, render_template=render_template,
@@ -73,6 +87,7 @@ class ShopRegisterTests(unittest.TestCase):
         exec(compile(code, 'production_shop_routes', 'exec'), self.ns)
         self.app.register_blueprint(bp)
         template = (ROOT / 'templates/program_mechanic/dashboard.html').read_text(encoding='utf-8')
+        template += (ROOT / 'templates/program_mechanic/menu.html').read_text(encoding='utf-8')
         endpoints = set(re.findall(r"url_for\('([^']+)'", template)) | {'mechanic_bp.view_client'}
         for endpoint in endpoints:
             if endpoint not in self.app.view_functions:

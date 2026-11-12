@@ -53,7 +53,7 @@ class ProTradeBoqItem(db.Model):
         db.UniqueConstraint('shop_id', 'trade', 'code', name='uq_protrade_boq_shop_trade_code'),
         db.CheckConstraint("code = upper(trim(code)) AND length(code) > 0", name='ck_protrade_boq_code'),
         db.CheckConstraint("length(trim(description)) > 0", name='ck_protrade_boq_description'),
-        db.CheckConstraint("unit IN ('Each', 'm', 'm\u00b2', 'm\u00b3')", name='ck_protrade_boq_unit'),
+        db.CheckConstraint("unit IN ('Each', 'm', 'm\u00b2', 'm\u00b3', 'Hour')", name='ck_protrade_boq_unit'),
         db.CheckConstraint('material_rate BETWEEN 0 AND 999999999999.99 AND labour_rate BETWEEN 0 AND 999999999999.99', name='ck_protrade_boq_rates'),
     )
 

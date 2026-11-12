@@ -1,4 +1,4 @@
-﻿{% extends 'layout.html' %}
+{% extends 'layout.html' %}
 {% block title %}ProTrade - Carpentry BOQ{% endblock %}
 {% block flashes %}{% endblock %}
 {% block content %}
@@ -30,11 +30,16 @@
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <div>
             <label for="boq-code" class="mb-1 block text-sm font-semibold">BOQ Code</label>
-            <input id="boq-code" name="code" value="{{ values.get('code', '') }}" maxlength="50" required autofocus class="w-full rounded-lg border border-slate-300 px-3 py-2" placeholder="CAR-001">
+            <input id="boq-code" name="code" value="{{ values.get('code', '') }}" maxlength="50" readonly class="w-full rounded-lg border border-slate-300 px-3 py-2" placeholder="Assigned automatically">
           </div>
           <div class="sm:col-span-2">
             <label for="boq-description" class="mb-1 block text-sm font-semibold">Description</label>
-            <input id="boq-description" name="description" value="{{ values.get('description', '') }}" maxlength="4000" required class="w-full rounded-lg border border-slate-300 px-3 py-2">
+            <input type="hidden" id="preset-code" name="preset_code" value="">
+            <input id="boq-description" list="boq-work-items" autocomplete="off" autofocus name="description" value="{{ values.get('description', '') }}" maxlength="4000" required class="w-full rounded-lg border border-slate-300 px-3 py-2" placeholder="Search work items or enter a custom description">
+            <datalist id="boq-work-items">
+              {% for entry in work_items %}<option value="{{ entry.description }}">{{ entry.code }} &middot; {{ entry.unit }}</option>{% endfor %}
+            </datalist>
+            <p class="mt-1 text-xs text-slate-600">Choose a listed item, or type custom work and select its unit. Custom codes are assigned when saved.</p>
           </div>
           <div>
             <label for="boq-unit" class="mb-1 block text-sm font-semibold">Unit</label>
@@ -72,6 +77,19 @@
 </div>
 <script>
 (() => {
+  const workItems = {{ work_items|tojson }};
+  const description = document.getElementById('boq-description');
+  const code = document.getElementById('boq-code');
+  const unit = document.getElementById('boq-unit');
+  const preset = document.getElementById('preset-code');
+  const originalCode = {{ (edit_item.code if edit_item else '')|tojson }};
+  description.addEventListener('input', () => {
+    const selected = workItems.find(item => item.description.toLowerCase() === description.value.trim().toLowerCase());
+    preset.value = selected ? selected.code : '';
+    code.value = selected ? selected.code : originalCode;
+    unit.disabled = Boolean(selected);
+    if (selected) unit.value = selected.unit;
+  });
   const material = document.getElementById('material-rate');
   const labour = document.getElementById('labour-rate');
   const total = document.getElementById('total-rate');

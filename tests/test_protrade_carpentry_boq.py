@@ -31,6 +31,11 @@ class CarpentryBoqTests(unittest.TestCase):
         spec.loader.exec_module(self.migration)
         self.migration.op = Operations(MigrationContext.configure(self.conn))
         self.migration.upgrade()
+        spec = importlib.util.spec_from_file_location('boq_unit_migration', ROOT / 'migrations/versions/protrade_boq_003.py')
+        self.unit_migration = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(self.unit_migration)
+        self.unit_migration.op = Operations(MigrationContext.configure(self.conn))
+        self.unit_migration.upgrade()
 
     def snapshot(self):
         return self.conn.exec_driver_sql('SELECT * FROM mech_catalog_parts ORDER BY id').all()
@@ -64,20 +69,20 @@ class CarpentryBoqTests(unittest.TestCase):
         self.save(item_id=item.id, code='CAR-002', unit='m\u00b2', material_rate='0.10', labour_rate='0.20')
         self.db_session.refresh(item)
         self.assertEqual(item.total_rate, Decimal('0.30'))
-        self.assertEqual(item.code, 'CAR-002')
+        self.assertTrue(item.code.startswith('CAR-C-'))
         self.assertEqual(ProTradeBoqItem.query.count(), 1)
         self.assertEqual(self.snapshot(), self.original)
 
     def test_duplicate_codes_do_not_overwrite_and_are_unique_per_shop(self):
-        self.save(code=' car-001 ')
-        self.save(code='car-001', description='Duplicate', expected=409)
+        self.save(description='Supply and install wooden door')
+        self.save(description='supply and install wooden door', expected=409)
         self.assertEqual(ProTradeBoqItem.query.count(), 1)
-        self.assertEqual(ProTradeBoqItem.query.one().description, 'Install wooden door')
+        self.assertEqual(ProTradeBoqItem.query.one().description, 'Supply and install wooden door')
         self.save(self.second)
         self.assertEqual(ProTradeBoqItem.query.count(), 2)
-        self.save(code='CAR-002')
+        self.save(description='Install door frame')
         item = ProTradeBoqItem.query.filter_by(shop_id=self.carpentry.id, code='CAR-002').one()
-        self.save(item_id=item.id, code='CAR-001', expected=409)
+        self.save(item_id=item.id, preset_code='CAR-001', expected=409)
         self.assertEqual(item.code, 'CAR-002')
 
     def test_shop_owner_trade_isolation_for_view_and_edit(self):
@@ -99,8 +104,8 @@ class CarpentryBoqTests(unittest.TestCase):
     def test_validation_rejects_invalid_rates_units_and_empty_fields(self):
         for changes in [dict(material_rate='-1'), dict(labour_rate='NaN'), dict(material_rate='Infinity'),
                         dict(labour_rate='0.001'), dict(material_rate='not-a-number'), dict(material_rate=''),
-                        dict(material_rate='1000000000000'), dict(unit='kg'), dict(code=' '),
-                        dict(description=' '), dict(code='x' * 51), dict(description='x' * 4001)]:
+                        dict(material_rate='1000000000000'), dict(unit='kg'), dict(preset_code='UNKNOWN'),
+                        dict(description=' '), dict(description='x' * 4001)]:
             with self.subTest(changes=changes):
                 response = self.save(expected=400, **changes)
                 self.assertIn('role="alert"', response.get_data(as_text=True))

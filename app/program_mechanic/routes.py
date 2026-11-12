@@ -1142,7 +1142,10 @@ def carpentry_boq_price_list(shop):
     from sqlalchemy.exc import IntegrityError
     from app.models.mechanic import ProTradeBoqItem
 
-    units = ('Each', 'm', 'm\u00b2', 'm\u00b3')
+    from app.protrade_boq_catalog import work_items_for, custom_boq_code
+
+    work_items = work_items_for(shop.trade)
+    units = ('Each', 'm', 'm\u00b2', 'm\u00b3', 'Hour')
     query = ProTradeBoqItem.query.filter_by(user_id=current_user.id, shop_id=shop.id, trade=shop.trade)
     item = None
     raw_id = request.form.get('item_id') if request.method == 'POST' else request.args.get('edit_id')
@@ -1162,14 +1165,23 @@ def carpentry_boq_price_list(shop):
         if request.form.get('action') != 'save_boq':
             abort(400)
         values = {field: request.form.get(field, '').strip() for field in fields}
-        values['code'] = values['code'].upper()
         try:
-            if not values['code'] or len(values['code']) > 50:
-                raise ValueError('Enter a BOQ code of up to 50 characters.')
+            preset_code = request.form.get('preset_code', '').strip()
+            selected = next((entry for entry in work_items if entry['code'] == preset_code), None)
+            if preset_code and selected is None:
+                raise ValueError('Select a valid work item or enter a custom description.')
+            # Do not reinterpret or renumber an unchanged legacy description.
+            if selected is None and (item is None or values['description'] != item.description):
+                selected = next((entry for entry in work_items
+                                 if entry['description'].casefold() == values['description'].casefold()), None)
+            if selected:
+                values.update(selected)
+            else:
+                values['code'] = item.code if item else custom_boq_code(shop.trade)
             if not values['description'] or len(values['description']) > 4000:
                 raise ValueError('Enter a description of up to 4000 characters.')
             if values['unit'] not in units:
-                raise ValueError('Select Each, m, m\u00b2 or m\u00b3.')
+                raise ValueError('Select Each, m, m\u00b2, m\u00b3 or Hour.')
             rates = {}
             for field in ('material_rate', 'labour_rate'):
                 try:
@@ -1204,7 +1216,7 @@ def carpentry_boq_price_list(shop):
             error, status = 'This BOQ code could not be saved. Check for an existing item and try again.', 409
     return render_template('program_mechanic/boq_price_list.html', shop=shop,
                            boq_items=query.order_by(ProTradeBoqItem.code).all(),
-                           edit_item=item, values=values, units=units, error=error), status
+                           edit_item=item, values=values, units=units, work_items=work_items, error=error), status
 
 
 @mechanic_bp.route('/mechanic/catalog', methods=['GET', 'POST'])

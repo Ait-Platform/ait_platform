@@ -6,6 +6,7 @@ import ast
 import importlib.util
 from pathlib import Path
 import re
+import sys
 from types import SimpleNamespace
 import unittest
 
@@ -18,6 +19,8 @@ from jinja2 import ChoiceLoader, DictLoader
 from lxml import html
 
 ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 spec = importlib.util.spec_from_file_location('shop_test_models', ROOT / 'tests/test_protrade_dashboard.py')
 models = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(models)

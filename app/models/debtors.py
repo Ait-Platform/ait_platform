@@ -61,6 +61,8 @@ class Debtor(db.Model):
     __tablename__ = 'debtor'
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    shop_id = db.Column(db.Integer, db.ForeignKey('mech_shops.id'), nullable=True)
+    address = db.Column(db.Text, nullable=True)
     bank_account_id = db.Column(db.Integer, db.ForeignKey('business_bank_account.id'), nullable=True)
     sender_profile_id = db.Column(db.Integer, db.ForeignKey('sender_profile.id'), nullable=True)
     

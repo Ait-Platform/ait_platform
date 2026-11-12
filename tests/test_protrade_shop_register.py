@@ -29,14 +29,22 @@ for field in ('logo_url', 'letterhead_url'):
     setattr(models.SenderProfile, field, sa.Column(sa.String(255)))
 models.SenderProfile.use_custom_letterhead = sa.Column(sa.Boolean, default=False)
 
+# Production debtor table identity, isolated from the older dashboard fixture.
+class ShopDebtor(models.Base):
+    __table__ = models.Debtor.__table__.to_metadata(models.Base.metadata, name='debtor')
+models.Debtor = ShopDebtor
+models.Debtor.shop_id = sa.Column(sa.Integer, sa.ForeignKey('mech_shops.id'))
+models.Debtor.address = sa.Column(sa.Text)
+models.MechClient.shop_id = sa.Column(sa.Integer, sa.ForeignKey('mech_shops.id'))
+
 # Load the actual price-item mapping without initializing the application.
 from datetime import datetime
 catalog_node = next(n for n in ast.parse((ROOT / 'app/models/mechanic.py').read_text()).body
                     if isinstance(n, ast.ClassDef) and n.name == 'MechCatalogPart')
 catalog_db = SimpleNamespace(Model=models.Base, Column=sa.Column, Integer=sa.Integer,
-                             String=sa.String, Float=sa.Float, DateTime=sa.DateTime, JSON=sa.JSON,
+                             String=sa.String, Float=sa.Float, DateTime=sa.DateTime, JSON=sa.JSON, Boolean=sa.Boolean,
                              Text=sa.Text, Numeric=sa.Numeric, Computed=sa.Computed,
-                             UniqueConstraint=sa.UniqueConstraint, CheckConstraint=sa.CheckConstraint,
+                             UniqueConstraint=sa.UniqueConstraint, CheckConstraint=sa.CheckConstraint, Index=sa.Index, text=sa.text,
                              ForeignKey=lambda name: sa.ForeignKey('users.id' if name == 'user.id' else name))
 catalog_globals = dict(db=catalog_db, datetime=datetime)
 exec(compile(ast.Module(body=[catalog_node], type_ignores=[]), 'production_catalog_model', 'exec'), catalog_globals)
@@ -55,6 +63,11 @@ for class_name in ('MechLaborLine', 'MechPartLine', 'MechInvoice'):
     exec(compile(ast.Module(body=[node], type_ignores=[]), 'production_document_model', 'exec'), catalog_globals)
 
 models.MechJobCard.shop_id = sa.Column(sa.Integer, sa.ForeignKey('mech_shops.id'))
+models.MechJobCard.debtor_id = sa.Column(sa.Integer, sa.ForeignKey('debtor.id'))
+models.MechJobCard.is_draft = sa.Column(sa.Boolean)
+models.MechJobCard.labor_lines = sa.orm.relationship(catalog_globals['MechLaborLine'])
+models.MechJobCard.part_lines = sa.orm.relationship(catalog_globals['MechPartLine'])
+sa.Index('uq_protrade_mech_open_draft',models.MechJobCard.shop_id,models.MechJobCard.debtor_id,unique=True,postgresql_where=sa.text("status = 'Quote' AND is_draft IS TRUE AND debtor_id IS NOT NULL"))
 
 
 
@@ -98,7 +111,8 @@ class ShopRegisterTests(unittest.TestCase):
         names = {'ensure_sender_profile_synced', 'shop_register_rows', 'get_active_shop', 'mechanic_dashboard', 'onboarding_process',
                  'registered_trade_name', 'price_list_shop', 'price_list_query',
                  'selected_price_list', 'catalog_manage', 'carpentry_boq_price_list', 'client_register_quote', 'shop_register_quote',
-                 'register_trade_quote', 'carpentry_quote_form', 'carpentry_quote_view', 'new_quote', 'quote_invoice_register'}
+                 'register_trade_quote', 'carpentry_quote_form', 'carpentry_quote_view', 'new_quote', 'quote_invoice_register', 'edit_quote',
+                 'debtor_register_entry', 'shop_debtor_register', 'debtor_quote', 'new_debtor_quote'}
         nodes = [n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name in names or isinstance(n, ast.Assign) and any(isinstance(t, ast.Name) and t.id == 'AVAILABLE_TRADES' for t in n.targets)]
         catalogue = MechCatalogPart
         self.ns = dict(vars(models), db=SimpleNamespace(session=self.db_session, engine=self.conn),
@@ -113,6 +127,7 @@ class ShopRegisterTests(unittest.TestCase):
         template += (ROOT / 'templates/program_mechanic/menu.html').read_text(encoding='utf-8')
         template += (ROOT / 'templates/program_mechanic/quote_form.html').read_text(encoding='utf-8')
         template += (ROOT / 'templates/program_mechanic/quote_invoice_register.html').read_text(encoding='utf-8')
+        template += (ROOT / 'templates/program_mechanic/shop_debtors.html').read_text(encoding='utf-8')
         endpoints = set(re.findall(r"url_for\('([^']+)'", template)) | {'mechanic_bp.view_client', 'mechanic_bp.job_card_detail', 'mechanic_bp.mock_bill'}
         for endpoint in endpoints:
             if endpoint not in self.app.view_functions:
@@ -146,7 +161,7 @@ class ShopRegisterTests(unittest.TestCase):
         for _ in range(2):
             table = self.register()
             self.assertEqual(len(table.xpath('.//a[text()="Happy Shop"]')), 1)
-            self.assertIn('Existing Customer', table.text_content())
+            self.assertNotIn('Existing Customer', table.text_content())
             self.assertNotIn('Other Owner Shop', table.text_content())
             self.assertEqual(models.MechShop.query.count(), 3)
             self.assertEqual(models.MechClient.query.count(), 1)
@@ -176,7 +191,8 @@ class ShopRegisterTests(unittest.TestCase):
         link = table.xpath('.//a[text()="Second Shop"]')[0].get('href')
         response = self.client.get(link)
         tree = html.fromstring(response.data)
-        self.assertEqual(tree.xpath('//input[@name="shop_id"]/@value'), [str(second.id)])
+        self.assertIn(f'/shop/{second.id}/debtors', link)
+        self.assertIn('Debtor Register', tree.text_content())
         self.client.post('/mechanic/onboarding/process', data=dict(shop_id=second.id, trade='mechanic', business_name='Second Updated'))
         self.assertEqual(first.business_name, 'Happy Shop')
         self.assertEqual(second.business_name, 'Second Updated')
@@ -190,7 +206,7 @@ class ShopRegisterTests(unittest.TestCase):
         self.assertIn('6 clients', tree.get_element_by_id('client-counter').text_content())
         self.assertEqual(len(tree.xpath('//tr[contains(@class,"client-row-hidden")]')), 1)
         self.assertIn('Show More (5 of 6)', tree.get_element_by_id('client-toggle-btn').text_content())
-        self.assertEqual(len(tree.xpath('//table[@id="client-register-table"]/tbody/tr/td[last()]/*[normalize-space()="Quote"]')), 6)
+        self.assertEqual(len(tree.xpath('//table[@id="client-register-table"]/tbody/tr/td[last()]/*[normalize-space()="Debtor Register"]')), 6)
 
     def test_foreign_owner_profile_cannot_be_saved(self):
         other = self.shop(owner=2, name='Other Owner Shop')

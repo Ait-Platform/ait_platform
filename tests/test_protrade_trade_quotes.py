@@ -55,6 +55,26 @@ class TradeQuoteTests(unittest.TestCase):
         spec.loader.exec_module(self.migration)
         self.migration.op = Operations(MigrationContext.configure(self.conn))
         self.migration.upgrade()
+        spec=importlib.util.spec_from_file_location('foundation_migration',base.ROOT/'migrations/versions/protrade_debtor_006.py')
+        foundation=importlib.util.module_from_spec(spec);spec.loader.exec_module(foundation)
+        foundation.op=Operations(MigrationContext.configure(self.conn));foundation.upgrade()
+        self.customers_by_shop={}
+        self.debtors_by_shop={}
+        for shop in (self.carpentry,self.second,self.mechanic,self.other):
+            if shop.id==self.carpentry.id:
+                customer=self.customer
+            elif shop.id==self.other.id:
+                customer=self.foreign_customer
+            else:
+                customer=models.MechClient(user_id=shop.user_id,name='Customer Jane',phone='0123456789',email='jane@example.test',address='Customer address')
+                self.db_session.add(customer)
+            customer.shop_id=shop.id
+            self.db_session.flush()
+            debtor=models.Debtor(user_id=shop.user_id,shop_id=shop.id,reference_id=customer.id,slug_reference='protrade',name=customer.name,phone=customer.phone,email=customer.email,address=customer.address)
+            self.db_session.add(debtor);self.db_session.flush()
+            self.customers_by_shop[shop.id]=customer
+            self.debtors_by_shop[shop.id]=debtor
+        self.db_session.commit()
         self.boq_before = self.conn.exec_driver_sql('SELECT * FROM protrade_boq_items ORDER BY id').all()
 
     def boq(self, shop, code, description, unit, material, labour, quantity='1'):
@@ -66,7 +86,9 @@ class TradeQuoteTests(unittest.TestCase):
 
     def quote_url(self, shop=None, customer=True):
         shop = shop or self.carpentry
-        return f'/mechanic/shop/{shop.id}/quote' + (f'?client_id={self.customer.id}' if customer else '')
+        selected=self.customers_by_shop.get(shop.id,self.customer)
+        debtor=self.debtors_by_shop.get(shop.id)
+        return f'/mechanic/shop/{shop.id}/quote' + (f'?client_id={selected.id}&debtor_id={debtor.id}' if customer and debtor else '')
 
     def post(self, expected=302, shop=None, customer=True, **changes):
         data = dict(quote_key=uuid4().hex, **{'item_id[]': [str(self.item.id)]}, **{f'quantity_{self.item.id}': '2.5'})
@@ -116,7 +138,7 @@ class TradeQuoteTests(unittest.TestCase):
         for item in (self.foreign_item, self.second_item):
             self.post(expected=400, **{'item_id[]': [str(item.id)], f'quantity_{item.id}': '1'})
         self.assertEqual(self.client.get(self.quote_url(self.other)).status_code, 404)
-        self.assertEqual(self.client.get(f'/mechanic/shop/{self.carpentry.id}/quote?client_id={self.foreign_customer.id}').status_code, 404)
+        self.assertEqual(self.client.get(f'/mechanic/shop/{self.carpentry.id}/quote?client_id={self.foreign_customer.id}&debtor_id={self.debtors_by_shop[self.carpentry.id].id}').status_code, 404)
         self.assertEqual(ProTradeBoqQuote.query.count(), 0)
         response = self.post()
         quote = ProTradeBoqQuote.query.one()
@@ -125,17 +147,12 @@ class TradeQuoteTests(unittest.TestCase):
             sess['_user_id'] = '2'
         self.assertEqual(self.client.get(response.location).status_code, 404)
 
-    def test_registered_shop_details_and_unsupported_trade(self):
-        response = self.client.get(self.quote_url(customer=False))
-        self.assertEqual(response.status_code, 200)
-        self.assertIn('Happy Carpentry', response.get_data(as_text=True))
-        self.post(customer=False)
-        quote = ProTradeBoqQuote.query.one()
-        self.assertIsNone(quote.client_id)
-        self.assertEqual(quote.client_name, 'Happy Carpentry')
-        panel = self.shop(name='Panel', trade='panel', status='active')
-        self.assertEqual(self.client.get(self.quote_url(panel)).status_code, 404)
-        self.assertEqual(self.client.post(self.quote_url(self.other), data={}).status_code, 404)
+    def test_registered_shop_requires_debtor_before_quotation(self):
+        response=self.client.get(self.quote_url(customer=False))
+        self.assertEqual(response.status_code,302)
+        self.assertIn('/debtors',response.location)
+        self.assertEqual(ProTradeBoqQuote.query.count(),0)
+        self.assertEqual(self.client.post(self.quote_url(self.other),data={}).status_code,404)
 
     def test_migration_preserves_preexisting_mechanic_quotation_fields(self):
         self.conn.exec_driver_sql('DROP TABLE protrade_boq_quotes')
@@ -157,7 +174,7 @@ class TradeQuoteTests(unittest.TestCase):
         with self.client.session_transaction() as sess:
             sess['active_shop_id'] = self.mechanic.id
             sess['active_trade'] = 'mechanic'
-        response = self.client.get(f'/mechanic/client/{self.customer.id}/quote?shop_id={self.carpentry.id}')
+        response = self.client.get(f'/mechanic/client/{self.customer.id}/quote?shop_id={self.carpentry.id}&debtor_id={self.debtors_by_shop[self.carpentry.id].id}')
         self.assertEqual(response.status_code, 200)
         self.assertIn('Carpentry BOQ Quotation', response.get_data(as_text=True))
         self.assertEqual(ProTradeBoqQuote.query.count(), 0)
@@ -167,13 +184,13 @@ class TradeQuoteTests(unittest.TestCase):
         self.post()
         self.post(shop=self.second, **{'item_id[]': [str(self.second_item.id)], f'quantity_{self.second_item.id}': '3'})
         quotes = ProTradeBoqQuote.query.order_by(ProTradeBoqQuote.id).all()
-        self.assertEqual([quote.client_id for quote in quotes], [self.customer.id, self.customer.id])
+        self.assertEqual([quote.client_id for quote in quotes], [self.customer.id, self.customers_by_shop[self.second.id].id])
         self.assertEqual([quote.shop_id for quote in quotes], [self.carpentry.id, self.second.id])
         self.assertEqual([quote.grand_total for quote in quotes], [Decimal('325.00'), Decimal('6.00')])
         self.assertEqual(models.MechClient.query.count(), count)
         mechanic = self.client.get(self.quote_url(self.mechanic))
         self.assertEqual(mechanic.status_code, 302)
-        self.assertIn(f'client_id={self.customer.id}', mechanic.location)
+        self.assertIn(f'client_id={self.customers_by_shop[self.mechanic.id].id}', mechanic.location)
 
     def test_invalid_quantities_empty_selection_and_repeat_submission(self):
         for quantity in ('', '0', '-1', 'NaN', 'Infinity', '1.0001', '100000000000'):
@@ -198,12 +215,12 @@ class TradeQuoteTests(unittest.TestCase):
         self.assertTrue(tree.xpath('//input[@name="vehicle_reg"]'))
         self.assertTrue(tree.xpath('//input[@name="vin_number"]'))
         self.assertEqual(tree.xpath('//input[@name="shop_id"]/@value'), [str(self.mechanic.id)])
-        saved = self.client.post('/mechanic/quote/new', data=dict(shop_id=self.mechanic.id, client_id=self.customer.id,
+        saved = self.client.post('/mechanic/quote/new', data=dict(shop_id=self.mechanic.id, client_id=self.customers_by_shop[self.mechanic.id].id, debtor_id=self.debtors_by_shop[self.mechanic.id].id,
                                   customer_name='Edited display name', vehicle_reg='ABC123'))
         self.assertEqual(saved.status_code, 302)
         card = models.MechJobCard.query.one()
         self.assertEqual(card.shop_id, self.mechanic.id)
-        self.assertEqual(card.vehicle.client_id, self.customer.id)
+        self.assertEqual(card.vehicle.client_id, self.customers_by_shop[self.mechanic.id].id)
         self.assertEqual(models.AitTokenWallet.query.one().balance, 45)
         self.assertEqual(ProTradeBoqQuote.query.count(), 0)
         self.assertEqual(self.snapshot(), self.original)
@@ -212,11 +229,8 @@ class TradeQuoteTests(unittest.TestCase):
         response = self.client.get(f'/mechanic/dashboard?shop_id={self.carpentry.id}')
         tree = html.fromstring(response.data)
         row = tree.xpath('//tr[td/a[text()="Happy Carpentry"]]')[0]
-        actions = row.xpath('./td[last()]/a/text()')
-        self.assertEqual(actions, ['Quote'])
-        ordinary = tree.xpath('//tr[td/a[text()="Customer Jane"]]')[0]
-        self.assertEqual(ordinary.xpath('./td[last()]/a/text()'), ['Quote'])
-        self.assertIn(f'shop_id={self.carpentry.id}', ordinary.xpath('./td[last()]/a[text()="Quote"]/@href')[0])
+        self.assertEqual(row.xpath('./td[last()]/a/text()'),['Debtor Register'])
+        self.assertNotIn('Customer Jane',tree.get_element_by_id('client-register-table').text_content())
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch(headless=True)
             try:

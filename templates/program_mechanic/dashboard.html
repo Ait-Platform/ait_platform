@@ -143,11 +143,11 @@
             {{ clients|length }} client{{ 's' if clients|length != 1 else '' }}
           </span>
         </div>
-        <button type="button" id="open-add-client-btn" onclick="openWorkingArea('add-client')" class="inline-flex items-center gap-1.5 rounded-lg bg-slate-800 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-900 transition shadow-sm">
-          <span>+ Add Client</span>
+        <button type="button" id="open-add-client-btn" onclick="document.getElementById('manual-setup-modal').classList.remove('hidden')" class="inline-flex items-center gap-1.5 rounded-lg bg-slate-800 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-900 transition shadow-sm">
+          <span>Shop Setup</span>
         </button>
       </div>
-      <p class="mt-1 text-sm text-slate-600">Click a client name to view or edit the profile. Use Quote to create a quotation for the selected shop and trade.</p>
+      <p class="mt-1 text-sm text-slate-600">Select a shop to open its Debtor Register. Create quotations for saved debtors within that shop.</p>
 
       <!-- Client Table -->
       <div class="mt-4 overflow-x-auto rounded-lg border border-slate-200">
@@ -162,7 +162,7 @@
           </thead>
           <tbody id="client-table-body">
             {% for row in clients %}
-            {% set row_url = url_for('mechanic_bp.mechanic_dashboard', shop_id=row.shop.id, action='setup') if row.shop is defined else url_for('mechanic_bp.view_client', client_id=row.client.id) %}
+            {% set row_url = url_for('mechanic_bp.shop_debtor_register', shop_id=row.shop.id) if row.shop is defined else url_for('mechanic_bp.view_client', client_id=row.client.id) %}
             {% set row_name = row.shop.business_name if row.shop is defined else row.client.name %}
             <tr class="border-t border-slate-200 hover:bg-slate-50 transition client-row {% if loop.index > 5 %}hidden client-row-hidden{% endif %}">
               <td class="p-3 font-semibold break-words">
@@ -174,15 +174,7 @@
               <td class="p-3 text-slate-600 break-words whitespace-normal">{{ row.contact or '—' }}</td>
               <td class="p-3 text-slate-600 break-words whitespace-normal">{{ row.service or '—' }}</td>
               <td class="p-3 text-right">
-                {% if row.shop is defined %}
-                  {% if (row.shop.trade or 'mechanic') in ['mechanic', 'carpentry'] %}
-                  <a href="{{ url_for('mechanic_bp.shop_register_quote', shop_id=row.shop.id) }}" class="inline-flex rounded-lg bg-slate-800 px-3 py-2 font-semibold text-white" aria-label="Quote {{ row_name }}">Quote</a>
-                  {% else %}
-                  <button type="button" disabled title="Quotations are not available for this trade yet." class="rounded-lg bg-slate-200 px-3 py-2 font-semibold text-slate-500">Quote</button>
-                  {% endif %}
-                {% else %}
-                <a href="{{ url_for('mechanic_bp.client_register_quote', client_id=row.client.id, shop_id=active_shop.id if active_shop else none) }}" class="inline-flex rounded-lg bg-slate-800 px-3 py-2 font-semibold text-white" aria-label="Quote {{ row_name }}">Quote</a>
-                {% endif %}
+                <a href="{{ url_for('mechanic_bp.shop_debtor_register', shop_id=row.shop.id) }}" class="inline-flex rounded-lg bg-slate-800 px-3 py-2 font-semibold text-white">Debtor Register</a>
               </td>
             </tr>
             {% else %}

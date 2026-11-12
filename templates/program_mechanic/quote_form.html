@@ -78,7 +78,7 @@ document.addEventListener('DOMContentLoaded', function() {
     <!-- First Row: Title & Back Button -->
     <div class="flex items-center justify-between border-b border-slate-100 px-6 pb-4">
       <div>
-        <h1 class="text-2xl md:text-3xl font-bold text-slate-900">Create Quote</h1>
+        <h1 class="text-2xl md:text-3xl font-bold text-slate-900">{{ 'Edit Quote' if edit_card else 'Create Quote' }}</h1>
         <p class="mt-1 text-sm text-slate-500">Shop: {{ shop.business_name }}</p>
       </div>
       <a href="{{ url_for('mechanic_bp.mechanic_dashboard') }}" class="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition shadow-sm">
@@ -86,9 +86,10 @@ document.addEventListener('DOMContentLoaded', function() {
       </a>
     </div>
 
-          <form action="{{ url_for('mechanic_bp.new_quote') }}" method="POST" enctype="multipart/form-data">
+          <form action="{{ url_for('mechanic_bp.edit_quote', id=edit_card.id, shop_id=shop.id) if edit_card else url_for('mechanic_bp.new_quote') }}" method="POST" enctype="multipart/form-data">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
         <input type="hidden" name="shop_id" value="{{ shop.id }}">
+        {% if request.values.get('debtor_id') or (edit_card and edit_card.debtor_id) %}<input type="hidden" name="debtor_id" value="{{ request.values.get('debtor_id') or edit_card.debtor_id }}">{% endif %}
         {% if request.values.get('client_id') %}<input type="hidden" name="client_id" value="{{ request.values.get('client_id') }}">{% endif %}
         {% if request.values.get('register_shop_id') %}<input type="hidden" name="register_shop_id" value="{{ request.values.get('register_shop_id') }}">{% endif %}
         {% if quote_client %}<p class="px-6 pt-4 text-sm text-slate-600">{{ quote_client.name }} &middot; {{ quote_client.phone or '' }} &middot; {{ quote_client.email or '' }} &middot; {{ quote_client.address or '' }}</p>{% endif %}

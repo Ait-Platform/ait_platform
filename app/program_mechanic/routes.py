@@ -552,54 +552,8 @@ def mechanic_dashboard():
     job_cards = MechJobCard.query.order_by(
         MechJobCard.created_at.desc()).limit(10).all()
 
-    # Query operator's own clients strictly
-    raw_clients = MechClient.query.filter_by(user_id=current_user.id).order_by(MechClient.created_at.desc(), MechClient.id.desc()).all()
-    client_rows = []
-    for c in raw_clients:
-        contact_parts = [p for p in (c.phone, c.email) if p]
-        contact_str = " | ".join(contact_parts) if contact_parts else ""
-
-        latest_job = None
-        latest_veh = None
-        for v in c.vehicles:
-            if not latest_veh:
-                latest_veh = v
-            for jc in v.job_cards:
-                if not latest_job or (jc.created_at and latest_job.created_at and jc.created_at > latest_job.created_at):
-                    latest_job = jc
-                    latest_veh = v
-
-        if latest_job:
-            service_str = latest_job.description or f"{latest_veh.make or ''} {latest_veh.model or ''} ({latest_veh.license_plate or ''})".strip() or "General Service"
-            status_str = latest_job.status or "Active"
-        elif latest_veh:
-            service_str = f"{latest_veh.make or ''} {latest_veh.model or ''} ({latest_veh.license_plate or ''})".strip() or "Vehicle Registered"
-            status_str = "Active"
-        else:
-            service_str = ""
-            status_str = "Active"
-
-        status_lower = status_str.lower()
-        if 'quote' in status_lower:
-            badge_class = "bg-amber-100 text-amber-800"
-        elif 'approved' in status_lower or 'progress' in status_lower:
-            badge_class = "bg-blue-100 text-blue-800"
-        elif 'ready' in status_lower or 'active' in status_lower:
-            badge_class = "bg-emerald-100 text-emerald-800"
-        elif 'billed' in status_lower:
-            badge_class = "bg-slate-100 text-slate-800"
-        else:
-            badge_class = "bg-slate-100 text-slate-700"
-
-        client_rows.append({
-            'client': c,
-            'contact': contact_str,
-            'service': service_str,
-            'status': status_str,
-            'status_badge_class': badge_class
-        })
-
-    client_rows = shop_register_rows(current_user.id) + client_rows
+    # Consultancy clients are shops; their debtors live in the shop register.
+    client_rows = shop_register_rows(current_user.id)
 
     # Seed some default parts if none exist
     if MechCatalogPart.query.count() == 0:
@@ -1141,6 +1095,110 @@ def messages():
     return render_template('program_mechanic/messages.html', messages=msgs)
 
 
+@mechanic_bp.route('/mechanic/debtors', methods=['GET'])
+@login_required
+def debtor_register_entry():
+    from flask import abort
+    identifier = request.args.get('shop_id', session.get('active_shop_id'))
+    if identifier is not None:
+        try:
+            identifier = int(identifier)
+        except (ValueError, TypeError):
+            abort(404)
+        return redirect(url_for('mechanic_bp.shop_debtor_register', shop_id=identifier))
+    shops = MechShop.query.filter_by(user_id=current_user.id).order_by(MechShop.id).all()
+    return render_template('program_mechanic/shop_debtors.html', shop=None, shops=shops, debtors=[], edit_debtor=None, documents=[], error=None)
+
+
+@mechanic_bp.route('/mechanic/shop/<int:shop_id>/debtors', methods=['GET','POST'])
+@login_required
+def shop_debtor_register(shop_id):
+    from flask import abort
+    from sqlalchemy import func
+    from app.models.debtors import Debtor
+    from app.models.mechanic import MechClient, ProTradeBoqQuote, MechJobCard
+    shop = MechShop.query.filter_by(id=shop_id, user_id=current_user.id).first()
+    if not shop:
+        abort(404)
+    scoped = Debtor.query.filter_by(shop_id=shop.id, user_id=current_user.id)
+    edit_id = request.values.get('debtor_id', type=int)
+    debtor = scoped.filter_by(id=edit_id).first() if edit_id else None
+    if request.values.get('debtor_id') is not None and debtor is None:
+        abort(404)
+    error, status = None, 200
+    values = {}
+    if request.method == 'POST':
+        values = {field: request.form.get(field, '').strip() for field in ('name','phone','email','address')}
+        if not values['name'] or len(values['name']) > 150 or len(values['phone']) > 50 or len(values['email']) > 150 or len(values['address']) > 4000:
+            error, status = 'Enter a name (up to 150 characters) and valid contact details.', 400
+        else:
+            if debtor is None:
+                duplicate = scoped.filter(func.lower(Debtor.name) == values['name'].lower(),
+                                          Debtor.phone == values['phone'], Debtor.email == values['email']).first()
+                if duplicate:
+                    flash('This debtor is already saved for this shop.', 'info')
+                    return redirect(url_for('mechanic_bp.shop_debtor_register', shop_id=shop.id, debtor_id=duplicate.id))
+                debtor = Debtor(user_id=current_user.id, shop_id=shop.id, slug_reference='protrade')
+                client = MechClient(user_id=current_user.id, shop_id=shop.id, name=values['name'])
+                db.session.add(client)
+                db.session.flush()
+                debtor.reference_id = client.id
+                db.session.add(debtor)
+            else:
+                client = MechClient.query.filter_by(id=debtor.reference_id, shop_id=shop.id, user_id=current_user.id).first()
+                if not client:
+                    abort(409)
+            for field, value in values.items():
+                setattr(debtor, field, value)
+                setattr(client, field, value)
+            db.session.commit()
+            flash('Debtor saved for this shop.', 'success')
+            return redirect(url_for('mechanic_bp.shop_debtor_register', shop_id=shop.id, debtor_id=debtor.id))
+    documents = []
+    if debtor:
+        for quote in ProTradeBoqQuote.query.filter_by(shop_id=shop.id, user_id=current_user.id, debtor_id=debtor.id).order_by(ProTradeBoqQuote.id.desc()).all():
+            documents.append(dict(number=quote.quote_number, label='Draft quotation' if quote.is_draft else 'Quotation',
+                                  href=url_for('mechanic_bp.carpentry_quote_view', shop_id=shop.id, quote_id=quote.id)))
+        for job in MechJobCard.query.filter_by(shop_id=shop.id, debtor_id=debtor.id).join(MechVehicle).join(MechClient).filter(MechClient.user_id==current_user.id).order_by(MechJobCard.id.desc()).all():
+            documents.append(dict(number=job.job_number, label='Draft quotation' if job.is_draft and job.status=='Quote' else job.status, href=url_for('mechanic_bp.job_card_detail',id=job.id,shop_id=shop.id)))
+    return render_template('program_mechanic/shop_debtors.html', shop=shop, shops=[], debtors=scoped.order_by(Debtor.name,Debtor.id).all(),
+                           edit_debtor=debtor, documents=documents, values=values, error=error), status
+
+
+@mechanic_bp.route('/mechanic/shop/<int:shop_id>/debtor/<int:debtor_id>/quote', methods=['GET','POST'])
+@login_required
+def debtor_quote(shop_id, debtor_id):
+    from flask import abort
+    from app.models.debtors import Debtor
+    shop = MechShop.query.filter_by(id=shop_id, user_id=current_user.id).first()
+    debtor = Debtor.query.filter_by(id=debtor_id, shop_id=shop_id, user_id=current_user.id).first()
+    if not shop or not debtor:
+        abort(404)
+    return register_trade_quote(shop_id, debtor.reference_id, debtor_id=debtor.id)
+
+
+@mechanic_bp.route('/mechanic/shop/<int:shop_id>/debtor/<int:debtor_id>/quotes/new', methods=['POST'])
+@login_required
+def new_debtor_quote(shop_id, debtor_id):
+    from flask import abort
+    from app.models.debtors import Debtor
+    from app.models.mechanic import ProTradeBoqQuote, MechJobCard
+    shop = MechShop.query.filter_by(id=shop_id, user_id=current_user.id).first()
+    debtor = Debtor.query.filter_by(id=debtor_id, shop_id=shop_id, user_id=current_user.id).first()
+    if not shop or not debtor or (shop.trade or 'mechanic') not in ('mechanic','carpentry'):
+        abort(404)
+    # Serialize concurrent explicit New Quote requests for this debtor.
+    Debtor.query.filter_by(id=debtor.id).with_for_update().first()
+    if shop.trade == 'carpentry':
+        drafts = ProTradeBoqQuote.query.filter_by(user_id=current_user.id,shop_id=shop.id,debtor_id=debtor.id,is_draft=True).all()
+    else:
+        drafts = MechJobCard.query.filter_by(shop_id=shop.id,debtor_id=debtor.id,is_draft=True,status='Quote').all()
+    for draft in drafts:
+        draft.is_draft = False
+    db.session.commit()
+    return redirect(url_for('mechanic_bp.debtor_quote',shop_id=shop.id,debtor_id=debtor.id))
+
+
 @mechanic_bp.route('/mechanic/quote-invoice', methods=['GET'])
 @login_required
 def quote_invoice_register():
@@ -1165,7 +1223,7 @@ def quote_invoice_register():
         quotes = ProTradeBoqQuote.query.filter_by(user_id=current_user.id, shop_id=shop.id, trade='carpentry').all()
         for quote in quotes:
             rows.append(dict(kind='Quotation', number=quote.quote_number, client=quote.client_name,
-                             status='Saved', amount=quote.grand_total, date=quote.created_at,
+                             status='Draft' if quote.is_draft else 'Saved', amount=quote.grand_total, date=quote.created_at,
                              href=url_for('mechanic_bp.carpentry_quote_view', shop_id=shop.id, quote_id=quote.id)))
     elif shop and (shop.trade or 'mechanic') == 'mechanic':
         owned_jobs = MechJobCard.query.join(MechVehicle).join(MechClient).filter(MechClient.user_id == current_user.id)
@@ -1212,40 +1270,55 @@ def shop_register_quote(shop_id):
     return register_trade_quote(shop_id, client_id)
 
 
-def register_trade_quote(shop_id, client_id=None):
+def register_trade_quote(shop_id, client_id=None, debtor_id=None):
     from flask import abort
-    from app.models.mechanic import MechClient
+    from app.models.debtors import Debtor
+    from app.models.mechanic import MechClient, MechJobCard
     shop = MechShop.query.filter_by(id=shop_id, user_id=current_user.id).first()
     if not shop:
         abort(404)
-    customer = None
-    if client_id is not None:
-        customer = MechClient.query.filter_by(id=client_id, user_id=current_user.id).first()
-        if not customer:
-            abort(404)
+    debtor_id = debtor_id or request.values.get('debtor_id', type=int)
+    if debtor_id is None:
+        return redirect(url_for('mechanic_bp.shop_debtor_register', shop_id=shop.id))
+    debtor = Debtor.query.filter_by(id=debtor_id, shop_id=shop.id, user_id=current_user.id).first()
+    if not debtor or (client_id is not None and client_id != debtor.reference_id):
+        abort(404)
+    customer = MechClient.query.filter_by(id=debtor.reference_id, shop_id=shop.id, user_id=current_user.id).first()
+    if not customer:
+        abort(404)
     if (shop.trade or 'mechanic') == 'mechanic':
-        return redirect(url_for('mechanic_bp.new_quote', shop_id=shop.id,
-                                client_id=customer.id if customer else None,
-                                register_shop_id=shop.id if customer is None else None))
+        draft = MechJobCard.query.filter_by(shop_id=shop.id, debtor_id=debtor.id, status='Quote', is_draft=True).first()
+        if draft:
+            return redirect(url_for('mechanic_bp.edit_quote', id=draft.id, shop_id=shop.id, debtor_id=debtor.id))
+        return redirect(url_for('mechanic_bp.new_quote', shop_id=shop.id, client_id=customer.id, debtor_id=debtor.id))
     if shop.trade != 'carpentry':
         abort(404)
-    return carpentry_quote_form(shop, customer)
+    return carpentry_quote_form(shop, customer, debtor)
 
 
-def carpentry_quote_form(shop, customer=None):
+def carpentry_quote_form(shop, customer, debtor):
     from decimal import Decimal, InvalidOperation, ROUND_HALF_UP, localcontext
     from uuid import uuid4, UUID
     from app.models.mechanic import ProTradeBoqItem, ProTradeBoqQuote
     from sqlalchemy.exc import IntegrityError
+    from app.models.debtors import Debtor
+    # A row lock serializes saves; GET only reads and never allocates a quote.
+    if request.method == 'POST':
+        Debtor.query.filter_by(id=debtor.id,shop_id=shop.id,user_id=current_user.id).with_for_update().first()
+    draft = ProTradeBoqQuote.query.filter_by(user_id=current_user.id,shop_id=shop.id,debtor_id=debtor.id,is_draft=True).first()
     items = ProTradeBoqItem.query.filter_by(user_id=current_user.id, shop_id=shop.id, trade='carpentry').order_by(ProTradeBoqItem.code).all()
-    details = dict(name=customer.name if customer else shop.business_name,
-                   phone=customer.phone if customer else shop.phone,
-                   email=customer.email if customer else shop.email,
-                   address=customer.address if customer else shop.address)
-    selected_ids = set()
-    quantities = {}
+    details = dict(name=debtor.name,phone=debtor.phone,email=debtor.email,address=debtor.address)
+    if draft:
+        from types import SimpleNamespace
+        by_id = {item.id:item for item in items}
+        for line in draft.items:
+            by_id[line['source_item_id']] = SimpleNamespace(id=line['source_item_id'], code=line['code'], description=line['description'],
+                unit=line['unit'], material_rate=Decimal(line['material_rate']), labour_rate=Decimal(line['labour_rate']))
+        items = sorted(by_id.values(),key=lambda item:item.code)
+    selected_ids = {line['source_item_id'] for line in draft.items} if draft else set()
+    quantities = {line['source_item_id']:line['quantity'] for line in draft.items} if draft else {}
     error, status = None, 200
-    quote_key = uuid4().hex
+    quote_key = draft.quote_number.removeprefix('CAR-Q-').lower() if draft else uuid4().hex
     if request.method == 'POST':
         try:
             try:
@@ -1256,7 +1329,7 @@ def carpentry_quote_form(shop, customer=None):
             saved = ProTradeBoqQuote.query.filter_by(quote_number=number, user_id=current_user.id,
                                                      shop_id=shop.id, trade='carpentry',
                                                      client_id=customer.id if customer else None).first()
-            if saved:
+            if saved and saved.id != (draft.id if draft else None):
                 return redirect(url_for('mechanic_bp.carpentry_quote_view', shop_id=shop.id, quote_id=saved.id))
             raw_ids = request.form.getlist('item_id[]')
             if not raw_ids or len(raw_ids) != len(set(raw_ids)):
@@ -1292,10 +1365,18 @@ def carpentry_quote_form(shop, customer=None):
                 grand_total += amount
             if grand_total > Decimal('99999999999999999999999999.99'):
                 raise ValueError('Quotation total is too large to save.')
-            quote = ProTradeBoqQuote(user_id=current_user.id, shop_id=shop.id,
+            quote = draft or ProTradeBoqQuote(user_id=current_user.id, shop_id=shop.id,
                                     client_id=customer.id if customer else None, trade='carpentry', quote_number=number,
                                     client_name=details['name'], client_phone=details['phone'], client_email=details['email'],
                                     client_address=details['address'], items=lines, grand_total=grand_total)
+            quote.debtor_id = debtor.id
+            quote.client_name = details['name']
+            quote.client_phone = details['phone']
+            quote.client_email = details['email']
+            quote.client_address = details['address']
+            quote.is_draft = True
+            quote.items = lines
+            quote.grand_total = grand_total
             db.session.add(quote)
             db.session.commit()
             flash('Carpentry quote saved.', 'success')
@@ -1306,9 +1387,9 @@ def carpentry_quote_form(shop, customer=None):
             db.session.rollback()
             error, status = 'This quote could not be saved. Reopen the form and try again.', 409
     recent = ProTradeBoqQuote.query.filter_by(user_id=current_user.id, shop_id=shop.id,
-                                             trade='carpentry', client_id=customer.id if customer else None).order_by(ProTradeBoqQuote.id.desc()).limit(10).all()
+                                             trade='carpentry', debtor_id=debtor.id).order_by(ProTradeBoqQuote.id.desc()).limit(10).all()
     return render_template('program_mechanic/carpentry_quote.html', shop=shop, customer=customer,
-                           details=details, boq_items=items, quote_key=quote_key, selected_ids=selected_ids,
+                           details=details, debtor=debtor, draft=draft, boq_items=items, quote_key=quote_key, selected_ids=selected_ids,
                            quantities=quantities, error=error, saved_quote=None, recent_quotes=recent), status
 
 
@@ -1484,12 +1565,17 @@ def client_soa(client_id):
 def edit_quote(id):
     from app.models.mechanic import MechJobCard, MechLaborLine, MechPartLine, MechCatalogPart, MechShop
     
-    job_card = MechJobCard.query.get_or_404(id)
+    from flask import abort
+    job_card = MechJobCard.query.join(MechVehicle).join(MechClient).filter(MechJobCard.id==id,MechClient.user_id==current_user.id).first()
+    if not job_card:
+        abort(404)
     if job_card.status != 'Quote':
         flash("Only Quotes can be edited. This job card has already progressed.", "warning")
         return redirect(url_for('mechanic_bp.job_card_detail', id=id))
         
     active_shop = price_list_shop()
+    if job_card.shop_id is not None and (not active_shop or job_card.shop_id != active_shop.id):
+        abort(404)
     
     if request.method == "POST":
         # Process dynamic labor and parts arrays
@@ -1578,6 +1664,12 @@ def edit_quote(id):
             
             # Client details
             customer_name = request.form.get("customer_name")
+            if job_card.debtor_id is not None:
+                from app.models.debtors import Debtor
+                quote_debtor = Debtor.query.filter_by(id=job_card.debtor_id,shop_id=job_card.shop_id,user_id=current_user.id).first()
+                if not quote_debtor:
+                    abort(404)
+                customer_name = quote_debtor.name
             if customer_name and vehicle.client:
                 vehicle.client.name = customer_name
                 
@@ -1604,13 +1696,24 @@ def new_quote():
         flash("You must complete your shop setup first.", "warning")
         return redirect(url_for("mechanic_bp.mechanic_dashboard"))
         
+    from app.models.debtors import Debtor
+    debtor = Debtor.query.filter_by(id=request.values.get('debtor_id',type=int),shop_id=active_shop.id,user_id=current_user.id).first()
+    if not debtor:
+        return redirect(url_for('mechanic_bp.shop_debtor_register',shop_id=active_shop.id))
+    if (active_shop.trade or 'mechanic') != 'mechanic':
+        return redirect(url_for('mechanic_bp.debtor_quote',shop_id=active_shop.id,debtor_id=debtor.id))
+    if request.method == 'POST':
+        Debtor.query.filter_by(id=debtor.id,shop_id=active_shop.id,user_id=current_user.id).with_for_update().first()
+    existing_draft = MechJobCard.query.filter_by(shop_id=active_shop.id,debtor_id=debtor.id,status='Quote',is_draft=True).first()
+    if existing_draft:
+        return redirect(url_for('mechanic_bp.edit_quote',id=existing_draft.id,shop_id=active_shop.id,debtor_id=debtor.id))
     from app.models.mechanic import MechClient
     from flask import abort
     quote_client = None
     selected_client = None
-    raw_client = request.values.get('client_id')
+    raw_client = str(debtor.reference_id)
     if raw_client is not None:
-        selected_client = MechClient.query.filter_by(id=request.values.get('client_id', type=int), user_id=current_user.id).first()
+        selected_client = MechClient.query.filter_by(id=debtor.reference_id, shop_id=active_shop.id, user_id=current_user.id).first()
         if not selected_client:
             abort(404)
         quote_client = selected_client
@@ -1719,6 +1822,8 @@ def new_quote():
         job_card = MechJobCard(
             job_number=job_number,
             shop_id=active_shop.id,
+            debtor_id=debtor.id,
+            is_draft=True,
             vehicle_id=vehicle.id,
             status='Quote',
             vat_rate=active_shop.vat_rate

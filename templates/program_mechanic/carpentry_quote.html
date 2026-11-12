@@ -9,8 +9,8 @@
       {% include 'partials/flash_messages.html' %}
       <div class="flex items-center justify-between gap-4">
         <div><h1 class="text-2xl font-semibold text-slate-900">Carpentry BOQ Quotation</h1>
-          <p class="mt-1 text-sm text-slate-600">{{ shop.business_name }}{% if saved_quote %} &middot; {{ saved_quote.quote_number }}{% endif %}</p></div>
-        <a href="{{ url_for('mechanic_bp.mechanic_dashboard', shop_id=shop.id) }}" class="rounded-lg bg-slate-100 px-4 py-2 font-semibold text-slate-700">Back</a>
+          <p class="mt-1 text-sm text-slate-600">{{ shop.business_name }}{% if saved_quote %} &middot; {{ saved_quote.quote_number }}{% elif draft %} &middot; Draft {{ draft.quote_number }}{% endif %}</p></div>
+        <a href="{{ url_for('mechanic_bp.shop_debtor_register', shop_id=shop.id, debtor_id=saved_quote.debtor_id if saved_quote else debtor.id) }}" class="rounded-lg bg-slate-100 px-4 py-2 font-semibold text-slate-700">Back</a>
       </div>
       <h2 class="mt-6 text-lg font-semibold">Client Details</h2>
       <dl class="mt-3 grid grid-cols-1 gap-3 rounded-lg border border-slate-200 bg-slate-50 p-4 sm:grid-cols-2">
@@ -20,6 +20,10 @@
         <div><dt class="text-sm text-slate-500">Address</dt><dd>{{ details.address or '' }}</dd></div>
       </dl>
       {% if saved_quote %}
+      {% if saved_quote.debtor_id %}<div class="mt-4 flex justify-end gap-3">
+        {% if saved_quote.is_draft %}<a href="{{ url_for('mechanic_bp.debtor_quote', shop_id=shop.id, debtor_id=saved_quote.debtor_id) }}" class="rounded-lg bg-blue-100 px-4 py-2 font-semibold">Edit Draft</a>{% endif %}
+        <form method="POST" action="{{ url_for('mechanic_bp.new_debtor_quote',shop_id=shop.id,debtor_id=saved_quote.debtor_id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="rounded-lg bg-slate-800 px-4 py-2 font-semibold text-white">New Quote</button></form>
+      </div>{% endif %}
       <h2 class="mt-6 text-lg font-semibold">Saved Carpentry BOQ Items</h2>
       <div class="mt-3 overflow-x-auto rounded-lg border border-slate-200">
         <table class="w-full text-left text-sm"><thead class="bg-slate-50"><tr>
@@ -33,7 +37,7 @@
       </div>
       <p class="mt-4 text-right text-xl font-semibold">Grand Total: R <span id="quote-grand-total">{{ '{:.2f}'.format(saved_quote.grand_total) }}</span></p>
       {% else %}
-      <form id="carpentry-quote-form" method="POST" action="{{ url_for('mechanic_bp.shop_register_quote', shop_id=shop.id, client_id=customer.id if customer else none) }}">
+      <form id="carpentry-quote-form" method="POST" action="{{ url_for('mechanic_bp.debtor_quote', shop_id=shop.id, debtor_id=debtor.id) }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="quote_key" value="{{ quote_key }}">
         {% if customer %}<input type="hidden" name="client_id" value="{{ customer.id }}">{% endif %}
@@ -54,7 +58,7 @@
           </tbody></table>
         </div>
         <p class="mt-4 text-right text-xl font-semibold">Grand Total: R <output id="quote-grand-total" aria-live="polite">0.00</output></p>
-        <div class="mt-4 flex justify-end"><button type="submit" {% if not boq_items %}disabled{% endif %} class="rounded-lg bg-slate-800 px-4 py-2 font-semibold text-white disabled:opacity-50">Save Quote</button></div>
+        <div class="mt-4 flex justify-end"><button type="submit" {% if not boq_items %}disabled{% endif %} class="rounded-lg bg-slate-800 px-4 py-2 font-semibold text-white disabled:opacity-50">{{ 'Save Changes' if draft else 'Save Quote' }}</button></div>
       </form>
       {% if recent_quotes %}<h2 class="mt-6 text-lg font-semibold">Saved Quotes</h2><ul class="mt-2 space-y-2">{% for quote in recent_quotes %}<li><a class="text-blue-700 underline" href="{{ url_for('mechanic_bp.carpentry_quote_view', shop_id=shop.id, quote_id=quote.id) }}">{{ quote.quote_number }} &middot; R {{ '{:.2f}'.format(quote.grand_total) }}</a></li>{% endfor %}</ul>{% endif %}
       <script>

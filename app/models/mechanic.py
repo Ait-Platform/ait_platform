@@ -48,9 +48,13 @@ class ProTradeBoqItem(db.Model):
     material_rate = db.Column(db.Numeric(14, 2), nullable=False)
     labour_rate = db.Column(db.Numeric(14, 2), nullable=False)
     total_rate = db.Column(db.Numeric(15, 2), db.Computed('material_rate + labour_rate', persisted=True))
+    quantity = db.Column(db.Numeric(14, 3), nullable=False, default=1, server_default='1')
+    total_amount = db.Column(db.Numeric(28, 2), db.Computed('quantity * (material_rate + labour_rate)', persisted=True))
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     __table_args__ = (
         db.UniqueConstraint('shop_id', 'trade', 'code', name='uq_protrade_boq_shop_trade_code'),
+        db.CheckConstraint('quantity > 0 AND quantity <= 99999999999.999', name='ck_protrade_boq_quantity'),
+        db.CheckConstraint("unit <> 'Each' OR quantity = trunc(quantity)", name='ck_protrade_boq_each_quantity'),
         db.CheckConstraint("code = upper(trim(code)) AND length(code) > 0", name='ck_protrade_boq_code'),
         db.CheckConstraint("length(trim(description)) > 0", name='ck_protrade_boq_description'),
         db.CheckConstraint("unit IN ('Each', 'm', 'm\u00b2', 'm\u00b3', 'Hour')", name='ck_protrade_boq_unit'),

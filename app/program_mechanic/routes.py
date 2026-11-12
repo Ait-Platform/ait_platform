@@ -1157,7 +1157,7 @@ def carpentry_boq_price_list(shop):
         item = query.filter_by(id=identifier).first()
         if not item:
             abort(404)
-    fields = ('code', 'description', 'unit', 'material_rate', 'labour_rate')
+    fields = ('code', 'description', 'unit', 'material_rate', 'labour_rate', 'quantity')
     values = {field: getattr(item, field) for field in fields} if item else {}
     error = None
     status = 200
@@ -1165,6 +1165,7 @@ def carpentry_boq_price_list(shop):
         if request.form.get('action') != 'save_boq':
             abort(400)
         values = {field: request.form.get(field, '').strip() for field in fields}
+        values['quantity'] = request.form.get('quantity', str(item.quantity) if item else '1').strip()
         try:
             preset_code = request.form.get('preset_code', '').strip()
             selected = next((entry for entry in work_items if entry['code'] == preset_code), None)
@@ -1175,14 +1176,25 @@ def carpentry_boq_price_list(shop):
                 selected = next((entry for entry in work_items
                                  if entry['description'].casefold() == values['description'].casefold()), None)
             if selected:
-                values.update(selected)
+                values.update(code=selected['code'], description=selected['description'])
+                values['unit'] = values['unit'] or selected['unit']
             else:
                 values['code'] = item.code if item else custom_boq_code(shop.trade)
             if not values['description'] or len(values['description']) > 4000:
                 raise ValueError('Enter a description of up to 4000 characters.')
             if values['unit'] not in units:
                 raise ValueError('Select Each, m, m\u00b2, m\u00b3 or Hour.')
-            rates = {}
+            try:
+                quantity = Decimal(values['quantity'])
+            except InvalidOperation:
+                raise ValueError('Enter a valid quantity.') from None
+            if not quantity.is_finite() or quantity <= 0 or quantity > Decimal('99999999999.999'):
+                raise ValueError('Quantity must be greater than zero and at most 99999999999.999.')
+            if quantity != quantity.quantize(Decimal('0.001')):
+                raise ValueError('Quantity may have at most three decimal places.')
+            if values['unit'] == 'Each' and quantity != quantity.to_integral_value():
+                raise ValueError('Each requires a whole-number quantity.')
+            rates = {'quantity': quantity}
             for field in ('material_rate', 'labour_rate'):
                 try:
                     rate = Decimal(values[field])

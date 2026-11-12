@@ -48,6 +48,10 @@
             </select>
           </div>
           <div>
+            <label for="boq-quantity" class="mb-1 block text-sm font-semibold">Quantity</label>
+            <input id="boq-quantity" name="quantity" type="number" min="0.001" max="99999999999.999" step="0.001" value="{{ values.get('quantity', 1) }}" required class="w-full rounded-lg border border-slate-300 px-3 py-2">
+          </div>
+          <div>
             <label for="material-rate" class="mb-1 block text-sm font-semibold">Material Rate (R per unit)</label>
             <input id="material-rate" name="material_rate" type="number" min="0" max="999999999999.99" step="0.01" value="{{ values.get('material_rate', '') }}" required class="w-full rounded-lg border border-slate-300 px-3 py-2">
           </div>
@@ -56,19 +60,19 @@
             <input id="labour-rate" name="labour_rate" type="number" min="0" max="999999999999.99" step="0.01" value="{{ values.get('labour_rate', '') }}" required class="w-full rounded-lg border border-slate-300 px-3 py-2">
           </div>
         </div>
-        <p class="mt-4 text-sm font-semibold text-slate-800">Total Rate: R <output id="total-rate" for="material-rate labour-rate" aria-live="polite">0.00</output> per unit</p>
+        <p class="mt-4 text-sm font-semibold text-slate-800">Unit Rate: R <output id="total-rate" for="material-rate labour-rate">0.00</output> &middot; Total: R <output id="total-amount" for="boq-quantity material-rate labour-rate" aria-live="polite">0.00</output></p>
       </form>
       <div class="mt-6 overflow-x-auto rounded-lg border border-slate-200">
         <table id="boq-items" class="w-full text-left text-sm">
           <thead class="bg-slate-50"><tr>
-            {% for heading in ['BOQ Code', 'Description', 'Unit', 'Material R', 'Labour R', 'Total R', 'Action'] %}<th class="p-3 font-semibold text-slate-700">{{ heading }}</th>{% endfor %}
+            {% for heading in ['BOQ Code', 'Description', 'Unit', 'Quantity', 'Material R/unit', 'Labour R/unit', 'Unit Rate R', 'Total R', 'Action'] %}<th class="p-3 font-semibold text-slate-700">{{ heading }}</th>{% endfor %}
           </tr></thead>
           <tbody>
             {% for item in boq_items %}<tr class="border-t border-slate-200">
-              <td class="p-3 font-semibold">{{ item.code }}</td><td class="p-3">{{ item.description }}</td><td class="p-3 whitespace-nowrap">{{ item.unit }}</td>
-              <td class="p-3">{{ '%.2f'|format(item.material_rate) }}</td><td class="p-3">{{ '%.2f'|format(item.labour_rate) }}</td><td class="p-3 font-semibold">{{ '%.2f'|format(item.total_rate) }}</td>
+              <td class="p-3 font-semibold">{{ item.code }}</td><td class="p-3">{{ item.description }}</td><td class="p-3 whitespace-nowrap">{{ item.unit }}</td><td class="p-3">{{ item.quantity }}</td>
+              <td class="p-3">{{ '%.2f'|format(item.material_rate) }}</td><td class="p-3">{{ '%.2f'|format(item.labour_rate) }}</td><td class="p-3 font-semibold">{{ '%.2f'|format(item.total_rate) }}</td><td class="p-3 font-semibold">{{ '{:.2f}'.format(item.total_amount) }}</td>
               <td class="p-3"><a href="{{ url_for('mechanic_bp.catalog_manage', shop_id=shop.id, edit_id=item.id) }}" class="font-semibold text-blue-700 underline" aria-label="Edit {{ item.code }}">Edit</a></td>
-            </tr>{% else %}<tr><td colspan="7" class="p-6 text-center text-slate-600">No BOQ items yet. Add your first Carpentry item above.</td></tr>{% endfor %}
+            </tr>{% else %}<tr><td colspan="9" class="p-6 text-center text-slate-600">No BOQ items yet. Add your first Carpentry item above.</td></tr>{% endfor %}
           </tbody>
         </table>
       </div>
@@ -87,19 +91,37 @@
     const selected = workItems.find(item => item.description.toLowerCase() === description.value.trim().toLowerCase());
     preset.value = selected ? selected.code : '';
     code.value = selected ? selected.code : originalCode;
-    unit.disabled = Boolean(selected);
     if (selected) unit.value = selected.unit;
+    updateQuantityStep();
   });
   const material = document.getElementById('material-rate');
   const labour = document.getElementById('labour-rate');
   const total = document.getElementById('total-rate');
+  const quantity = document.getElementById('boq-quantity');
+  const amount = document.getElementById('total-amount');
+  function updateQuantityStep() {
+    quantity.step = unit.value === 'Each' ? '1' : '0.001';
+    quantity.min = unit.value === 'Each' ? '1' : '0.001';
+    updateTotal();
+  }
   function updateTotal() {
     const cents = [material, labour].map(input => Math.round(Number(input.value || 0) * 100));
-    total.value = cents.every(Number.isFinite) ? ((cents[0] + cents[1]) / 100).toFixed(2) : '0.00';
+    const rateCents = cents[0] + cents[1];
+    const quantityMillis = Math.round(Number(quantity.value || 0) * 1000);
+    total.value = cents.every(Number.isFinite) ? (rateCents / 100).toFixed(2) : '0.00';
+    // Integer arithmetic preserves decimal rounding for the displayed amount.
+    if (cents.every(Number.isSafeInteger) && Number.isSafeInteger(quantityMillis) && rateCents >= 0 && quantityMillis >= 0) {
+      const amountCents = (BigInt(rateCents) * BigInt(quantityMillis) + 500n) / 1000n;
+      amount.value = `${amountCents / 100n}.${String(amountCents % 100n).padStart(2, '0')}`;
+    } else {
+      amount.value = '0.00';
+    }
   }
   material.addEventListener('input', updateTotal);
   labour.addEventListener('input', updateTotal);
-  updateTotal();
+  quantity.addEventListener('input', updateTotal);
+  unit.addEventListener('change', updateQuantityStep);
+  updateQuantityStep();
 })();
 </script>
 {% endblock %}

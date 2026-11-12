@@ -13,14 +13,14 @@ class CarpentryCatalogTests(unittest.TestCase):
     snapshot = base.CarpentryBoqTests.snapshot
 
     def test_all_predefined_items_map_to_exact_codes_and_units_server_side(self):
-        # Requests deliberately provide wrong manual codes/units: registration wins.
+        # Empty units use the predefined default; manual codes cannot override it.
         from app.protrade_boq_catalog import work_items_for
         entries = work_items_for('carpentry')
         self.assertEqual(len(entries), 15)
         self.assertEqual(entries[3], dict(code='CAR-004', description='Install skirting', unit='m'))
         self.assertEqual(entries[-1], dict(code='CAR-015', description='General carpentry work', unit='Hour'))
         for entry in entries:
-            self.save(preset_code=entry['code'], description='forged', code='FORGED', unit='kg')
+            self.save(preset_code=entry['code'], description='forged', code='FORGED', unit='')
             item = base.ProTradeBoqItem.query.filter_by(code=entry['code']).one()
             self.assertEqual((item.description, item.unit), (entry['description'], entry['unit']))
             self.assertEqual(item.total_rate, Decimal('1850.00'))
@@ -36,7 +36,7 @@ class CarpentryCatalogTests(unittest.TestCase):
         self.assertTrue(tree.xpath('//select[@name="unit"]/option[@value="Hour"]'))
         self.assertEqual(base.ProTradeBoqItem.query.count(), 0)
         # Works without JavaScript too: description match resolves the preset.
-        self.save(description=' install skirting ', unit='Each', code='MANUAL')
+        self.save(description=' install skirting ', unit='', code='MANUAL')
         item = base.ProTradeBoqItem.query.one()
         self.assertEqual((item.code, item.description, item.unit), ('CAR-004', 'Install skirting', 'm'))
 
@@ -88,7 +88,7 @@ class CarpentryCatalogTests(unittest.TestCase):
                 page.locator('#boq-description').fill('Install skirting')
                 self.assertEqual(page.locator('#boq-code').input_value(), 'CAR-004')
                 self.assertEqual(page.locator('#boq-unit').input_value(), 'm')
-                self.assertTrue(page.locator('#boq-unit').is_disabled())
+                self.assertFalse(page.locator('#boq-unit').is_disabled())
                 self.assertEqual(page.locator('#preset-code').input_value(), 'CAR-004')
                 page.locator('#material-rate').fill('0.10')
                 page.locator('#labour-rate').fill('0.20')
@@ -108,7 +108,7 @@ class CarpentryCatalogTests(unittest.TestCase):
         # Re-running constraint-only migration must not rewrite any existing fields.
         self.unit_migration.upgrade()
         self.assertEqual(self.conn.exec_driver_sql('SELECT * FROM protrade_boq_items ORDER BY id').all(), before)
-        self.save(preset_code='CAR-015')
+        self.save(preset_code='CAR-015', unit='')
         self.assertEqual(base.ProTradeBoqItem.query.filter_by(code='CAR-015').one().unit, 'Hour')
         self.assertEqual(self.snapshot(), self.original)
 

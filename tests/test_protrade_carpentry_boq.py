@@ -36,6 +36,11 @@ class CarpentryBoqTests(unittest.TestCase):
         spec.loader.exec_module(self.unit_migration)
         self.unit_migration.op = Operations(MigrationContext.configure(self.conn))
         self.unit_migration.upgrade()
+        spec = importlib.util.spec_from_file_location('boq_quantity_migration', ROOT / 'migrations/versions/protrade_boq_004.py')
+        self.quantity_migration = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(self.quantity_migration)
+        self.quantity_migration.op = Operations(MigrationContext.configure(self.conn))
+        self.quantity_migration.upgrade()
 
     def snapshot(self):
         return self.conn.exec_driver_sql('SELECT * FROM mech_catalog_parts ORDER BY id').all()

@@ -34,6 +34,29 @@ class MechCatalogPart(db.Model):
     default_price = db.Column(db.Float, default=0.0)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
+
+class ProTradeBoqItem(db.Model):
+    """Reusable per-unit BOQ pricing; enabled for Carpentry first."""
+    __tablename__ = 'protrade_boq_items'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    shop_id = db.Column(db.Integer, db.ForeignKey('mech_shops.id'), nullable=False)
+    trade = db.Column(db.String(50), nullable=False)
+    code = db.Column(db.String(50), nullable=False)
+    description = db.Column(db.Text, nullable=False)
+    unit = db.Column(db.String(8), nullable=False)
+    material_rate = db.Column(db.Numeric(14, 2), nullable=False)
+    labour_rate = db.Column(db.Numeric(14, 2), nullable=False)
+    total_rate = db.Column(db.Numeric(15, 2), db.Computed('material_rate + labour_rate', persisted=True))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    __table_args__ = (
+        db.UniqueConstraint('shop_id', 'trade', 'code', name='uq_protrade_boq_shop_trade_code'),
+        db.CheckConstraint("code = upper(trim(code)) AND length(code) > 0", name='ck_protrade_boq_code'),
+        db.CheckConstraint("length(trim(description)) > 0", name='ck_protrade_boq_description'),
+        db.CheckConstraint("unit IN ('Each', 'm', 'm\u00b2', 'm\u00b3')", name='ck_protrade_boq_unit'),
+        db.CheckConstraint('material_rate BETWEEN 0 AND 999999999999.99 AND labour_rate BETWEEN 0 AND 999999999999.99', name='ck_protrade_boq_rates'),
+    )
+
 class MechClient(db.Model):
     __tablename__ = 'mech_clients'
     id = db.Column(db.Integer, primary_key=True)

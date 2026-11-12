@@ -10,7 +10,7 @@ class PriceListTests(unittest.TestCase):
         ShopRegisterTests.setUp(self)
         self.mech = self.shop(status='active')
         self.second = self.shop(name='Second Mechanic', status='active')
-        self.carpentry = self.shop(name='Happy Carpentry', trade='carpentry', status='active')
+        self.panel = self.shop(name='Panel Shop', trade='panel', status='active')
         self.other = self.shop(owner=2, name='Other Owner', status='active')
         self.global_part = self.part('Brake Pads', 450)
         self.legacy = self.part('Brake Pads', 475, user_id=1)
@@ -46,10 +46,10 @@ class PriceListTests(unittest.TestCase):
         self.assertEqual(self.ns['selected_price_list'](self.mech)[0].id, self.legacy.id)
 
     def test_trade_and_same_owner_shop_isolation(self):
-        self.part('Wooden door', 1200, user_id=1, shop_id=self.carpentry.id, trade='carpentry')
-        self.part('Wrong trade', 10, user_id=1, shop_id=self.carpentry.id, trade='plumbing')
-        page = self.page(self.carpentry)
-        self.assertIn('Trade: Carpentry', page)
+        self.part('Wooden door', 1200, user_id=1, shop_id=self.panel.id, trade='panel')
+        self.part('Wrong trade', 10, user_id=1, shop_id=self.panel.id, trade='plumbing')
+        page = self.page(self.panel)
+        self.assertIn('Trade: Panel Beater', page)
         self.assertIn('Wooden door', page)
         self.assertNotIn('Brake Pads', page)
         self.assertNotIn('Wrong trade', page)
@@ -60,11 +60,11 @@ class PriceListTests(unittest.TestCase):
 
     def test_same_named_prices_repeat_save_update_only_selected_shop(self):
         for _ in range(2):
-            self.save(self.carpentry)
+            self.save(self.panel)
         self.save(self.second, price='600')
-        scoped = MechCatalogPart.query.filter_by(shop_id=self.carpentry.id).all()
+        scoped = MechCatalogPart.query.filter_by(shop_id=self.panel.id).all()
         self.assertEqual(len(scoped), 1)
-        self.assertEqual(scoped[0].trade, 'carpentry')
+        self.assertEqual(scoped[0].trade, 'panel')
         self.assertEqual(self.legacy.default_price, 475)
         self.assertEqual(self.global_part.default_price, 450)
         self.save(self.mech, price='500')
@@ -73,7 +73,7 @@ class PriceListTests(unittest.TestCase):
         self.assertEqual(scoped[0].default_price, 123.45)
 
     def test_delete_and_explicit_context_cannot_cross_shop_or_owner(self):
-        item = self.part('Wood', 10, user_id=1, shop_id=self.carpentry.id, trade='carpentry')
+        item = self.part('Wood', 10, user_id=1, shop_id=self.panel.id, trade='panel')
         for shop, identifier in [(self.mech, item.id), (self.second, self.legacy.id), (self.mech, self.global_part.id)]:
             self.client.post('/mechanic/catalog', data=dict(shop_id=shop.id, action='delete', part_id=identifier))
             self.assertIsNotNone(self.db_session.get(MechCatalogPart, identifier))
@@ -84,9 +84,9 @@ class PriceListTests(unittest.TestCase):
         with self.client.session_transaction() as sess:
             sess['active_trade'] = 'mechanic'
             sess['active_shop_id'] = self.mech.id
-        self.save(self.carpentry, name='Timber', trade='mechanic')
-        self.assertEqual(MechCatalogPart.query.filter_by(part_name='Timber').one().trade, 'carpentry')
-        self.client.post('/mechanic/catalog', data=dict(shop_id=self.carpentry.id, action='delete', part_id=item.id))
+        self.save(self.panel, name='Timber', trade='mechanic')
+        self.assertEqual(MechCatalogPart.query.filter_by(part_name='Timber').one().trade, 'panel')
+        self.client.post('/mechanic/catalog', data=dict(shop_id=self.panel.id, action='delete', part_id=item.id))
         self.assertIsNone(self.db_session.get(MechCatalogPart, item.id))
 
     def test_schema_upgrade_is_repeatable_and_preserves_legacy_rows(self):
@@ -113,18 +113,18 @@ class PriceListTests(unittest.TestCase):
     def test_menu_keeps_shop_context_and_trade_label(self):
         from flask import render_template
         with self.app.test_request_context('/'):
-            menu = render_template('program_mechanic/menu.html', active_shop=self.carpentry)
+            menu = render_template('program_mechanic/menu.html', active_shop=self.panel)
             # The integration harness stubs menu rendering for unrelated dashboard links.
             source = (ROOT / 'templates/program_mechanic/menu.html').read_text()
-            menu = self.app.jinja_env.from_string(source).render(active_shop=self.carpentry)
+            menu = self.app.jinja_env.from_string(source).render(active_shop=self.panel)
         tree = html.fromstring(menu)
         link = tree.xpath('//a[text()="Price List"]')[0]
-        self.assertIn(f'shop_id={self.carpentry.id}', link.get('href'))
+        self.assertIn(f'shop_id={self.panel.id}', link.get('href'))
         self.assertNotIn('Part List', menu)
-        response = self.client.get(f'/mechanic/dashboard?shop_id={self.carpentry.id}')
+        response = self.client.get(f'/mechanic/dashboard?shop_id={self.panel.id}')
         dashboard = html.fromstring(response.data)
-        self.assertIn('Carpentry', dashboard.xpath('//p[contains(@class,"text-xs") and contains(.,"Active Profile")]/text()')[0])
-        self.assertEqual(self.ns['registered_trade_name'](self.carpentry), 'Carpentry')
+        self.assertIn('Panel Beater', dashboard.xpath('//p[contains(@class,"text-xs") and contains(.,"Active Profile")]/text()')[0])
+        self.assertEqual(self.ns['registered_trade_name'](self.panel), 'Panel Beater')
 
 
 if __name__ == '__main__':

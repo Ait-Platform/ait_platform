@@ -1135,6 +1135,78 @@ def messages():
     return render_template('program_mechanic/messages.html', messages=msgs)
 
 
+def carpentry_boq_price_list(shop):
+    """Carpentry adapter for the shared, shop-scoped BOQ price-item model."""
+    from decimal import Decimal, InvalidOperation
+    from flask import abort
+    from sqlalchemy.exc import IntegrityError
+    from app.models.mechanic import ProTradeBoqItem
+
+    units = ('Each', 'm', 'm\u00b2', 'm\u00b3')
+    query = ProTradeBoqItem.query.filter_by(user_id=current_user.id, shop_id=shop.id, trade=shop.trade)
+    item = None
+    raw_id = request.form.get('item_id') if request.method == 'POST' else request.args.get('edit_id')
+    if raw_id:
+        try:
+            identifier = int(raw_id)
+        except (TypeError, ValueError):
+            abort(404)
+        item = query.filter_by(id=identifier).first()
+        if not item:
+            abort(404)
+    fields = ('code', 'description', 'unit', 'material_rate', 'labour_rate')
+    values = {field: getattr(item, field) for field in fields} if item else {}
+    error = None
+    status = 200
+    if request.method == 'POST':
+        if request.form.get('action') != 'save_boq':
+            abort(400)
+        values = {field: request.form.get(field, '').strip() for field in fields}
+        values['code'] = values['code'].upper()
+        try:
+            if not values['code'] or len(values['code']) > 50:
+                raise ValueError('Enter a BOQ code of up to 50 characters.')
+            if not values['description'] or len(values['description']) > 4000:
+                raise ValueError('Enter a description of up to 4000 characters.')
+            if values['unit'] not in units:
+                raise ValueError('Select Each, m, m\u00b2 or m\u00b3.')
+            rates = {}
+            for field in ('material_rate', 'labour_rate'):
+                try:
+                    rate = Decimal(values[field])
+                except InvalidOperation:
+                    raise ValueError('Enter valid material and labour rates.') from None
+                if not rate.is_finite() or rate < 0 or rate > Decimal('999999999999.99'):
+                    raise ValueError('Rates must be between 0 and 999999999999.99.')
+                if rate != rate.quantize(Decimal('0.01')):
+                    raise ValueError('Rates may have at most two decimal places.')
+                rates[field] = rate
+            duplicate = query.filter_by(code=values['code'])
+            if item:
+                duplicate = duplicate.filter(ProTradeBoqItem.id != item.id)
+            if duplicate.first():
+                error, status = 'That BOQ code already exists in this shop. Edit the existing item.', 409
+            else:
+                if item is None:
+                    item = ProTradeBoqItem(user_id=current_user.id, shop_id=shop.id, trade=shop.trade)
+                    db.session.add(item)
+                for field in ('code', 'description', 'unit'):
+                    setattr(item, field, values[field])
+                for field, rate in rates.items():
+                    setattr(item, field, rate)
+                db.session.commit()
+                flash('BOQ item saved.', 'success')
+                return redirect(url_for('mechanic_bp.catalog_manage', shop_id=shop.id))
+        except ValueError as exc:
+            error, status = str(exc), 400
+        except IntegrityError:
+            db.session.rollback()
+            error, status = 'This BOQ code could not be saved. Check for an existing item and try again.', 409
+    return render_template('program_mechanic/boq_price_list.html', shop=shop,
+                           boq_items=query.order_by(ProTradeBoqItem.code).all(),
+                           edit_item=item, values=values, units=units, error=error), status
+
+
 @mechanic_bp.route('/mechanic/catalog', methods=['GET', 'POST'])
 @login_required
 def catalog_manage():
@@ -1142,6 +1214,9 @@ def catalog_manage():
     if not active_shop:
         flash('You must complete your shop setup first.', 'warning')
         return redirect(url_for('mechanic_bp.mechanic_dashboard'))
+
+    if active_shop.trade == 'carpentry':
+        return carpentry_boq_price_list(active_shop)
 
     if request.method == 'POST':
         action = request.form.get('action')

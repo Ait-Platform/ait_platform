@@ -32,10 +32,17 @@ catalog_node = next(n for n in ast.parse((ROOT / 'app/models/mechanic.py').read_
                     if isinstance(n, ast.ClassDef) and n.name == 'MechCatalogPart')
 catalog_db = SimpleNamespace(Model=models.Base, Column=sa.Column, Integer=sa.Integer,
                              String=sa.String, Float=sa.Float, DateTime=sa.DateTime,
+                             Text=sa.Text, Numeric=sa.Numeric, Computed=sa.Computed,
+                             UniqueConstraint=sa.UniqueConstraint, CheckConstraint=sa.CheckConstraint,
                              ForeignKey=lambda name: sa.ForeignKey('users.id' if name == 'user.id' else name))
 catalog_globals = dict(db=catalog_db, datetime=datetime)
 exec(compile(ast.Module(body=[catalog_node], type_ignores=[]), 'production_catalog_model', 'exec'), catalog_globals)
 MechCatalogPart = catalog_globals['MechCatalogPart']
+boq_node = next(n for n in ast.parse((ROOT / 'app/models/mechanic.py').read_text()).body
+                if isinstance(n, ast.ClassDef) and n.name == 'ProTradeBoqItem')
+exec(compile(ast.Module(body=[boq_node], type_ignores=[]), 'production_boq_model', 'exec'), catalog_globals)
+ProTradeBoqItem = catalog_globals['ProTradeBoqItem']
+
 
 
 
@@ -76,11 +83,11 @@ class ShopRegisterTests(unittest.TestCase):
         tree = ast.parse((ROOT / 'app/program_mechanic/routes.py').read_text(encoding='utf-8'))
         names = {'ensure_sender_profile_synced', 'shop_register_rows', 'get_active_shop', 'mechanic_dashboard', 'onboarding_process',
                  'registered_trade_name', 'price_list_shop', 'price_list_query',
-                 'selected_price_list', 'catalog_manage'}
+                 'selected_price_list', 'catalog_manage', 'carpentry_boq_price_list'}
         nodes = [n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name in names or isinstance(n, ast.Assign) and any(isinstance(t, ast.Name) and t.id == 'AVAILABLE_TRADES' for t in n.targets)]
         catalogue = MechCatalogPart
         self.ns = dict(vars(models), db=SimpleNamespace(session=self.db_session, engine=self.conn),
-                       mechanic_bp=bp, MechCatalogPart=catalogue, request=request, session=session,
+                       mechanic_bp=bp, MechCatalogPart=catalogue, ProTradeBoqItem=ProTradeBoqItem, request=request, session=session,
                        flash=flash, redirect=redirect, url_for=url_for, render_template=render_template,
                        current_app=current_app, current_user=current_user, login_required=login_required)
         code = ast.fix_missing_locations(ProductionImports().visit(ast.Module(body=nodes, type_ignores=[])))

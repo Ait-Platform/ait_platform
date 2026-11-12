@@ -1,7 +1,10 @@
 {% set price_shop = active_shop|default(shop|default(none)) %}
 <nav aria-label="ProTrade" class="mt-5 mb-6 flex gap-2 border-b border-slate-200" style="display:flex;flex-wrap:nowrap;gap:8px;overflow-x:auto">
+  {% if protrade_menu_active != 'dashboard' %}
   <!-- 1. Quote -->
   <a href="{{ url_for('mechanic_bp.new_quote') }}" {% if protrade_menu_active == 'quote' %}aria-current="page"{% endif %} class="pm-menu-button inline-flex items-center justify-center rounded-lg border px-4 py-3 text-sm font-semibold text-slate-900 transition hover:opacity-90" style="background-color:#eff6ff;border-color:#93c5fd;color:#0f172a;flex:1 1 0;min-width:max-content;min-height:46px;padding:10px 12px;font-size:14px;white-space:nowrap;{% if protrade_menu_active == 'quote' %}box-shadow:inset 0 -3px #475569;{% endif %}">Quote</a>
+
+  {% endif %}
 
   <!-- 2. Invoice -->
   <a href="{{ url_for('mechanic_bp.job_cards_list') }}" {% if protrade_menu_active == 'jobs' or protrade_menu_active == 'invoice' %}aria-current="page"{% endif %} class="pm-menu-button inline-flex items-center justify-center rounded-lg border px-4 py-3 text-sm font-semibold text-slate-900 transition hover:opacity-90" style="background-color:#f0fdf4;border-color:#86efac;color:#0f172a;flex:1 1 0;min-width:max-content;min-height:46px;padding:10px 12px;font-size:14px;white-space:nowrap;{% if protrade_menu_active == 'jobs' or protrade_menu_active == 'invoice' %}box-shadow:inset 0 -3px #475569;{% endif %}">Invoice</a>

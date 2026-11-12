@@ -183,7 +183,7 @@ class ShopRegisterTests(unittest.TestCase):
         self.assertIn('6 clients', tree.get_element_by_id('client-counter').text_content())
         self.assertEqual(len(tree.xpath('//tr[contains(@class,"client-row-hidden")]')), 1)
         self.assertIn('Show More (5 of 6)', tree.get_element_by_id('client-toggle-btn').text_content())
-        self.assertEqual(len(tree.xpath('//a[contains(@aria-label,"Edit Shop")]')), 6)
+        self.assertEqual(len(tree.xpath('//table[@id="client-register-table"]/tbody/tr/td[last()]/*[normalize-space()="Quote"]')), 6)
 
     def test_foreign_owner_profile_cannot_be_saved(self):
         other = self.shop(owner=2, name='Other Owner Shop')

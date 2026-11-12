@@ -213,14 +213,14 @@ class TradeQuoteTests(unittest.TestCase):
         self.assertEqual(ProTradeBoqQuote.query.count(), 0)
         self.assertEqual(self.snapshot(), self.original)
 
-    def test_register_edit_then_quote_and_browser_grand_total(self):
+    def test_register_quote_only_and_browser_grand_total(self):
         response = self.client.get(f'/mechanic/dashboard?shop_id={self.carpentry.id}')
         tree = html.fromstring(response.data)
         row = tree.xpath('//tr[td/a[text()="Happy Carpentry"]]')[0]
         actions = row.xpath('./td[last()]/a/text()')
-        self.assertEqual(actions, ['Edit', 'Quote'])
+        self.assertEqual(actions, ['Quote'])
         ordinary = tree.xpath('//tr[td/a[text()="Customer Jane"]]')[0]
-        self.assertEqual(ordinary.xpath('./td[last()]/details/summary/text()'), ['Edit'])
+        self.assertEqual(ordinary.xpath('./td[last()]/a/text()'), ['Quote'])
         self.assertIn(f'shop_id={self.carpentry.id}', ordinary.xpath('./td[last()]/a[text()="Quote"]/@href')[0])
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch(headless=True)

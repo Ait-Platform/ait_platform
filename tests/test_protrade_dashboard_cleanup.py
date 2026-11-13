@@ -55,7 +55,9 @@ class DashboardCleanupTests(unittest.TestCase):
                 page.locator(f'#client-register-table td:first-child a[href="/mechanic/shop/{generic.id}/debtors"]').click()
                 self.assertIn(f'/shop/{generic.id}/debtors',page.url)
                 self.assertEqual(page.get_by_role('heading',name='Debtor Register',exact=True).count(),1)
-                self.assertTrue(page.get_by_role('button',name='Save Debtor').is_visible())
+                self.assertTrue(page.get_by_role('button',name='Add Debtor',exact=True).is_visible())
+                self.assertFalse(page.locator('#debtor-working-area').is_visible())
+                self.assertTrue(page.locator('#shop-debtors').is_visible())
             finally:
                 browser.close()
         self.assertEqual(base.models.Debtor.query.count(),0)

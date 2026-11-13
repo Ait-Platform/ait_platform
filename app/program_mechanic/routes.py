@@ -1327,6 +1327,7 @@ def carpentry_quote_form(shop, customer, debtor):
     error, status = None, 200
     quote_key = draft.quote_number.removeprefix('CAR-Q-').lower() if draft else uuid4().hex
     if request.method == 'POST':
+        selected_ids, quantities = set(), {}
         try:
             try:
                 quote_key = UUID(request.form.get('quote_key', '')).hex
@@ -1348,11 +1349,11 @@ def carpentry_quote_form(shop, customer, debtor):
             allowed = {item.id: item for item in items}
             if not selected_ids <= allowed.keys():
                 raise ValueError('Select valid items from this shop Price List.')
+            quantities = {identifier: request.form.get(f'quantity_{identifier}', '').strip() for identifier in selected_ids}
             lines, grand_total = [], Decimal('0.00')
             for identifier in sorted(selected_ids):
                 item = allowed[identifier]
-                raw = request.form.get(f'quantity_{identifier}', '').strip()
-                quantities[identifier] = raw
+                raw = quantities[identifier]
                 try:
                     quantity = Decimal(raw)
                 except InvalidOperation:
@@ -1393,11 +1394,9 @@ def carpentry_quote_form(shop, customer, debtor):
         except IntegrityError:
             db.session.rollback()
             error, status = 'This quote could not be saved. Reopen the form and try again.', 409
-    recent = ProTradeBoqQuote.query.filter_by(user_id=current_user.id, shop_id=shop.id,
-                                             trade='carpentry', debtor_id=debtor.id).order_by(ProTradeBoqQuote.id.desc()).limit(10).all()
     return render_template('program_mechanic/carpentry_quote.html', shop=shop, customer=customer,
                            details=details, debtor=debtor, draft=draft, boq_items=items, quote_key=quote_key, selected_ids=selected_ids,
-                           quantities=quantities, error=error, saved_quote=None, recent_quotes=recent), status
+                           quantities=quantities, error=error, saved_quote=None), status
 
 
 @mechanic_bp.route('/mechanic/shop/<int:shop_id>/quotes/<int:quote_id>')
@@ -1411,7 +1410,7 @@ def carpentry_quote_view(shop_id, quote_id):
         abort(404)
     details = dict(name=quote.client_name, phone=quote.client_phone, email=quote.client_email, address=quote.client_address)
     return render_template('program_mechanic/carpentry_quote.html', shop=shop, details=details,
-                           saved_quote=quote, recent_quotes=[])
+                           saved_quote=quote)
 
 
 def carpentry_boq_price_list(shop):

@@ -108,7 +108,7 @@ class TradeQuoteTests(unittest.TestCase):
         self.assertIn('Install skirting', text)
         self.assertNotIn('Other owner work', text)
         self.assertNotIn('Other shop work', text)
-        self.assertEqual(tree.xpath(f'//input[@name="quantity_{self.item.id}"]/@value'), ['1'])
+        self.assertEqual(tree.xpath(f'//input[@name="quantity_{self.item.id}"]/@value'), [''])
         self.assertFalse(tree.xpath('//input[@name="vehicle_reg" or @name="vin_number" or @name="mileage" or @name="make"]'))
         for word in ('Vehicle Registration', 'VIN', 'Mileage', 'Vehicle Make'):
             self.assertNotIn(word, text)
@@ -176,7 +176,7 @@ class TradeQuoteTests(unittest.TestCase):
             sess['active_trade'] = 'mechanic'
         response = self.client.get(f'/mechanic/client/{self.customer.id}/quote?shop_id={self.carpentry.id}&debtor_id={self.debtors_by_shop[self.carpentry.id].id}')
         self.assertEqual(response.status_code, 200)
-        self.assertIn('Carpentry BOQ Quotation', response.get_data(as_text=True))
+        self.assertIn('Carpentry Quotation', response.get_data(as_text=True))
         self.assertEqual(ProTradeBoqQuote.query.count(), 0)
 
     def test_same_customer_can_quote_multiple_shops_without_new_customer_records(self):

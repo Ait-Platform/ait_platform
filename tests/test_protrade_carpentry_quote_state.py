@@ -59,7 +59,7 @@ class CarpentryQuoteStateTests(unittest.TestCase):
                 self.assertEqual(page.locator(f'input[name="quantity_{each.id}"]').count(),0)
                 self.assertEqual(page.locator('#quote-grand-total').text_content(),'325.00')
                 # A fresh form's history restore must not retain an unsaved previous selection.
-                page.evaluate("window.dispatchEvent(new Event('pageshow'))")
+                page.evaluate("window.dispatchEvent(new PageTransitionEvent('pageshow',{persisted:true}))")
                 self.assertEqual(page.locator('.quote-line').count(),0)
                 self.assertEqual(page.locator('#quote-grand-total').text_content(),'0.00')
                 page.locator('#quote-work-select').fill('CAR-004 \u2014 Install skirting')

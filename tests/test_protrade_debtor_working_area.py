@@ -103,14 +103,18 @@ class DebtorWorkingAreaTests(unittest.TestCase):
                 self.assertEqual(base.models.Debtor.query.filter_by(shop_id=self.second.id).count(),0)
             finally:browser.close()
 
-    def test_edit_preserves_quote_and_new_quote_actions(self):
+    def test_edit_preserves_quote_and_history_is_in_quotation_hub(self):
         self.save_debtor();self.save_quote()
         debtor=self.debtor()
         tree=html.fromstring(self.client.get(self.register_url()+f'?debtor_id={debtor.id}').data)
         self.assertNotIn('hidden',tree.get_element_by_id('debtor-working-area').attrib)
         self.assertEqual(tree.get_element_by_id('debtor-form-title').text_content(),'Edit Debtor')
         self.assertTrue(tree.xpath(f'//table[@id="shop-debtors"]//a[@href="{self.quote_url()}"]'))
-        self.assertTrue(tree.xpath(f'//form[@action="/mechanic/shop/{self.carpentry.id}/debtor/{debtor.id}/quotes/new"]//button[text()="New Quote"]'))
+        self.assertFalse(tree.xpath('//button[text()="New Quote"]'))
+        self.assertNotIn('Quotations and Invoices for',tree.text_content())
+        self.assertNotIn('CAR-Q-',tree.text_content())
+        hub=html.fromstring(self.client.get(self.quote_url()+'?area=register').data)
+        self.assertIn('CAR-Q-',hub.get_element_by_id('debtor-quote-register').text_content())
         self.assertEqual(self.client.get(self.quote_url()).status_code,200)
         self.assertEqual(base.ProTradeBoqQuote.query.filter_by(debtor_id=debtor.id).count(),1)
 

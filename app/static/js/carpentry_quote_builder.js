@@ -16,8 +16,13 @@
     const millis = BigInt(match[1]) * 1000n + BigInt((match[2] || '').padEnd(3, '0'));
     return (millis * BigInt(rate) + 500n) / 1000n;
   }
+  const normalize = value => String(value || '').trim().replace(/\s+/g,' ').toLowerCase();
   function preview() {
-    choice = data.choices.find(item => item.label === search.value) || null;
+    const query = normalize(search.value);
+    const matches = query ? data.choices.filter(item => [item.label,item.code,item.description,
+      item.label.slice(item.label.indexOf('\u2014')+1)].some(value => normalize(value)===query)) : [];
+    // Accept a native-list selection or an exact typed code/description, never an ambiguous match.
+    choice = matches.length===1 ? matches[0] : null;
     for (const [field,key] of [['code','code'],['description','description'],['unit','unit'],['material','material_rate'],['labour','labour_rate']]) {
       document.getElementById(`quote-work-${field}`).value = choice?.[key] || '';
     }
@@ -25,7 +30,7 @@
     quantity.step = choice?.unit === 'Each' ? '1' : '0.001';
     const duplicate = choice && selected.has(String(choice.source_id));
     add.disabled = !choice?.source_id || duplicate;
-    message.textContent = !choice ? '' : !choice.source_id ? "Save rates for this item in the shop's Price List before adding it." : duplicate ? 'This item is already listed. Use Include or edit its quantity below.' : '';
+    message.textContent = !choice ? (query ? 'Choose a matching item from the list, or enter its full code or description.' : '') : !choice.source_id ? "Save rates for this item in the shop's Price List before adding it." : duplicate ? 'This item is already listed. Use Include or edit its quantity below.' : '';
     document.getElementById('quote-work-total').value = money(choice?.source_id ? amount(quantity.value,choice.rate_cents) : 0n);
   }
   function calculate() {
@@ -69,11 +74,13 @@
     selected.set(key,{item,row,input,include,identity});
     include.addEventListener('change',calculate);
     input.addEventListener('input',calculate);
+    input.addEventListener('change',calculate);
     remove.addEventListener('click',()=>{selected.delete(key);row.remove();calculate();});
   }
   search.addEventListener('input',()=>{quantity.value='';preview();});
   search.addEventListener('change',preview);
   quantity.addEventListener('input',preview);
+  quantity.addEventListener('change',preview);
   add.addEventListener('click',()=>{
     preview();
     if (add.disabled) return;
@@ -104,5 +111,7 @@
     restoreServerState();search.focus();
   });
   restoreServerState();
-  window.addEventListener('pageshow',restoreServerState);
+  // Initial pageshow can arrive after the user starts typing (e.g. slow page assets).
+  // Only a genuine back/forward-cache restore should replace their working values.
+  window.addEventListener('pageshow',event=>{if(event.persisted) restoreServerState();});
 })();

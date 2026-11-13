@@ -1343,6 +1343,7 @@ def carpentry_quote_form(shop, customer, debtor, editing_quote=None):
         items = sorted(by_id.values(),key=lambda item:item.code)
     selected_ids = {line['source_item_id'] for line in draft.items} if draft else set()
     quantities = {line['source_item_id']:line['quantity'] for line in draft.items} if draft else {}
+    quoted_rates = {}
     error, status = None, 200
     quote_key = draft.quote_number.removeprefix('CAR-Q-').lower() if draft else uuid4().hex
     if request.method == 'POST':
@@ -1371,6 +1372,7 @@ def carpentry_quote_form(shop, customer, debtor, editing_quote=None):
             if not selected_ids <= allowed.keys():
                 raise ValueError('Select valid items from this shop Price List.')
             quantities = {identifier: request.form.get(f'quantity_{identifier}', '').strip() for identifier in selected_ids}
+            quoted_rates = {identifier: {kind: request.form.get(f'{kind}_{identifier}',format(getattr(allowed[identifier],kind),'.2f')).strip() for kind in ('material_rate','labour_rate')} for identifier in selected_ids}
             lines, grand_total = [], Decimal('0.00')
             for identifier in sorted(selected_ids):
                 item = allowed[identifier]
@@ -1383,14 +1385,23 @@ def carpentry_quote_form(shop, customer, debtor, editing_quote=None):
                     raise ValueError('Quantities must be positive and at most 99999999999.999.')
                 if quantity != quantity.quantize(Decimal('0.001')):
                     raise ValueError('Quantities may have at most three decimal places.')
-                if item.unit == 'Each' and quantity != quantity.to_integral_value():
-                    raise ValueError('Each requires a whole-number quantity.')
+                rates = {}
+                for kind, entered in quoted_rates[identifier].items():
+                    try:
+                        rate = Decimal(entered)
+                    except InvalidOperation:
+                        raise ValueError('Enter valid material and labour rates.') from None
+                    if not rate.is_finite() or rate < 0 or rate > Decimal('999999999999.99'):
+                        raise ValueError('Rates must be non-negative and at most 999999999999.99.')
+                    if rate != rate.quantize(Decimal('0.01')):
+                        raise ValueError('Rates may have at most two decimal places.')
+                    rates[kind] = rate
                 with localcontext() as decimal_context:
                     decimal_context.prec = 50
-                    amount = (quantity * (item.material_rate + item.labour_rate)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+                    amount = (quantity * (rates['material_rate'] + rates['labour_rate'])).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
                 lines.append(dict(source_item_id=item.id, code=item.code, description=item.description, unit=item.unit,
-                                  quantity=str(quantity), material_rate=str(item.material_rate),
-                                  labour_rate=str(item.labour_rate), total=str(amount)))
+                                  quantity=str(quantity), material_rate=format(rates['material_rate'],'.2f'),
+                                  labour_rate=format(rates['labour_rate'],'.2f'), total=str(amount)))
                 grand_total += amount
             if grand_total > Decimal('99999999999999999999999999.99'):
                 raise ValueError('Quotation total is too large to save.')
@@ -1444,7 +1455,7 @@ def carpentry_quote_form(shop, customer, debtor, editing_quote=None):
     from zoneinfo import ZoneInfo
     quote_dates = {quote.id: (quote.created_at if quote.created_at.tzinfo else quote.created_at.replace(tzinfo=timezone.utc)).astimezone(ZoneInfo('Africa/Johannesburg')).strftime('%Y-%m-%d') for quote in history if quote.created_at}
     initial_lines = [dict(work_choice(dict(code=item.code,description=item.description,unit=item.unit),item),
-                          quantity=quantities.get(item.id,'')) for item in items if item.id in selected_ids]
+                          quantity=quantities.get(item.id,''), **quoted_rates.get(item.id,{})) for item in items if item.id in selected_ids]
     return render_template('program_mechanic/carpentry_quote.html', shop=shop, customer=customer,
                            details=details, debtor=debtor, draft=draft, boq_items=items, quote_key=quote_key, selected_ids=selected_ids,
                            quantities=quantities, error=error, saved_quote=None, work_choices=choices, initial_lines=initial_lines, fresh_choices=fresh_choices, fresh_quote_key=uuid4().hex,

@@ -56,13 +56,14 @@
           <datalist id="quote-work-options">{% for choice in work_choices %}<option value="{{ choice.label }}">{{ 'Saved shop rates' if choice.source_id else 'Save rates in Price List first' }}</option>{% endfor %}</datalist>
           <p class="mt-2 text-sm text-slate-600">Work descriptions are templates. Items need rates saved in this shop's <a href="{{ url_for('mechanic_bp.catalog_manage',shop_id=shop.id) }}" class="text-blue-700 underline">Price List</a> before they can be added.</p>
           <div class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
-          {% for field,label in [('code','Item Code'),('description','Description'),('unit','Unit'),('material','Material Rate (R/unit)'),('labour','Labour Rate (R/unit)')] %}<label class="text-sm font-semibold">{{ label }}<input id="quote-work-{{ field }}" readonly class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2"></label>{% endfor %}
+          {% for field,label in [('code','Item Code'),('description','Description'),('unit','Unit')] %}<label class="text-sm font-semibold">{{ label }}<input id="quote-work-{{ field }}" readonly class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2"></label>{% endfor %}
+          {% for field,label in [('material','Material Rate (R/unit)'),('labour','Labour Rate (R/unit)')] %}<label class="text-sm font-semibold" for="quote-work-{{ field }}">{{ label }}<input id="quote-work-{{ field }}" type="number" min="0" max="999999999999.99" step="0.01" class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2"></label>{% endfor %}
           <label class="text-sm font-semibold" for="quote-work-quantity">Quantity<input id="quote-work-quantity" type="number" min="0.001" max="99999999999.999" step="0.001" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"></label>
           </div>
           <div class="mt-3 flex items-center justify-end gap-3"><span>Line Total: R<output id="quote-work-total">0.00</output></span><button id="quote-add-item" type="button" disabled class="rounded-lg bg-blue-100 px-4 py-2 font-semibold disabled:opacity-50">Add Item</button></div>
           <p id="quote-work-message" role="status" aria-live="polite" class="mt-2 text-sm text-slate-600"></p>
         </div>
-      <form id="carpentry-quote-form" autocomplete="off" method="POST" action="{{ url_for('mechanic_bp.debtor_quote', shop_id=shop.id, debtor_id=debtor.id) }}">
+      <form id="carpentry-quote-form" autocomplete="off" novalidate method="POST" action="{{ url_for('mechanic_bp.debtor_quote', shop_id=shop.id, debtor_id=debtor.id) }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="quote_key" value="{{ quote_key }}">
         <input type="hidden" name="area" value="{{ 'quote' if draft else 'new' }}">
@@ -76,8 +77,8 @@
           </tr></thead><tbody id="quote-item-lines">
           {% for line in initial_lines %}<tr class="quote-line border-t border-slate-200" data-source-id="{{ line.source_id }}">
             <td class="p-3"><input type="checkbox" checked aria-label="Include {{ line.code }}"></td><td class="p-3"><input type="hidden" name="item_id[]" value="{{ line.source_id }}">{{ line.code }}<button type="button" class="quote-remove mt-1 block rounded-lg bg-red-50 px-2 py-1 text-xs" aria-label="Remove {{ line.code }}">Remove Item</button></td><td class="p-3">{{ line.description }}</td><td class="p-3">{{ line.unit }}</td>
-            <td class="p-3"><input name="quantity_{{ line.source_id }}" type="number" value="{{ line.quantity }}" required min="{{ '1' if line.unit=='Each' else '0.001' }}" max="99999999999.999" step="{{ '1' if line.unit=='Each' else '0.001' }}" aria-label="Quantity {{ line.code }}" class="w-28 rounded-lg border border-slate-300 px-3 py-2"></td>
-            <td class="p-3">{{ line.material_rate }}</td><td class="p-3">{{ line.labour_rate }}</td><td class="line-total p-3">0.00</td>
+            <td class="p-3"><input name="quantity_{{ line.source_id }}" type="number" value="{{ line.quantity }}" required min="0.001" max="99999999999.999" step="0.001" aria-label="Quantity {{ line.code }}" class="w-28 rounded-lg border border-slate-300 px-3 py-2"></td>
+            {% for kind,label in [('material_rate','Material Rate'),('labour_rate','Labour Rate')] %}<td class="p-3"><input name="{{ kind }}_{{ line.source_id }}" type="number" value="{{ line[kind] }}" min="0" max="999999999999.99" step="0.01" required aria-label="{{ label }} {{ line.code }}" class="w-28 rounded-lg border border-slate-300 px-3 py-2"></td>{% endfor %}<td class="line-total p-3">0.00</td>
           </tr>{% else %}<tr id="quote-empty"><td colspan="8" class="p-6 text-center text-slate-600">No items added. Select a work item above.</td></tr>{% endfor %}
           </tbody></table>
         </div>
@@ -92,8 +93,8 @@
         </tbody></table></div>
       </section>
       <script id="quote-builder-data" type="application/json">{{ dict(choices=work_choices,lines=initial_lines,fresh_choices=fresh_choices,fresh_quote_key=fresh_quote_key)|tojson }}</script>
-      <script src="{{ url_for('static',filename='js/carpentry_quote_builder.js',v='20261113-input-fix-1') }}" defer></script>
-      <script src="{{ url_for('static',filename='js/carpentry_quote_hub.js',v='20261113-input-fix-1') }}" defer></script>
+      <script src="{{ url_for('static',filename='js/carpentry_quote_builder.js',v='20261113-quote-rates-1') }}" defer></script>
+      <script src="{{ url_for('static',filename='js/carpentry_quote_hub.js',v='20261113-quote-rates-1') }}" defer></script>
       {% endif %}
     </div>
   </div>

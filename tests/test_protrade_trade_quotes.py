@@ -197,7 +197,6 @@ class TradeQuoteTests(unittest.TestCase):
             self.post(expected=400, **{f'quantity_{self.item.id}': quantity})
         self.post(expected=400, **{'item_id[]': []})
         self.post(expected=400, **{'item_id[]': [str(self.item.id), str(self.item.id)]})
-        self.post(expected=400, **{'item_id[]': [str(self.each_item.id)], f'quantity_{self.each_item.id}': '1.5'})
         key = uuid4().hex
         first = self.post(quote_key=key)
         second = self.post(quote_key=key)

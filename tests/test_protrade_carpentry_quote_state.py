@@ -198,9 +198,9 @@ class CarpentryQuoteStateTests(unittest.TestCase):
                 self.assertEqual(page.locator('#quote-grand-total').text_content(),'915.00')
                 for identifier,(quantity,material,labour,total) in expected.items():
                     row=page.locator(f'.quote-line[data-source-id="{identifier}"]')
-                    self.assertEqual(row.locator('input[type=number]').input_value(),quantity)
-                    self.assertEqual(row.locator('td').nth(5).text_content(),material)
-                    self.assertEqual(row.locator('td').nth(6).text_content(),labour)
+                    self.assertEqual(row.locator('input[name^="quantity_"]').input_value(),quantity)
+                    self.assertEqual(row.locator('td').nth(5).locator('input').input_value(),material)
+                    self.assertEqual(row.locator('td').nth(6).locator('input').input_value(),labour)
                     self.assertEqual(row.locator('.line-total').text_content(),total)
                 fields=page.locator('#carpentry-quote-form').evaluate('(form)=>Array.from(new FormData(form).entries())')
                 self.assertEqual(self.client.post(self.quote_url(),data=MultiDict(fields)).status_code,302)

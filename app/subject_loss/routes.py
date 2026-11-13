@@ -80,6 +80,8 @@ from app.extensions import db, mail  # adjust if your Mail instance is named dif
 from flask_login import login_required, current_user, logout_user
 from app.utils.post_assessment import handle_exit_actions  # where your helper lives
 from threading import Thread
+from app.subject_loss.email_security import (authorised_report, guarded_send,
+    controlled_email_errors, EmailActionError)
 from sqlalchemy import func as SA_FUNC, text as SA_TEXT
 from app.payments.pricing import price_for_country, subject_id_for  # table-driven helper
 
@@ -674,38 +676,30 @@ def _generate_learner_pdf_html(run_id: int, uid: int) -> str | None:
     return render_template(f"{TEMPLATE_DIR_LEARNER}/report_pdf.html", **ctx)
 
 @loss_bp.post("/report.email/<int:run_id>")
+@login_required
+@controlled_email_errors
 def report_email_and_download(run_id: int):
-    to  = request.form.get("to") or request.form.get("email")
-    uid = request.form.get("user_id", type=int) or _get_user_id_for_run(run_id)
-
-    html = _generate_learner_pdf_html(run_id, uid)
+    report = authorised_report(run_id)
+    html = _generate_learner_pdf_html(report['run_id'], report['owner_id'])
     if html is None:
-        return ("Report not available", 404)
+        raise EmailActionError(404, 'Report unavailable.')
 
     exe = os.getenv("WKHTMLTOPDF_EXE", r"C:\Program Files\wkhtmltopdf\bin\wkhtmltopdf.exe")
     cfg = pdfkit.configuration(wkhtmltopdf=exe)
     options = {"encoding": "UTF-8", "enable-local-file-access": None, "print-media-type": None, "quiet": None}
     pdf_bytes = pdfkit.from_string(html, False, configuration=cfg, options=options)
 
-    # Email only if SMTP is enabled; never block the download
-    try:
-        if current_app.config.get("EMAIL_ENABLED", False) and to:
-            from flask_mail import Message
-            from app.extensions import mail
-            msg = Message(subject=f"LOSS Assessment — Run #{run_id}", recipients=[to])
+    # Preserve the legacy download-only behavior when email is disabled.
+    if current_app.config.get("EMAIL_ENABLED", False):
+        def deliver():
+            msg = Message(subject=f"LOSS Assessment \u2014 Run #{run_id}", recipients=[report['recipient']])
             msg.body = "Your LOSS assessment report is attached."
             msg.attach(f"loss-report-run-{run_id}.pdf", "application/pdf", pdf_bytes)
             mail.send(msg)
-    except Exception as e:
-        current_app.logger.exception("Email send failed: %s", e)
-
-    # Always return the file
-    return send_file(
-        io.BytesIO(pdf_bytes),
-        mimetype="application/pdf",
-        as_attachment=True,
-        download_name=f"loss-report-run-{run_id}.pdf",
-    )
+            return True
+        guarded_send(report, pdf_bytes, deliver)
+    return send_file(io.BytesIO(pdf_bytes), mimetype="application/pdf", as_attachment=True,
+                     download_name=f"loss-report-run-{run_id}.pdf")
 
 @loss_bp.route("/report.pdf/<int:run_id>")
 def report_pdf_download(run_id: int):
@@ -809,55 +803,24 @@ def legacy_results_redirect(run_id: int):
     return redirect(url_for("loss_bp.results_hub", run_id=run_id), code=301)
 
 @loss_bp.route("/report/send", methods=["POST"])
+@login_required
+@controlled_email_errors
 def report_send_and_download():
-    """
-    Combined action: email the PDF to the provided address AND return a download.
-    The learner stays in-flow (no separate PDF page view).
-    """
-    rid = request.args.get("run_id", type=int)
-    uid = request.args.get("user_id", type=int)
-    if not rid:
-        raise BadRequest("Missing run_id")
-
-    to_email = (request.form.get("email") or "").strip()
-    if not to_email:
-        raise BadRequest("Email is required.")
-
+    report = authorised_report(request.args.get("run_id"))
+    rid, uid = report['run_id'], report['owner_id']
     from app.admin.programs.loss.routes import _build_context
     ctx, _, _row = _build_context(rid, uid)
     if not ctx:
-        abort(404)
-
-    # Generate once, reuse for email + download
+        raise EmailActionError(404, 'Report unavailable.')
     pdf_bytes = _render_loss_pdf_bytes(rid, ctx)
     filename = f"loss-result-run-{rid}.pdf"
-
-    # Best-effort email (don’t block the download on failures)
-    try:
-        learner_name = ctx.get("learner_name") or "Learner"
-        subject = "Your LOSS Assessment Report"
-        
-        pdf_url = url_for("loss_bp.report_pdf", run_id=rid, user_id=uid, _external=True)
-        _send_mail(
-            to_email=to_email,
-            subject=subject,
-            pdf_url=pdf_url,
-            pdf_bytes=pdf_bytes,
-            filename=filename,
-            run_id=rid,
-            user_name=learner_name
-        )
-
-    except Exception as e:
-        current_app.logger.exception("Email send failed: %s", e)
-
-    return send_file(
-        BytesIO(pdf_bytes),
-        as_attachment=True,
-        download_name=filename,
-        mimetype="application/pdf",
-        max_age=0,
-    )
+    pdf_url = url_for("loss_bp.report_pdf", run_id=rid, user_id=uid, _external=True)
+    guarded_send(report, pdf_bytes, lambda: _send_mail(
+        to_email=report['recipient'], subject="Your LOSS Assessment Report",
+        pdf_url=pdf_url, pdf_bytes=pdf_bytes, filename=filename,
+        run_id=rid, user_name=ctx.get("learner_name") or "Learner"))
+    return send_file(BytesIO(pdf_bytes), as_attachment=True, download_name=filename,
+                     mimetype="application/pdf", max_age=0)
 
 def _get_run_user_email(run_id: int | None, user_id: int | None) -> str | None:
     try:

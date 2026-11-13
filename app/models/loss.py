@@ -220,3 +220,19 @@ class LcaRun(db.Model):
 
     # if you had subject or started_at here, REMOVE those lines completely
     # no ForeignKey from this model, responses link back to it
+
+
+class LossReportEmailSend(db.Model):
+    """Latest durable send reservation shared by the two legacy LOSS email routes."""
+    __tablename__ = 'loss_report_email_send'
+    run_id = db.Column(db.Integer, db.ForeignKey('lca_run.id'), primary_key=True)
+    owner_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    actor_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    recipient = db.Column(db.Text, nullable=False)
+    attempt_id = db.Column(db.String(32), nullable=False, unique=True)
+    status = db.Column(db.String(16), nullable=False)
+    attempted_at = db.Column(db.DateTime(timezone=True), nullable=False)
+    __table_args__ = (
+        db.CheckConstraint("status IN ('attempted','accepted','uncertain')", name='ck_loss_email_status'),
+        db.Index('ix_loss_email_owner_attempt', 'owner_id', 'attempted_at'),
+    )

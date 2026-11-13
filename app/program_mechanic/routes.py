@@ -1394,9 +1394,25 @@ def carpentry_quote_form(shop, customer, debtor):
         except IntegrityError:
             db.session.rollback()
             error, status = 'This quote could not be saved. Reopen the form and try again.', 409
+    from app.protrade_boq_catalog import work_items_for
+    def work_choice(spec, item=None):
+        return dict(label=spec['code']+' \u2014 '+spec['description'], code=spec['code'],
+                    description=item.description if item else spec['description'],
+                    unit=item.unit if item else spec['unit'], source_id=item.id if item else None,
+                    material_rate=format(item.material_rate,'.2f') if item else '',
+                    labour_rate=format(item.labour_rate,'.2f') if item else '',
+                    rate_cents=str(int((item.material_rate+item.labour_rate)*100)) if item else '')
+    definitions = work_items_for('carpentry')
+    predefined_codes = {definition['code'] for definition in definitions}
+    by_code = {item.code:item for item in items}
+    choices = [work_choice(definition,by_code.get(definition['code'])) for definition in definitions]
+    choices.extend(work_choice(dict(code=item.code,description=item.description,unit=item.unit),item)
+                   for item in items if item.code not in predefined_codes)
+    initial_lines = [dict(work_choice(dict(code=item.code,description=item.description,unit=item.unit),item),
+                          quantity=quantities.get(item.id,'')) for item in items if item.id in selected_ids]
     return render_template('program_mechanic/carpentry_quote.html', shop=shop, customer=customer,
                            details=details, debtor=debtor, draft=draft, boq_items=items, quote_key=quote_key, selected_ids=selected_ids,
-                           quantities=quantities, error=error, saved_quote=None), status
+                           quantities=quantities, error=error, saved_quote=None, work_choices=choices, initial_lines=initial_lines), status
 
 
 @mechanic_bp.route('/mechanic/shop/<int:shop_id>/quotes/<int:quote_id>')

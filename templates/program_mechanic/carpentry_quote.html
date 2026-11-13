@@ -38,65 +38,40 @@
       </div>
       <p class="mt-4 text-right text-xl font-semibold">Grand Total: R<span id="quote-grand-total">{{ '{:.2f}'.format(saved_quote.grand_total) }}</span></p>
       {% else %}
+        <div class="mt-5 rounded-lg border border-slate-200 bg-slate-50 p-4">
+          <label for="quote-work-select" class="block text-sm font-semibold">Select Work Item</label>
+          <input id="quote-work-select" list="quote-work-options" autocomplete="off" placeholder="Search by item code or description" autofocus class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2">
+          <datalist id="quote-work-options">{% for choice in work_choices %}<option value="{{ choice.label }}">{{ 'Saved shop rates' if choice.source_id else 'Save rates in Price List first' }}</option>{% endfor %}</datalist>
+          <p class="mt-2 text-sm text-slate-600">Work descriptions are templates. Items need rates saved in this shop's <a href="{{ url_for('mechanic_bp.catalog_manage',shop_id=shop.id) }}" class="text-blue-700 underline">Price List</a> before they can be added.</p>
+          <div class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
+          {% for field,label in [('code','Item Code'),('description','Description'),('unit','Unit'),('material','Material Rate (R/unit)'),('labour','Labour Rate (R/unit)')] %}<label class="text-sm font-semibold">{{ label }}<input id="quote-work-{{ field }}" readonly class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2"></label>{% endfor %}
+          <label class="text-sm font-semibold" for="quote-work-quantity">Quantity<input id="quote-work-quantity" type="number" min="0.001" max="99999999999.999" step="0.001" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"></label>
+          </div>
+          <div class="mt-3 flex items-center justify-end gap-3"><span>Line Total: R<output id="quote-work-total">0.00</output></span><button id="quote-add-item" type="button" disabled class="rounded-lg bg-blue-100 px-4 py-2 font-semibold disabled:opacity-50">Add Item</button></div>
+          <p id="quote-work-message" role="status" aria-live="polite" class="mt-2 text-sm text-slate-600"></p>
+        </div>
       <form id="carpentry-quote-form" autocomplete="off" method="POST" action="{{ url_for('mechanic_bp.debtor_quote', shop_id=shop.id, debtor_id=debtor.id) }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="quote_key" value="{{ quote_key }}">
         {% if customer %}<input type="hidden" name="client_id" value="{{ customer.id }}">{% endif %}
         <h2 class="mt-6 text-lg font-semibold">Quotation Items</h2>
-        <p class="mt-1 text-sm text-slate-600">Select work from this shop's Price List and enter the quantities for this quotation. Rates are per unit.</p>
         {% if error %}<p role="alert" class="mt-3 text-sm font-semibold text-red-700">{{ error }}</p>{% endif %}
         <div class="mt-3 overflow-x-auto rounded-lg border border-slate-200">
           <table id="quote-boq-items" class="w-full text-left text-sm"><thead class="bg-slate-50"><tr>
-            {% for heading in ['Include', 'Item Code', 'Description', 'Unit', 'Quantity', 'Material R/unit', 'Labour R/unit', 'Total R'] %}<th class="p-3">{{ heading }}</th>{% endfor %}
-          </tr></thead><tbody>
-          {% for item in boq_items %}<tr class="quote-line border-t border-slate-200" data-rate-cents="{{ ((item.material_rate + item.labour_rate) * 100)|int }}">
-            <td class="p-3"><input type="checkbox" name="item_id[]" value="{{ item.id }}" aria-label="Include {{ item.code }}" {% if item.id in selected_ids %}checked{% endif %}></td>
-            <td class="p-3">{{ item.code }}</td><td class="p-3">{{ item.description }}</td><td class="p-3">{{ item.unit }}</td>
-            <td class="p-3"><input name="quantity_{{ item.id }}" type="number" value="{{ quantities.get(item.id, '') }}" min="{{ '1' if item.unit == 'Each' else '0.001' }}" max="99999999999.999" step="{{ '1' if item.unit == 'Each' else '0.001' }}" aria-label="Quantity {{ item.code }}" {% if loop.first %}autofocus{% endif %} {% if item.id in selected_ids %}required{% endif %} class="w-28 rounded-lg border border-slate-300 px-3 py-2"></td>
-            <td class="p-3">{{ '{:.2f}'.format(item.material_rate) }}</td><td class="p-3">{{ '{:.2f}'.format(item.labour_rate) }}</td>
-            <td class="line-total p-3 font-semibold">0.00</td>
-          </tr>{% else %}<tr><td colspan="8" class="p-6 text-center text-slate-600">No quotation items in this shop's Price List. Add items before creating a quotation.</td></tr>{% endfor %}
+            {% for heading in ['Item Code', 'Description', 'Unit', 'Quantity', 'Material R/unit', 'Labour R/unit', 'Total R', 'Action'] %}<th class="p-3">{{ heading }}</th>{% endfor %}
+          </tr></thead><tbody id="quote-item-lines">
+          {% for line in initial_lines %}<tr class="quote-line border-t border-slate-200" data-source-id="{{ line.source_id }}">
+            <td class="p-3"><input type="hidden" name="item_id[]" value="{{ line.source_id }}">{{ line.code }}</td><td class="p-3">{{ line.description }}</td><td class="p-3">{{ line.unit }}</td>
+            <td class="p-3"><input name="quantity_{{ line.source_id }}" type="number" value="{{ line.quantity }}" required min="{{ '1' if line.unit=='Each' else '0.001' }}" max="99999999999.999" step="{{ '1' if line.unit=='Each' else '0.001' }}" aria-label="Quantity {{ line.code }}" class="w-28 rounded-lg border border-slate-300 px-3 py-2"></td>
+            <td class="p-3">{{ line.material_rate }}</td><td class="p-3">{{ line.labour_rate }}</td><td class="line-total p-3">0.00</td><td class="p-3"><button type="button" class="quote-remove rounded-lg bg-red-50 px-3 py-2">Remove</button></td>
+          </tr>{% else %}<tr id="quote-empty"><td colspan="8" class="p-6 text-center text-slate-600">No items added. Select a work item above.</td></tr>{% endfor %}
           </tbody></table>
         </div>
         <p class="mt-4 text-right text-xl font-semibold">Grand Total: R<output id="quote-grand-total" aria-live="polite">0.00</output></p>
-        <div class="mt-4 flex justify-end"><button type="submit" {% if not boq_items %}disabled{% endif %} class="rounded-lg bg-slate-800 px-4 py-2 font-semibold text-white disabled:opacity-50">{{ 'Save Changes' if draft else 'Save Quote' }}</button></div>
+        <div class="mt-4 flex justify-end"><button id="quote-save" type="submit" {% if not initial_lines %}disabled{% endif %} class="rounded-lg bg-slate-800 px-4 py-2 font-semibold text-white disabled:opacity-50">{{ 'Save Changes' if draft else 'Save Quote' }}</button></div>
       </form>
-      <script>
-      (() => {
-        const rows = document.querySelectorAll('.quote-line');
-        const money = cents => `${cents / 100n}.${String(cents % 100n).padStart(2, '0')}`;
-        function calculate() {
-          let grand = 0n;
-          rows.forEach(row => {
-            const input = row.querySelector('input[type=number]');
-            input.required = row.querySelector('input[type=checkbox]').checked;
-            const quantity = input.value;
-            const match = /^(\d+)(?:\.(\d{0,3}))?$/.exec(quantity);
-            let cents = 0n;
-            if (row.querySelector('input[type=checkbox]').checked && match) {
-              const millis = BigInt(match[1]) * 1000n + BigInt((match[2] || '').padEnd(3, '0'));
-              cents = (millis * BigInt(row.dataset.rateCents) + 500n) / 1000n;
-            }
-            row.querySelector('.line-total').textContent = money(cents);
-            grand += cents;
-          });
-          document.getElementById('quote-grand-total').value = money(grand);
-        }
-        rows.forEach(row => row.querySelectorAll('input').forEach(input => input.addEventListener('input', calculate)));
-        function restoreServerState() {
-          rows.forEach(row => {
-            const include = row.querySelector('input[type=checkbox]');
-            const quantity = row.querySelector('input[type=number]');
-            include.checked = include.defaultChecked;
-            quantity.value = quantity.defaultValue;
-          });
-          calculate();
-        }
-        restoreServerState();
-        // Browser history/autofill must not carry another quote's form state forward.
-        window.addEventListener('pageshow', restoreServerState);
-      })();
-      </script>
+      <script id="quote-builder-data" type="application/json">{{ dict(choices=work_choices,lines=initial_lines)|tojson }}</script>
+      <script src="{{ url_for('static',filename='js/carpentry_quote_builder.js') }}" defer></script>
       {% endif %}
     </div>
   </div>

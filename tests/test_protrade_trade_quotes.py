@@ -108,7 +108,7 @@ class TradeQuoteTests(unittest.TestCase):
         self.assertIn('Install skirting', text)
         self.assertNotIn('Other owner work', text)
         self.assertNotIn('Other shop work', text)
-        self.assertEqual(tree.xpath(f'//input[@name="quantity_{self.item.id}"]/@value'), [''])
+        self.assertEqual(tree.xpath('//tr[contains(@class,"quote-line")]'), [])
         self.assertFalse(tree.xpath('//input[@name="vehicle_reg" or @name="vin_number" or @name="mileage" or @name="make"]'))
         for word in ('Vehicle Registration', 'VIN', 'Mileage', 'Vehicle Make'):
             self.assertNotIn(word, text)
@@ -236,11 +236,14 @@ class TradeQuoteTests(unittest.TestCase):
             try:
                 page = browser.new_page()
                 page.set_content(self.client.get(self.quote_url()).get_data(as_text=True))
-                page.locator(f'input[type=checkbox][value="{self.item.id}"]').check()
-                page.locator(f'input[name="quantity_{self.item.id}"]').fill('2.5')
+                page.add_script_tag(path=str(base.ROOT/'app/static/js/carpentry_quote_builder.js'))
+                page.locator('#quote-work-select').fill('CAR-004 \u2014 Install skirting')
+                page.locator('#quote-work-quantity').fill('2.5')
+                page.locator('#quote-add-item').click()
                 self.assertEqual(page.locator('#quote-grand-total').text_content(), '325.00')
-                page.locator(f'input[type=checkbox][value="{self.each_item.id}"]').check()
-                page.locator(f'input[name="quantity_{self.each_item.id}"]').fill('2')
+                page.locator('#quote-work-select').fill('CAR-001 \u2014 Supply and install wooden door')
+                page.locator('#quote-work-quantity').fill('2')
+                page.locator('#quote-add-item').click()
                 self.assertEqual(page.locator('#quote-grand-total').text_content(), '4025.00')
             finally:
                 browser.close()

@@ -1569,31 +1569,31 @@ def _safe_next():
 
 @auth_bp.route("/forgot", methods=["GET", "POST"], endpoint="forgot")
 def forgot():
-    if request.method == "POST":
+    if request.method != "POST":
+        return render_template("auth/forgot.html")
+    from app.auth.password_reset_security import (
+        GENERIC_MESSAGE, URL_TOKEN_MARKER, ResetRequestError, reserve_request, start_delivery)
+    from flask import make_response
+    try:
+        # All submissions count, including unknown, malformed or cooling-down accounts.
+        reserve_request()
         email = (request.form.get("email") or "").strip().lower()
-        user = User.query.filter_by(email=email).first()
-
-        if user:
-            token = make_reset_token(user.id)
-            reset_url = url_for("auth_bp.reset", token=token, _external=True)
-            html = render_template("auth/email_reset.html", reset_url=reset_url, user=user)
-
-            ok = send_email(
-                "Reset your password",
-                [email],
-                body=f"Reset link: {reset_url}",
-                html=html,
-            )
-            current_app.logger.info("forgot: send_email ok=%s to=%s", ok, email)
-        else:
-            current_app.logger.info("forgot: no account for %s", email)
-
-        # IMPORTANT: redirect after POST so the page doesn't 'hang'
-        flash("If that email exists, a reset link has been sent.", "info")
-        return redirect(url_for("auth_bp.login"))
-
-    # GET
-    return render_template("auth/forgot.html")
+        reset_url_pattern = url_for('auth_bp.reset', token=URL_TOKEN_MARKER, _external=True)
+        start_delivery(email, reset_url_pattern)
+    except ResetRequestError as exc:
+        if exc.status == 429:
+            response = make_response(GENERIC_MESSAGE, 429)
+            response.mimetype = 'text/plain'
+            response.headers['Retry-After'] = str(exc.retry_after)
+            response.headers['Cache-Control'] = 'no-store'
+            return response
+        # Missing IP/configuration is also a generic response and never sends.
+    except Exception as exc:
+        current_app.logger.error('Password reset request unavailable (%s)', type(exc).__name__)
+    flash(GENERIC_MESSAGE, "info")
+    response = redirect(url_for("auth_bp.login"))
+    response.headers['Cache-Control'] = 'no-store'
+    return response
 
 @auth_bp.route("/reset/<token>", methods=["GET", "POST"], endpoint="reset")
 def reset(token):

@@ -1332,6 +1332,11 @@ def carpentry_quote_form(shop, customer, debtor, editing_quote=None):
     if initial_area == 'new':
         initial_area = 'quote'
     items = ProTradeBoqItem.query.filter_by(user_id=current_user.id, shop_id=shop.id, trade='carpentry').order_by(ProTradeBoqItem.code).all()
+    from app.protrade_boq_catalog import work_items_for
+    from types import SimpleNamespace
+    priced_codes = {item.code for item in items}
+    items += [SimpleNamespace(id='template:'+work['code'],code=work['code'],description=work['description'],unit=work['unit'],material_rate=None,labour_rate=None)
+              for work in work_items_for('carpentry') if work['code'] not in priced_codes]
     fresh_items = list(items)
     details = dict(name=debtor.name,phone=debtor.phone,email=debtor.email,address=debtor.address)
     if draft:
@@ -1364,17 +1369,17 @@ def carpentry_quote_form(shop, customer, debtor, editing_quote=None):
             raw_ids = request.form.getlist('item_id[]')
             if not raw_ids or len(raw_ids) != len(set(raw_ids)):
                 raise ValueError('Select at least one BOQ item without duplicates.')
-            try:
-                selected_ids = {int(value) for value in raw_ids}
-            except ValueError:
-                raise ValueError('Select valid items from this shop Price List.') from None
+            available = {str(item.id): item for item in items}
+            if not set(raw_ids) <= available.keys():
+                raise ValueError('Select valid work items for this shop.')
+            selected_ids = {available[value].id for value in raw_ids}
             allowed = {item.id: item for item in items}
-            if not selected_ids <= allowed.keys():
-                raise ValueError('Select valid items from this shop Price List.')
+            if len({allowed[identifier].code for identifier in selected_ids}) != len(selected_ids):
+                raise ValueError('Select each work item only once.')
             quantities = {identifier: request.form.get(f'quantity_{identifier}', '').strip() for identifier in selected_ids}
-            quoted_rates = {identifier: {kind: request.form.get(f'{kind}_{identifier}',format(getattr(allowed[identifier],kind),'.2f')).strip() for kind in ('material_rate','labour_rate')} for identifier in selected_ids}
+            quoted_rates = {identifier: {kind: request.form.get(f'{kind}_{identifier}',(format(getattr(allowed[identifier],kind),'.2f') if getattr(allowed[identifier],kind) is not None else '')).strip() for kind in ('material_rate','labour_rate')} for identifier in selected_ids}
             lines, grand_total = [], Decimal('0.00')
-            for identifier in sorted(selected_ids):
+            for identifier in sorted(selected_ids,key=lambda value:(isinstance(value,str),value)):
                 item = allowed[identifier]
                 raw = quantities[identifier]
                 try:
@@ -1436,10 +1441,10 @@ def carpentry_quote_form(shop, customer, debtor, editing_quote=None):
     def work_choice(spec, item=None):
         return dict(label=spec['code']+' \u2014 '+spec['description'], code=spec['code'],
                     description=item.description if item else spec['description'],
-                    unit=item.unit if item else spec['unit'], source_id=item.id if item else None,
-                    material_rate=format(item.material_rate,'.2f') if item else '',
-                    labour_rate=format(item.labour_rate,'.2f') if item else '',
-                    rate_cents=str(int((item.material_rate+item.labour_rate)*100)) if item else '')
+                    unit=item.unit if item else spec['unit'], source_id=item.id if item else 'template:'+spec['code'],
+                    material_rate=format(item.material_rate,'.2f') if item and item.material_rate is not None else '',
+                    labour_rate=format(item.labour_rate,'.2f') if item and item.labour_rate is not None else '',
+                    rate_cents=str(int((item.material_rate+item.labour_rate)*100)) if item and item.material_rate is not None and item.labour_rate is not None else '')
     definitions = work_items_for('carpentry')
     predefined_codes = {definition['code'] for definition in definitions}
     def choices_for(source):

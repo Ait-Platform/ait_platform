@@ -53,8 +53,8 @@
         <div class="mt-5 rounded-lg border border-slate-200 bg-slate-50 p-4">
           <label for="quote-work-select" class="block text-sm font-semibold">Select Work Item</label>
           <input id="quote-work-select" list="quote-work-options" autocomplete="off" placeholder="Search by item code or description" autofocus class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2">
-          <datalist id="quote-work-options">{% for choice in work_choices %}<option value="{{ choice.label }}">{{ 'Saved shop rates' if choice.source_id else 'Save rates in Price List first' }}</option>{% endfor %}</datalist>
-          <p class="mt-2 text-sm text-slate-600">Work descriptions are templates. Items need rates saved in this shop's <a href="{{ url_for('mechanic_bp.catalog_manage',shop_id=shop.id) }}" class="text-blue-700 underline">Price List</a> before they can be added.</p>
+          <datalist id="quote-work-options">{% for choice in work_choices %}<option value="{{ choice.label }}">{{ 'Default rates available' if choice.material_rate!='' and choice.labour_rate!='' else 'Enter quotation rates' }}</option>{% endfor %}</datalist>
+          <p class="mt-2 text-sm text-slate-600">Enter rates for this quotation, or use defaults from this shop's <a href="{{ url_for('mechanic_bp.catalog_manage',shop_id=shop.id) }}" class="text-blue-700 underline">Price List</a>. Quotation rates do not change the Price List.</p>
           <div class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
           {% for field,label in [('code','Item Code'),('description','Description'),('unit','Unit')] %}<label class="text-sm font-semibold">{{ label }}<input id="quote-work-{{ field }}" readonly class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2"></label>{% endfor %}
           {% for field,label in [('material','Material Rate (R/unit)'),('labour','Labour Rate (R/unit)')] %}<label class="text-sm font-semibold" for="quote-work-{{ field }}">{{ label }}<input id="quote-work-{{ field }}" type="number" min="0" max="999999999999.99" step="0.01" class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2"></label>{% endfor %}
@@ -93,8 +93,8 @@
         </tbody></table></div>
       </section>
       <script id="quote-builder-data" type="application/json">{{ dict(choices=work_choices,lines=initial_lines,fresh_choices=fresh_choices,fresh_quote_key=fresh_quote_key)|tojson }}</script>
-      <script src="{{ url_for('static',filename='js/carpentry_quote_builder.js',v='20261113-quote-rates-1') }}" defer></script>
-      <script src="{{ url_for('static',filename='js/carpentry_quote_hub.js',v='20261113-quote-rates-1') }}" defer></script>
+      <script src="{{ url_for('static',filename='js/carpentry_quote_builder.js',v='20261113-manual-rates-1') }}" defer></script>
+      <script src="{{ url_for('static',filename='js/carpentry_quote_hub.js',v='20261113-manual-rates-1') }}" defer></script>
       {% endif %}
     </div>
   </div>

@@ -26,6 +26,10 @@
     const m=rateCents(materialValue), l=rateCents(labourValue);
     return m===null || l===null ? '' : String(m+l);
   }
+  function validValues(materialInput,labourInput,quantityInput) {
+    return [materialInput,labourInput,quantityInput].every(field=>field.value!=='' && field.checkValidity()) &&
+      combinedRate(materialInput.value,labourInput.value)!=='' && /^(?:\d+(?:\.\d{0,3})?|\.\d{1,3})$/.test(quantityInput.value);
+  }
   const normalize = value => String(value || '').trim().replace(/\s+/g,' ').toLowerCase();
   function preview() {
     const query = normalize(search.value);
@@ -42,23 +46,27 @@
     quantity.min = '0.001';
     quantity.step = '0.001';
     const duplicate = choice && selected.has(String(choice.source_id));
-    add.disabled = !choice?.source_id || duplicate;
-    message.textContent = !choice ? (query ? 'Choose a matching item from the list, or enter its full code or description.' : '') : !choice.source_id ? "Save rates for this item in the shop's Price List before adding it." : duplicate ? 'This item is already listed. Use Include or edit its quantity below.' : '';
-    document.getElementById('quote-work-total').value = money(choice?.source_id ? amount(quantity.value,combinedRate(material.value,labour.value)) : 0n);
+    add.disabled = !choice || duplicate || !validValues(material,labour,quantity);
+    message.textContent = !choice ? (query ? 'Choose a matching item from the list, or enter its full code or description.' : '') : duplicate ? 'This item is already listed. Use Include or edit its quantity below.' : !validValues(material,labour,quantity) ? 'Enter valid non-negative rates and a positive quantity to add this item.' : '';
+    document.getElementById('quote-work-total').value = money(choice ? amount(quantity.value,combinedRate(material.value,labour.value)) : 0n);
   }
   function calculate() {
     let total = 0n;
     let included = 0;
+    let invalidIncluded = false;
     selected.forEach(({row,input,materialInput,labourInput,include,identity}) => {
       identity.disabled = !include.checked;
       for (const field of [input,materialInput,labourInput]) {field.disabled=false;field.required=include.checked;}
-      if (include.checked) included += 1;
+      if (include.checked) {
+        if (validValues(materialInput,labourInput,input)) included += 1;
+        else invalidIncluded = true;
+      }
       const cents = include.checked ? amount(input.value,combinedRate(materialInput.value,labourInput.value)) : 0n;
       row.querySelector('.line-total').textContent = money(cents);
       total += cents;
     });
     document.getElementById('quote-grand-total').value = money(total);
-    document.getElementById('quote-save').disabled = included === 0;
+    document.getElementById('quote-save').disabled = included === 0 || invalidIncluded;
     if (!selected.size && !document.getElementById('quote-empty')) {
       const row = body.insertRow();row.id='quote-empty';
       const cell = row.insertCell();cell.colSpan=8;cell.className='p-6 text-center text-slate-600';
@@ -117,7 +125,7 @@
     const options=document.getElementById('quote-work-options');
     options.replaceChildren(...data.choices.map(item=>{
       const option=document.createElement('option');option.value=item.label;
-      option.textContent=item.source_id?'Saved shop rates':'Save rates in Price List first';return option;
+      option.textContent=item.material_rate!=='' && item.labour_rate!==''?'Default rates available':'Enter quotation rates';return option;
     }));
     selected.clear();body.replaceChildren();search.value='';quantity.value='';
     choice=null;for(const field of ['code','description','unit','material','labour']) document.getElementById(`quote-work-${field}`).value='';

@@ -9,17 +9,27 @@
       {% include 'partials/flash_messages.html' %}
       <div class="flex items-center justify-between gap-4">
         <div><h1 class="text-2xl font-semibold text-slate-900">Carpentry Quotation</h1>
-          <p class="mt-1 text-sm text-slate-600">{{ shop.business_name }}{% if saved_quote %} &middot; {{ saved_quote.quote_number }}{% elif draft %} &middot; Draft {{ draft.quote_number }}{% endif %}</p></div>
+          <p class="mt-1 text-sm text-slate-600">{{ shop.business_name }}{% if saved_quote %} &middot; {{ saved_quote.quote_number }}{% elif draft %}<span id="quote-current-reference"> &middot; {{ draft.quote_number }}</span>{% endif %}</p></div>
         <a href="{{ url_for('mechanic_bp.shop_debtor_register', shop_id=shop.id, debtor_id=saved_quote.debtor_id if saved_quote else debtor.id) }}" class="rounded-lg bg-slate-100 px-4 py-2 font-semibold text-slate-700">Back</a>
       </div>
-      <div class="mt-4 flex justify-end"><a href="{{ url_for('mechanic_bp.quote_invoice_register',shop_id=shop.id) }}" class="rounded-lg bg-slate-100 px-4 py-2 font-semibold">Quote / Invoice Register</a></div>
-      <h2 class="mt-6 text-lg font-semibold">Client Details</h2>
+      {% if not saved_quote %}
+      <nav id="quote-hub-navigation" data-initial-area="{{ initial_area }}" data-debtor-id="{{ debtor.id }}" class="mt-4 flex justify-end gap-3" aria-label="Quotation working areas">
+        <button type="button" data-quote-area="debtor" aria-controls="quote-area-debtor" aria-expanded="{{ 'true' if initial_area=='debtor' else 'false' }}" class="rounded-lg bg-slate-100 px-4 py-2 font-semibold">Debtor</button>
+        <button type="button" data-quote-area="new" aria-controls="quote-area-form" aria-expanded="{{ 'true' if initial_area=='quote' else 'false' }}" class="rounded-lg bg-blue-100 px-4 py-2 font-semibold">New Quote</button>
+        <button type="button" data-quote-area="register" aria-controls="quote-area-register" aria-expanded="{{ 'true' if initial_area=='register' else 'false' }}" class="rounded-lg bg-slate-100 px-4 py-2 font-semibold">Register</button>
+      </nav>
+      <p class="mt-3 text-sm text-slate-600">Selected debtor: <strong>{{ debtor.name }}</strong></p>
+      <section id="quote-area-debtor" class="quote-working-area" {% if initial_area!='debtor' %}hidden{% endif %}>
+      <div class="mt-4 flex justify-end"><button type="button" data-close-quote-area class="rounded-lg bg-slate-100 px-4 py-2 font-semibold">Close</button></div>
+      {% endif %}
+      <h2 class="mt-6 text-lg font-semibold">Debtor Details</h2>
       <dl class="mt-3 grid grid-cols-1 gap-3 rounded-lg border border-slate-200 bg-slate-50 p-4 sm:grid-cols-2">
         <div><dt class="text-sm text-slate-500">Name</dt><dd id="quote-client-name" class="font-semibold">{{ details.name }}</dd></div>
         <div><dt class="text-sm text-slate-500">Phone</dt><dd>{{ details.phone or '' }}</dd></div>
         <div><dt class="text-sm text-slate-500">Email</dt><dd>{{ details.email or '' }}</dd></div>
         <div><dt class="text-sm text-slate-500">Address</dt><dd>{{ details.address or '' }}</dd></div>
       </dl>
+      {% if not saved_quote %}</section>{% endif %}
       {% if saved_quote %}
       {% if saved_quote.debtor_id %}<div class="mt-4 flex justify-end gap-3">
         {% if saved_quote.is_draft %}<a href="{{ url_for('mechanic_bp.debtor_quote', shop_id=shop.id, debtor_id=saved_quote.debtor_id) }}" class="rounded-lg bg-blue-100 px-4 py-2 font-semibold">Edit Draft</a>{% endif %}
@@ -38,6 +48,8 @@
       </div>
       <p class="mt-4 text-right text-xl font-semibold">Grand Total: R<span id="quote-grand-total">{{ '{:.2f}'.format(saved_quote.grand_total) }}</span></p>
       {% else %}
+      <section id="quote-area-form" class="quote-working-area" {% if initial_area!='quote' %}hidden{% endif %}>
+        <div class="mt-4 flex items-center justify-between"><h2 id="quote-form-title" class="text-lg font-semibold">{{ 'Edit Quotation' if draft else 'New Quotation' }}</h2><button type="button" data-close-quote-area class="rounded-lg bg-slate-100 px-4 py-2 font-semibold">Close</button></div>
         <div class="mt-5 rounded-lg border border-slate-200 bg-slate-50 p-4">
           <label for="quote-work-select" class="block text-sm font-semibold">Select Work Item</label>
           <input id="quote-work-select" list="quote-work-options" autocomplete="off" placeholder="Search by item code or description" autofocus class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2">
@@ -53,25 +65,35 @@
       <form id="carpentry-quote-form" autocomplete="off" method="POST" action="{{ url_for('mechanic_bp.debtor_quote', shop_id=shop.id, debtor_id=debtor.id) }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="quote_key" value="{{ quote_key }}">
+        <input type="hidden" name="area" value="{{ 'quote' if draft else 'new' }}">
+        <input type="hidden" name="quote_id" value="{{ draft.id if draft else '' }}" {% if not draft %}disabled{% endif %}>
         {% if customer %}<input type="hidden" name="client_id" value="{{ customer.id }}">{% endif %}
         <h2 class="mt-6 text-lg font-semibold">Quotation Items</h2>
         {% if error %}<p role="alert" class="mt-3 text-sm font-semibold text-red-700">{{ error }}</p>{% endif %}
         <div class="mt-3 overflow-x-auto rounded-lg border border-slate-200">
           <table id="quote-boq-items" class="w-full text-left text-sm"><thead class="bg-slate-50"><tr>
-            {% for heading in ['Item Code', 'Description', 'Unit', 'Quantity', 'Material R/unit', 'Labour R/unit', 'Total R', 'Action'] %}<th class="p-3">{{ heading }}</th>{% endfor %}
+            {% for heading in ['Include', 'Item Code', 'Description', 'Unit', 'Quantity', 'Material R/unit', 'Labour R/unit', 'Total R'] %}<th class="p-3">{{ heading }}</th>{% endfor %}
           </tr></thead><tbody id="quote-item-lines">
           {% for line in initial_lines %}<tr class="quote-line border-t border-slate-200" data-source-id="{{ line.source_id }}">
-            <td class="p-3"><input type="hidden" name="item_id[]" value="{{ line.source_id }}">{{ line.code }}</td><td class="p-3">{{ line.description }}</td><td class="p-3">{{ line.unit }}</td>
+            <td class="p-3"><input type="checkbox" checked aria-label="Include {{ line.code }}"></td><td class="p-3"><input type="hidden" name="item_id[]" value="{{ line.source_id }}">{{ line.code }}<button type="button" class="quote-remove mt-1 block rounded-lg bg-red-50 px-2 py-1 text-xs" aria-label="Remove {{ line.code }}">Remove Item</button></td><td class="p-3">{{ line.description }}</td><td class="p-3">{{ line.unit }}</td>
             <td class="p-3"><input name="quantity_{{ line.source_id }}" type="number" value="{{ line.quantity }}" required min="{{ '1' if line.unit=='Each' else '0.001' }}" max="99999999999.999" step="{{ '1' if line.unit=='Each' else '0.001' }}" aria-label="Quantity {{ line.code }}" class="w-28 rounded-lg border border-slate-300 px-3 py-2"></td>
-            <td class="p-3">{{ line.material_rate }}</td><td class="p-3">{{ line.labour_rate }}</td><td class="line-total p-3">0.00</td><td class="p-3"><button type="button" class="quote-remove rounded-lg bg-red-50 px-3 py-2">Remove</button></td>
+            <td class="p-3">{{ line.material_rate }}</td><td class="p-3">{{ line.labour_rate }}</td><td class="line-total p-3">0.00</td>
           </tr>{% else %}<tr id="quote-empty"><td colspan="8" class="p-6 text-center text-slate-600">No items added. Select a work item above.</td></tr>{% endfor %}
           </tbody></table>
         </div>
-        <p class="mt-4 text-right text-xl font-semibold">Grand Total: R<output id="quote-grand-total" aria-live="polite">0.00</output></p>
+        <p class="mt-4 text-right text-xl font-semibold">Grand Total: R<output id="quote-grand-total" aria-live="polite">{{ '{:.2f}'.format(draft.grand_total) if draft else '0.00' }}</output></p>
         <div class="mt-4 flex justify-end"><button id="quote-save" type="submit" {% if not initial_lines %}disabled{% endif %} class="rounded-lg bg-slate-800 px-4 py-2 font-semibold text-white disabled:opacity-50">{{ 'Save Changes' if draft else 'Save Quote' }}</button></div>
       </form>
-      <script id="quote-builder-data" type="application/json">{{ dict(choices=work_choices,lines=initial_lines)|tojson }}</script>
+      </section>
+      <section id="quote-area-register" class="quote-working-area" {% if initial_area!='register' %}hidden{% endif %}>
+        <div class="mt-4 flex items-center justify-between"><h2 class="text-lg font-semibold">Quotations for {{ debtor.name }}</h2><button type="button" data-close-quote-area class="rounded-lg bg-slate-100 px-4 py-2 font-semibold">Close</button></div>
+        <div class="mt-3 overflow-x-auto rounded-lg border border-slate-200"><table id="debtor-quote-register" class="w-full text-left text-sm"><thead class="bg-slate-50"><tr>{% for heading in ['Quote No.','Date','Amount','Status','Action'] %}<th class="p-3">{{ heading }}</th>{% endfor %}</tr></thead><tbody>
+        {% for quote in quote_history %}<tr class="border-t border-slate-200"><td class="p-3">{{ quote.quote_number }}</td><td class="p-3">{{ quote_dates.get(quote.id,'') }}</td><td class="p-3">R{{ '{:.2f}'.format(quote.grand_total) }}</td><td class="p-3">{{ 'Draft' if quote.is_draft else 'Saved' }}</td><td class="p-3"><a class="rounded-lg bg-slate-100 px-3 py-2 font-semibold" href="{{ url_for('mechanic_bp.debtor_quote',shop_id=shop.id,debtor_id=debtor.id,area='quote',quote_id=quote.id) }}">Open</a></td></tr>{% else %}<tr><td colspan="5" class="p-6 text-center text-slate-600">No quotations for this debtor yet.</td></tr>{% endfor %}
+        </tbody></table></div>
+      </section>
+      <script id="quote-builder-data" type="application/json">{{ dict(choices=work_choices,lines=initial_lines,fresh_choices=fresh_choices,fresh_quote_key=fresh_quote_key)|tojson }}</script>
       <script src="{{ url_for('static',filename='js/carpentry_quote_builder.js') }}" defer></script>
+      <script src="{{ url_for('static',filename='js/carpentry_quote_hub.js') }}" defer></script>
       {% endif %}
     </div>
   </div>

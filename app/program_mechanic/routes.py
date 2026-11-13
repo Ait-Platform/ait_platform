@@ -1203,7 +1203,7 @@ def new_debtor_quote(shop_id, debtor_id):
     for draft in drafts:
         draft.is_draft = False
     db.session.commit()
-    return redirect(url_for('mechanic_bp.debtor_quote',shop_id=shop.id,debtor_id=debtor.id))
+    return redirect(url_for('mechanic_bp.debtor_quote',shop_id=shop.id,debtor_id=debtor.id,**({'area':'new'} if shop.trade=='carpentry' else {})))
 
 
 @mechanic_bp.route('/mechanic/quote-invoice', methods=['GET'])
@@ -1303,7 +1303,7 @@ def register_trade_quote(shop_id, client_id=None, debtor_id=None):
     return carpentry_quote_form(shop, customer, debtor)
 
 
-def carpentry_quote_form(shop, customer, debtor):
+def carpentry_quote_form(shop, customer, debtor, editing_quote=None):
     from decimal import Decimal, InvalidOperation, ROUND_HALF_UP, localcontext
     from uuid import uuid4, UUID
     from app.models.mechanic import ProTradeBoqItem, ProTradeBoqQuote
@@ -1312,8 +1312,27 @@ def carpentry_quote_form(shop, customer, debtor):
     # A row lock serializes saves; GET only reads and never allocates a quote.
     if request.method == 'POST':
         Debtor.query.filter_by(id=debtor.id,shop_id=shop.id,user_id=current_user.id).with_for_update().first()
-    draft = ProTradeBoqQuote.query.filter_by(user_id=current_user.id,shop_id=shop.id,debtor_id=debtor.id,is_draft=True).first()
+    from flask import abort
+    raw_quote_id = request.values.get('quote_id')
+    scoped_quotes = ProTradeBoqQuote.query.filter_by(user_id=current_user.id,shop_id=shop.id,debtor_id=debtor.id,trade='carpentry')
+    if editing_quote is not None:
+        draft = editing_quote
+    elif raw_quote_id is not None:
+        identifier = request.values.get('quote_id',type=int)
+        draft = scoped_quotes.filter_by(id=identifier).first() if identifier else None
+        if draft is None:
+            abort(404)
+    elif request.values.get('area') == 'new':
+        draft = None
+    else:
+        draft = scoped_quotes.filter_by(is_draft=True).first()
+    initial_area = 'quote' if editing_quote is not None or raw_quote_id is not None or request.method=='POST' else request.args.get('area','hub')
+    if initial_area not in ('hub','debtor','new','quote','register'):
+        abort(404)
+    if initial_area == 'new':
+        initial_area = 'quote'
     items = ProTradeBoqItem.query.filter_by(user_id=current_user.id, shop_id=shop.id, trade='carpentry').order_by(ProTradeBoqItem.code).all()
+    fresh_items = list(items)
     details = dict(name=debtor.name,phone=debtor.phone,email=debtor.email,address=debtor.address)
     if draft:
         from types import SimpleNamespace
@@ -1336,7 +1355,9 @@ def carpentry_quote_form(shop, customer, debtor):
             number = 'CAR-Q-' + quote_key.upper()
             saved = ProTradeBoqQuote.query.filter_by(quote_number=number, user_id=current_user.id,
                                                      shop_id=shop.id, trade='carpentry',
-                                                     client_id=customer.id if customer else None).first()
+                                                     client_id=customer.id if customer else None, debtor_id=debtor.id).first()
+            if raw_quote_id is not None and draft and number != draft.quote_number:
+                raise ValueError('Reopen the selected quotation before saving.')
             if saved and saved.id != (draft.id if draft else None):
                 return redirect(url_for('mechanic_bp.carpentry_quote_view', shop_id=shop.id, quote_id=saved.id))
             raw_ids = request.form.getlist('item_id[]')
@@ -1373,6 +1394,11 @@ def carpentry_quote_form(shop, customer, debtor):
                 grand_total += amount
             if grand_total > Decimal('99999999999999999999999999.99'):
                 raise ValueError('Quotation total is too large to save.')
+            if draft is None:
+                # Only an actual new save retires the prior open draft. Hub navigation is read-only.
+                for previous in scoped_quotes.filter_by(is_draft=True).all():
+                    previous.is_draft = False
+                db.session.flush()
             quote = draft or ProTradeBoqQuote(user_id=current_user.id, shop_id=shop.id,
                                     client_id=customer.id if customer else None, trade='carpentry', quote_number=number,
                                     client_name=details['name'], client_phone=details['phone'], client_email=details['email'],
@@ -1382,7 +1408,8 @@ def carpentry_quote_form(shop, customer, debtor):
             quote.client_phone = details['phone']
             quote.client_email = details['email']
             quote.client_address = details['address']
-            quote.is_draft = True
+            if draft is None:
+                quote.is_draft = True
             quote.items = lines
             quote.grand_total = grand_total
             db.session.add(quote)
@@ -1404,15 +1431,24 @@ def carpentry_quote_form(shop, customer, debtor):
                     rate_cents=str(int((item.material_rate+item.labour_rate)*100)) if item else '')
     definitions = work_items_for('carpentry')
     predefined_codes = {definition['code'] for definition in definitions}
-    by_code = {item.code:item for item in items}
-    choices = [work_choice(definition,by_code.get(definition['code'])) for definition in definitions]
-    choices.extend(work_choice(dict(code=item.code,description=item.description,unit=item.unit),item)
-                   for item in items if item.code not in predefined_codes)
+    def choices_for(source):
+        by_code = {item.code:item for item in source}
+        choices = [work_choice(definition,by_code.get(definition['code'])) for definition in definitions]
+        choices.extend(work_choice(dict(code=item.code,description=item.description,unit=item.unit),item)
+                       for item in source if item.code not in predefined_codes)
+        return choices
+    choices = choices_for(items)
+    fresh_choices = choices_for(fresh_items)
+    history = scoped_quotes.order_by(ProTradeBoqQuote.created_at.desc(),ProTradeBoqQuote.id.desc()).all()
+    from datetime import timezone
+    from zoneinfo import ZoneInfo
+    quote_dates = {quote.id: (quote.created_at if quote.created_at.tzinfo else quote.created_at.replace(tzinfo=timezone.utc)).astimezone(ZoneInfo('Africa/Johannesburg')).strftime('%Y-%m-%d') for quote in history if quote.created_at}
     initial_lines = [dict(work_choice(dict(code=item.code,description=item.description,unit=item.unit),item),
                           quantity=quantities.get(item.id,'')) for item in items if item.id in selected_ids]
     return render_template('program_mechanic/carpentry_quote.html', shop=shop, customer=customer,
                            details=details, debtor=debtor, draft=draft, boq_items=items, quote_key=quote_key, selected_ids=selected_ids,
-                           quantities=quantities, error=error, saved_quote=None, work_choices=choices, initial_lines=initial_lines), status
+                           quantities=quantities, error=error, saved_quote=None, work_choices=choices, initial_lines=initial_lines, fresh_choices=fresh_choices, fresh_quote_key=uuid4().hex,
+                           initial_area=initial_area, quote_history=history, quote_dates=quote_dates), status
 
 
 @mechanic_bp.route('/mechanic/shop/<int:shop_id>/quotes/<int:quote_id>')
@@ -1424,6 +1460,14 @@ def carpentry_quote_view(shop_id, quote_id):
     quote = ProTradeBoqQuote.query.filter_by(id=quote_id, shop_id=shop_id, user_id=current_user.id, trade='carpentry').first()
     if not shop or not quote:
         abort(404)
+    if quote.debtor_id is not None:
+        from app.models.debtors import Debtor
+        from app.models.mechanic import MechClient
+        debtor = Debtor.query.filter_by(id=quote.debtor_id,shop_id=shop.id,user_id=current_user.id).first()
+        customer = MechClient.query.filter_by(id=quote.client_id,shop_id=shop.id,user_id=current_user.id).first()
+        if not debtor or not customer or debtor.reference_id != customer.id:
+            abort(404)
+        return carpentry_quote_form(shop,customer,debtor,editing_quote=quote)
     details = dict(name=quote.client_name, phone=quote.client_phone, email=quote.client_email, address=quote.client_address)
     return render_template('program_mechanic/carpentry_quote.html', shop=shop, details=details,
                            saved_quote=quote)

@@ -237,6 +237,7 @@ class TradeQuoteTests(unittest.TestCase):
                 page = browser.new_page()
                 page.set_content(self.client.get(self.quote_url()).get_data(as_text=True))
                 page.add_script_tag(path=str(base.ROOT/'app/static/js/carpentry_quote_builder.js'))
+                page.evaluate("document.getElementById('quote-area-form').hidden=false")
                 page.locator('#quote-work-select').fill('CAR-004 \u2014 Install skirting')
                 page.locator('#quote-work-quantity').fill('2.5')
                 page.locator('#quote-add-item').click()

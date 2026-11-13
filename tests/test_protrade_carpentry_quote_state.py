@@ -35,7 +35,7 @@ class CarpentryQuoteStateTests(unittest.TestCase):
         self.assertEqual(tree.get_element_by_id('quote-grand-total').text_content(),'0.00')
         self.assertNotIn('Saved Quotes',tree.text_content())
         self.assertNotIn('LEGACY-CAR',tree.text_content())
-        self.assertTrue(tree.xpath(f'//a[@href="/mechanic/quote-invoice?shop_id={self.carpentry.id}"]'))
+        self.assertEqual(tree.xpath('//nav[@id="quote-hub-navigation"]/button/text()'),['Debtor','New Quote','Register'])
         self.assertEqual(base.ProTradeBoqQuote.query.count(),1)
 
     def test_browser_blank_defaults_required_selection_and_submission(self):
@@ -45,6 +45,7 @@ class CarpentryQuoteStateTests(unittest.TestCase):
             try:
                 page=browser.new_page();page.set_content(self.client.get(self.quote_url()).get_data(as_text=True))
                 page.add_script_tag(path=str(base.ROOT/'app/static/js/carpentry_quote_builder.js'))
+                page.evaluate("document.getElementById('quote-area-form').hidden=false")
                 self.assertEqual(page.locator('#quote-grand-total').text_content(),'0.00')
                 self.assertEqual(page.locator('.quote-line').count(),0)
                 self.assertEqual(page.locator('#quote-work-select').input_value(),'')
@@ -103,11 +104,12 @@ class CarpentryQuoteStateTests(unittest.TestCase):
             try:
                 page=browser.new_page();page.set_content(response.get_data(as_text=True))
                 page.add_script_tag(path=str(base.ROOT/'app/static/js/carpentry_quote_builder.js'))
+                page.evaluate("document.getElementById('quote-area-form').hidden=false")
                 self.assertEqual(page.locator('#quote-grand-total').text_content(),'450.00')
             finally:browser.close()
         old_view=html.fromstring(self.client.get(f'/mechanic/shop/{self.carpentry.id}/quotes/{first.id}').data)
         self.assertEqual(old_view.get_element_by_id('quote-grand-total').text_content(),'325.00')
-        self.assertIn('CAR-004',old_view.text_content());self.assertNotIn('CAR-002',old_view.text_content())
+        self.assertEqual(old_view.xpath('//input[@name="item_id[]"]/@value'),[str(self.item.id)])
         key=tree.xpath('//input[@name="quote_key"]/@value')[0]
         self.save_quote(key=key,**{'item_id[]':[str(each.id)],f'quantity_{each.id}':'4'})
         self.assertEqual((current.id,current.quote_number),(identifier,number))
@@ -141,6 +143,7 @@ class CarpentryQuoteStateTests(unittest.TestCase):
             try:
                 page=browser.new_page();page.set_content(self.client.get(self.quote_url()).get_data(as_text=True))
                 page.add_script_tag(path=str(base.ROOT/'app/static/js/carpentry_quote_builder.js'))
+                page.evaluate("document.getElementById('quote-area-form').hidden=false")
                 page.locator('#quote-work-select').fill('CAR-001 \u2014 Supply and install wooden door')
                 self.assertEqual(page.locator('#quote-work-code').input_value(),'CAR-001')
                 self.assertEqual(page.locator('#quote-work-unit').input_value(),'Each')
@@ -164,6 +167,7 @@ class CarpentryQuoteStateTests(unittest.TestCase):
             try:
                 page=browser.new_page();page.set_content(self.client.get(self.quote_url()).get_data(as_text=True))
                 page.add_script_tag(path=str(base.ROOT/'app/static/js/carpentry_quote_builder.js'))
+                page.evaluate("document.getElementById('quote-area-form').hidden=false")
                 for label,quantity in [('CAR-002 \u2014 Install door frame','3'),('CAR-004 \u2014 Install skirting','2.5'),('CAR-C-SHOP \u2014 Custom timber repair','4')]:
                     page.locator('#quote-work-select').fill(label)
                     page.locator('#quote-work-quantity').fill(quantity)
@@ -189,13 +193,14 @@ class CarpentryQuoteStateTests(unittest.TestCase):
                 custom.material_rate=Decimal('999');self.db_session.commit()
                 page.set_content(self.client.get(self.quote_url()).get_data(as_text=True))
                 page.add_script_tag(path=str(base.ROOT/'app/static/js/carpentry_quote_builder.js'))
+                page.evaluate("document.getElementById('quote-area-form').hidden=false")
                 self.assertEqual(page.locator('.quote-line').count(),3)
                 self.assertEqual(page.locator('#quote-grand-total').text_content(),'915.00')
                 for identifier,(quantity,material,labour,total) in expected.items():
                     row=page.locator(f'.quote-line[data-source-id="{identifier}"]')
                     self.assertEqual(row.locator('input[type=number]').input_value(),quantity)
-                    self.assertEqual(row.locator('td').nth(4).text_content(),material)
-                    self.assertEqual(row.locator('td').nth(5).text_content(),labour)
+                    self.assertEqual(row.locator('td').nth(5).text_content(),material)
+                    self.assertEqual(row.locator('td').nth(6).text_content(),labour)
                     self.assertEqual(row.locator('.line-total').text_content(),total)
                 fields=page.locator('#carpentry-quote-form').evaluate('(form)=>Array.from(new FormData(form).entries())')
                 self.assertEqual(self.client.post(self.quote_url(),data=MultiDict(fields)).status_code,302)

@@ -25,18 +25,21 @@
     quantity.step = choice?.unit === 'Each' ? '1' : '0.001';
     const duplicate = choice && selected.has(String(choice.source_id));
     add.disabled = !choice?.source_id || duplicate;
-    message.textContent = !choice ? '' : !choice.source_id ? "Save rates for this item in the shop's Price List before adding it." : duplicate ? 'This item is already included. Edit its quantity below.' : '';
+    message.textContent = !choice ? '' : !choice.source_id ? "Save rates for this item in the shop's Price List before adding it." : duplicate ? 'This item is already listed. Use Include or edit its quantity below.' : '';
     document.getElementById('quote-work-total').value = money(choice?.source_id ? amount(quantity.value,choice.rate_cents) : 0n);
   }
   function calculate() {
     let total = 0n;
-    selected.forEach(({item,row,input}) => {
-      const cents = amount(input.value,item.rate_cents);
+    let included = 0;
+    selected.forEach(({item,row,input,include,identity}) => {
+      input.disabled = !include.checked;identity.disabled = !include.checked;
+      if (include.checked) included += 1;
+      const cents = include.checked ? amount(input.value,item.rate_cents) : 0n;
       row.querySelector('.line-total').textContent = money(cents);
       total += cents;
     });
     document.getElementById('quote-grand-total').value = money(total);
-    document.getElementById('quote-save').disabled = selected.size === 0;
+    document.getElementById('quote-save').disabled = included === 0;
     if (!selected.size && !document.getElementById('quote-empty')) {
       const row = body.insertRow();row.id='quote-empty';
       const cell = row.insertCell();cell.colSpan=8;cell.className='p-6 text-center text-slate-600';
@@ -50,6 +53,8 @@
     document.getElementById('quote-empty')?.remove();
     const row = body.insertRow();row.className='quote-line border-t border-slate-200';row.dataset.sourceId=key;
     const cell = text => { const node=row.insertCell();node.className='p-3';node.textContent=text;return node; };
+    const include=document.createElement('input');include.type='checkbox';include.checked=true;
+    include.setAttribute('aria-label',`Include ${item.code}`);cell('').append(include);
     const code=cell(item.code), identity=document.createElement('input');
     identity.type='hidden';identity.name='item_id[]';identity.value=key;code.append(identity);
     cell(item.description);cell(item.unit);
@@ -58,10 +63,11 @@
     input.step=item.unit==='Each'?'1':'0.001';input.max='99999999999.999';
     input.className='w-28 rounded-lg border border-slate-300 px-3 py-2';input.setAttribute('aria-label',`Quantity ${item.code}`);
     cell('').append(input);cell(item.material_rate);cell(item.labour_rate);cell('0.00').classList.add('line-total');
-    const remove=document.createElement('button');remove.type='button';remove.textContent='Remove';
-    remove.className='quote-remove rounded-lg bg-red-50 px-3 py-2';remove.setAttribute('aria-label',`Remove ${item.code}`);
-    cell('').append(remove);
-    selected.set(key,{item,row,input});
+    const remove=document.createElement('button');remove.type='button';remove.textContent='Remove Item';
+    remove.className='quote-remove mt-1 block rounded-lg bg-red-50 px-2 py-1 text-xs';remove.setAttribute('aria-label',`Remove ${item.code}`);
+    code.append(remove);
+    selected.set(key,{item,row,input,include,identity});
+    include.addEventListener('change',calculate);
     input.addEventListener('input',calculate);
     remove.addEventListener('click',()=>{selected.delete(key);row.remove();calculate();});
   }
@@ -77,9 +83,26 @@
     addLine(choice,quantity.value);search.value='';quantity.value='';calculate();
   });
   function restoreServerState() {
+    const options=document.getElementById('quote-work-options');
+    options.replaceChildren(...data.choices.map(item=>{
+      const option=document.createElement('option');option.value=item.label;
+      option.textContent=item.source_id?'Saved shop rates':'Save rates in Price List first';return option;
+    }));
     selected.clear();body.replaceChildren();search.value='';quantity.value='';
     data.lines.forEach(line=>addLine(line,String(line.quantity)));calculate();
   }
+  document.addEventListener('carpentry:new-quote',()=>{
+    data.choices=data.fresh_choices;data.lines=[];
+    const form=document.getElementById('carpentry-quote-form');
+    form.elements.namedItem('quote_key').value=data.fresh_quote_key;
+    form.elements.namedItem('area').value='new';
+    const identity=form.elements.namedItem('quote_id');identity.value='';identity.disabled=true;
+    document.getElementById('quote-save').textContent='Save Quote';
+    document.getElementById('quote-form-title').textContent='New Quotation';
+    const reference=document.getElementById('quote-current-reference');if(reference) reference.hidden=true;
+    const error=form.querySelector('[role="alert"]');if(error) error.hidden=true;
+    restoreServerState();search.focus();
+  });
   restoreServerState();
   window.addEventListener('pageshow',restoreServerState);
 })();

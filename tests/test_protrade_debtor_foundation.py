@@ -227,6 +227,7 @@ class DebtorFoundationTests(unittest.TestCase):
                 self.assertEqual(page.get_by_role('link',name='Quote',exact=True).count(),1)
                 page.set_content(self.client.get(self.quote_url()).get_data(as_text=True))
                 page.add_script_tag(path=str(base.ROOT/'app/static/js/carpentry_quote_builder.js'))
+                page.evaluate("document.getElementById('quote-area-form').hidden=false")
                 self.assertEqual(page.locator('input[name="item_id[]"]').input_value(),str(self.item.id))
                 self.assertEqual(page.locator(f'input[name="quantity_{self.item.id}"]').input_value(),'2.5')
                 self.assertEqual(page.locator('#quote-grand-total').text_content(),'325.00')

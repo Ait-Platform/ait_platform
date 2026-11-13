@@ -1,0 +1,145 @@
+"""Debtor-specific quotation hub and explicit quote editing on PostgreSQL/Chromium."""
+from decimal import Decimal
+from datetime import datetime
+import json
+import unittest
+from urllib.parse import urlsplit
+from lxml import html
+from playwright.sync_api import sync_playwright
+import test_protrade_shop_register as base
+import test_protrade_debtor_foundation as foundation
+
+
+class CarpentryQuoteHubTests(unittest.TestCase):
+    setUp=foundation.DebtorFoundationTests.setUp
+    shop=foundation.DebtorFoundationTests.shop
+    save_debtor=foundation.DebtorFoundationTests.save_debtor
+    debtor=foundation.DebtorFoundationTests.debtor
+    save_quote=foundation.DebtorFoundationTests.save_quote
+    quote_url=foundation.DebtorFoundationTests.quote_url
+
+    def fixtures(self):
+        self.save_debtor();self.owner_debtor=self.debtor()
+        self.url=self.quote_url(self.owner_debtor)
+        self.save_quote();self.first=base.ProTradeBoqQuote.query.filter_by(is_draft=True).one()
+        self.client.post(f'/mechanic/shop/{self.carpentry.id}/debtor/{self.owner_debtor.id}/quotes/new')
+        self.save_quote(quantity='4');self.second_quote=base.ProTradeBoqQuote.query.filter_by(is_draft=True).one()
+        client=base.models.MechClient(user_id=1,shop_id=self.carpentry.id,name='Different debtor')
+        self.db_session.add(client);self.db_session.flush()
+        self.other=base.models.Debtor(user_id=1,shop_id=self.carpentry.id,reference_id=client.id,name=client.name,slug_reference='protrade')
+        self.db_session.add(self.other);self.db_session.flush()
+        self.other_quote=base.ProTradeBoqQuote(user_id=1,shop_id=self.carpentry.id,debtor_id=self.other.id,client_id=client.id,trade='carpentry',quote_number='CAR-Q-OTHER-DEBTOR',client_name=client.name,items=[],grand_total=Decimal('999'))
+        self.db_session.add(self.other_quote)
+        self.foreign_quote=base.ProTradeBoqQuote(user_id=2,shop_id=self.foreign.id,trade='carpentry',quote_number='CAR-Q-FOREIGN',client_name='Foreign',items=[],grand_total=Decimal('777'))
+        self.db_session.add(self.foreign_quote);self.db_session.commit()
+
+    def browser_route(self,route):
+        req=route.request;url=urlsplit(req.url)
+        if url.path in ('/static/js/carpentry_quote_builder.js','/static/js/carpentry_quote_hub.js'):
+            return route.fulfill(path=str(base.ROOT/'app'/url.path.removeprefix('/')),content_type='application/javascript')
+        response=self.client.open(url.path+('?' +url.query if url.query else ''),method=req.method,data=req.post_data,
+                                  content_type=req.headers.get('content-type'),follow_redirects=True)
+        route.fulfill(status=response.status_code,headers={k:v for k,v in response.headers if k.lower() not in ('set-cookie','content-length')},body=response.data)
+
+    def test_register_is_debtor_scoped_and_dates_use_south_africa(self):
+        self.fixtures()
+        self.first.created_at=datetime(2026,11,12,23,30);self.db_session.commit()
+        before=self.conn.exec_driver_sql('SELECT * FROM protrade_boq_quotes ORDER BY id').all()
+        tree=html.fromstring(self.client.get(self.url+'?area=register').data)
+        self.assertEqual(tree.xpath('//nav[@id="quote-hub-navigation"]/button/text()'),['Debtor','New Quote','Register'])
+        self.assertNotIn('Quote / Invoice Register',tree.text_content())
+        register=tree.get_element_by_id('debtor-quote-register')
+        self.assertEqual(register.xpath('./thead/tr/th/text()'),['Quote No.','Date','Amount','Status','Action'])
+        self.assertEqual(set(register.xpath('./tbody/tr/td[1]/text()')),{self.first.quote_number,self.second_quote.quote_number})
+        self.assertNotIn('CAR-Q-OTHER-DEBTOR',register.text_content());self.assertNotIn('CAR-Q-FOREIGN',register.text_content())
+        self.assertNotIn('LEGACY-CAR',register.text_content());self.assertIn('2026-11-13',register.text_content())
+        for link in register.xpath('.//a'):
+            self.assertIn(f'/debtor/{self.owner_debtor.id}/quote?',link.get('href'))
+            self.assertIn('quote_id=',link.get('href'))
+        self.assertEqual(self.conn.exec_driver_sql('SELECT * FROM protrade_boq_quotes ORDER BY id').all(),before)
+
+    def test_explicit_open_enforces_debtor_shop_owner_and_preserves_quote_number(self):
+        self.fixtures()
+        for identifier in (self.other_quote.id,self.foreign_quote.id,999999):
+            self.assertEqual(self.client.get(self.url+f'?area=quote&quote_id={identifier}').status_code,404)
+            self.assertEqual(self.client.post(self.url,data={'area':'quote','quote_id':identifier}).status_code,404)
+        self.assertEqual(self.client.get(self.url+'?quote_id=bad').status_code,404)
+        response=self.client.get(self.url+f'?area=quote&quote_id={self.first.id}')
+        tree=html.fromstring(response.data)
+        self.assertEqual(tree.xpath('//input[@name="quantity_'+str(self.item.id)+'"]/@value'),['2.5'])
+        self.assertEqual(tree.xpath('//input[@name="quote_id"]/@value'),[str(self.first.id)])
+        wrong=self.client.post(self.url,data={'area':'quote','quote_id':self.first.id,'quote_key':self.second_quote.quote_number.removeprefix('CAR-Q-'),'item_id[]':[self.item.id],f'quantity_{self.item.id}':'3'})
+        self.assertEqual(wrong.status_code,400)
+        self.assertEqual(self.first.grand_total,Decimal('325.00'))
+
+    def test_browser_hub_close_scoped_open_edit_and_blank_new_with_fresh_rates(self):
+        self.fixtures()
+        first_identity=(self.first.id,self.first.quote_number)
+        second_identity=(self.second_quote.id,self.second_quote.quote_number)
+        self.item.material_rate=Decimal('999');self.db_session.commit()
+        count=base.ProTradeBoqQuote.query.count()
+        with sync_playwright() as playwright:
+            browser=playwright.chromium.launch(headless=True)
+            try:
+                page=browser.new_page();page.route('http://localhost/**',self.browser_route)
+                page.goto('http://localhost'+self.url)
+                self.assertEqual(page.locator('.quote-working-area:visible').count(),0)
+                self.assertTrue(page.get_by_role('link',name='Back',exact=True).is_visible())
+                for name in ('Debtor','New Quote','Register'):self.assertTrue(page.get_by_role('button',name=name,exact=True).is_visible())
+                page.get_by_role('button',name='Debtor',exact=True).click()
+                self.assertEqual(page.locator('.quote-working-area:visible').count(),1)
+                self.assertTrue(page.get_by_role('heading',name='Debtor Details',exact=True).is_visible())
+                self.assertEqual(page.locator('#quote-client-name').text_content(),'Debtor Jane')
+                page.get_by_role('button',name='Close',exact=True).click()
+                self.assertEqual(page.locator('.quote-working-area:visible').count(),0)
+                page.get_by_role('button',name='Register',exact=True).click()
+                row=page.locator('#debtor-quote-register tr').filter(has_text=self.first.quote_number)
+                row.get_by_role('link',name='Open',exact=True).click()
+                page.locator('#quote-area-form').wait_for(state='visible')
+                self.assertEqual(page.locator('input[name=quote_id]').input_value(),str(self.first.id))
+                self.assertEqual(page.locator(f'input[name="quantity_{self.item.id}"]').input_value(),'2.5')
+                self.assertEqual(page.locator('#quote-grand-total').text_content(),'325.00')
+                page.locator(f'input[name="quantity_{self.item.id}"]').fill('3')
+                page.get_by_role('button',name='Save Changes',exact=True).click()
+                page.locator('#quote-area-form').wait_for(state='visible')
+                self.assertEqual(self.first.grand_total,Decimal('390.00'))
+                self.assertFalse(self.first.is_draft);self.assertTrue(self.second_quote.is_draft)
+                self.assertEqual(self.second_quote.grand_total,Decimal('520.00'))
+                self.assertEqual((self.first.id,self.first.quote_number),first_identity)
+                self.assertEqual((self.second_quote.id,self.second_quote.quote_number),second_identity)
+                page.get_by_role('button',name='New Quote',exact=True).click()
+                self.assertEqual(page.locator('.quote-working-area:visible').count(),1)
+                self.assertEqual(page.locator('.quote-line').count(),0)
+                self.assertEqual(page.locator('#quote-grand-total').text_content(),'0.00')
+                self.assertEqual(page.locator('#quote-work-select').input_value(),'')
+                self.assertEqual(page.locator('#quote-work-quantity').input_value(),'')
+                self.assertEqual(page.locator('#quote-work-material').input_value(),'')
+                self.assertTrue(page.locator('input[name=quote_id]').is_disabled())
+                self.assertEqual(page.locator('#quote-boq-items th').all_text_contents(),['Include','Item Code','Description','Unit','Quantity','Material R/unit','Labour R/unit','Total R'])
+                page.get_by_role('button',name='Close',exact=True).click()
+                self.assertEqual(base.ProTradeBoqQuote.query.count(),count)
+                self.assertTrue(self.second_quote.is_draft)
+                page.get_by_role('button',name='New Quote',exact=True).click()
+                page.locator('#quote-work-select').fill('CAR-004 \u2014 Install skirting')
+                self.assertEqual(page.locator('#quote-work-material').input_value(),'999.00')
+                page.locator('#quote-work-quantity').fill('1');page.get_by_role('button',name='Add Item',exact=True).click()
+                self.assertEqual(page.locator('#quote-grand-total').text_content(),'1044.00')
+                page.get_by_role('checkbox',name='Include CAR-004',exact=True).uncheck()
+                self.assertEqual(page.locator('#quote-grand-total').text_content(),'0.00')
+                self.assertTrue(page.locator('#quote-save').is_disabled())
+                page.get_by_role('checkbox',name='Include CAR-004',exact=True).check()
+                self.assertEqual(page.locator('#quote-grand-total').text_content(),'1044.00')
+                page.get_by_role('button',name='Save Quote',exact=True).click()
+                page.locator('#quote-area-form').wait_for(state='visible')
+                self.assertEqual(base.ProTradeBoqQuote.query.count(),count+1)
+                self.assertFalse(self.second_quote.is_draft)
+                newest=base.ProTradeBoqQuote.query.filter_by(debtor_id=self.owner_debtor.id,is_draft=True).one()
+                self.assertEqual(newest.grand_total,Decimal('1044.00'))
+                self.assertEqual(page.locator('#quote-hub-navigation').get_attribute('data-debtor-id'),str(self.owner_debtor.id))
+                page.get_by_role('button',name='Register',exact=True).click()
+                self.assertEqual(page.locator('.quote-working-area:visible').count(),1)
+                self.assertEqual(page.locator('#debtor-quote-register tbody tr').count(),3)
+            finally:browser.close()
+
+
+if __name__=='__main__':unittest.main()

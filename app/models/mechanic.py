@@ -73,6 +73,11 @@ class ProTradeBoqQuote(db.Model):
     is_draft = db.Column(db.Boolean, nullable=True)
     trade = db.Column(db.String(50), nullable=False)
     quote_number = db.Column(db.String(50), nullable=False, unique=True)
+    quotation_seq = db.Column(db.Integer, server_default=db.FetchedValue())
+
+    @property
+    def display_quote_number(self):
+        return f'Q-{self.quotation_seq:04d}' if self.quotation_seq is not None else self.quote_number
     client_name = db.Column(db.String(150), nullable=False)
     client_phone = db.Column(db.String(50))
     client_email = db.Column(db.String(150))
@@ -81,6 +86,7 @@ class ProTradeBoqQuote(db.Model):
     grand_total = db.Column(db.Numeric(28, 2), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     __table_args__ = (
+        db.UniqueConstraint('shop_id','quotation_seq',name='uq_boq_shop_quote_number'),
         db.Index('uq_protrade_boq_open_draft','shop_id','debtor_id',unique=True,postgresql_where=db.text('is_draft IS TRUE AND debtor_id IS NOT NULL')),
         db.CheckConstraint("trade = 'carpentry'", name='ck_protrade_boq_quote_trade'),
         db.CheckConstraint('grand_total >= 0', name='ck_protrade_boq_quote_total'),
@@ -139,6 +145,15 @@ class MechJobCard(db.Model):
     debtor_id = db.Column(db.Integer, db.ForeignKey('debtor.id'), nullable=True)
     is_draft = db.Column(db.Boolean, nullable=True)
     job_number = db.Column(db.String(50), unique=True, nullable=False)
+    quotation_seq = db.Column(db.Integer, server_default=db.FetchedValue())
+
+    @property
+    def display_quote_number(self):
+        return f'Q-{self.quotation_seq:04d}' if self.quotation_seq is not None else self.job_number
+
+    @property
+    def display_document_number(self):
+        return self.display_quote_number if self.status in ('Quote','Rejected') else self.job_number
     vehicle_id = db.Column(db.Integer, db.ForeignKey('mech_vehicles.id'), nullable=False)
     status = db.Column(db.String(50), default='Quote') # Quote, Approved, In Progress, Quality Check, Ready, Billed
     description = db.Column(db.Text)
@@ -149,7 +164,7 @@ class MechJobCard(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     completed_at = db.Column(db.DateTime)
     
-    __table_args__ = (db.Index('uq_protrade_mech_open_draft','shop_id','debtor_id',unique=True,postgresql_where=db.text("status = 'Quote' AND is_draft IS TRUE AND debtor_id IS NOT NULL")),)
+    __table_args__ = (db.UniqueConstraint('shop_id','quotation_seq',name='uq_mechanic_shop_quote_number'), db.Index('uq_protrade_mech_open_draft','shop_id','debtor_id',unique=True,postgresql_where=db.text("status = 'Quote' AND is_draft IS TRUE AND debtor_id IS NOT NULL")),)
 
     labor_lines = db.relationship('MechLaborLine', backref='job_card', lazy=True)
     part_lines = db.relationship('MechPartLine', backref='job_card', lazy=True)
@@ -200,3 +215,22 @@ class MechCommunication(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     job_card = db.relationship('MechJobCard', backref=db.backref('communications', lazy=True))
+
+
+class ProTradeQuoteCounter(db.Model):
+    __tablename__ = 'protrade_quote_counter'
+    shop_id = db.Column(db.Integer, db.ForeignKey('mech_shops.id'), primary_key=True)
+    last_number = db.Column(db.Integer, nullable=False)
+    __table_args__ = (db.CheckConstraint('last_number > 0', name='ck_protrade_quote_counter'),)
+
+
+class ProTradeQuoteNumber(db.Model):
+    __tablename__ = 'protrade_quote_number'
+    shop_id = db.Column(db.Integer, db.ForeignKey('mech_shops.id'), primary_key=True)
+    number = db.Column(db.Integer, primary_key=True)
+    document_kind = db.Column(db.String(16), nullable=False)
+    document_id = db.Column(db.Integer, nullable=False)
+    __table_args__ = (
+        db.UniqueConstraint('document_kind','document_id',name='uq_protrade_quote_document'),
+        db.CheckConstraint("number > 0 AND document_kind IN ('boq','mechanic')", name='ck_protrade_quote_number'),
+    )

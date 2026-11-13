@@ -58,6 +58,7 @@ class TradeQuoteTests(unittest.TestCase):
         spec=importlib.util.spec_from_file_location('foundation_migration',base.ROOT/'migrations/versions/protrade_debtor_006.py')
         foundation=importlib.util.module_from_spec(spec);spec.loader.exec_module(foundation)
         foundation.op=Operations(MigrationContext.configure(self.conn));foundation.upgrade()
+        self.conn.exec_driver_sql('ALTER TABLE protrade_boq_quotes ADD COLUMN quotation_seq integer')
         self.customers_by_shop={}
         self.debtors_by_shop={}
         for shop in (self.carpentry,self.second,self.mechanic,self.other):

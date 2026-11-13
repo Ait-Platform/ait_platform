@@ -42,7 +42,7 @@ from datetime import datetime
 catalog_node = next(n for n in ast.parse((ROOT / 'app/models/mechanic.py').read_text()).body
                     if isinstance(n, ast.ClassDef) and n.name == 'MechCatalogPart')
 catalog_db = SimpleNamespace(Model=models.Base, Column=sa.Column, Integer=sa.Integer,
-                             String=sa.String, Float=sa.Float, DateTime=sa.DateTime, JSON=sa.JSON, Boolean=sa.Boolean, Date=sa.Date,
+                             String=sa.String, Float=sa.Float, FetchedValue=sa.FetchedValue, DateTime=sa.DateTime, JSON=sa.JSON, Boolean=sa.Boolean, Date=sa.Date,
                              Text=sa.Text, Numeric=sa.Numeric, Computed=sa.Computed,
                              UniqueConstraint=sa.UniqueConstraint, CheckConstraint=sa.CheckConstraint, Index=sa.Index, text=sa.text,
                              ForeignKey=lambda name: sa.ForeignKey('users.id' if name == 'user.id' else name))
@@ -69,6 +69,13 @@ for class_name in ('MechLaborLine', 'MechPartLine', 'MechInvoice'):
                 if isinstance(n, ast.ClassDef) and n.name == class_name)
     exec(compile(ast.Module(body=[node], type_ignores=[]), 'production_document_model', 'exec'), catalog_globals)
 
+models.MechJobCard.quotation_seq = sa.Column(sa.Integer, server_default=sa.FetchedValue())
+for property_name in ('display_quote_number','display_document_number'):
+    production=next(n for n in ast.parse((ROOT/'app/models/mechanic.py').read_text()).body if isinstance(n,ast.ClassDef) and n.name=='MechJobCard')
+    method=next(n for n in production.body if isinstance(n,ast.FunctionDef) and n.name==property_name)
+    namespace={}
+    exec(compile(ast.Module(body=[method],type_ignores=[]),'production_quote_number_property','exec'),namespace)
+    setattr(models.MechJobCard,property_name,namespace[property_name])
 models.MechJobCard.shop_id = sa.Column(sa.Integer, sa.ForeignKey('mech_shops.id'))
 models.MechJobCard.debtor_id = sa.Column(sa.Integer, sa.ForeignKey('debtor.id'))
 models.MechJobCard.is_draft = sa.Column(sa.Boolean)

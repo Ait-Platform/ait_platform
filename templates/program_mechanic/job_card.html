@@ -1,5 +1,5 @@
 {% extends "layout.html" %}
-{% block title %}ProTrade - {{ job_card.job_number.split('-')[-1] }}{% endblock %}
+{% block title %}ProTrade - {{ job_card.display_quote_number if job_card.status in ['Quote','Rejected'] else job_card.job_number.split('-')[-1] }}{% endblock %}
 {% block head %}
 <script>
 document.addEventListener("DOMContentLoaded", function() {
@@ -133,7 +133,7 @@ document.addEventListener("DOMContentLoaded", function() {
             {% if job_card.status == 'Quote' %}Quote / Tax Invoice
             {% elif job_card.status in ['Approved', 'Billed'] %}Tax Invoice
             {% else %}Job Card
-            {% endif %} #{{ job_card.job_number }}
+            {% endif %} #{{ job_card.display_document_number|default(job_card.job_number) }}
           </h1>
           <p class="mt-1 text-sm text-slate-500">Created: {{ job_card.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
       </div>
@@ -256,7 +256,7 @@ document.addEventListener("DOMContentLoaded", function() {
             {% else %}
                 <p class="text-slate-500 text-sm italic">No bank details configured. <a href="{{ url_for('mechanic_bp.bank_accounts') }}" class="text-indigo-600 hover:underline">Add one</a>.</p>
             {% endif %}
-            <p class="text-slate-600 text-sm mt-3">Payment Reference:<br><span class="font-bold text-slate-900">{{ job_card.job_number.split('-')[-1] }}</span></p>
+            <p class="text-slate-600 text-sm mt-3">Payment Reference:<br><span class="font-bold text-slate-900">{{ job_card.display_quote_number if job_card.status in ['Quote','Rejected'] else job_card.job_number.split('-')[-1] }}</span></p>
           </div>
         </div>
 

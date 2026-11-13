@@ -868,7 +868,7 @@ def download_document(id):
     try:
         pdf_bytes = html_to_pdf_bytes(pdf_html_content, base_url=request.host_url)
         doc_type = "Tax_Invoice" if job_card.status not in ['Quote', 'Rejected'] else "Quote"
-        file_name = f"{doc_type}_{job_card.job_number}.pdf"
+        file_name = f"{doc_type}_{job_card.display_document_number}.pdf"
         
         return send_file(
             io.BytesIO(pdf_bytes),
@@ -909,12 +909,12 @@ def email_document(id):
             return redirect(url_for('mechanic_bp.email_document', id=id))
 
         active_shop = get_active_shop(current_user.id)
-        subject = f"Your {doc_type} #{job_card.job_number} from {active_shop.business_name if active_shop else 'AIT ProTrade'}"
+        subject = f"Your {doc_type} #{job_card.display_document_number} from {active_shop.business_name if active_shop else 'AIT ProTrade'}"
         
         # VERY IMPORTANT: doc_url must be the public job card URL
         doc_url = url_for('mechanic_bp.public_job_card', job_number=job_card.job_number, _external=True)
 
-        body = f"Hello,\n\nYour {doc_type} #{job_card.job_number} is ready. We have attached a PDF copy for your records.\n\nThank you for choosing us!"
+        body = f"Hello,\n\nYour {doc_type} #{job_card.display_document_number} is ready. We have attached a PDF copy for your records.\n\nThank you for choosing us!"
         
         # Prepare HTML Email Body
         letterhead_html = ""
@@ -925,7 +925,7 @@ def email_document(id):
         html = f"""{letterhead_html}
         <div style="font-family: sans-serif; color: #334155; max-width: 600px; margin: 0 auto;">
             <p>Hello,</p>
-            <p>Your {doc_type} <strong>#{job_card.job_number}</strong> is ready. We have attached a PDF copy for your records.</p>
+            <p>Your {doc_type} <strong>#{job_card.display_document_number}</strong> is ready. We have attached a PDF copy for your records.</p>
             <br>
             <p>Thank you for choosing us!</p>
         </div>"""
@@ -939,7 +939,7 @@ def email_document(id):
         success = False
         try:
             pdf_bytes = html_to_pdf_bytes(pdf_html_content, base_url=request.host_url)
-            file_name = f"{'Invoice' if job_card.status == 'Billed' else 'Quote'}_{job_card.job_number}.pdf"
+            file_name = f"{'Invoice' if job_card.status == 'Billed' else 'Quote'}_{job_card.display_document_number}.pdf"
             
             msg = Message(subject=subject, recipients=[target_email], body=body, html=html)
             msg.sender = current_app.config.get("MAIL_DEFAULT_SENDER")
@@ -959,7 +959,7 @@ def email_document(id):
                 job_card_id=job_card.id,
                 comm_type="Email",
                 recipient=target_email,
-                message=f"Sent {doc_type} #{job_card.job_number}",
+                message=f"Sent {doc_type} #{job_card.display_document_number}",
                 status="Success"
             )
             db.session.add(comm)
@@ -972,7 +972,7 @@ def email_document(id):
                 sender_id=current_user.id,
                 recipient_phone=phone,
                 program_slug="mechanic",
-                invite_type=f"Email {doc_type} #{job_card.job_number}",
+                invite_type=f"Email {doc_type} #{job_card.display_document_number}",
                 status="Sent"
             )
             db.session.add(ilog)
@@ -1164,7 +1164,7 @@ def shop_debtor_register(shop_id):
     documents = []
     if debtor:
         for quote in ProTradeBoqQuote.query.filter_by(shop_id=shop.id, user_id=current_user.id, debtor_id=debtor.id).order_by(ProTradeBoqQuote.id.desc()).all():
-            documents.append(dict(number=quote.quote_number, label='Draft quotation' if quote.is_draft else 'Quotation',
+            documents.append(dict(number=quote.display_quote_number, label='Draft quotation' if quote.is_draft else 'Quotation',
                                   href=url_for('mechanic_bp.carpentry_quote_view', shop_id=shop.id, quote_id=quote.id)))
         for job in MechJobCard.query.filter_by(shop_id=shop.id, debtor_id=debtor.id).join(MechVehicle).join(MechClient).filter(MechClient.user_id==current_user.id).order_by(MechJobCard.id.desc()).all():
             documents.append(dict(number=job.job_number, label='Draft quotation' if job.is_draft and job.status=='Quote' else job.status, href=url_for('mechanic_bp.job_card_detail',id=job.id,shop_id=shop.id)))
@@ -1229,7 +1229,7 @@ def quote_invoice_register():
     if shop and shop.trade == 'carpentry':
         quotes = ProTradeBoqQuote.query.filter_by(user_id=current_user.id, shop_id=shop.id, trade='carpentry').all()
         for quote in quotes:
-            rows.append(dict(kind='Quotation', number=quote.quote_number, client=quote.client_name,
+            rows.append(dict(kind='Quotation', number=quote.display_quote_number, client=quote.client_name,
                              status='Draft' if quote.is_draft else 'Saved', amount=quote.grand_total, date=quote.created_at,
                              href=url_for('mechanic_bp.carpentry_quote_view', shop_id=shop.id, quote_id=quote.id)))
     elif shop and (shop.trade or 'mechanic') == 'mechanic':
@@ -1245,7 +1245,7 @@ def quote_invoice_register():
                 subtotal += sum((line.quantity or 0) * (line.markup_price or 0) for line in parts)
                 amount = subtotal * (1 + (job.vat_rate or 0) / 100)
                 rows.append(dict(kind='Invoice (legacy)' if job.status == 'Billed' else 'Quotation',
-                                 number=job.job_number, client=job.vehicle.client.name, status=job.status,
+                                 number=job.job_number if job.status=='Billed' else job.display_quote_number, client=job.vehicle.client.name, status=job.status,
                                  amount=Decimal(str(amount)), date=job.created_at, href=href))
             for invoice in invoices:
                 rows.append(dict(kind='Invoice', number=job.job_number, client=job.vehicle.client.name,
@@ -2493,9 +2493,9 @@ def accept_quote(id):
                 bank_account = BusinessBankAccount.query.filter_by(user_id=current_user.id).order_by(BusinessBankAccount.is_default.desc()).first()
                 
                 doc_type = "Tax Invoice"
-                subject = f"Your {doc_type} #{job_card.job_number} from {active_shop.business_name if active_shop else 'AIT ProTrade'}"
+                subject = f"Your {doc_type} #{job_card.display_document_number} from {active_shop.business_name if active_shop else 'AIT ProTrade'}"
                 
-                body = f"""Hello,\n\nYour {doc_type} #{job_card.job_number} is ready. We have attached a PDF copy for your records.\n\nThank you for choosing us!"""
+                body = f"""Hello,\n\nYour {doc_type} #{job_card.display_document_number} is ready. We have attached a PDF copy for your records.\n\nThank you for choosing us!"""
                 
                 letterhead_html = ""
                 if active_shop and active_shop.use_custom_letterhead and active_shop.letterhead_url:
@@ -2505,7 +2505,7 @@ def accept_quote(id):
                 html = f"""{letterhead_html}
                 <div style="font-family: sans-serif; color: #334155; max-width: 600px; margin: 0 auto;">
                     <p>Hello,</p>
-                    <p>Your {doc_type} <strong>#{job_card.job_number}</strong> is ready. We have attached a PDF copy for your records.</p>
+                    <p>Your {doc_type} <strong>#{job_card.display_document_number}</strong> is ready. We have attached a PDF copy for your records.</p>
                     <br>
                     <p>Thank you for choosing us!</p>
                 </div>"""
@@ -2514,7 +2514,7 @@ def accept_quote(id):
                 pdf_html_content = render_template("program_mechanic/public_job_card.html", job_card=job_card, shop=active_shop, today_date=today_date, bank_account=bank_account)
                 pdf_bytes = html_to_pdf_bytes(pdf_html_content, base_url=request.host_url)
                 
-                file_name = f"{doc_type.replace(' ', '_')}_{job_card.job_number}.pdf"
+                file_name = f"{doc_type.replace(' ', '_')}_{job_card.display_document_number}.pdf"
                 
                 send_pdf_email(
                     to_email=client.email,

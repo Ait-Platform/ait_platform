@@ -53,7 +53,7 @@ def catalog(shop):
             if quote.client_id is not None:
                 client=MechClient.query.filter_by(id=quote.client_id,user_id=current_user.id).first()
                 if not client or client.shop_id not in (None,shop.id):continue
-            entries.append(dict(key=f'quote:boq-{quote.id}',kind='quote',label=quote.quote_number+' — '+quote.client_name,source=quote))
+            entries.append(dict(key=f'quote:boq-{quote.id}',kind='quote',label=quote.display_quote_number+' — '+quote.client_name,source=quote))
         if ProTradeBoqItem.query.filter_by(shop_id=shop.id,user_id=current_user.id,trade='carpentry').first():
             entries.append(dict(key='price_list:all',kind='price_list',label='Carpentry BOQ Price List',source=None))
     else:
@@ -92,7 +92,7 @@ def report_data(shop,entry,recipient_id=None):
         if source.debtor_id is not None:
             debtor=owned_debtor(shop,source.debtor_id)
             if source.client_id!=debtor.reference_id:abort(404)
-        data.update(reference=source.quote_number,date=document_date(source.created_at),
+        data.update(reference=source.display_quote_number,date=document_date(source.created_at),
                     recipient=dict(name=source.client_name,phone=source.client_phone or '',email=source.client_email or '',address=source.client_address or ''),
                     columns=['BOQ Code','Description','Unit','Quantity','Material R/unit','Labour R/unit','Total R'],
                     rows=[[line['code'],line['description'],line['unit'],line['quantity'],line['material_rate'],line['labour_rate'],line['total']] for line in source.items],
@@ -100,7 +100,7 @@ def report_data(shop,entry,recipient_id=None):
     elif kind in ('quote','invoice'):
         invoice,job=source if isinstance(source,tuple) else (None,source)
         debtor=job_debtor(shop,job)
-        data.update(reference=job.job_number,date=document_date(invoice.created_at if invoice else job.created_at),recipient=contact(job.vehicle.client))
+        data.update(reference=job.job_number if kind=='invoice' else job.display_quote_number,date=document_date(invoice.created_at if invoice else job.created_at),recipient=contact(job.vehicle.client))
         if invoice:
             data.update(columns=['Description','Amount (R)'],rows=[['Subtotal',format(invoice.subtotal or 0,'.2f')],['Tax',format(invoice.tax or 0,'.2f')]],
                         totals=[('Total (R)',format(invoice.total or 0,'.2f'))],note='')

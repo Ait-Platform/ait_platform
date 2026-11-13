@@ -1095,6 +1095,13 @@ def messages():
     return render_template('program_mechanic/messages.html', messages=msgs)
 
 
+@mechanic_bp.route('/mechanic/output', methods=['GET','POST'])
+@login_required
+def protrade_output():
+    from app.protrade_output import output_page
+    return output_page()
+
+
 @mechanic_bp.route('/mechanic/debtors', methods=['GET'])
 @login_required
 def debtor_register_entry():

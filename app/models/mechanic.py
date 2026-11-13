@@ -86,6 +86,20 @@ class ProTradeBoqQuote(db.Model):
         db.CheckConstraint('grand_total >= 0', name='ck_protrade_boq_quote_total'),
     )
 
+
+class ProTradeOutputEmail(db.Model):
+    """Durable at-most-once SMTP attempt for a confirmed Output preview."""
+    __tablename__ = 'protrade_output_email'
+    id = db.Column(db.Integer, primary_key=True)
+    request_key = db.Column(db.String(64), nullable=False, unique=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    shop_id = db.Column(db.Integer, db.ForeignKey('mech_shops.id'), nullable=False)
+    debtor_id = db.Column(db.Integer, db.ForeignKey('debtor.id'), nullable=False)
+    selection = db.Column(db.String(100), nullable=False)
+    recipient = db.Column(db.String(150), nullable=False)
+    status = db.Column(db.String(30), nullable=False, default='attempted')
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
 class MechClient(db.Model):
     __tablename__ = 'mech_clients'
     id = db.Column(db.Integer, primary_key=True)

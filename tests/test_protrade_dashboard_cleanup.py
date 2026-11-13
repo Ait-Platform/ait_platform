@@ -1,4 +1,4 @@
-﻿"""Dashboard regressions updated for the shop-first Debtor Register workflow."""
+"""Dashboard regressions updated for the shop-first Debtor Register workflow."""
 import unittest
 from lxml import html
 from playwright.sync_api import sync_playwright
@@ -38,7 +38,7 @@ class DashboardCleanupTests(unittest.TestCase):
         source=(base.ROOT/'templates/program_mechanic/menu.html').read_text(encoding='utf-8')
         with self.app.test_request_context('/'):
             menu=self.app.jinja_env.from_string(source).render(protrade_menu_active='dashboard',active_shop=carpentry)
-        self.assertEqual(html.fromstring(menu).xpath('//a/text()'),['Price List','Debtor Register','Tokens','Setup'])
+        self.assertEqual(html.fromstring(menu).xpath('//a/text()'),['Price List','Debtor','Tokens','Output'])
 
     def test_shop_name_opens_exact_debtor_register_without_creating_documents(self):
         carpentry,generic,_=self.fixtures()

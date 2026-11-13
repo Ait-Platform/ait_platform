@@ -42,7 +42,7 @@ from datetime import datetime
 catalog_node = next(n for n in ast.parse((ROOT / 'app/models/mechanic.py').read_text()).body
                     if isinstance(n, ast.ClassDef) and n.name == 'MechCatalogPart')
 catalog_db = SimpleNamespace(Model=models.Base, Column=sa.Column, Integer=sa.Integer,
-                             String=sa.String, Float=sa.Float, DateTime=sa.DateTime, JSON=sa.JSON, Boolean=sa.Boolean,
+                             String=sa.String, Float=sa.Float, DateTime=sa.DateTime, JSON=sa.JSON, Boolean=sa.Boolean, Date=sa.Date,
                              Text=sa.Text, Numeric=sa.Numeric, Computed=sa.Computed,
                              UniqueConstraint=sa.UniqueConstraint, CheckConstraint=sa.CheckConstraint, Index=sa.Index, text=sa.text,
                              ForeignKey=lambda name: sa.ForeignKey('users.id' if name == 'user.id' else name))
@@ -57,6 +57,13 @@ quote_node = next(n for n in ast.parse((ROOT / 'app/models/mechanic.py').read_te
                   if isinstance(n, ast.ClassDef) and n.name == 'ProTradeBoqQuote')
 exec(compile(ast.Module(body=[quote_node], type_ignores=[]), 'production_boq_quote_model', 'exec'), catalog_globals)
 ProTradeBoqQuote = catalog_globals['ProTradeBoqQuote']
+output_email_node=next(node for node in ast.parse((ROOT/'app/models/mechanic.py').read_text()).body if isinstance(node,ast.ClassDef) and node.name=='ProTradeOutputEmail')
+exec(compile(ast.Module(body=[output_email_node],type_ignores=[]),'production_output_email', 'exec'),catalog_globals)
+ProTradeOutputEmail=catalog_globals['ProTradeOutputEmail']
+ledger_node=next(node for node in ast.parse((ROOT/'app/models/debtors.py').read_text()).body if isinstance(node,ast.ClassDef) and node.name=='DebtorLedger')
+exec(compile(ast.Module(body=[ledger_node],type_ignores=[]),'production_debtor_ledger','exec'),catalog_globals)
+DebtorLedger=catalog_globals['DebtorLedger']
+
 for class_name in ('MechLaborLine', 'MechPartLine', 'MechInvoice'):
     node = next(n for n in ast.parse((ROOT / 'app/models/mechanic.py').read_text()).body
                 if isinstance(n, ast.ClassDef) and n.name == class_name)
@@ -112,7 +119,7 @@ class ShopRegisterTests(unittest.TestCase):
                  'registered_trade_name', 'price_list_shop', 'price_list_query',
                  'selected_price_list', 'catalog_manage', 'carpentry_boq_price_list', 'client_register_quote', 'shop_register_quote',
                  'register_trade_quote', 'carpentry_quote_form', 'carpentry_quote_view', 'new_quote', 'quote_invoice_register', 'edit_quote',
-                 'debtor_register_entry', 'shop_debtor_register', 'debtor_quote', 'new_debtor_quote'}
+                 'debtor_register_entry', 'shop_debtor_register', 'debtor_quote', 'new_debtor_quote','protrade_output'}
         nodes = [n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name in names or isinstance(n, ast.Assign) and any(isinstance(t, ast.Name) and t.id == 'AVAILABLE_TRADES' for t in n.targets)]
         catalogue = MechCatalogPart
         self.ns = dict(vars(models), db=SimpleNamespace(session=self.db_session, engine=self.conn),

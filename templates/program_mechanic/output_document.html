@@ -1,0 +1,10 @@
+<section id="protrade-output-document">
+  <header><h1>{{ issuer.name }}</h1><p>{{ issuer.address }}<br>{{ issuer.phone }}{% if issuer.phone and issuer.email %} &middot; {% endif %}{{ issuer.email }}</p>{% if issuer.tax_number %}<p>Tax / VAT: {{ issuer.tax_number }}</p>{% endif %}</header>
+  <h2>{{ document.title }}</h2><p><strong>Reference:</strong> {{ document.reference }}{% if document.date %}<br><strong>Date:</strong> {{ document.date }}{% endif %}</p>
+  {% if document.recipient %}<div class="report-recipient"><strong>{{ document.recipient.name }}</strong><br>{{ document.recipient.address }}<br>{{ document.recipient.phone }}{% if document.recipient.email %} &middot; {{ document.recipient.email }}{% endif %}</div>{% endif %}
+  {% if document.note %}<p class="report-note">{{ document.note }}</p>{% endif %}
+  {% set widths={2:[65,35],3:[50,25,25],4:[46,14,20,20],5:[14,41,15,15,15],6:[12,35,8,15,15,15],7:[12,28,7,8,15,15,15]} %}
+  <table class="report-table"><colgroup>{% for width in widths.get(document.columns|length,[]) %}<col style="width:{{ width }}%">{% endfor %}</colgroup><thead><tr>{% for column in document.columns %}<th>{{ column }}</th>{% endfor %}</tr></thead><tbody>{% for row in document.rows %}<tr>{% for value in row %}<td>{{ value }}</td>{% endfor %}</tr>{% endfor %}</tbody></table>
+  {% if document.totals %}<dl class="report-totals">{% for label,value in document.totals %}<div><dt>{{ label }}</dt><dd>{{ value }}</dd></div>{% endfor %}</dl>{% endif %}
+  <footer>Generated {{ generated[:16]|replace('T',' ') }}</footer>
+</section>

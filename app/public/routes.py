@@ -108,35 +108,57 @@ def pricing():
 
 @public_bp.route("/contact", methods=["GET", "POST"])
 def contact():
-    if request.method == "POST":
-        name = request.form.get("name", "").strip()
-        email = request.form.get("email", "").strip()
-        subject = request.form.get("subject", "").strip() or "Contact form"
-        message = request.form.get("message", "").strip()
+    if request.method != "POST":
+        return render_template("public/contact.html")
+    from email_validator import EmailNotValidError, validate_email
+    from app.public.contact_security import ContactActionError, reserve_contact_attempt
+    from flask import make_response
 
+    def controlled_error(message, status, retry_after=None):
+        response = make_response(message, status)
+        response.mimetype = 'text/plain'
+        response.headers['Cache-Control'] = 'no-store'
+        if retry_after:
+            response.headers['Retry-After'] = str(retry_after)
+        return response
+
+    name = request.form.get("name", "").strip()
+    email = request.form.get("email", "").strip()
+    subject = request.form.get("subject", "").strip() or "Contact form"
+    message = request.form.get("message", "").strip()
+    if (not name or not message or len(name)>200 or len(email)>320 or len(subject)>200
+            or len(message)>10000 or any(c in subject+name for c in '\r\n')):
+        return controlled_error('Please provide a name, valid email address and message within the form limits.', 400)
+    try:
+        email = validate_email(email, check_deliverability=False).normalized
+    except EmailNotValidError:
+        return controlled_error('Please provide a valid email address.', 400)
+    try:
+        # Every allowed POST consumes a slot, including missing config or failed/uncertain SMTP.
+        reserve_contact_attempt()
+    except ContactActionError as exc:
+        return controlled_error(exc.message, exc.status, exc.retry_after)
+    except Exception as exc:
+        current_app.logger.error('Contact email quota unavailable (%s)', type(exc).__name__)
+        return controlled_error('The contact form is temporarily unavailable. Please try later.', 503)
+
+    try:
         to_addr = current_app.config.get("CONTACT_TO_EMAIL") or current_app.config.get("MAIL_USERNAME")
-
-        # guardrail: ensure SMTP creds exist and won’t be None
-        mu = current_app.config.get("MAIL_USERNAME")
-        mp = current_app.config.get("MAIL_PASSWORD")
-        if not mu or not mp:
-            current_app.logger.error("Contact mail aborted: MAIL_USERNAME or MAIL_PASSWORD is missing/empty.")
-            flash("Email temporarily unavailable. Please try again later.", "error")
-            return redirect(url_for("public_bp.contact"))
-
+        transport = current_app.extensions.get('mail')
+        if (not to_addr or not current_app.config.get('MAIL_USERNAME')
+                or not current_app.config.get('MAIL_PASSWORD')
+                or current_app.config.get('MAIL_SUPPRESS_SEND') or getattr(transport, 'suppress', False)):
+            raise RuntimeError('Mail unavailable')
         msg = Message(subject=f"[AIT Contact] {subject}", recipients=[to_addr])
-        # Let Gmail auth sender be the default; set reply-to to the user
-        msg.reply_to = email or None
-        msg.body = (
-            f"From: {name} <{email}>\n"
-            f"Subject: {subject}\n\n"
-            f"{message}\n"
-        )
+        msg.reply_to = email
+        msg.body = f"From: {name} <{email}>\nSubject: {subject}\n\n{message}\n"
+        # Exactly one transport call. No fallback, automatic retry or quota refund on failure.
         mail.send(msg)
-        flash("Thanks! Your message has been sent.", "success")
-        return redirect(url_for("public_bp.contact"))
-
-    return render_template("public/contact.html")
+    except Exception as exc:
+        current_app.logger.error('Contact email delivery unconfirmed (%s)', type(exc).__name__)
+        return controlled_error('Delivery could not be confirmed. Please do not resubmit automatically; try later or contact support.', 503)
+    flash("Thanks! Your message has been sent.", "success")
+    return redirect(url_for("public_bp.contact"))
 
 @public_bp.route("/_debug/routes")
 def _debug_routes():

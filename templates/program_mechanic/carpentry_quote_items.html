@@ -5,10 +5,10 @@
 <div class="mx-auto max-w-6xl px-4 py-10"><div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow">
   <div class="h-2 bg-slate-700"></div><div class="p-6">
     {% include 'partials/flash_messages.html' %}
-    <div class="flex items-center justify-between gap-4"><div><h1 class="text-2xl font-semibold">{{ 'Edit Quote Item' if line else 'Quotation Items' }}</h1><p class="mt-1 text-sm text-slate-600">{{ shop.business_name }} &middot; {{ debtor.name }} &middot; {{ quote.display_quote_number }}</p></div><a class="rounded-lg bg-slate-100 px-4 py-2 font-semibold" href="{{ register_url if line else url_for('mechanic_bp.debtor_quote',shop_id=shop.id,debtor_id=debtor.id,area='register') }}">Back</a></div>
+    <div class="flex items-center justify-between gap-4"><div><h1 class="text-2xl font-semibold">{% if line %}Edit Quote Item &mdash; {{ line.code }}{% else %}Quotation Items{% endif %}</h1><p class="mt-1 text-sm text-slate-600">{{ shop.business_name }} &middot; {{ debtor.name }} &middot; {{ quote.display_quote_number }}</p></div><a class="rounded-lg bg-slate-100 px-4 py-2 font-semibold" href="{{ register_url if line else url_for('mechanic_bp.debtor_quote',shop_id=shop.id,debtor_id=debtor.id,area='register') }}">Back</a></div>
     {% if line %}
-    <form id="quote-item-edit" method="POST" class="mt-5">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="item" value="{{ index }}"><input type="hidden" name="line_token" value="{{ line_token }}">
+    <form id="quote-item-edit" method="POST" action="{{ register_url }}" class="mt-5">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="item_id" value="{{ item_id }}"><input type="hidden" name="line_token" value="{{ line_token }}">
       <div class="flex justify-end gap-3"><button class="rounded-lg bg-blue-100 px-4 py-2 font-semibold" type="submit">Save Changes</button><a class="rounded-lg bg-slate-100 px-4 py-2 font-semibold" href="{{ register_url }}">Cancel</a></div>
       {% if error %}<p class="mt-3 text-red-700" role="alert">{{ error }}</p>{% endif %}
       <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -17,10 +17,11 @@
         <label class="text-sm font-semibold">Unit<select name="unit" aria-label="Unit" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2">{% for unit in ['Each','m','m²','m³','Hour'] %}<option {% if values.unit==unit %}selected{% endif %}>{{ unit }}</option>{% endfor %}</select></label>
         {% for key,label in [('quantity','Quantity'),('material_rate','Material Rate'),('labour_rate','Labour Rate')] %}<label class="text-sm font-semibold">{{ label }}<input name="{{ key }}" type="number" required min="{{ '0.001' if key=='quantity' else '0' }}" step="{{ '0.001' if key=='quantity' else '0.01' }}" max="{{ '99999999999.999' if key=='quantity' else '999999999999.99' }}" value="{{ values[key] }}" {% if key=='quantity' %}autofocus{% endif %} class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"></label>{% endfor %}
       </div>
+      <p class="mt-4 font-semibold">Line Total: R<output id="quote-item-line-total">{{ line.total }}</output></p>
     </form>
     {% else %}
     <div class="mt-5 overflow-x-auto rounded-lg border border-slate-200"><table id="saved-quote-items" class="w-full text-left text-sm"><thead class="bg-slate-50"><tr>{% for heading in ['Item Code','Description','Unit','Quantity','Material','Labour','Line Total','Action'] %}<th class="p-3">{{ heading }}</th>{% endfor %}</tr></thead><tbody>
-      {% for item in quote.items %}<tr class="border-t border-slate-200"><td class="p-3">{{ item.code }}</td><td class="p-3">{{ item.description }}</td><td class="p-3">{{ item.unit }}</td><td class="p-3">{{ item.quantity }}</td><td class="p-3">R{{ item.material_rate }}</td><td class="p-3">R{{ item.labour_rate }}</td><td class="p-3">R{{ item.total }}</td><td class="p-3"><a class="inline-flex rounded-lg bg-orange-100 px-3 py-2 font-semibold text-orange-900" href="{{ url_for('mechanic_bp.carpentry_quote_items',shop_id=shop.id,debtor_id=debtor.id,quote_id=quote.id,item=loop.index0) }}">Edit</a></td></tr>{% else %}<tr><td colspan="8" class="p-6 text-center">No saved items.</td></tr>{% endfor %}
+      {% for item in quote.items %}<tr class="border-t border-slate-200"><td class="p-3">{{ item.code }}</td><td class="p-3">{{ item.description }}</td><td class="p-3">{{ item.unit }}</td><td class="p-3">{{ item.quantity }}</td><td class="p-3">R{{ item.material_rate }}</td><td class="p-3">R{{ item.labour_rate }}</td><td class="p-3">R{{ item.total }}</td><td class="p-3"><a class="inline-flex rounded-lg bg-orange-100 px-3 py-2 font-semibold text-orange-900" href="{{ url_for('mechanic_bp.carpentry_quote_items',shop_id=shop.id,debtor_id=debtor.id,quote_id=quote.id,item_id=line_ids[loop.index0]) }}">Edit</a></td></tr>{% else %}<tr><td colspan="8" class="p-6 text-center">No saved items.</td></tr>{% endfor %}
     </tbody></table></div>
     <p class="mt-4 text-right text-xl font-semibold">Grand Total: R<span id="saved-quote-grand-total">{{ '{:.2f}'.format(quote.grand_total) }}</span></p>
     {% endif %}

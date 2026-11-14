@@ -2,12 +2,22 @@
 from decimal import Decimal
 from datetime import datetime
 import json
+import re
 import unittest
 from urllib.parse import urlsplit
 from lxml import html
 from playwright.sync_api import sync_playwright
 import test_protrade_shop_register as base
 import test_protrade_debtor_foundation as foundation
+
+
+def open_whole_quote(page, row):
+    # Full-editor regressions use its explicit existing route. Register Edit now
+    # opens saved items and is covered separately by the item-navigation tests.
+    href=row.get_by_role('link',name='Edit',exact=True).get_attribute('href')
+    match=re.search(r'/shop/(\d+)/debtor/\d+/quotes/(\d+)/items',href)
+    assert match,href
+    page.goto(f'http://localhost/mechanic/shop/{match[1]}/quotes/{match[2]}')
 
 
 class CarpentryQuoteHubTests(unittest.TestCase):
@@ -54,8 +64,8 @@ class CarpentryQuoteHubTests(unittest.TestCase):
         self.assertNotIn('CAR-Q-OTHER-DEBTOR',register.text_content());self.assertNotIn('CAR-Q-FOREIGN',register.text_content())
         self.assertNotIn('LEGACY-CAR',register.text_content());self.assertIn('2026-11-13',register.text_content())
         for link in register.xpath('.//td[last()]/a'):
-            self.assertIn(f'/debtor/{self.owner_debtor.id}/quote?',link.get('href'))
-            self.assertIn('quote_id=',link.get('href'))
+            self.assertIn(f'/debtor/{self.owner_debtor.id}/quotes/',link.get('href'))
+            self.assertTrue(link.get('href').endswith('/items'))
         for link in register.xpath('.//td[1]/a'):
             self.assertIn(f'/shop/{self.carpentry.id}/debtor/{self.owner_debtor.id}/quotes/',link.get('href'))
             self.assertTrue(link.get('href').endswith('/items'))
@@ -67,7 +77,10 @@ class CarpentryQuoteHubTests(unittest.TestCase):
             self.assertEqual(self.client.get(self.url+f'?area=quote&quote_id={identifier}').status_code,404)
             self.assertEqual(self.client.post(self.url,data={'area':'quote','quote_id':identifier}).status_code,404)
         self.assertEqual(self.client.get(self.url+'?quote_id=bad').status_code,404)
-        response=self.client.get(self.url+f'?area=quote&quote_id={self.first.id}')
+        redirect=self.client.get(self.url+f'?area=quote&quote_id={self.first.id}')
+        self.assertEqual(redirect.status_code,302)
+        self.assertTrue(redirect.location.endswith(f'/quotes/{self.first.id}/items'))
+        response=self.client.get(f'/mechanic/shop/{self.carpentry.id}/quotes/{self.first.id}')
         tree=html.fromstring(response.data)
         self.assertEqual(tree.xpath('//input[@name="quantity_'+str(self.item.id)+'"]/@value'),['2.5'])
         self.assertEqual(tree.xpath('//input[@name="quote_id"]/@value'),[str(self.first.id)])
@@ -92,7 +105,7 @@ class CarpentryQuoteHubTests(unittest.TestCase):
                 self.assertEqual(page.get_by_role('button',name='Debtor',exact=True).count(),0)
                 page.get_by_role('button',name='Register',exact=True).click()
                 row=page.locator('#debtor-quote-register tr').filter(has_text=self.first.quote_number)
-                row.get_by_role('link',name='Edit',exact=True).click()
+                open_whole_quote(page,row)
                 page.locator('#quote-area-form').wait_for(state='visible')
                 self.assertEqual(page.locator('.quote-working-area:visible').count(),1)
                 self.assertFalse(page.locator('#quote-area-register').is_visible())
@@ -158,7 +171,7 @@ class CarpentryQuoteHubTests(unittest.TestCase):
                 page.goto('http://localhost'+self.url+'?area=register')
                 row=page.locator('#debtor-quote-register tr').filter(has_text=self.first.quote_number)
                 self.assertIn('1149.00',row.text_content())
-                row.get_by_role('link',name='Edit',exact=True).click()
+                open_whole_quote(page,row)
                 self.assertEqual(page.locator('.quote-working-area:visible').count(),1)
                 self.assertFalse(page.locator('#quote-area-register').is_visible())
                 self.assertEqual(page.locator('#quote-grand-total').text_content(),'1149.00')
@@ -174,7 +187,7 @@ class CarpentryQuoteHubTests(unittest.TestCase):
                 page.get_by_role('button',name='Register',exact=True).click()
                 row=page.locator('#debtor-quote-register tr').filter(has_text=self.first.quote_number)
                 self.assertIn('766.00',row.text_content())
-                row.get_by_role('link',name='Edit',exact=True).click()
+                open_whole_quote(page,row)
                 self.assertEqual(page.locator('input[name="quantity_template:CAR-003"]').input_value(),'2')
                 self.assertEqual(page.locator('#quote-grand-total').text_content(),'766.00')
                 page.get_by_role('button',name='Close',exact=True).click()
@@ -207,7 +220,7 @@ class CarpentryQuoteHubTests(unittest.TestCase):
                 row=page.locator('#debtor-quote-register tr').filter(has_text='Q-0006')
                 self.assertIn('1149.00',row.text_content())
                 self.assertIn('bg-orange-100',row.get_by_role('link',name='Edit',exact=True).get_attribute('class'))
-                row.get_by_role('link',name='Edit',exact=True).click()
+                open_whole_quote(page,row)
                 self.assertTrue(page.get_by_role('heading',name='Edit Quotation',exact=True).is_visible())
                 self.assertEqual(page.locator('.quote-working-area:visible').count(),1)
                 self.assertEqual(page.locator('.quote-line').count(),3)
@@ -232,7 +245,7 @@ class CarpentryQuoteHubTests(unittest.TestCase):
                 self.assertEqual(page.locator('.quote-working-area:visible').count(),1)
                 row=page.locator('#debtor-quote-register tr').filter(has_text='Q-0006')
                 self.assertIn('1677.00',row.text_content())
-                row.get_by_role('link',name='Edit',exact=True).click()
+                open_whole_quote(page,row)
                 self.assertEqual(page.get_by_role('spinbutton',name='Quantity CAR-003',exact=True).input_value(),'3')
                 self.assertEqual(page.get_by_role('spinbutton',name='Material Rate CAR-004',exact=True).input_value(),'200.00')
                 self.assertEqual(page.locator('.quote-line').count(),3)

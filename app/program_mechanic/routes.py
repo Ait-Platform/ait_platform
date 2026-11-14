@@ -1326,6 +1326,13 @@ def carpentry_quote_form(shop, customer, debtor, editing_quote=None):
         draft = None
     else:
         draft = scoped_quotes.filter_by(is_draft=True).first()
+    if editing_quote is None and draft is not None and raw_quote_id is not None and request.method == 'GET':
+        # Older Register links targeted the whole editor. Saved quotation navigation
+        # now opens its item register (or the explicitly identified item).
+        target = dict(shop_id=shop.id, debtor_id=debtor.id, quote_id=draft.id)
+        if request.args.get('item_id') is not None:
+            target['item_id'] = request.args['item_id']
+        return redirect(url_for('mechanic_bp.carpentry_quote_items', **target))
     initial_area = 'quote' if editing_quote is not None or raw_quote_id is not None or request.method=='POST' else request.args.get('area','hub')
     if initial_area not in ('hub','debtor','new','quote','register'):
         abort(404)
@@ -1475,6 +1482,14 @@ def carpentry_quote_form(shop, customer, debtor, editing_quote=None):
                            initial_area=initial_area, quote_history=history, quote_dates=quote_dates), status
 
 
+def carpentry_quote_item_id(quote, line):
+    # Legacy snapshots have no item row/UUID. Derive a stable quotation-scoped ID
+    # without changing records on GET; retain it in the JSON when that item is saved.
+    from uuid import uuid5, NAMESPACE_URL
+    return line.get('quote_item_id') or uuid5(NAMESPACE_URL,
+        f"protrade/quotation/{quote.id}/{quote.quote_number}/item/{line['source_item_id']}").hex
+
+
 @mechanic_bp.route('/mechanic/shop/<int:shop_id>/debtor/<int:debtor_id>/quotes/<int:quote_id>/items', methods=['GET','POST'])
 @login_required
 def carpentry_quote_items(shop_id, debtor_id, quote_id):
@@ -1496,11 +1511,20 @@ def carpentry_quote_items(shop_id, debtor_id, quote_id):
     if not quote:
         abort(404)
     register_url = url_for('mechanic_bp.carpentry_quote_items',shop_id=shop_id,debtor_id=debtor_id,quote_id=quote_id)
-    index = request.values.get('item',type=int)
-    if 'item' in request.values and (index is None or index < 0 or index >= len(quote.items)):
+    line_ids = [carpentry_quote_item_id(quote,item) for item in quote.items]
+    item_id = request.values.get('item_id')
+    if 'item' in request.values:
+        # Resolve old positional bookmarks once; saves must identify a stable item.
+        old_index = request.args.get('item',type=int)
+        if request.method!='GET' or old_index is None or not 0 <= old_index < len(line_ids):
+            abort(404)
+        return redirect(url_for('mechanic_bp.carpentry_quote_items',shop_id=shop_id,
+                                debtor_id=debtor_id,quote_id=quote_id,item_id=line_ids[old_index]))
+    if item_id is not None and line_ids.count(item_id)!=1:
         abort(404)
-    if request.method=='POST' and index is None:
+    if request.method=='POST' and item_id is None:
         abort(400)
+    index = line_ids.index(item_id) if item_id is not None else None
     line = quote.items[index] if index is not None else None
     token = sha256(json.dumps(line,sort_keys=True,separators=(',',':')).encode()).hexdigest() if line else ''
     values = {key:str(line[key]) for key in ('description','unit','quantity','material_rate','labour_rate')} if line else {}
@@ -1525,7 +1549,7 @@ def carpentry_quote_items(shop_id, debtor_id, quote_id):
             with localcontext() as ctx:
                 ctx.prec=50
                 total=(numbers['quantity']*(numbers['material_rate']+numbers['labour_rate'])).quantize(Decimal('0.01'),rounding=ROUND_HALF_UP)
-                updated=dict(line,description=values['description'],unit=values['unit'],quantity=str(numbers['quantity']),
+                updated=dict(line,quote_item_id=item_id,description=values['description'],unit=values['unit'],quantity=str(numbers['quantity']),
                              material_rate=format(numbers['material_rate'],'.2f'),labour_rate=format(numbers['labour_rate'],'.2f'),total=str(total))
                 lines=list(quote.items)
                 lines[index]=updated
@@ -1541,7 +1565,7 @@ def carpentry_quote_items(shop_id, debtor_id, quote_id):
             error=str(exc) if isinstance(exc,ValueError) else 'Enter valid numeric amounts.'
             status=409 if status==409 else 400
     return render_template('program_mechanic/carpentry_quote_items.html',shop=shop,debtor=debtor,quote=quote,
-                           line=line,index=index,values=values,line_token=token,error=error,register_url=register_url),status
+                           line=line,item_id=item_id,line_ids=line_ids,values=values,line_token=token,error=error,register_url=register_url),status
 
 
 @mechanic_bp.route('/mechanic/shop/<int:shop_id>/quotes/<int:quote_id>')

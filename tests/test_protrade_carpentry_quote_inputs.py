@@ -1,4 +1,5 @@
 """Tomas input regressions on local PostgreSQL and real Chromium controls."""
+from test_protrade_carpentry_quote_hub import open_whole_quote
 from decimal import Decimal
 import unittest
 from urllib.parse import urlsplit
@@ -116,7 +117,7 @@ class CarpentryQuoteInputTests(unittest.TestCase):
                 self.assertEqual(saved.grand_total,Decimal('787.50'))
                 self.assertEqual((saved.user_id,saved.shop_id,saved.debtor_id),(1,self.carpentry.id,self.tomas.id))
                 page.get_by_role('button',name='Register',exact=True).click()
-                page.locator('#debtor-quote-register tr').filter(has_text=saved.quote_number).get_by_role('link',name='Edit',exact=True).click()
+                open_whole_quote(page,page.locator('#debtor-quote-register tr').filter(has_text=saved.quote_number))
                 page.locator('#quote-area-form').wait_for(state='visible')
                 self.assertEqual(page.locator('#quote-grand-total').text_content(),'787.50')
                 for identifier,(quantity,material,labour,total) in expected.items():
@@ -174,7 +175,7 @@ class CarpentryQuoteInputTests(unittest.TestCase):
                 self.assertEqual((saved.items[0]['material_rate'],saved.items[0]['labour_rate'],saved.items[0]['quantity']),('350.00','250.00','2'))
                 self.assertEqual(self.conn.exec_driver_sql('SELECT * FROM protrade_boq_items ORDER BY id').all(),prices)
                 page.get_by_role('button',name='Register',exact=True).click()
-                page.locator('#debtor-quote-register tr').filter(has_text=saved.quote_number).get_by_role('link',name='Edit',exact=True).click()
+                open_whole_quote(page,page.locator('#debtor-quote-register tr').filter(has_text=saved.quote_number))
                 page.locator('#quote-area-form').wait_for(state='visible')
                 self.assertEqual(page.locator('input[name^="material_rate_"]').input_value(),'350.00')
                 self.assertEqual(page.locator('input[name^="labour_rate_"]').input_value(),'250.00')
@@ -212,7 +213,7 @@ class CarpentryQuoteInputTests(unittest.TestCase):
         saved=base.ProTradeBoqQuote.query.filter_by(debtor_id=self.tomas.id).one()
         self.assertEqual(saved.grand_total,Decimal('900.00'))
         each.material_rate=Decimal('999');each.labour_rate=Decimal('888');self.db_session.commit()
-        response=self.client.get(self.url+f'?area=quote&quote_id={saved.id}')
+        response=self.client.get(f'/mechanic/shop/{self.carpentry.id}/quotes/{saved.id}')
         from lxml import html
         tree=html.fromstring(response.data)
         self.assertEqual(tree.xpath(f'//input[@name="material_rate_{each.id}"]/@value'),['350.00'])
@@ -259,7 +260,7 @@ class CarpentryQuoteInputTests(unittest.TestCase):
                 self.assertEqual((quote.items[0]['code'],quote.items[0]['material_rate'],quote.items[0]['labour_rate'],quote.items[0]['quantity'],quote.items[0]['total']),('CAR-003','259.00','60.00','1','319.00'))
                 self.assertEqual(quote.grand_total,Decimal('319.00'))
                 page.get_by_role('button',name='Register',exact=True).click()
-                page.locator('#debtor-quote-register tr').filter(has_text=quote.quote_number).get_by_role('link',name='Edit',exact=True).click()
+                open_whole_quote(page,page.locator('#debtor-quote-register tr').filter(has_text=quote.quote_number))
                 page.locator('#quote-area-form').wait_for(state='visible')
                 self.assertEqual(page.locator('input[name^="material_rate_"]').input_value(),'259.00')
                 self.assertEqual(page.locator('input[name^="labour_rate_"]').input_value(),'60.00')
@@ -295,7 +296,7 @@ class CarpentryQuoteInputTests(unittest.TestCase):
         quote=base.ProTradeBoqQuote.query.filter_by(debtor_id=self.tomas.id).one()
         self.assertEqual(quote.grand_total,Decimal('319.00'))
         self.assertEqual(base.ProTradeBoqItem.query.filter_by(shop_id=self.carpentry.id).count(),0)
-        response=self.client.get(self.url+f'?area=quote&quote_id={quote.id}')
+        response=self.client.get(f'/mechanic/shop/{self.carpentry.id}/quotes/{quote.id}')
         self.assertEqual(response.status_code,200)
         self.assertIn('259.00',response.get_data(as_text=True))
         self.assertEqual(base.ProTradeBoqItem.query.filter_by(shop_id=self.carpentry.id).count(),0)

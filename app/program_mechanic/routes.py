@@ -1465,6 +1465,13 @@ def carpentry_quote_form(shop, customer, debtor, editing_quote=None):
     choices = choices_for(items)
     fresh_choices = choices_for(fresh_items)
     history = scoped_quotes.order_by(ProTradeBoqQuote.created_at.desc(),ProTradeBoqQuote.id.desc()).all()
+    expanded_quote_id = request.args.get('expanded_quote_id',type=int)
+    if 'expanded_quote_id' in request.args:
+        if expanded_quote_id not in {quote.id for quote in history}:
+            abort(404)
+        initial_area = 'register'
+    history_item_ids = {quote.id:[carpentry_quote_item_id(quote,line) for line in quote.items] for quote in history}
+
     from datetime import timezone
     from zoneinfo import ZoneInfo
     quote_dates = {quote.id: (quote.created_at if quote.created_at.tzinfo else quote.created_at.replace(tzinfo=timezone.utc)).astimezone(ZoneInfo('Africa/Johannesburg')).strftime('%Y-%m-%d') for quote in history if quote.created_at}
@@ -1479,7 +1486,8 @@ def carpentry_quote_form(shop, customer, debtor, editing_quote=None):
     return render_template('program_mechanic/carpentry_quote.html', shop=shop, customer=customer,
                            details=details, debtor=debtor, draft=draft, boq_items=items, quote_key=quote_key, selected_ids=selected_ids,
                            quantities=quantities, error=error, saved_quote=None, work_choices=choices, initial_lines=initial_lines, fresh_choices=fresh_choices, fresh_quote_key=uuid4().hex,
-                           initial_area=initial_area, quote_history=history, quote_dates=quote_dates), status
+                           initial_area=initial_area, quote_history=history, quote_dates=quote_dates,
+                           expanded_quote_id=expanded_quote_id,history_item_ids=history_item_ids), status
 
 
 def carpentry_quote_item_id(quote, line):
@@ -1510,7 +1518,8 @@ def carpentry_quote_items(shop_id, debtor_id, quote_id):
     quote = (query.populate_existing().with_for_update() if request.method=='POST' else query).first()
     if not quote:
         abort(404)
-    register_url = url_for('mechanic_bp.carpentry_quote_items',shop_id=shop_id,debtor_id=debtor_id,quote_id=quote_id)
+    item_save_url = url_for('mechanic_bp.carpentry_quote_items',shop_id=shop_id,debtor_id=debtor_id,quote_id=quote_id)
+    register_url = url_for('mechanic_bp.debtor_quote',shop_id=shop_id,debtor_id=debtor_id,area='register',expanded_quote_id=quote_id)
     line_ids = [carpentry_quote_item_id(quote,item) for item in quote.items]
     item_id = request.values.get('item_id')
     if 'item' in request.values:
@@ -1524,6 +1533,8 @@ def carpentry_quote_items(shop_id, debtor_id, quote_id):
         abort(404)
     if request.method=='POST' and item_id is None:
         abort(400)
+    if request.method=='GET' and item_id is None:
+        return redirect(register_url)
     index = line_ids.index(item_id) if item_id is not None else None
     line = quote.items[index] if index is not None else None
     token = sha256(json.dumps(line,sort_keys=True,separators=(',',':')).encode()).hexdigest() if line else ''
@@ -1565,7 +1576,8 @@ def carpentry_quote_items(shop_id, debtor_id, quote_id):
             error=str(exc) if isinstance(exc,ValueError) else 'Enter valid numeric amounts.'
             status=409 if status==409 else 400
     return render_template('program_mechanic/carpentry_quote_items.html',shop=shop,debtor=debtor,quote=quote,
-                           line=line,item_id=item_id,line_ids=line_ids,values=values,line_token=token,error=error,register_url=register_url),status
+                           line=line,item_id=item_id,line_ids=line_ids,values=values,line_token=token,error=error,
+                           register_url=register_url,item_save_url=item_save_url),status
 
 
 @mechanic_bp.route('/mechanic/shop/<int:shop_id>/quotes/<int:quote_id>')

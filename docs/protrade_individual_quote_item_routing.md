@@ -1,5 +1,13 @@
 # Individual quotation item routing correction
 
+## Inline quotation register (current)
+
+The quotation register now expands saved items directly below the selected summary row. Only one row is expanded. Register Edit and quotation-number links use `/mechanic/shop/<shop_id>/debtor/<debtor_id>/quote?area=register&expanded_quote_id=<quote_id>`. The server validates the expanded ID against that debtor/shop/owner history; JavaScript toggles rows without leaving the register, with ordinary links as a fallback.
+
+The working individual item form, stable IDs, locking, validation and calculations are unchanged. Save Changes, Cancel and Back return to the same expanded register. `/quotes/<quote_id>/items` remains compatible and redirects to the expanded register when no individual item_id is supplied. Item forms still post to that existing handler. The saved-item table is shared presentation markup rather than a second editor.
+
+Real local HTTP/Chromium coverage verifies Q-0006 expansion below its row, switching between Q-0005/Q-0006 with only one visible, item editing, Save/Cancel return, reload persistence and immediate updated item/summary totals. Tokens, quotation count/identity, other items and accounting/email records remain unchanged. No migration is required.
+
 ## Traced path before the correction
 
 `GET /mechanic/shop/6/debtor/15/quote?area=quote&quote_id=6`
@@ -10,7 +18,7 @@
 4. `carpentry_quote.html` renders the whole editor. `carpentry_quote_hub.js` shows that area and `carpentry_quote_builder.js` builds every line. The whole form posts to `debtor_quote`.
 5. The prominent Register Edit action still generated this URL; the separate item page was reachable only by the quotation-number link. This explains the reported live screen without assuming a failed migration or deployment.
 
-## Corrected existing path
+## Previous item-register correction
 
 Register Edit and the quotation-number link both open the selected quotation item register. Old bookmarked GET URLs containing quote_id now redirect there after the existing ownership checks. Adding item_id to an old URL directs it to that specific item.
 

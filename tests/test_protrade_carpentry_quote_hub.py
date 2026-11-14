@@ -4,7 +4,7 @@ from datetime import datetime
 import json
 import re
 import unittest
-from urllib.parse import urlsplit
+from urllib.parse import urlsplit, parse_qs
 from lxml import html
 from playwright.sync_api import sync_playwright
 import test_protrade_shop_register as base
@@ -15,9 +15,10 @@ def open_whole_quote(page, row):
     # Full-editor regressions use its explicit existing route. Register Edit now
     # opens saved items and is covered separately by the item-navigation tests.
     href=row.get_by_role('link',name='Edit',exact=True).get_attribute('href')
-    match=re.search(r'/shop/(\d+)/debtor/\d+/quotes/(\d+)/items',href)
+    match=re.search(r'/shop/(\d+)/',href)
+    quote_id=parse_qs(urlsplit(href).query)['expanded_quote_id'][0]
     assert match,href
-    page.goto(f'http://localhost/mechanic/shop/{match[1]}/quotes/{match[2]}')
+    page.goto(f'http://localhost/mechanic/shop/{match[1]}/quotes/{quote_id}')
 
 
 class CarpentryQuoteHubTests(unittest.TestCase):
@@ -63,12 +64,12 @@ class CarpentryQuoteHubTests(unittest.TestCase):
         self.assertEqual(set(register.xpath('./tbody/tr/td[1]/a/text()')),{self.first.quote_number,self.second_quote.quote_number})
         self.assertNotIn('CAR-Q-OTHER-DEBTOR',register.text_content());self.assertNotIn('CAR-Q-FOREIGN',register.text_content())
         self.assertNotIn('LEGACY-CAR',register.text_content());self.assertIn('2026-11-13',register.text_content())
-        for link in register.xpath('.//td[last()]/a'):
-            self.assertIn(f'/debtor/{self.owner_debtor.id}/quotes/',link.get('href'))
-            self.assertTrue(link.get('href').endswith('/items'))
-        for link in register.xpath('.//td[1]/a'):
-            self.assertIn(f'/shop/{self.carpentry.id}/debtor/{self.owner_debtor.id}/quotes/',link.get('href'))
-            self.assertTrue(link.get('href').endswith('/items'))
+        for link in register.xpath('./tbody/tr[@data-quote-summary]/td[last()]/a'):
+            self.assertIn(f'/debtor/{self.owner_debtor.id}/quote?',link.get('href'))
+            self.assertIn('expanded_quote_id=',link.get('href'))
+        for link in register.xpath('./tbody/tr[@data-quote-summary]/td[1]/a'):
+            self.assertIn(f'/shop/{self.carpentry.id}/debtor/{self.owner_debtor.id}/quote?',link.get('href'))
+            self.assertIn('expanded_quote_id=',link.get('href'))
         self.assertEqual(self.conn.exec_driver_sql('SELECT * FROM protrade_boq_quotes ORDER BY id').all(),before)
 
     def test_explicit_open_enforces_debtor_shop_owner_and_preserves_quote_number(self):
@@ -152,7 +153,7 @@ class CarpentryQuoteHubTests(unittest.TestCase):
                 self.assertEqual(page.locator('#quote-hub-navigation').get_attribute('data-debtor-id'),str(self.owner_debtor.id))
                 page.get_by_role('button',name='Register',exact=True).click()
                 self.assertEqual(page.locator('.quote-working-area:visible').count(),1)
-                self.assertEqual(page.locator('#debtor-quote-register tbody tr').count(),3)
+                self.assertEqual(page.locator('#debtor-quote-register > tbody > tr[data-quote-summary]').count(),3)
             finally:browser.close()
 
 

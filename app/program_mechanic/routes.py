@@ -1102,6 +1102,20 @@ def protrade_output():
     return output_page()
 
 
+@mechanic_bp.route('/mechanic/folders', methods=['GET'])
+@login_required
+def protrade_folders():
+    from app.protrade_output import support_page
+    return support_page('folders')
+
+
+@mechanic_bp.route('/mechanic/help', methods=['GET'])
+@login_required
+def protrade_help():
+    from app.protrade_output import support_page
+    return support_page('help')
+
+
 @mechanic_bp.route('/mechanic/debtors', methods=['GET'])
 @login_required
 def debtor_register_entry():

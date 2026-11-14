@@ -256,3 +256,24 @@ def output_page():
     return render_template('program_mechanic/output.html',shop=shop,shops=shops,choices=public_choices,labels=LABELS,selection=selected,
                            debtors=debtors,recipient_id=recipient_id,report_data=data,preview_token=token,generated=claim['generated'] if claim else '',
                            pdf_url=pdf_url,directory_reports=directory_reports,error=error),status
+
+
+def support_page(page):
+    """Read-only dashboard pages; folder handles remain in the existing browser store."""
+    if page not in ('folders','help'):
+        abort(404)
+    shops=MechShop.query.filter_by(user_id=current_user.id).order_by(MechShop.business_name,MechShop.id).all()
+    raw=request.args.get('shop_id',session.get('active_shop_id'))
+    shop=None
+    if raw is not None:
+        try:identifier=int(raw)
+        except (ValueError,TypeError):abort(404)
+        shop=next((candidate for candidate in shops if candidate.id==identifier),None)
+        if shop is None:abort(404)
+    # Unique manager codes let the shared API create every shop's folders.
+    # Output continues using its existing report codes and exactly the same paths.
+    directory_reports=[dict(code=f'{candidate.id}:{kind}',title=label,
+        source=secure_filename(f'Shop-{candidate.id}-{candidate.business_name}')[:80] or f'Shop-{candidate.id}')
+        for candidate in shops for kind,label in LABELS.items()]
+    return render_template('program_mechanic/'+page+'.html',shop=shop,shops=shops,
+                           directory_reports=directory_reports,protrade_menu_active=page)

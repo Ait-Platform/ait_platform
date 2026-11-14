@@ -16,7 +16,7 @@
   });
   allow.addEventListener('click',async()=>{try{folderName.textContent=await window.AITDirectories.reauthorise(scope);message.textContent='Folder access granted.';}catch(error){fail(error);}});
   let saving=false;
-  save.addEventListener('click',async()=>{
+  save?.addEventListener('click',async()=>{
     if(saving || save.disabled)return;
     saving=true;save.disabled=true;
     try{
@@ -34,11 +34,11 @@
       }
     }catch(error){fail(error);}finally{saving=false;save.disabled=false;}
   });
-  email.addEventListener('click',()=>{const target=document.getElementById('output-email-form');target.hidden=!target.hidden;email.setAttribute('aria-expanded',String(!target.hidden));});
+  email?.addEventListener('click',()=>{const target=document.getElementById('output-email-form');target.hidden=!target.hidden;email.setAttribute('aria-expanded',String(!target.hidden));});
   const emailForm=document.getElementById('output-email-form');
   if(emailForm)emailForm.addEventListener('submit',()=>{emailForm.querySelector('button[type=submit]').disabled=true;});
-  document.getElementById('output-print').addEventListener('click',()=>window.print());
-  document.getElementById('output-shop').addEventListener('change',()=>{form.querySelector('[name=selection]')?.removeAttribute('required');window.location.href='/mechanic/output?shop_id='+encodeURIComponent(document.getElementById('output-shop').value);});
+  document.getElementById('output-print')?.addEventListener('click',()=>window.print());
+  document.getElementById('output-shop')?.addEventListener('change',()=>{form.querySelector('[name=selection]')?.removeAttribute('required');window.location.href='/mechanic/output?shop_id='+encodeURIComponent(document.getElementById('output-shop').value);});
   for(const id of ['output-selection','output-recipient'])document.getElementById(id)?.addEventListener('change',()=>{
     save.disabled=true;email.disabled=true;document.getElementById('output-print').disabled=true;
     message.textContent='Selection changed. Click Preview before printing, saving or emailing.';

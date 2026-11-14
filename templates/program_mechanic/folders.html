@@ -1,0 +1,20 @@
+﻿{% extends 'layout.html' %}
+{% block title %}ProTrade Folders{% endblock %}
+{% block flashes %}{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-6xl px-4 py-10"><div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow"><div class="h-2 bg-slate-700"></div><div class="p-6">
+{% include 'partials/flash_messages.html' %}
+<div class="flex items-center justify-between gap-4"><div><h1 class="text-2xl font-semibold">ProTrade Folders</h1><p class="mt-1 text-sm text-slate-600">One base folder for your ProTrade reports.</p></div><a href="{{ url_for('mechanic_bp.mechanic_dashboard',shop_id=shop.id if shop else none) }}" class="rounded-lg bg-slate-100 px-4 py-2 font-semibold">Back to Dashboard</a></div>
+{% include 'program_mechanic/menu.html' %}
+<div class="mt-4 flex justify-end"><a href="{{ url_for('mechanic_bp.protrade_output',shop_id=shop.id if shop else none) }}" class="rounded-lg bg-blue-100 px-4 py-2 font-semibold">Open Output</a></div>
+<p class="mt-4 text-slate-700">Select one base ProTrade folder. AIT creates a folder for each of your shops, with report-type folders inside it. Output uses this same folder when you click Save Report. Existing files are kept; repeated saves receive a different filename.</p>
+{% include 'program_mechanic/output_folder_controls.html' %}
+<p class="mt-4 text-sm text-slate-600">Your selection stays in this browser for your AIT account. Your browser may ask you to allow folder access again. Use Allow Access when needed. On another computer or browser, select the folder there. Download PDF remains available in Output if direct folder saving is unavailable.</p>
+<h2 class="mt-6 text-lg font-semibold">Your report folders</h2>
+<ul class="mt-3 space-y-2 text-sm text-slate-700">{% for report in directory_reports %}<li>{{ report.source }} / {{ report.title }}</li>{% else %}<li>Create a shop on the dashboard to organise its reports.</li>{% endfor %}</ul>
+<script id="output-directory-context" type="application/json">{{ dict(user=current_user.id|string,property='protrade')|tojson }}</script>
+<script id="directory-reports" type="application/json">{{ directory_reports|tojson }}</script>
+<script src="{{ url_for('static',filename='js/pm_local_directories.js') }}" defer></script>
+<script src="{{ url_for('static',filename='js/protrade_output.js',v='20261114-folders') }}" defer></script>
+</div></div></div>
+{% endblock %}

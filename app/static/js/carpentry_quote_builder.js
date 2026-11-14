@@ -1,16 +1,4 @@
 (() => {
-  const root = document.getElementById('quote-builder-data');
-  if (!root) return;
-  const data = JSON.parse(root.textContent);
-  const search = document.getElementById('quote-work-select');
-  const body = document.getElementById('quote-item-lines');
-  const add = document.getElementById('quote-add-item');
-  const quantity = document.getElementById('quote-work-quantity');
-  const message = document.getElementById('quote-work-message');
-  const material = document.getElementById('quote-work-material');
-  const labour = document.getElementById('quote-work-labour');
-  const selected = new Map();
-  let choice = null;
   const money = cents => `${cents / 100n}.${String(cents % 100n).padStart(2, '0')}`;
   function amount(value, rate) {
     const match = /^(?:(\d+)(?:\.(\d{0,3}))?|\.(\d{1,3}))$/.exec(value);
@@ -26,8 +14,31 @@
     const m=rateCents(materialValue), l=rateCents(labourValue);
     return m===null || l===null ? '' : String(m+l);
   }
-  // Share the existing exact-money preview with the inline saved-item form.
-  window.protradeQuoteAmounts = {amount, money, combinedRate};
+  // The existing item page uses the same exact-money preview as the builder.
+  const itemForm=document.getElementById('quote-item-edit');
+  if(itemForm) {
+    const preview=()=>{
+      document.getElementById('quote-item-line-total').textContent=money(amount(
+        itemForm.elements.quantity.value,
+        combinedRate(itemForm.elements.material_rate.value,itemForm.elements.labour_rate.value)));
+    };
+    itemForm.addEventListener('input',preview);
+    itemForm.addEventListener('change',preview);
+    preview();
+    return;
+  }
+  const root = document.getElementById('quote-builder-data');
+  if (!root) return;
+  const data = JSON.parse(root.textContent);
+  const search = document.getElementById('quote-work-select');
+  const body = document.getElementById('quote-item-lines');
+  const add = document.getElementById('quote-add-item');
+  const quantity = document.getElementById('quote-work-quantity');
+  const message = document.getElementById('quote-work-message');
+  const material = document.getElementById('quote-work-material');
+  const labour = document.getElementById('quote-work-labour');
+  const selected = new Map();
+  let choice = null;
   function validValues(materialInput,labourInput,quantityInput) {
     return [materialInput,labourInput,quantityInput].every(field=>field.value!=='' && field.checkValidity()) &&
       combinedRate(materialInput.value,labourInput.value)!=='' && /^(?:\d+(?:\.\d{0,3})?|\.\d{1,3})$/.test(quantityInput.value);

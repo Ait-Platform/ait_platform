@@ -1,6 +1,14 @@
 # Individual quotation item routing correction
 
-## Inline item editing (current)
+## Simple item page (current)
+
+The final navigation uses the existing standalone `Edit Quote Item` page. Register Edit still expands the quotation; each saved item's light-orange Edit link navigates directly to its existing stable item-ID route. The inline script, fetch interception and inline form rows have been removed. Save Changes and Cancel use the existing return URL, keeping the selected quotation expanded.
+
+The item page loads the same builder money-preview functions, with an early standalone-form branch, so Quantity/Material/Labour changes update Line Total immediately. Server handlers, ownership checks, stale-edit validation, calculations, numbering and accounting are unchanged. No migration is required.
+
+Real local PostgreSQL/HTTP/Chromium verification covers Tomas/Q-0006 from quantity 2/R648 plus unchanged CAR-005/R825, changing to quantity 3/R972 and grand total R1797. It verifies immediate quantity/rate preview, native/server invalid input, Cancel before and after saving, return expansion, reopening, one expanded quotation, and absence of inline forms. Wallet/history, quotation identity/count, invoice/email records and Price List snapshots remain unchanged. Live Render verification is separate.
+
+## Inline item editing (previous stage)
 
 Item Edit now fetches the existing authenticated item form into a single row immediately beneath the selected saved item. It keeps the current register URL and browser document. Cancel closes the form locally. Submit uses the same form action, CSRF token, stable item ID, stale-edit token, validation, locks and POST handler; no route or accounting calculation is changed.
 

@@ -2,7 +2,7 @@
 
 ## Simple item page (current)
 
-The final navigation uses the existing standalone `Edit Quote Item` page. Register Edit still expands the quotation; each saved item's light-orange Edit link navigates directly to its existing stable item-ID route. The inline script, fetch interception and inline form rows have been removed. Save Changes and Cancel use the existing return URL, keeping the selected quotation expanded.
+The final navigation uses the existing standalone `Edit Quote Item` page. Clicking the quotation number expands its items. The redundant quotation-level Edit action/column is removed; each saved item has exactly one light-orange Edit link leading directly to its existing stable item-ID route. The inline script, fetch interception and inline form rows have been removed. Save Changes and Cancel use the existing return URL, keeping the selected quotation expanded.
 
 The item page loads the same builder money-preview functions, with an early standalone-form branch, so Quantity/Material/Labour changes update Line Total immediately. Server handlers, ownership checks, stale-edit validation, calculations, numbering and accounting are unchanged. No migration is required.
 

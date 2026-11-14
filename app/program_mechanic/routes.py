@@ -1475,6 +1475,75 @@ def carpentry_quote_form(shop, customer, debtor, editing_quote=None):
                            initial_area=initial_area, quote_history=history, quote_dates=quote_dates), status
 
 
+@mechanic_bp.route('/mechanic/shop/<int:shop_id>/debtor/<int:debtor_id>/quotes/<int:quote_id>/items', methods=['GET','POST'])
+@login_required
+def carpentry_quote_items(shop_id, debtor_id, quote_id):
+    """Edit one saved quotation snapshot line, without resubmitting other lines."""
+    from flask import abort
+    from app.models.debtors import Debtor
+    from app.models.mechanic import ProTradeBoqQuote
+    from decimal import Decimal, InvalidOperation, ROUND_HALF_UP, localcontext
+    from hashlib import sha256
+    import json
+    shop = MechShop.query.filter_by(id=shop_id,user_id=current_user.id,trade='carpentry').first()
+    debtor_query = Debtor.query.filter_by(id=debtor_id,shop_id=shop_id,user_id=current_user.id)
+    # Use the same debtor lock as the full editor, then refresh the saved snapshot.
+    debtor = (debtor_query.with_for_update() if request.method=='POST' else debtor_query).first()
+    if not shop or not debtor:
+        abort(404)
+    query = ProTradeBoqQuote.query.filter_by(id=quote_id,shop_id=shop_id,debtor_id=debtor_id,user_id=current_user.id,trade='carpentry')
+    quote = (query.populate_existing().with_for_update() if request.method=='POST' else query).first()
+    if not quote:
+        abort(404)
+    register_url = url_for('mechanic_bp.carpentry_quote_items',shop_id=shop_id,debtor_id=debtor_id,quote_id=quote_id)
+    index = request.values.get('item',type=int)
+    if 'item' in request.values and (index is None or index < 0 or index >= len(quote.items)):
+        abort(404)
+    if request.method=='POST' and index is None:
+        abort(400)
+    line = quote.items[index] if index is not None else None
+    token = sha256(json.dumps(line,sort_keys=True,separators=(',',':')).encode()).hexdigest() if line else ''
+    values = {key:str(line[key]) for key in ('description','unit','quantity','material_rate','labour_rate')} if line else {}
+    error,status = None,200
+    if request.method=='POST':
+        values = {key:request.form.get(key,'').strip() for key in values}
+        try:
+            if request.form.get('line_token') != token:
+                status=409
+                raise ValueError('This item has changed. Cancel and reopen it before saving.')
+            if not values['description'] or len(values['description'])>4000 or values['unit'] not in ('Each','m','m\u00b2','m\u00b3','Hour'):
+                raise ValueError('Enter a description and select a valid unit.')
+            numbers={}
+            for key in ('quantity','material_rate','labour_rate'):
+                value=Decimal(values[key])
+                quantity=key=='quantity'
+                limit=Decimal('99999999999.999' if quantity else '999999999999.99')
+                precision=Decimal('0.001' if quantity else '0.01')
+                if not value.is_finite() or value<0 or (quantity and value==0) or value>limit or value!=value.quantize(precision):
+                    raise ValueError('Enter a positive quantity (up to three decimals) and non-negative rates (up to two decimals).')
+                numbers[key]=value
+            with localcontext() as ctx:
+                ctx.prec=50
+                total=(numbers['quantity']*(numbers['material_rate']+numbers['labour_rate'])).quantize(Decimal('0.01'),rounding=ROUND_HALF_UP)
+                updated=dict(line,description=values['description'],unit=values['unit'],quantity=str(numbers['quantity']),
+                             material_rate=format(numbers['material_rate'],'.2f'),labour_rate=format(numbers['labour_rate'],'.2f'),total=str(total))
+                lines=list(quote.items)
+                lines[index]=updated
+                grand_total=sum((Decimal(item['total']) for item in lines),Decimal('0.00'))
+            if grand_total>Decimal('99999999999999999999999999.99'):
+                raise ValueError('Quotation total is too large to save.')
+            quote.items=lines
+            quote.grand_total=grand_total
+            db.session.commit()
+            flash('Quote item updated.','success')
+            return redirect(register_url)
+        except (ValueError,InvalidOperation) as exc:
+            error=str(exc) if isinstance(exc,ValueError) else 'Enter valid numeric amounts.'
+            status=409 if status==409 else 400
+    return render_template('program_mechanic/carpentry_quote_items.html',shop=shop,debtor=debtor,quote=quote,
+                           line=line,index=index,values=values,line_token=token,error=error,register_url=register_url),status
+
+
 @mechanic_bp.route('/mechanic/shop/<int:shop_id>/quotes/<int:quote_id>')
 @login_required
 def carpentry_quote_view(shop_id, quote_id):

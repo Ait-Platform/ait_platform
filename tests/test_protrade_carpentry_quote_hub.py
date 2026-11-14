@@ -50,12 +50,15 @@ class CarpentryQuoteHubTests(unittest.TestCase):
         self.assertNotIn('Quote / Invoice Register',tree.text_content())
         register=tree.get_element_by_id('debtor-quote-register')
         self.assertEqual(register.xpath('./thead/tr/th/text()'),['Quote No.','Date','Amount','Status','Action'])
-        self.assertEqual(set(register.xpath('./tbody/tr/td[1]/text()')),{self.first.quote_number,self.second_quote.quote_number})
+        self.assertEqual(set(register.xpath('./tbody/tr/td[1]/a/text()')),{self.first.quote_number,self.second_quote.quote_number})
         self.assertNotIn('CAR-Q-OTHER-DEBTOR',register.text_content());self.assertNotIn('CAR-Q-FOREIGN',register.text_content())
         self.assertNotIn('LEGACY-CAR',register.text_content());self.assertIn('2026-11-13',register.text_content())
-        for link in register.xpath('.//a'):
+        for link in register.xpath('.//td[last()]/a'):
             self.assertIn(f'/debtor/{self.owner_debtor.id}/quote?',link.get('href'))
             self.assertIn('quote_id=',link.get('href'))
+        for link in register.xpath('.//td[1]/a'):
+            self.assertIn(f'/shop/{self.carpentry.id}/debtor/{self.owner_debtor.id}/quotes/',link.get('href'))
+            self.assertTrue(link.get('href').endswith('/items'))
         self.assertEqual(self.conn.exec_driver_sql('SELECT * FROM protrade_boq_quotes ORDER BY id').all(),before)
 
     def test_explicit_open_enforces_debtor_shop_owner_and_preserves_quote_number(self):

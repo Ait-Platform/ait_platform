@@ -1132,10 +1132,28 @@ def shop_debtor_register(shop_id):
     debtor = scoped.filter_by(id=edit_id).first() if edit_id else None
     if request.values.get('debtor_id') is not None and debtor is None:
         abort(404)
+    existing_debtors = Debtor.query.filter_by(user_id=current_user.id,identity_debtor_id=None).order_by(Debtor.name,Debtor.id).all()
     error, status = None, 200
     values = {}
     if request.method == 'POST':
-        values = {field: request.form.get(field, '').strip() for field in ('name','phone','email','address')}
+        source = None
+        if request.form.get('existing_debtor_id'):
+            if debtor is not None:
+                abort(400)
+            source = Debtor.query.filter_by(id=request.form.get('existing_debtor_id',type=int),user_id=current_user.id).first()
+            if source is None:
+                abort(404)
+            root_id = source.identity_debtor_id or source.id
+            source = Debtor.query.filter_by(id=root_id,user_id=current_user.id).with_for_update().first()
+            if source is None:
+                abort(404)
+            linked = scoped.filter((Debtor.id==root_id) | (Debtor.identity_debtor_id==root_id)).first()
+            if linked:
+                flash('This debtor is already linked to this shop.', 'info')
+                return redirect(url_for('mechanic_bp.shop_debtor_register',shop_id=shop.id))
+        # Serialize registrations for this shop, including repeated new submissions.
+        MechShop.query.filter_by(id=shop.id,user_id=current_user.id).with_for_update().first()
+        values = {field: (getattr(source,field) or '') if source else request.form.get(field, '').strip() for field in ('name','phone','email','address')}
         if not values['name'] or len(values['name']) > 150 or len(values['phone']) > 50 or len(values['email']) > 150 or len(values['address']) > 4000:
             error, status = 'Enter a name (up to 150 characters) and valid contact details.', 400
         else:
@@ -1145,7 +1163,7 @@ def shop_debtor_register(shop_id):
                 if duplicate:
                     flash('This debtor is already saved for this shop.', 'info')
                     return redirect(url_for('mechanic_bp.shop_debtor_register', shop_id=shop.id, debtor_id=duplicate.id))
-                debtor = Debtor(user_id=current_user.id, shop_id=shop.id, slug_reference='protrade', opening_balance=0)
+                debtor = Debtor(user_id=current_user.id, shop_id=shop.id, slug_reference='protrade', opening_balance=0, identity_debtor_id=source.id if source else None)
                 client = MechClient(user_id=current_user.id, shop_id=shop.id, name=values['name'])
                 db.session.add(client)
                 db.session.flush()
@@ -1169,7 +1187,7 @@ def shop_debtor_register(shop_id):
         for job in MechJobCard.query.filter_by(shop_id=shop.id, debtor_id=debtor.id).join(MechVehicle).join(MechClient).filter(MechClient.user_id==current_user.id).order_by(MechJobCard.id.desc()).all():
             documents.append(dict(number=job.job_number, label='Draft quotation' if job.is_draft and job.status=='Quote' else job.status, href=url_for('mechanic_bp.job_card_detail',id=job.id,shop_id=shop.id)))
     return render_template('program_mechanic/shop_debtors.html', shop=shop, shops=[], debtors=scoped.order_by(Debtor.name,Debtor.id).all(),
-                           edit_debtor=debtor, documents=documents, values=values, error=error), status
+                           edit_debtor=debtor, documents=documents, values=values, error=error, existing_debtors=existing_debtors), status
 
 
 @mechanic_bp.route('/mechanic/shop/<int:shop_id>/debtor/<int:debtor_id>/quote', methods=['GET','POST'])
@@ -1192,18 +1210,18 @@ def new_debtor_quote(shop_id, debtor_id):
     from app.models.mechanic import ProTradeBoqQuote, MechJobCard
     shop = MechShop.query.filter_by(id=shop_id, user_id=current_user.id).first()
     debtor = Debtor.query.filter_by(id=debtor_id, shop_id=shop_id, user_id=current_user.id).first()
-    if not shop or not debtor or (shop.trade or 'mechanic') not in ('mechanic','carpentry'):
+    if not shop or not debtor:
         abort(404)
     # Serialize concurrent explicit New Quote requests for this debtor.
     Debtor.query.filter_by(id=debtor.id).with_for_update().first()
-    if shop.trade == 'carpentry':
+    if (shop.trade or 'mechanic') != 'mechanic':
         drafts = ProTradeBoqQuote.query.filter_by(user_id=current_user.id,shop_id=shop.id,debtor_id=debtor.id,is_draft=True).all()
     else:
         drafts = MechJobCard.query.filter_by(shop_id=shop.id,debtor_id=debtor.id,is_draft=True,status='Quote').all()
     for draft in drafts:
         draft.is_draft = False
     db.session.commit()
-    return redirect(url_for('mechanic_bp.debtor_quote',shop_id=shop.id,debtor_id=debtor.id,**({'area':'new'} if shop.trade=='carpentry' else {})))
+    return redirect(url_for('mechanic_bp.debtor_quote',shop_id=shop.id,debtor_id=debtor.id,**({'area':'new'} if (shop.trade or 'mechanic')!='mechanic' else {})))
 
 
 @mechanic_bp.route('/mechanic/quote-invoice', methods=['GET'])
@@ -1298,8 +1316,6 @@ def register_trade_quote(shop_id, client_id=None, debtor_id=None):
         if draft:
             return redirect(url_for('mechanic_bp.edit_quote', id=draft.id, shop_id=shop.id, debtor_id=debtor.id))
         return redirect(url_for('mechanic_bp.new_quote', shop_id=shop.id, client_id=customer.id, debtor_id=debtor.id))
-    if shop.trade != 'carpentry':
-        abort(404)
     return carpentry_quote_form(shop, customer, debtor)
 
 
@@ -1314,7 +1330,7 @@ def carpentry_quote_form(shop, customer, debtor, editing_quote=None):
         Debtor.query.filter_by(id=debtor.id,shop_id=shop.id,user_id=current_user.id).with_for_update().first()
     from flask import abort
     raw_quote_id = request.values.get('quote_id')
-    scoped_quotes = ProTradeBoqQuote.query.filter_by(user_id=current_user.id,shop_id=shop.id,debtor_id=debtor.id,trade='carpentry')
+    scoped_quotes = ProTradeBoqQuote.query.filter_by(user_id=current_user.id,shop_id=shop.id,debtor_id=debtor.id,trade=shop.trade)
     if editing_quote is not None:
         draft = editing_quote
     elif raw_quote_id is not None:
@@ -1338,12 +1354,15 @@ def carpentry_quote_form(shop, customer, debtor, editing_quote=None):
         abort(404)
     if initial_area == 'new':
         initial_area = 'quote'
-    items = ProTradeBoqItem.query.filter_by(user_id=current_user.id, shop_id=shop.id, trade='carpentry').order_by(ProTradeBoqItem.code).all()
+    items = ProTradeBoqItem.query.filter_by(user_id=current_user.id, shop_id=shop.id, trade=shop.trade).order_by(ProTradeBoqItem.code).all()
     from app.protrade_boq_catalog import work_items_for
     from types import SimpleNamespace
     priced_codes = {item.code for item in items}
     items += [SimpleNamespace(id='template:'+work['code'],code=work['code'],description=work['description'],unit=work['unit'],material_rate=None,labour_rate=None)
-              for work in work_items_for('carpentry') if work['code'] not in priced_codes]
+              for work in work_items_for(shop.trade) if work['code'] not in priced_codes]
+    if shop.trade != 'carpentry' and 'WORK-001' not in priced_codes:
+        # A quotation-only template: no invented prices or Price List writes.
+        items.append(SimpleNamespace(id='template:WORK-001',code='WORK-001',description='General services',unit='Each',material_rate=None,labour_rate=None))
     fresh_items = list(items)
     details = dict(name=debtor.name,phone=debtor.phone,email=debtor.email,address=debtor.address)
     if draft:
@@ -1367,7 +1386,7 @@ def carpentry_quote_form(shop, customer, debtor, editing_quote=None):
                 raise ValueError('Reopen the quote form before saving.') from None
             number = 'CAR-Q-' + quote_key.upper()
             saved = ProTradeBoqQuote.query.filter_by(quote_number=number, user_id=current_user.id,
-                                                     shop_id=shop.id, trade='carpentry',
+                                                     shop_id=shop.id, trade=shop.trade,
                                                      client_id=customer.id if customer else None, debtor_id=debtor.id).first()
             if raw_quote_id is not None and draft and number != draft.quote_number:
                 raise ValueError('Reopen the selected quotation before saving.')
@@ -1411,7 +1430,10 @@ def carpentry_quote_form(shop, customer, debtor, editing_quote=None):
                 with localcontext() as decimal_context:
                     decimal_context.prec = 50
                     amount = (quantity * (rates['material_rate'] + rates['labour_rate'])).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
-                lines.append(dict(source_item_id=item.id, code=item.code, description=item.description, unit=item.unit,
+                description = request.form.get(f'description_{identifier}',item.description).strip() if shop.trade!='carpentry' else item.description
+                if not description or len(description)>4000:
+                    raise ValueError('Enter a work description (up to 4000 characters).')
+                lines.append(dict(source_item_id=item.id, code=item.code, description=description, unit=item.unit,
                                   quantity=str(quantity), material_rate=format(rates['material_rate'],'.2f'),
                                   labour_rate=format(rates['labour_rate'],'.2f'), total=str(amount)))
                 grand_total += amount
@@ -1423,7 +1445,7 @@ def carpentry_quote_form(shop, customer, debtor, editing_quote=None):
                     previous.is_draft = False
                 db.session.flush()
             quote = draft or ProTradeBoqQuote(user_id=current_user.id, shop_id=shop.id,
-                                    client_id=customer.id if customer else None, trade='carpentry', quote_number=number,
+                                    client_id=customer.id if customer else None, trade=shop.trade, quote_number=number,
                                     client_name=details['name'], client_phone=details['phone'], client_email=details['email'],
                                     client_address=details['address'], items=lines, grand_total=grand_total)
             quote.debtor_id = debtor.id
@@ -1437,7 +1459,7 @@ def carpentry_quote_form(shop, customer, debtor, editing_quote=None):
             quote.grand_total = grand_total
             db.session.add(quote)
             db.session.commit()
-            flash('Carpentry quote saved.', 'success')
+            flash('Quotation saved.', 'success')
             if draft is not None:
                 return redirect(url_for('mechanic_bp.debtor_quote',shop_id=shop.id,debtor_id=debtor.id,area='register'))
             return redirect(url_for('mechanic_bp.carpentry_quote_view', shop_id=shop.id, quote_id=quote.id))
@@ -1454,7 +1476,7 @@ def carpentry_quote_form(shop, customer, debtor, editing_quote=None):
                     material_rate=format(item.material_rate,'.2f') if item and item.material_rate is not None else '',
                     labour_rate=format(item.labour_rate,'.2f') if item and item.labour_rate is not None else '',
                     rate_cents=str(int((item.material_rate+item.labour_rate)*100)) if item and item.material_rate is not None and item.labour_rate is not None else '')
-    definitions = work_items_for('carpentry')
+    definitions = work_items_for(shop.trade)
     predefined_codes = {definition['code'] for definition in definitions}
     def choices_for(source):
         by_code = {item.code:item for item in source}
@@ -1507,15 +1529,15 @@ def carpentry_quote_items(shop_id, debtor_id, quote_id):
     from decimal import Decimal, InvalidOperation, ROUND_HALF_UP, localcontext
     from hashlib import sha256
     import json
-    shop = MechShop.query.filter_by(id=shop_id,user_id=current_user.id,trade='carpentry').first()
+    shop = MechShop.query.filter_by(id=shop_id,user_id=current_user.id).first()
     debtor_query = Debtor.query.filter_by(id=debtor_id,shop_id=shop_id,user_id=current_user.id)
     # Use the same debtor lock as the full editor, then refresh the saved snapshot.
     debtor = (debtor_query.with_for_update() if request.method=='POST' else debtor_query).first()
-    if not shop or not debtor:
+    if not shop or (shop.trade or 'mechanic')=='mechanic' or not debtor:
         abort(404)
-    query = ProTradeBoqQuote.query.filter_by(id=quote_id,shop_id=shop_id,debtor_id=debtor_id,user_id=current_user.id,trade='carpentry')
+    query = ProTradeBoqQuote.query.filter_by(id=quote_id,shop_id=shop_id,debtor_id=debtor_id,user_id=current_user.id)
     quote = (query.populate_existing().with_for_update() if request.method=='POST' else query).first()
-    if not quote:
+    if not quote or quote.trade != shop.trade:
         abort(404)
     item_save_url = url_for('mechanic_bp.carpentry_quote_items',shop_id=shop_id,debtor_id=debtor_id,quote_id=quote_id)
     register_url = item_save_url
@@ -1582,9 +1604,9 @@ def carpentry_quote_items(shop_id, debtor_id, quote_id):
 def carpentry_quote_view(shop_id, quote_id):
     from flask import abort
     from app.models.mechanic import ProTradeBoqQuote
-    shop = MechShop.query.filter_by(id=shop_id, user_id=current_user.id, trade='carpentry').first()
-    quote = ProTradeBoqQuote.query.filter_by(id=quote_id, shop_id=shop_id, user_id=current_user.id, trade='carpentry').first()
-    if not shop or not quote:
+    shop = MechShop.query.filter_by(id=shop_id, user_id=current_user.id).first()
+    quote = ProTradeBoqQuote.query.filter_by(id=quote_id, shop_id=shop_id, user_id=current_user.id).first()
+    if not shop or not quote or quote.trade != shop.trade or (shop.trade or 'mechanic')=='mechanic':
         abort(404)
     if quote.debtor_id is not None:
         from app.models.debtors import Debtor
@@ -1966,7 +1988,7 @@ def new_quote():
         part_descs = request.form.getlist('part_desc[]')
         part_rates = request.form.getlist('part_rate[]')
         
-        from app.models.mechanic import MechClient, MechVehicle, MechJobCard, MechPartLine, MechLaborLine
+        from app.models.mechanic import MechPartLine, MechLaborLine
         import uuid
         
         # Mock finding or creating client
@@ -2823,7 +2845,7 @@ def client_ledger(debtor_id):
     
     debtor = Debtor.query.filter_by(id=debtor_id, user_id=current_user.id).first_or_404()
     shop = MechShop.query.filter_by(id=debtor.shop_id, user_id=current_user.id).first_or_404() if debtor.shop_id is not None else None
-    carpentry_account = bool(shop and shop.trade=='carpentry')
+    carpentry_account = bool(shop and (shop.trade or 'mechanic')!='mechanic')
     if request.args.get('shop_id') is not None and request.args.get('shop_id', type=int) != debtor.shop_id:
         from flask import abort
         abort(404)
@@ -2898,7 +2920,7 @@ def client_ledger_add_payment(debtor_id):
         from flask import abort
         abort(404)
     
-    if shop and shop.trade=='carpentry':
+    if shop and (shop.trade or 'mechanic')!='mechanic':
         from app.protrade_ledger import payment_cents
         from uuid import UUID
         from sqlalchemy.exc import IntegrityError

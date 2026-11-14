@@ -608,7 +608,7 @@ def generate_soa(debtor_id):
     if debtor.shop_id is not None:
         from app.models.mechanic import MechShop
         linked_shop=MechShop.query.filter_by(id=debtor.shop_id,user_id=current_user.id).first_or_404()
-        if linked_shop.trade=='carpentry':
+        if (linked_shop.trade or 'mechanic')!='mechanic':
             from app.protrade_ledger import shop_statement_profile
             protrade_shop=linked_shop
             profile=shop_statement_profile(linked_shop)
@@ -765,7 +765,7 @@ def email_soa():
     if debtor.shop_id is not None:
         from app.models.mechanic import MechShop
         linked_shop=MechShop.query.filter_by(id=debtor.shop_id,user_id=current_user.id).first_or_404()
-        if linked_shop.trade=='carpentry':
+        if (linked_shop.trade or 'mechanic')!='mechanic':
             from app.protrade_ledger import shop_statement_profile
             protrade_shop=linked_shop
             profile=shop_statement_profile(linked_shop)

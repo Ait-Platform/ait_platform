@@ -88,7 +88,7 @@ class ProTradeBoqQuote(db.Model):
     __table_args__ = (
         db.UniqueConstraint('shop_id','quotation_seq',name='uq_boq_shop_quote_number'),
         db.Index('uq_protrade_boq_open_draft','shop_id','debtor_id',unique=True,postgresql_where=db.text('is_draft IS TRUE AND debtor_id IS NOT NULL')),
-        db.CheckConstraint("trade = 'carpentry'", name='ck_protrade_boq_quote_trade'),
+        db.CheckConstraint("trade <> 'mechanic' AND length(trim(trade)) > 0", name='ck_protrade_boq_quote_trade'),
         db.CheckConstraint('grand_total >= 0', name='ck_protrade_boq_quote_total'),
     )
 

@@ -76,7 +76,7 @@ class DebtorFoundationTests(unittest.TestCase):
     def test_debtor_isolation_and_saved_debtor_requirement(self):
         self.save_debtor()
         debtor=self.debtor()
-        self.assertNotIn('Debtor Jane',self.client.get(f'/mechanic/shop/{self.second.id}/debtors').get_data(as_text=True))
+        self.assertNotIn('Debtor Jane',html.fromstring(self.client.get(f'/mechanic/shop/{self.second.id}/debtors').data).get_element_by_id('shop-debtors').text_content())
         self.assertEqual(self.client.get(f'/mechanic/shop/{self.foreign.id}/debtors').status_code,404)
         self.save_debtor(self.second,debtor_id=debtor.id,expected=404)
         self.assertEqual(self.client.get(f'/mechanic/shop/{self.second.id}/debtor/{debtor.id}/quote').status_code,404)

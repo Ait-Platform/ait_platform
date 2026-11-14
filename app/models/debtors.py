@@ -63,6 +63,8 @@ class Debtor(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     shop_id = db.Column(db.Integer, db.ForeignKey('mech_shops.id'), nullable=True)
+    identity_debtor_id = db.Column(db.Integer, db.ForeignKey('debtor.id'), nullable=True)
+    __table_args__ = (db.Index('uq_debtor_shop_identity', 'user_id', 'shop_id', db.text('COALESCE(identity_debtor_id, id)'), unique=True, postgresql_where=db.text('shop_id IS NOT NULL')), )
     address = db.Column(db.Text, nullable=True)
     bank_account_id = db.Column(db.Integer, db.ForeignKey('business_bank_account.id'), nullable=True)
     sender_profile_id = db.Column(db.Integer, db.ForeignKey('sender_profile.id'), nullable=True)

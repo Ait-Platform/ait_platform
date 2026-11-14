@@ -1,5 +1,5 @@
 ﻿{% extends 'layout.html' %}
-{% block title %}Carpentry Quotation{% endblock %}
+{% block title %}{{ 'Carpentry Quotation' if shop.trade=='carpentry' else 'Quotation' }}{% endblock %}
 {% block head %}{{ super() }}<style>.quote-working-area[hidden] { display: none !important; }</style>{% endblock %}
 {% block flashes %}{% endblock %}
 {% block content %}
@@ -9,7 +9,7 @@
     <div class="p-6">
       {% include 'partials/flash_messages.html' %}
       <div class="flex items-center justify-between gap-4">
-        <div><h1 class="text-2xl font-semibold text-slate-900">Carpentry Quotation</h1>
+        <div><h1 class="text-2xl font-semibold text-slate-900">{{ 'Carpentry Quotation' if shop.trade=='carpentry' else 'Quotation' }}</h1>
           <p class="mt-1 text-sm text-slate-600">{{ shop.business_name }}{% if saved_quote %} &middot; {{ saved_quote.display_quote_number }}{% elif draft %}<span id="quote-current-reference"> &middot; {{ draft.display_quote_number }}</span>{% endif %}</p></div>
         <a href="{{ url_for('mechanic_bp.shop_debtor_register', shop_id=shop.id, debtor_id=saved_quote.debtor_id if saved_quote else debtor.id) }}" class="rounded-lg bg-slate-100 px-4 py-2 font-semibold text-slate-700">Back</a>
       </div>
@@ -93,8 +93,8 @@
         {% else %}<tr><td colspan="3" class="p-6 text-center text-slate-600">No quotations for this debtor yet.</td></tr>{% endfor %}
         </tbody></table></div>
       </section>
-      <script id="quote-builder-data" type="application/json">{{ dict(choices=work_choices,lines=initial_lines,fresh_choices=fresh_choices,fresh_quote_key=fresh_quote_key)|tojson }}</script>
-      <script src="{{ url_for('static',filename='js/carpentry_quote_builder.js',v='20261114-separate-register-6') }}" defer></script>
+      <script id="quote-builder-data" type="application/json">{{ dict(allow_description=shop.trade!='carpentry',choices=work_choices,lines=initial_lines,fresh_choices=fresh_choices,fresh_quote_key=fresh_quote_key)|tojson }}</script>
+      <script src="{{ url_for('static',filename='js/carpentry_quote_builder.js',v='20261114-debtor-identity-011') }}" defer></script>
       <script src="{{ url_for('static',filename='js/carpentry_quote_hub.js',v='20261114-separate-register-6') }}" defer></script>
       {% endif %}
     </div>

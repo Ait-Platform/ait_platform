@@ -97,7 +97,15 @@
     include.setAttribute('aria-label',`Include ${item.code}`);cell('').append(include);
     const code=cell(item.code), identity=document.createElement('input');
     identity.type='hidden';identity.name='item_id[]';identity.value=key;code.append(identity);
-    cell(item.description);cell(item.unit);
+    const descriptionCell=cell(item.description);
+    if(data.allow_description) {
+      descriptionCell.textContent='';
+      const description=document.createElement('input');description.name=`description_${key}`;
+      description.value=item.description;description.maxLength=4000;description.required=true;
+      description.className='w-48 rounded-lg border border-slate-300 px-3 py-2';
+      description.setAttribute('aria-label',`Description ${item.code}`);descriptionCell.append(description);
+    }
+    cell(item.unit);
     const input=document.createElement('input');input.type='number';input.name=`quantity_${key}`;
     input.value=value;input.required=true;input.min='0.001';
     input.step='0.001';input.max='99999999999.999';

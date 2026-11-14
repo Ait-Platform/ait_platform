@@ -35,6 +35,7 @@ class ShopDebtor(models.Base):
 models.Debtor = ShopDebtor
 models.Debtor.shop_id = sa.Column(sa.Integer, sa.ForeignKey('mech_shops.id'))
 models.Debtor.address = sa.Column(sa.Text)
+models.Debtor.identity_debtor_id = sa.Column(sa.Integer,sa.ForeignKey('debtor.id'))
 models.Debtor.opening_balance = sa.Column(sa.Integer,default=0)
 models.Debtor.bank_account_id = sa.Column(sa.Integer)
 models.MechClient.shop_id = sa.Column(sa.Integer, sa.ForeignKey('mech_shops.id'))

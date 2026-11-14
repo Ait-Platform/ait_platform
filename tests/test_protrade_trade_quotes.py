@@ -190,7 +190,8 @@ class TradeQuoteTests(unittest.TestCase):
         self.assertEqual([quote.shop_id for quote in quotes], [self.carpentry.id, self.second.id])
         self.assertEqual([quote.grand_total for quote in quotes], [Decimal('325.00'), Decimal('6.00')])
         self.assertEqual(models.MechClient.query.count(), count)
-        mechanic = self.client.get(self.quote_url(self.mechanic))
+        self.assertEqual(self.client.get(self.quote_url(self.mechanic)).status_code,200)
+        mechanic = self.client.get(self.quote_url(self.mechanic)+'&area=new')
         self.assertEqual(mechanic.status_code, 302)
         self.assertIn(f'client_id={self.customers_by_shop[self.mechanic.id].id}', mechanic.location)
 
@@ -208,7 +209,8 @@ class TradeQuoteTests(unittest.TestCase):
         self.assertEqual(ProTradeBoqQuote.query.count(), 1)
 
     def test_mechanic_uses_existing_form_and_save_links_exact_customer_and_shop(self):
-        response = self.client.get(self.quote_url(self.mechanic))
+        self.assertEqual(self.client.get(self.quote_url(self.mechanic)).status_code,200)
+        response = self.client.get(self.quote_url(self.mechanic)+'&area=new')
         self.assertEqual(response.status_code, 302)
         self.assertIn('/mechanic/quote/new', response.location)
         form = self.client.get(response.location)

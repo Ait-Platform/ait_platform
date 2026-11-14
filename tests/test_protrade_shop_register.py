@@ -37,6 +37,8 @@ models.Debtor.shop_id = sa.Column(sa.Integer, sa.ForeignKey('mech_shops.id'))
 models.Debtor.address = sa.Column(sa.Text)
 models.Debtor.identity_debtor_id = sa.Column(sa.Integer,sa.ForeignKey('debtor.id'))
 models.Debtor.opening_balance = sa.Column(sa.Integer,default=0)
+models.Debtor.apply_interest = sa.Column(sa.Boolean,default=True)
+models.Debtor.is_active = sa.Column(sa.Boolean,default=True)
 models.Debtor.bank_account_id = sa.Column(sa.Integer)
 models.MechClient.shop_id = sa.Column(sa.Integer, sa.ForeignKey('mech_shops.id'))
 
@@ -82,6 +84,7 @@ for property_name in ('display_quote_number','display_document_number'):
     namespace={}
     exec(compile(ast.Module(body=[method],type_ignores=[]),'production_quote_number_property','exec'),namespace)
     setattr(models.MechJobCard,property_name,namespace[property_name])
+models.MechJobCard.deposit_amount = sa.Column(sa.Float,default=0)
 models.MechJobCard.shop_id = sa.Column(sa.Integer, sa.ForeignKey('mech_shops.id'))
 models.MechJobCard.debtor_id = sa.Column(sa.Integer, sa.ForeignKey('debtor.id'))
 models.MechJobCard.is_draft = sa.Column(sa.Boolean)
@@ -131,7 +134,7 @@ class ShopRegisterTests(unittest.TestCase):
         names = {'ensure_sender_profile_synced', 'shop_register_rows', 'get_active_shop', 'mechanic_dashboard', 'onboarding_process',
                  'registered_trade_name', 'price_list_shop', 'price_list_query',
                  'selected_price_list', 'catalog_manage', 'carpentry_boq_price_list', 'client_register_quote', 'shop_register_quote',
-                 'register_trade_quote', 'carpentry_quote_form', 'carpentry_quote_item_id', 'carpentry_quote_items', 'carpentry_quote_view', 'new_quote', 'quote_invoice_register', 'edit_quote',
+                 'public_job_card','approve_quote','accept_quote','record_deposit','mark_billed','mechanic_quote_items','job_card_detail','download_document','email_document','register_trade_quote', 'carpentry_quote_form', 'carpentry_quote_item_id', 'carpentry_quote_items', 'carpentry_quote_view', 'new_quote', 'quote_invoice_register', 'edit_quote',
                  'protrade_folders', 'protrade_help', 'debtor_register_entry', 'shop_debtor_register', 'debtor_quote', 'new_debtor_quote','protrade_output','client_ledger','client_ledger_add_payment'}
         nodes = [n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name in names or isinstance(n, ast.Assign) and any(isinstance(t, ast.Name) and t.id == 'AVAILABLE_TRADES' for t in n.targets)]
         catalogue = MechCatalogPart
@@ -140,6 +143,9 @@ class ShopRegisterTests(unittest.TestCase):
                        MechLaborLine=catalog_globals['MechLaborLine'], MechPartLine=catalog_globals['MechPartLine'], request=request, session=session,
                        flash=flash, redirect=redirect, url_for=url_for, render_template=render_template,
                        current_app=current_app, current_user=current_user, login_required=login_required)
+        import app.protrade_mechanic_quotes as mechanic_quotes
+        for name in ('db','MechShop','MechClient','MechVehicle','MechJobCard','MechPartLine','MechLaborLine','Debtor'):
+            setattr(mechanic_quotes,name,self.ns[name])
         code = ast.fix_missing_locations(ProductionImports().visit(ast.Module(body=nodes, type_ignores=[])))
         exec(compile(code, 'production_shop_routes', 'exec'), self.ns)
         self.app.register_blueprint(bp)

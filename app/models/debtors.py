@@ -107,10 +107,13 @@ class DebtorLedger(db.Model):
     ref = db.Column(db.String(100), nullable=True)
     
     boq_quote_id = db.Column(db.Integer, db.ForeignKey('protrade_boq_quotes.id', name='fk_debtor_ledger_boq_quote'), nullable=True)
+    mech_job_card_id = db.Column(db.Integer, db.ForeignKey('mech_job_cards.id',name='fk_debtor_ledger_mech_quote'), nullable=True)
     payment_key = db.Column(db.String(32), nullable=True)
     payment_method = db.Column(db.String(16), nullable=True)
     __table_args__ = (
         db.UniqueConstraint('boq_quote_id', name='uq_debtor_ledger_boq_quote'),
+        db.UniqueConstraint('mech_job_card_id',name='uq_debtor_ledger_mech_quote'),
+        db.CheckConstraint("mech_job_card_id IS NULL OR (boq_quote_id IS NULL AND kind='debit' AND payment_key IS NULL AND amount>=0)",name='ck_debtor_mech_quote_debit'),
         db.UniqueConstraint('debtor_id', 'payment_key', name='uq_debtor_payment_key'),
         db.Index('uq_debtor_payment_fingerprint', 'debtor_id', 'txn_date', 'amount', db.text("COALESCE(ref, '')"), db.text("(CASE WHEN ref IS NULL THEN payment_method ELSE '' END)"), unique=True, postgresql_where=db.text('payment_key IS NOT NULL')),
         db.CheckConstraint("boq_quote_id IS NULL OR (kind = 'debit' AND payment_key IS NULL AND amount >= 0)", name='ck_debtor_quote_debit'),

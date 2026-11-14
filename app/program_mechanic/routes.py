@@ -816,6 +816,13 @@ def job_card_detail(id):
     from app.models.mechanic import MechCommunication
     from app.models.debtors import Debtor
     job_card = MechJobCard.query.get_or_404(id)
+    from flask import abort
+    if not job_card.vehicle or job_card.vehicle.client.user_id != current_user.id:
+        abort(404)
+    if job_card.status in ('Quote','Rejected') and job_card.shop_id is not None and job_card.debtor_id is not None and request.args.get('view')!='operations':
+        if request.args.get('shop_id') is not None and request.args.get('shop_id',type=int)!=job_card.shop_id:
+            abort(404)
+        return redirect(url_for('mechanic_bp.mechanic_quote_items',shop_id=job_card.shop_id,debtor_id=job_card.debtor_id,quote_id=job_card.id))
     today_date = datetime.utcnow().strftime('%Y-%m-%d')
     communications = MechCommunication.query.filter_by(job_card_id=id).order_by(MechCommunication.created_at.desc()).all()
     
@@ -852,13 +859,16 @@ def download_document(id):
     from flask import send_file
     
     job_card = MechJobCard.query.get_or_404(id)
+    from flask import abort
+    if not job_card.vehicle or job_card.vehicle.client.user_id != current_user.id:
+        abort(404)
     
     client = job_card.vehicle.client if job_card.vehicle else None
     if (client and (not client.email or not client.phone)) or (job_card.vehicle and not job_card.vehicle.vin):
         flash("Please fill in the client's email, phone, and vehicle VIN before generating documents.", "warning")
         return redirect(url_for('mechanic_bp.job_card_detail', id=job_card.id))
         
-    active_shop = get_active_shop(current_user.id)
+    active_shop = MechShop.query.filter_by(id=job_card.shop_id,user_id=current_user.id).first_or_404() if job_card.shop_id is not None else get_active_shop(current_user.id)
     from app.models.debtors import BusinessBankAccount
     bank_account = BusinessBankAccount.query.filter_by(user_id=(active_shop.user_id if "active_shop" in locals() and active_shop else shop.user_id)).order_by(BusinessBankAccount.is_default.desc()).first()
     
@@ -891,6 +901,9 @@ def email_document(id):
     from app.extensions import mail
     
     job_card = MechJobCard.query.get_or_404(id)
+    from flask import abort
+    if not job_card.vehicle or job_card.vehicle.client.user_id != current_user.id:
+        abort(404)
     
     client = job_card.vehicle.client if job_card.vehicle else None
     if (client and (not client.email or not client.phone)) or (job_card.vehicle and not job_card.vehicle.vin):
@@ -908,7 +921,7 @@ def email_document(id):
             flash("Please provide an email address.", "warning")
             return redirect(url_for('mechanic_bp.email_document', id=id))
 
-        active_shop = get_active_shop(current_user.id)
+        active_shop = MechShop.query.filter_by(id=job_card.shop_id,user_id=current_user.id).first_or_404() if job_card.shop_id is not None else get_active_shop(current_user.id)
         subject = f"Your {doc_type} #{job_card.display_document_number} from {active_shop.business_name if active_shop else 'AIT ProTrade'}"
         
         # VERY IMPORTANT: doc_url must be the public job card URL
@@ -992,6 +1005,9 @@ def email_document(id):
 def approve_quote(id):
     from datetime import datetime
     job_card = MechJobCard.query.get_or_404(id)
+    from flask import abort
+    if not job_card.vehicle or job_card.vehicle.client.user_id != current_user.id:
+        abort(404)
 
     if job_card.status != 'Quote':
         flash("Only Quotes can be approved.", "warning")
@@ -1020,8 +1036,7 @@ def approve_quote(id):
     # Ensure Debtors account exists
     from app.models.debtors import Debtor, DebtorLedger
     client = job_card.vehicle.client
-    debtor = Debtor.query.filter_by(
-        reference_id=client.id, slug_reference='mechanic', user_id=current_user.id).first()
+    debtor = Debtor.query.filter_by(id=job_card.debtor_id,shop_id=job_card.shop_id,user_id=current_user.id).first() if job_card.debtor_id is not None else Debtor.query.filter_by(reference_id=client.id,slug_reference='mechanic',user_id=current_user.id).first()
 
     if not debtor:
         debtor = Debtor(
@@ -1100,6 +1115,13 @@ def messages():
 def protrade_output():
     from app.protrade_output import output_page
     return output_page()
+
+
+@mechanic_bp.route('/mechanic/shop/<int:shop_id>/debtor/<int:debtor_id>/mechanic-quotes/<int:quote_id>/items',methods=['GET','POST'])
+@login_required
+def mechanic_quote_items(shop_id,debtor_id,quote_id):
+    from app.protrade_mechanic_quotes import items_page
+    return items_page(shop_id,debtor_id,quote_id)
 
 
 @mechanic_bp.route('/mechanic/folders', methods=['GET'])
@@ -1235,7 +1257,7 @@ def new_debtor_quote(shop_id, debtor_id):
     for draft in drafts:
         draft.is_draft = False
     db.session.commit()
-    return redirect(url_for('mechanic_bp.debtor_quote',shop_id=shop.id,debtor_id=debtor.id,**({'area':'new'} if (shop.trade or 'mechanic')!='mechanic' else {})))
+    return redirect(url_for('mechanic_bp.debtor_quote',shop_id=shop.id,debtor_id=debtor.id,area='new'))
 
 
 @mechanic_bp.route('/mechanic/quote-invoice', methods=['GET'])
@@ -1326,10 +1348,8 @@ def register_trade_quote(shop_id, client_id=None, debtor_id=None):
     if not customer:
         abort(404)
     if (shop.trade or 'mechanic') == 'mechanic':
-        draft = MechJobCard.query.filter_by(shop_id=shop.id, debtor_id=debtor.id, status='Quote', is_draft=True).first()
-        if draft:
-            return redirect(url_for('mechanic_bp.edit_quote', id=draft.id, shop_id=shop.id, debtor_id=debtor.id))
-        return redirect(url_for('mechanic_bp.new_quote', shop_id=shop.id, client_id=customer.id, debtor_id=debtor.id))
+        from app.protrade_mechanic_quotes import register_page
+        return register_page(shop,debtor)
     return carpentry_quote_form(shop, customer, debtor)
 
 
@@ -1934,7 +1954,7 @@ def new_quote():
         Debtor.query.filter_by(id=debtor.id,shop_id=active_shop.id,user_id=current_user.id).with_for_update().first()
     existing_draft = MechJobCard.query.filter_by(shop_id=active_shop.id,debtor_id=debtor.id,status='Quote',is_draft=True).first()
     if existing_draft:
-        return redirect(url_for('mechanic_bp.edit_quote',id=existing_draft.id,shop_id=active_shop.id,debtor_id=debtor.id))
+        return redirect(url_for('mechanic_bp.mechanic_quote_items',quote_id=existing_draft.id,shop_id=active_shop.id,debtor_id=debtor.id))
     from app.models.mechanic import MechClient
     from flask import abort
     quote_client = None
@@ -2531,7 +2551,7 @@ def public_job_card(job_number):
     job_card = MechJobCard.query.filter_by(job_number=job_number).first_or_404()
     shop = None
     if job_card.vehicle and job_card.vehicle.client and job_card.vehicle.client.user_id:
-        shop = MechShop.query.filter_by(user_id=job_card.vehicle.client.user_id).first()
+        shop = MechShop.query.filter_by(id=job_card.shop_id,user_id=job_card.vehicle.client.user_id).first_or_404() if job_card.shop_id is not None else MechShop.query.filter_by(user_id=job_card.vehicle.client.user_id).first()
         
     today_date = datetime.utcnow().strftime('%Y-%m-%d')
     from app.models.debtors import BusinessBankAccount
@@ -2544,6 +2564,9 @@ def public_job_card(job_number):
 def mark_billed(id):
     from app.models.mechanic import MechJobCard
     job_card = MechJobCard.query.get_or_404(id)
+    from flask import abort
+    if not job_card.vehicle or job_card.vehicle.client.user_id != current_user.id:
+        abort(404)
     if job_card.status in ['Approved', 'Awaiting Deposit']:
         job_card.status = 'Billed'
         db.session.commit()
@@ -2564,6 +2587,9 @@ def accept_quote(id):
     from app.utils.pdf_render import html_to_pdf_bytes
     
     job_card = MechJobCard.query.get_or_404(id)
+    from flask import abort
+    if not job_card.vehicle or job_card.vehicle.client.user_id != current_user.id:
+        abort(404)
     if job_card.status == 'Quote':
         
         # Charge tokens for generating Tax Invoice
@@ -2590,7 +2616,7 @@ def accept_quote(id):
         client = job_card.vehicle.client
         debtor = None
         if client:
-            debtor = Debtor.query.filter_by(user_id=current_user.id, slug_reference='mechanic', name=client.name).first()
+            debtor = Debtor.query.filter_by(id=job_card.debtor_id,shop_id=job_card.shop_id,user_id=current_user.id).first() if job_card.debtor_id is not None else Debtor.query.filter_by(user_id=current_user.id, slug_reference='mechanic', name=client.name).first()
             if not debtor:
                 sender_profile = SenderProfile.query.filter_by(user_id=current_user.id, is_default=True).first()
                 debtor = Debtor(
@@ -2634,7 +2660,7 @@ def accept_quote(id):
         # AUTO-EMAIL TAX INVOICE LOGIC
         if client and client.email:
             try:
-                active_shop = get_active_shop(current_user.id)
+                active_shop = MechShop.query.filter_by(id=job_card.shop_id,user_id=current_user.id).first_or_404() if job_card.shop_id is not None else get_active_shop(current_user.id)
                 from app.models.debtors import BusinessBankAccount
                 bank_account = BusinessBankAccount.query.filter_by(user_id=current_user.id).order_by(BusinessBankAccount.is_default.desc()).first()
                 
@@ -2691,6 +2717,9 @@ def record_deposit(id):
     from app.models.mechanic import MechShop
     
     job_card = MechJobCard.query.get_or_404(id)
+    from flask import abort
+    if not job_card.vehicle or job_card.vehicle.client.user_id != current_user.id:
+        abort(404)
     deposit_amount = request.form.get("deposit_amount", type=float)
     
     if deposit_amount and deposit_amount > 0:
@@ -2701,7 +2730,7 @@ def record_deposit(id):
         # Move to debtors!
         client = job_card.vehicle.client
         if client:
-            debtor = Debtor.query.filter_by(user_id=current_user.id, slug_reference='mechanic', name=client.name).first()
+            debtor = Debtor.query.filter_by(id=job_card.debtor_id,shop_id=job_card.shop_id,user_id=current_user.id).first() if job_card.debtor_id is not None else Debtor.query.filter_by(user_id=current_user.id, slug_reference='mechanic', name=client.name).first()
             if not debtor:
                 sender_profile = SenderProfile.query.filter_by(user_id=current_user.id, is_default=True).first()
                 debtor = Debtor(

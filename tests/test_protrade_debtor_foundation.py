@@ -161,8 +161,9 @@ class DebtorFoundationTests(unittest.TestCase):
         debtor=self.debtor(self.mechanic)
         url=self.quote_url(debtor)
         opened=self.client.get(url)
-        self.assertEqual(opened.status_code,302)
-        self.assertIn('/mechanic/quote/new',opened.location)
+        self.assertEqual(opened.status_code,200)
+        self.assertIn('mechanic-quote-register',opened.get_data(as_text=True))
+        self.assertIn('/mechanic/quote/new',self.client.get(url+'?area=new').location)
         self.assertEqual(base.models.MechJobCard.query.count(),0)
         payload=dict(shop_id=self.mechanic.id,debtor_id=debtor.id,client_id=debtor.reference_id,customer_name=debtor.name,vehicle_reg='ABC123')
         created=self.client.post('/mechanic/quote/new',data=payload)
@@ -172,8 +173,9 @@ class DebtorFoundationTests(unittest.TestCase):
         self.assertEqual(wallet.balance,45)
         for _ in range(2):
             reopened=self.client.get(url)
-            self.assertIn('/edit',reopened.location)
-            edit=self.client.get(reopened.location)
+            self.assertEqual(reopened.status_code,200)
+            self.assertIn(draft.display_quote_number,reopened.get_data(as_text=True))
+            edit=self.client.get(f'/mechanic/quote/{draft.id}/edit?shop_id={self.mechanic.id}')
             self.assertEqual(edit.status_code,200)
             action=html.fromstring(edit.data).xpath('//form[@enctype="multipart/form-data"]/@action')[0]
             self.assertIn('/edit',action)

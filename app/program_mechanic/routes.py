@@ -2712,6 +2712,11 @@ def client_ledger(debtor_id):
     from datetime import datetime
     
     debtor = Debtor.query.filter_by(id=debtor_id, user_id=current_user.id).first_or_404()
+    if debtor.shop_id is not None:
+        MechShop.query.filter_by(id=debtor.shop_id, user_id=current_user.id).first_or_404()
+    if request.args.get('shop_id') is not None and request.args.get('shop_id', type=int) != debtor.shop_id:
+        from flask import abort
+        abort(404)
     
     start_date_str = request.args.get('start_date')
     end_date_str = request.args.get('end_date')
@@ -2729,7 +2734,8 @@ def client_ledger(debtor_id):
         except ValueError:
             pass
 
-    ledgers_query = debtor.ledgers
+    from app.models.debtors import DebtorLedger
+    ledgers_query = DebtorLedger.query.filter_by(debtor_id=debtor.id).all()
     if start_date:
         ledgers_query = [l for l in ledgers_query if l.txn_date and l.txn_date >= start_date]
     if end_date:
@@ -2747,7 +2753,10 @@ def client_ledger(debtor_id):
 
     # Fetch job cards for this client
     from app.models.mechanic import MechJobCard, MechVehicle, MechClient
-    job_cards = MechJobCard.query.join(MechVehicle).join(MechClient).filter(MechClient.name == debtor.name, MechClient.user_id == current_user.id).order_by(MechJobCard.created_at.desc()).all()
+    if debtor.shop_id is not None:
+        job_cards = MechJobCard.query.filter_by(shop_id=debtor.shop_id, debtor_id=debtor.id).order_by(MechJobCard.created_at.desc()).all()
+    else:
+        job_cards = MechJobCard.query.join(MechVehicle).join(MechClient).filter(MechClient.name == debtor.name, MechClient.user_id == current_user.id).order_by(MechJobCard.created_at.desc()).all()
 
     return render_template("program_mechanic/client_ledger.html", 
                            debtor=debtor, 
@@ -2764,6 +2773,11 @@ def client_ledger_add_payment(debtor_id):
     from datetime import datetime
     
     debtor = Debtor.query.filter_by(id=debtor_id, user_id=current_user.id).first_or_404()
+    if debtor.shop_id is not None:
+        MechShop.query.filter_by(id=debtor.shop_id, user_id=current_user.id).first_or_404()
+    if request.args.get('shop_id') is not None and request.args.get('shop_id', type=int) != debtor.shop_id:
+        from flask import abort
+        abort(404)
     
     try:
         amount_str = request.form.get('amount', '0')
@@ -2792,11 +2806,14 @@ def client_ledger_add_payment(debtor_id):
             flash(f"Payment of R {amount/100.0:.2f} recorded successfully.", "success")
             # Auto-upgrade any active job cards for this client to 'Billed'
             from app.models.mechanic import MechJobCard, MechVehicle, MechClient
-            active_jobs = MechJobCard.query.join(MechVehicle).join(MechClient).filter(
+            active_jobs_query = MechJobCard.query.join(MechVehicle).join(MechClient).filter(
                 MechClient.name == debtor.name,
                 MechClient.user_id == current_user.id,
                 MechJobCard.status.in_(['Awaiting Deposit', 'Approved'])
-            ).all()
+            )
+            if debtor.shop_id is not None:
+                active_jobs_query = active_jobs_query.filter(MechJobCard.shop_id == debtor.shop_id, MechJobCard.debtor_id == debtor.id)
+            active_jobs = active_jobs_query.all()
             
             for j in active_jobs:
                 j.status = 'Billed'

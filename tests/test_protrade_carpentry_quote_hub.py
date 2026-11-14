@@ -94,8 +94,10 @@ class CarpentryQuoteHubTests(unittest.TestCase):
                 self.assertEqual(page.locator('.quote-working-area:visible').count(),0)
                 page.get_by_role('button',name='Register',exact=True).click()
                 row=page.locator('#debtor-quote-register tr').filter(has_text=self.first.quote_number)
-                row.get_by_role('link',name='Open',exact=True).click()
+                row.get_by_role('link',name='Edit',exact=True).click()
                 page.locator('#quote-area-form').wait_for(state='visible')
+                self.assertEqual(page.locator('.quote-working-area:visible').count(),1)
+                self.assertFalse(page.locator('#quote-area-register').is_visible())
                 self.assertEqual(page.locator('input[name=quote_id]').input_value(),str(self.first.id))
                 self.assertEqual(page.locator(f'input[name="quantity_{self.item.id}"]').input_value(),'2.5')
                 self.assertEqual(page.locator('#quote-grand-total').text_content(),'325.00')
@@ -139,6 +141,47 @@ class CarpentryQuoteHubTests(unittest.TestCase):
                 page.get_by_role('button',name='Register',exact=True).click()
                 self.assertEqual(page.locator('.quote-working-area:visible').count(),1)
                 self.assertEqual(page.locator('#debtor-quote-register tbody tr').count(),3)
+            finally:browser.close()
+
+
+    def test_tomas_edit_1149_reopen_keeps_identity_and_single_working_area(self):
+        self.fixtures()
+        self.owner_debtor.name='Tomas'
+        self.first.items=[dict(source_item_id='template:CAR-003',code='CAR-003',description='Install door lock',unit='Each',quantity='3',material_rate='259.00',labour_rate='124.00',total='1149.00')]
+        self.first.grand_total=Decimal('1149');self.db_session.commit()
+        identity=(self.first.id,self.first.quote_number);count=base.ProTradeBoqQuote.query.count()
+        # Model a stylesheet which overrides the browser's default hidden rule.
+        self.app.jinja_loader.loaders[0].mapping['layout.html']='<style>section { display:block; }</style>{% block head %}{% endblock %}{% block content %}{% endblock %}'
+        with sync_playwright() as playwright:
+            browser=playwright.chromium.launch(headless=True)
+            try:
+                page=browser.new_page();page.route('http://localhost/**',self.browser_route)
+                page.goto('http://localhost'+self.url+'?area=register')
+                row=page.locator('#debtor-quote-register tr').filter(has_text=self.first.quote_number)
+                self.assertIn('1149.00',row.text_content())
+                row.get_by_role('link',name='Edit',exact=True).click()
+                self.assertEqual(page.locator('.quote-working-area:visible').count(),1)
+                self.assertFalse(page.locator('#quote-area-register').is_visible())
+                self.assertEqual(page.locator('#quote-grand-total').text_content(),'1149.00')
+                quantity=page.locator('input[name="quantity_template:CAR-003"]')
+                self.assertEqual(quantity.input_value(),'3')
+                self.assertEqual(page.locator('input[name="material_rate_template:CAR-003"]').input_value(),'259.00')
+                self.assertEqual(page.locator('input[name="labour_rate_template:CAR-003"]').input_value(),'124.00')
+                quantity.fill('2')
+                self.assertEqual(page.locator('#quote-grand-total').text_content(),'766.00')
+                page.get_by_role('button',name='Save Changes',exact=True).click()
+                page.locator('#quote-area-form').wait_for(state='visible')
+                page.get_by_role('button',name='Register',exact=True).click()
+                row=page.locator('#debtor-quote-register tr').filter(has_text=self.first.quote_number)
+                self.assertIn('766.00',row.text_content())
+                row.get_by_role('link',name='Edit',exact=True).click()
+                self.assertEqual(page.locator('input[name="quantity_template:CAR-003"]').input_value(),'2')
+                self.assertEqual(page.locator('#quote-grand-total').text_content(),'766.00')
+                page.get_by_role('button',name='Close',exact=True).click()
+                self.assertEqual(page.locator('.quote-working-area:visible').count(),0)
+                self.assertEqual((self.first.id,self.first.quote_number),identity)
+                self.assertEqual(base.ProTradeBoqQuote.query.count(),count)
+                self.assertEqual(self.second_quote.grand_total,Decimal('520'))
             finally:browser.close()
 
 

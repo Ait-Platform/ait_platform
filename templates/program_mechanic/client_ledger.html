@@ -79,7 +79,7 @@
                     </td>
                     <td class="px-4 py-3 text-sm">
                         <div class="font-bold text-slate-900">{{ l.ref or 'N/A' }}</div>
-                        <div class="text-slate-500 text-xs mt-0.5">{{ l.description or '' }}</div>
+                        <div class="text-slate-500 text-xs mt-0.5">{{ l.description or '' }}{% if l.payment_method %} &mdash; {{ l.payment_method }}{% endif %}</div>
                     </td>
                     <td class="px-4 py-3 whitespace-nowrap text-sm text-right font-medium text-slate-900">
                         {% if l.kind == 'debit' %}R {{ ledger_money(l.amount) if ledger_money else "%.2f"|format(l.amount/100) }}{% else %}-{% endif %}
@@ -190,7 +190,7 @@
         </div>
         <div class="p-6 space-y-4">
                               <div>
-            {% if carpentry_account %}<input type="hidden" name="kind" value="credit"><input type="hidden" name="payment_key" value="{{ payment_key }}">{% else %}
+            {% if carpentry_account %}<input type="hidden" name="kind" value="credit"><input type="hidden" name="payment_key" value="{{ payment_key }}"><label for="payment_method" class="block text-sm font-bold text-slate-700 mb-1">Payment Method</label><select id="payment_method" name="payment_method" required class="block w-full rounded-lg border border-slate-300 p-2.5">{% for method in ['Cash','EFT','eWallet','Card','Other'] %}<option value="{{ method }}" {% if method=='EFT' %}selected{% endif %}>{{ method }}</option>{% endfor %}</select>{% else %}
             <label class="block text-sm font-bold text-slate-700 mb-1">Type</label>
             <select name="kind" id="transaction_kind" onchange="updateTransactionDescription()" class="block w-full rounded-lg border border-slate-300 focus:border-indigo-500 focus:ring-indigo-500 p-2.5">
               <option value="credit">Payment Received (Credit Client)</option>
@@ -212,12 +212,12 @@
           
           <div id="advanced_fields" class="{{ '' if carpentry_account else 'hidden' }} space-y-4 pt-2 border-t border-slate-100 mt-2">
               <div>
-                <label class="block text-sm font-bold text-slate-700 mb-1">Reference</label>
-                <input type="text" name="ref" maxlength="100" {% if carpentry_account %}required{% endif %} value="{{ '' if carpentry_account else 'EFT' }}" class="block w-full rounded-lg border border-slate-300 focus:border-indigo-500 focus:ring-indigo-500 p-2.5">
+                <label class="block text-sm font-bold text-slate-700 mb-1">{{ 'Transaction Reference (optional)' if carpentry_account else 'Reference' }}</label>
+                <input type="text" name="ref" maxlength="100" value="{{ '' if carpentry_account else 'EFT' }}" class="block w-full rounded-lg border border-slate-300 focus:border-indigo-500 focus:ring-indigo-500 p-2.5">
               </div>
               <div>
-                <label class="block text-sm font-bold text-slate-700 mb-1">Description</label>
-                <input type="text" name="description" id="transaction_desc" value="Thank you for this payment" class="block w-full rounded-lg border border-slate-300 focus:border-indigo-500 focus:ring-indigo-500 p-2.5">
+                <label class="block text-sm font-bold text-slate-700 mb-1">{{ 'Description (optional)' if carpentry_account else 'Description' }}</label>
+                <input type="text" name="description" id="transaction_desc" value="{{ 'Payment received' if carpentry_account else 'Thank you for this payment' }}" class="block w-full rounded-lg border border-slate-300 focus:border-indigo-500 focus:ring-indigo-500 p-2.5">
               </div>
           </div>
         </div>

@@ -91,6 +91,13 @@
         .w-1\/3 { width: 33.333333%; }
         .w-2\/3 { width: 66.666667%; }
         .w-full { width: 100%; }
+        .protrade-soa-ledger { table-layout: fixed; width: 100%; }
+        .protrade-soa-ledger th, .protrade-soa-ledger td { padding: 7px 6px; vertical-align: top; }
+        .protrade-soa-ledger th:first-child, .protrade-soa-ledger td:first-child { white-space: nowrap; }
+        .protrade-soa-ledger th:nth-child(n+3), .protrade-soa-ledger td:nth-child(n+3) { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+        .protrade-soa-ledger td:nth-child(2) { overflow-wrap: anywhere; word-wrap: break-word; }
+        .protrade-soa-ledger thead { display: table-header-group; }
+        .protrade-soa-ledger tr { break-inside: avoid; page-break-inside: avoid; }
         .w-24 { width: 6rem; }
         .w-28 { width: 7rem; }
         .w-32 { width: 8rem; }
@@ -273,14 +280,15 @@
         {% endif %}
         
         <!-- Ledger Table -->
-    <table class="w-full text-left border-collapse border border-gray-300 mb-8">
+    <table class="w-full text-left border-collapse border border-gray-300 mb-8 {{ 'protrade-soa-ledger' if carpentry_statement else '' }}">
+        {% if carpentry_statement %}<colgroup><col style="width:15%"><col style="width:43%"><col style="width:14%"><col style="width:14%"><col style="width:14%"></colgroup>{% endif %}
         <thead>
             <tr class="bg-gray-100 text-gray-800">
-                <th class="py-2 px-3 font-bold border border-gray-300 w-24">Date</th>
+                <th class="py-2 px-3 font-bold border border-gray-300 {% if not carpentry_statement %}w-24{% endif %}">Date</th>
                 <th class="py-2 px-3 font-bold border border-gray-300">Details</th>
-                <th class="py-2 px-3 font-bold border border-gray-300 text-right w-28">Debit</th>
-                <th class="py-2 px-3 font-bold border border-gray-300 text-right w-28">Credit</th>
-                <th class="py-2 px-3 font-bold border border-gray-300 text-right w-32">Balance</th>
+                <th class="py-2 px-3 font-bold border border-gray-300 text-right {% if not carpentry_statement %}w-28{% endif %}">Debit</th>
+                <th class="py-2 px-3 font-bold border border-gray-300 text-right {% if not carpentry_statement %}w-28{% endif %}">Credit</th>
+                <th class="py-2 px-3 font-bold border border-gray-300 text-right {% if not carpentry_statement %}w-32{% endif %}">Balance</th>
             </tr>
         </thead>
         <tbody class="text-sm">
@@ -297,9 +305,9 @@
             {% endif %}
             {% for l in ledgers %}
             <tr class="{% if loop.index is even %}bg-gray-50{% else %}bg-white{% endif %}">
-                <td class="py-2 px-3 border border-gray-300 whitespace-nowrap">{{ l.txn_date.strftime('%Y-%m-%d') }}</td>
+                <td class="py-2 px-3 border border-gray-300 whitespace-nowrap">{{ l.txn_date.strftime('%d/%m/%Y' if carpentry_statement else '%Y-%m-%d') }}</td>
                 <td class="py-2 px-3 border border-gray-300 break-words" style="word-wrap: break-word; overflow-wrap: break-word;">
-                    <div class="font-medium text-gray-800">{{ l.description }}</div>
+                    <div class="font-medium text-gray-800">{{ l.description }}{% if l.payment_method %} &mdash; {{ l.payment_method }}{% endif %}</div>
                     {% if l.ref %}<div class="text-xs text-gray-500">Ref: {{ l.ref }}</div>{% endif %}
                 </td>
                 <td class="py-2 px-3 border border-gray-300 text-right">

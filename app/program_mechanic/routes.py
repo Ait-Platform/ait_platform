@@ -2908,24 +2908,37 @@ def client_ledger_add_payment(debtor_id):
                 raise ValueError('Payments must be credits.')
             amount=payment_cents(request.form.get('amount',''))
             txn_date=datetime.strptime(request.form.get('date',''),'%Y-%m-%d').date()
-            ref=request.form.get('ref','').strip()
+            method=request.form.get('payment_method')
+            if method is not None and method not in ('Cash','EFT','eWallet','Card','Other'):
+                raise ValueError('Choose a valid payment method.')
+            ref=request.form.get('ref','').strip() or None
             desc=request.form.get('description','Payment received').strip() or 'Payment received'
             key=UUID(request.form.get('payment_key','')).hex
-            if not ref or len(ref)>100 or len(desc)>255:
+            if (not method and not ref) or len(ref or '')>100 or len(desc)>255:
                 raise ValueError('Enter a payment reference (up to 100 characters).')
         except (ValueError,TypeError,AttributeError):
-            flash('Enter a valid date, reference and positive payment amount, then reopen the payment form.','warning')
+            flash('Enter a valid date, payment method and positive amount, then reopen the payment form.','warning')
             abort(400)
         Debtor.query.filter_by(id=debtor.id,user_id=current_user.id,shop_id=shop.id).with_for_update().first()
         existing=DebtorLedger.query.filter_by(debtor_id=debtor.id,payment_key=key).first()
-        by_ref=DebtorLedger.query.filter_by(debtor_id=debtor.id,kind='credit',txn_date=txn_date,amount=amount,ref=ref).first()
-        existing=existing or by_ref
+        by_ref_query=DebtorLedger.query.filter_by(debtor_id=debtor.id,kind='credit',txn_date=txn_date,amount=amount,ref=ref)
+        if ref is None:
+            by_ref_query=by_ref_query.filter_by(payment_method=method)
+        by_ref=by_ref_query.first()
+        # Older forms used the reference field for the method. Recognise that
+        # shape when checking duplicates, without rewriting historical records.
+        compatible=None
+        if method is not None and ref is None:
+            compatible=DebtorLedger.query.filter_by(debtor_id=debtor.id,kind='credit',txn_date=txn_date,amount=amount,payment_method=None,ref=method).first()
+        elif method is None and ref in ('Cash','EFT','eWallet','Card','Other'):
+            compatible=DebtorLedger.query.filter_by(debtor_id=debtor.id,kind='credit',txn_date=txn_date,amount=amount,payment_method=ref,ref=None).first()
+        existing=existing or by_ref or compatible
         if existing:
-            if int(existing.amount)!=amount or existing.txn_date!=txn_date or existing.ref!=ref:
+            if int(existing.amount)!=amount or existing.txn_date!=txn_date or (existing.payment_key==key and (existing.ref!=ref or (method is not None and existing.payment_method!=method))):
                 abort(409)
             flash('This payment is already recorded.','info')
         else:
-            db.session.add(DebtorLedger(debtor_id=debtor.id,txn_date=txn_date,ref=ref,description=desc,kind='credit',amount=amount,payment_key=key))
+            db.session.add(DebtorLedger(debtor_id=debtor.id,txn_date=txn_date,ref=ref,description=desc,kind='credit',amount=amount,payment_key=key,payment_method=method))
             try:db.session.commit()
             except IntegrityError:
                 db.session.rollback()

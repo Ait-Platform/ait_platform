@@ -106,12 +106,14 @@ class DebtorLedger(db.Model):
     
     boq_quote_id = db.Column(db.Integer, db.ForeignKey('protrade_boq_quotes.id', name='fk_debtor_ledger_boq_quote'), nullable=True)
     payment_key = db.Column(db.String(32), nullable=True)
+    payment_method = db.Column(db.String(16), nullable=True)
     __table_args__ = (
         db.UniqueConstraint('boq_quote_id', name='uq_debtor_ledger_boq_quote'),
         db.UniqueConstraint('debtor_id', 'payment_key', name='uq_debtor_payment_key'),
-        db.Index('uq_debtor_payment_fingerprint', 'debtor_id', 'txn_date', 'amount', 'ref', unique=True, postgresql_where=db.text('payment_key IS NOT NULL')),
+        db.Index('uq_debtor_payment_fingerprint', 'debtor_id', 'txn_date', 'amount', db.text("COALESCE(ref, '')"), db.text("(CASE WHEN ref IS NULL THEN payment_method ELSE '' END)"), unique=True, postgresql_where=db.text('payment_key IS NOT NULL')),
         db.CheckConstraint("boq_quote_id IS NULL OR (kind = 'debit' AND payment_key IS NULL AND amount >= 0)", name='ck_debtor_quote_debit'),
-        db.CheckConstraint("payment_key IS NULL OR (kind = 'credit' AND boq_quote_id IS NULL AND amount > 0 AND ref IS NOT NULL AND length(trim(ref)) > 0)", name='ck_debtor_payment_credit'),
+        db.CheckConstraint("payment_method IS NULL OR (kind = 'credit' AND payment_key IS NOT NULL AND payment_method IN ('Cash','EFT','eWallet','Card','Other'))", name='ck_debtor_payment_method'),
+        db.CheckConstraint("payment_key IS NULL OR (kind = 'credit' AND boq_quote_id IS NULL AND amount > 0 AND ((ref IS NOT NULL AND length(trim(ref)) > 0) OR (ref IS NULL AND payment_method IS NOT NULL)))", name='ck_debtor_payment_credit'),
     )
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 

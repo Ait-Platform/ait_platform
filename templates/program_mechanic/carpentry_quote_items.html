@@ -9,7 +9,7 @@
     {% if line %}
     <form id="quote-item-edit" method="POST" action="{{ item_save_url }}" class="mt-5">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="item_id" value="{{ item_id }}"><input type="hidden" name="line_token" value="{{ line_token }}">
-      <div class="flex justify-end gap-3"><button class="rounded-lg bg-blue-100 px-4 py-2 font-semibold" type="submit">Save Changes</button><a class="rounded-lg bg-slate-100 px-4 py-2 font-semibold" href="{{ register_url }}">Cancel</a></div>
+      <div class="flex justify-end gap-3"><button class="rounded-lg bg-blue-100 px-4 py-2 font-semibold" type="submit">Save Changes</button><a data-cancel-quote-item class="rounded-lg bg-slate-100 px-4 py-2 font-semibold" href="{{ register_url }}">Cancel</a></div>
       {% if error %}<p class="mt-3 text-red-700" role="alert">{{ error }}</p>{% endif %}
       <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
         <label class="text-sm font-semibold">Item Code<input readonly value="{{ line.code }}" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"></label>

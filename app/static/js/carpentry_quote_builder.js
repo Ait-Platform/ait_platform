@@ -26,6 +26,8 @@
     const m=rateCents(materialValue), l=rateCents(labourValue);
     return m===null || l===null ? '' : String(m+l);
   }
+  // Share the existing exact-money preview with the inline saved-item form.
+  window.protradeQuoteAmounts = {amount, money, combinedRate};
   function validValues(materialInput,labourInput,quantityInput) {
     return [materialInput,labourInput,quantityInput].every(field=>field.value!=='' && field.checkValidity()) &&
       combinedRate(materialInput.value,labourInput.value)!=='' && /^(?:\d+(?:\.\d{0,3})?|\.\d{1,3})$/.test(quantityInput.value);

@@ -1,6 +1,14 @@
 # Individual quotation item routing correction
 
-## Inline quotation register (current)
+## Inline item editing (current)
+
+Item Edit now fetches the existing authenticated item form into a single row immediately beneath the selected saved item. It keeps the current register URL and browser document. Cancel closes the form locally. Submit uses the same form action, CSRF token, stable item ID, stale-edit token, validation, locks and POST handler; no route or accounting calculation is changed.
+
+A successful fetch follows the existing redirect in the background, copies the updated quotation details/amount from that server-rendered register and closes the inline form. Invalid responses replace only the form, preserving entered values and displaying the existing server error. Duplicate submits are blocked while saving. Switching item/quotation closes an unsaved editor; pending form loads are cancelled. The client preview shares the existing exact-money functions from the quotation builder. Standalone editor routes and ordinary links remain compatible when JavaScript is unavailable.
+
+Real local HTTP/Chromium tests use Tomas/Q-0006 at quantity 2 (R648 plus unchanged R825). Editing to quantity 3 gives R972 and R1797 overall, retaining the same browser document and URL through load, validation failure, save and inline Cancel. Reopening retrieves quantity 3; switching quotation after a save still expands the updated rows. Wallet/history, quote identity/count, other items, invoice/email records and Price List remain unchanged. No migration is required; live Render verification remains separate.
+
+## Inline quotation register (previous stage)
 
 The quotation register now expands saved items directly below the selected summary row. Only one row is expanded. Register Edit and quotation-number links use `/mechanic/shop/<shop_id>/debtor/<debtor_id>/quote?area=register&expanded_quote_id=<quote_id>`. The server validates the expanded ID against that debtor/shop/owner history; JavaScript toggles rows without leaving the register, with ordinary links as a fallback.
 

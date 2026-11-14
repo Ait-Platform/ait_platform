@@ -24,7 +24,7 @@ class CarpentryQuoteInputTests(unittest.TestCase):
 
     def browser_route(self,route):
         req=route.request;url=urlsplit(req.url)
-        if url.path in ('/static/js/carpentry_quote_builder.js','/static/js/carpentry_quote_hub.js','/static/js/shop_debtors.js'):
+        if url.path in ('/static/js/carpentry_quote_builder.js','/static/js/carpentry_quote_hub.js','/static/js/carpentry_quote_inline.js','/static/js/shop_debtors.js'):
             return route.fulfill(path=str(base.ROOT/'app'/url.path.removeprefix('/')),content_type='application/javascript')
         response=self.client.open(url.path+('?' +url.query if url.query else ''),method=req.method,data=req.post_data,
             content_type=req.headers.get('content-type'),follow_redirects=True)

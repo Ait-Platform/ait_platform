@@ -1,7 +1,7 @@
 (() => {
   const nav=document.getElementById('quote-hub-navigation');
   if (!nav) return;
-  const areas={debtor:document.getElementById('quote-area-debtor'),quote:document.getElementById('quote-area-form'),register:document.getElementById('quote-area-register')};
+  const areas={quote:document.getElementById('quote-area-form'),register:document.getElementById('quote-area-register')};
   const buttons=Array.from(nav.querySelectorAll('[data-quote-area]'));
   let active=null;
   function show(name) {

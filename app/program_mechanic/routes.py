@@ -1341,9 +1341,9 @@ def carpentry_quote_form(shop, customer, debtor, editing_quote=None):
     details = dict(name=debtor.name,phone=debtor.phone,email=debtor.email,address=debtor.address)
     if draft:
         from types import SimpleNamespace
-        by_id = {item.id:item for item in items}
+        by_id = {str(item.id):item for item in items}
         for line in draft.items:
-            by_id[line['source_item_id']] = SimpleNamespace(id=line['source_item_id'], code=line['code'], description=line['description'],
+            by_id[str(line['source_item_id'])] = SimpleNamespace(id=line['source_item_id'], code=line['code'], description=line['description'],
                 unit=line['unit'], material_rate=Decimal(line['material_rate']), labour_rate=Decimal(line['labour_rate']))
         items = sorted(by_id.values(),key=lambda item:item.code)
     selected_ids = {line['source_item_id'] for line in draft.items} if draft else set()
@@ -1431,6 +1431,8 @@ def carpentry_quote_form(shop, customer, debtor, editing_quote=None):
             db.session.add(quote)
             db.session.commit()
             flash('Carpentry quote saved.', 'success')
+            if draft is not None:
+                return redirect(url_for('mechanic_bp.debtor_quote',shop_id=shop.id,debtor_id=debtor.id,area='register'))
             return redirect(url_for('mechanic_bp.carpentry_quote_view', shop_id=shop.id, quote_id=quote.id))
         except ValueError as exc:
             error, status = str(exc), 400
@@ -1461,6 +1463,12 @@ def carpentry_quote_form(shop, customer, debtor, editing_quote=None):
     quote_dates = {quote.id: (quote.created_at if quote.created_at.tzinfo else quote.created_at.replace(tzinfo=timezone.utc)).astimezone(ZoneInfo('Africa/Johannesburg')).strftime('%Y-%m-%d') for quote in history if quote.created_at}
     initial_lines = [dict(work_choice(dict(code=item.code,description=item.description,unit=item.unit),item),
                           quantity=quantities.get(item.id,''), **quoted_rates.get(item.id,{})) for item in items if item.id in selected_ids]
+    if draft is not None and request.method != 'POST':
+        # Edit the saved snapshot directly, retaining every line and its original order.
+        # The current Price List provides choices for additions, not replacement values.
+        initial_lines = [dict(source_id=line['source_item_id'], code=line['code'], description=line['description'],
+                              unit=line['unit'], quantity=line['quantity'], material_rate=line['material_rate'],
+                              labour_rate=line['labour_rate']) for line in draft.items]
     return render_template('program_mechanic/carpentry_quote.html', shop=shop, customer=customer,
                            details=details, debtor=debtor, draft=draft, boq_items=items, quote_key=quote_key, selected_ids=selected_ids,
                            quantities=quantities, error=error, saved_quote=None, work_choices=choices, initial_lines=initial_lines, fresh_choices=fresh_choices, fresh_quote_key=uuid4().hex,

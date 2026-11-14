@@ -6,10 +6,9 @@
   <div class="h-2 bg-slate-700"></div><div class="p-6">
     {% include 'partials/flash_messages.html' %}
     <div class="flex items-center justify-between gap-4"><div><h1 class="text-2xl font-semibold">Debtor Register</h1><p class="mt-1 text-sm text-slate-600">{{ shop.business_name if shop else 'Select a shop to view its debtors.' }}</p></div><a href="{{ url_for('mechanic_bp.mechanic_dashboard',shop_id=shop.id if shop else none) }}" class="rounded-lg bg-slate-100 px-4 py-2 font-semibold">Back</a></div>
-    {% set protrade_menu_active='debtors' %}{% include 'program_mechanic/menu.html' %}
     {% if not shop %}<form method="GET" action="{{ url_for('mechanic_bp.debtor_register_entry') }}" class="mt-4 flex justify-end gap-3"><select name="shop_id" required autofocus class="rounded-lg border border-slate-300 px-3 py-2"><option value="">Choose shop</option>{% for candidate in shops %}<option value="{{ candidate.id }}">{{ candidate.business_name }} ({{ candidate.trade }})</option>{% endfor %}</select><button class="rounded-lg bg-slate-800 px-4 py-2 text-white">Open Debtor Register</button></form>
     {% else %}
-    <div class="mt-4 flex justify-end"><button id="add-debtor" type="button" aria-controls="debtor-working-area" aria-expanded="{{ 'true' if edit_debtor or error else 'false' }}" class="rounded-lg bg-slate-800 px-4 py-2 font-semibold text-white">Add Debtor</button></div>
+    <div class="mt-4 flex justify-end gap-3"><a href="{{ url_for('mechanic_bp.shop_debtor_register',shop_id=shop.id) }}" class="rounded-lg bg-slate-100 px-4 py-2 font-semibold">Debtor Register</a><button id="add-debtor" type="button" aria-controls="debtor-working-area" aria-expanded="{{ 'true' if edit_debtor or error else 'false' }}" class="rounded-lg bg-slate-800 px-4 py-2 font-semibold text-white">Add Debtor</button></div>
     <section id="debtor-working-area" aria-labelledby="debtor-form-title" {% if not edit_debtor and not error %}hidden{% endif %}>
     <form id="debtor-capture-form" method="POST" action="{{ url_for('mechanic_bp.shop_debtor_register',shop_id=shop.id) }}" class="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-5">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="debtor_id" value="{{ edit_debtor.id if edit_debtor else '' }}" {% if not edit_debtor %}disabled{% endif %}>

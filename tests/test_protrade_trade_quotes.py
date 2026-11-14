@@ -104,8 +104,7 @@ class TradeQuoteTests(unittest.TestCase):
         tree = html.fromstring(response.data)
         self.assertEqual(tree.get_element_by_id('quote-client-name').text_content(), 'Customer Jane')
         text = tree.text_content()
-        self.assertIn('jane@example.test', text)
-        self.assertIn('Customer address', text)
+        self.assertFalse(tree.xpath('//button[@data-quote-area="debtor"]'))
         self.assertIn('Install skirting', text)
         self.assertNotIn('Other owner work', text)
         self.assertNotIn('Other shop work', text)
@@ -201,7 +200,9 @@ class TradeQuoteTests(unittest.TestCase):
         key = uuid4().hex
         first = self.post(quote_key=key)
         second = self.post(quote_key=key)
-        self.assertEqual(first.location, second.location)
+        self.assertIn('/quotes/', first.location)
+        self.assertIn('area=register', second.location)
+        self.assertEqual(self.client.get(second.location).status_code,200)
         self.assertEqual(ProTradeBoqQuote.query.count(), 1)
 
     def test_mechanic_uses_existing_form_and_save_links_exact_customer_and_shop(self):

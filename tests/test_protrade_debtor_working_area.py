@@ -32,6 +32,12 @@ class DebtorWorkingAreaTests(unittest.TestCase):
         tree=html.fromstring(self.client.get(self.register_url()).data)
         self.assertIn('hidden',tree.get_element_by_id('debtor-working-area').attrib)
         self.assertEqual(tree.get_element_by_id('add-debtor').text_content(),'Add Debtor')
+        for label in ('Price List','Debtor','Tokens','Output'):
+            self.assertFalse(tree.xpath('//a[normalize-space(text())="'+label+'"]'))
+        register_link=tree.xpath('//a[normalize-space(text())="Debtor Register"]')[0]
+        self.assertEqual(register_link.get('href'),self.register_url())
+        self.assertTrue(tree.xpath('//table[@id="shop-debtors"]//a[text()="Quote"]'))
+        self.assertTrue(tree.xpath('//table[@id="shop-debtors"]//a[text()="Ledger"]'))
         self.assertIn('Debtor Jane',tree.get_element_by_id('shop-debtors').text_content())
         self.assertNotIn('Legacy Quotes / Invoices',tree.text_content())
         self.assertNotIn('Legacy Debtor Accounts',tree.text_content())

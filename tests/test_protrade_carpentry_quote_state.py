@@ -35,7 +35,7 @@ class CarpentryQuoteStateTests(unittest.TestCase):
         self.assertEqual(tree.get_element_by_id('quote-grand-total').text_content(),'0.00')
         self.assertNotIn('Saved Quotes',tree.text_content())
         self.assertNotIn('LEGACY-CAR',tree.text_content())
-        self.assertEqual(tree.xpath('//nav[@id="quote-hub-navigation"]/button/text()'),['Debtor','New Quote','Register'])
+        self.assertEqual(tree.xpath('//nav[@id="quote-hub-navigation"]/button/text()'),['New Quote','Register'])
         self.assertEqual(base.ProTradeBoqQuote.query.count(),1)
 
     def test_browser_blank_defaults_required_selection_and_submission(self):

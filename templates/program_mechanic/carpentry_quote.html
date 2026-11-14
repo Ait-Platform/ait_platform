@@ -15,14 +15,12 @@
       </div>
       {% if not saved_quote %}
       <nav id="quote-hub-navigation" data-initial-area="{{ initial_area }}" data-debtor-id="{{ debtor.id }}" class="mt-4 flex justify-end gap-3" aria-label="Quotation working areas">
-        <button type="button" data-quote-area="debtor" aria-controls="quote-area-debtor" aria-expanded="{{ 'true' if initial_area=='debtor' else 'false' }}" class="rounded-lg bg-slate-100 px-4 py-2 font-semibold">Debtor</button>
         <button type="button" data-quote-area="new" aria-controls="quote-area-form" aria-expanded="{{ 'true' if initial_area=='quote' else 'false' }}" class="rounded-lg bg-blue-100 px-4 py-2 font-semibold">New Quote</button>
-        <button type="button" data-quote-area="register" aria-controls="quote-area-register" aria-expanded="{{ 'true' if initial_area=='register' else 'false' }}" class="rounded-lg bg-slate-100 px-4 py-2 font-semibold">Register</button>
+        <button type="button" data-quote-area="register" aria-controls="quote-area-register" aria-expanded="{{ 'true' if initial_area=='register' else 'false' }}" class="rounded-lg bg-green-100 px-4 py-2 font-semibold">Register</button>
       </nav>
-      <p class="mt-3 text-sm text-slate-600">Selected debtor: <strong>{{ debtor.name }}</strong></p>
-      <section id="quote-area-debtor" class="quote-working-area" {% if initial_area!='debtor' %}hidden{% endif %}>
-      <div class="mt-4 flex justify-end"><button type="button" data-close-quote-area class="rounded-lg bg-slate-100 px-4 py-2 font-semibold">Close</button></div>
+      <p class="mt-3 text-sm text-slate-600">Selected debtor: <strong id="quote-client-name">{{ debtor.name }}</strong></p>
       {% endif %}
+      {% if saved_quote %}
       <h2 class="mt-6 text-lg font-semibold">Debtor Details</h2>
       <dl class="mt-3 grid grid-cols-1 gap-3 rounded-lg border border-slate-200 bg-slate-50 p-4 sm:grid-cols-2">
         <div><dt class="text-sm text-slate-500">Name</dt><dd id="quote-client-name" class="font-semibold">{{ details.name }}</dd></div>
@@ -30,7 +28,7 @@
         <div><dt class="text-sm text-slate-500">Email</dt><dd>{{ details.email or '' }}</dd></div>
         <div><dt class="text-sm text-slate-500">Address</dt><dd>{{ details.address or '' }}</dd></div>
       </dl>
-      {% if not saved_quote %}</section>{% endif %}
+      {% endif %}
       {% if saved_quote %}
       {% if saved_quote.debtor_id %}<div class="mt-4 flex justify-end gap-3">
         {% if saved_quote.is_draft %}<a href="{{ url_for('mechanic_bp.debtor_quote', shop_id=shop.id, debtor_id=saved_quote.debtor_id) }}" class="rounded-lg bg-blue-100 px-4 py-2 font-semibold">Edit Draft</a>{% endif %}
@@ -90,12 +88,12 @@
       <section id="quote-area-register" class="quote-working-area" {% if initial_area!='register' %}hidden{% endif %}>
         <div class="mt-4 flex items-center justify-between"><h2 class="text-lg font-semibold">Quotations for {{ debtor.name }}</h2><button type="button" data-close-quote-area class="rounded-lg bg-slate-100 px-4 py-2 font-semibold">Close</button></div>
         <div class="mt-3 overflow-x-auto rounded-lg border border-slate-200"><table id="debtor-quote-register" class="w-full text-left text-sm"><thead class="bg-slate-50"><tr>{% for heading in ['Quote No.','Date','Amount','Status','Action'] %}<th class="p-3">{{ heading }}</th>{% endfor %}</tr></thead><tbody>
-        {% for quote in quote_history %}<tr class="border-t border-slate-200"><td class="p-3">{{ quote.display_quote_number }}</td><td class="p-3">{{ quote_dates.get(quote.id,'') }}</td><td class="p-3">R{{ '{:.2f}'.format(quote.grand_total) }}</td><td class="p-3">{{ 'Draft' if quote.is_draft else 'Saved' }}</td><td class="p-3"><a class="rounded-lg bg-slate-100 px-3 py-2 font-semibold" href="{{ url_for('mechanic_bp.debtor_quote',shop_id=shop.id,debtor_id=debtor.id,area='quote',quote_id=quote.id) }}">Edit</a></td></tr>{% else %}<tr><td colspan="5" class="p-6 text-center text-slate-600">No quotations for this debtor yet.</td></tr>{% endfor %}
+        {% for quote in quote_history %}<tr class="border-t border-slate-200"><td class="p-3">{{ quote.display_quote_number }}</td><td class="p-3">{{ quote_dates.get(quote.id,'') }}</td><td class="p-3">R{{ '{:.2f}'.format(quote.grand_total) }}</td><td class="p-3">{{ 'Draft' if quote.is_draft else 'Saved' }}</td><td class="p-3"><a class="inline-flex rounded-lg bg-orange-100 px-3 py-2 font-semibold text-orange-900" href="{{ url_for('mechanic_bp.debtor_quote',shop_id=shop.id,debtor_id=debtor.id,area='quote',quote_id=quote.id) }}">Edit</a></td></tr>{% else %}<tr><td colspan="5" class="p-6 text-center text-slate-600">No quotations for this debtor yet.</td></tr>{% endfor %}
         </tbody></table></div>
       </section>
       <script id="quote-builder-data" type="application/json">{{ dict(choices=work_choices,lines=initial_lines,fresh_choices=fresh_choices,fresh_quote_key=fresh_quote_key)|tojson }}</script>
-      <script src="{{ url_for('static',filename='js/carpentry_quote_builder.js',v='20261114-edit-1') }}" defer></script>
-      <script src="{{ url_for('static',filename='js/carpentry_quote_hub.js',v='20261114-edit-1') }}" defer></script>
+      <script src="{{ url_for('static',filename='js/carpentry_quote_builder.js',v='20261114-edit-register-2') }}" defer></script>
+      <script src="{{ url_for('static',filename='js/carpentry_quote_hub.js',v='20261114-edit-register-2') }}" defer></script>
       {% endif %}
     </div>
   </div>

@@ -604,8 +604,17 @@ def generate_soa(debtor_id):
         profile = SenderProfile.query.filter_by(
             user_id=current_user.id, is_default=True).first()
 
+    protrade_shop=None
+    if debtor.shop_id is not None:
+        from app.models.mechanic import MechShop
+        linked_shop=MechShop.query.filter_by(id=debtor.shop_id,user_id=current_user.id).first_or_404()
+        if linked_shop.trade=='carpentry':
+            from app.protrade_ledger import shop_statement_profile
+            protrade_shop=linked_shop
+            profile=shop_statement_profile(linked_shop)
+
     latest_job_card = None
-    if debtor.slug_reference == 'mechanic':
+    if debtor.slug_reference == 'mechanic' and not protrade_shop:
         from app.models.mechanic import MechShop, MechVehicle, MechJobCard
         shop = MechShop.query.filter_by(
             user_id=current_user.id, onboarding_status='active').first()
@@ -649,6 +658,9 @@ def generate_soa(debtor_id):
         bank_account = BusinessBankAccount.query.filter_by(
             user_id=current_user.id, is_default=True).first()
 
+    if protrade_shop:
+        bank_account=BusinessBankAccount.query.filter_by(id=debtor.bank_account_id,user_id=current_user.id).first_or_404() if debtor.bank_account_id else None
+
     start_date_str = request.args.get('start_date')
     end_date_str = request.args.get('end_date')
 
@@ -690,10 +702,16 @@ def generate_soa(debtor_id):
 
     if not calculated_opening_yet:
         period_opening_balance = running_balance
+    if protrade_shop:
+        from app.protrade_ledger import ledger_period
+        period_ledgers,period_opening_balance,running_balance=ledger_period(ledgers,start_date,end_date)
+
 
     return_url = request.args.get('return_url')
     is_pdf_request = (request.args.get('pdf') == '1')
+    from app.protrade_ledger import format_cents
     html_content = render_template("program_debtors/soa_template.html",
+                                   carpentry_statement=protrade_shop is not None,shop=protrade_shop,carpentry_money=format_cents if protrade_shop else None,
                                    debtor=debtor,
                                    ledgers=period_ledgers,
                                    profile=profile,
@@ -743,8 +761,17 @@ def email_soa():
         profile = SenderProfile.query.filter_by(
             user_id=current_user.id, is_default=True).first()
 
+    protrade_shop=None
+    if debtor.shop_id is not None:
+        from app.models.mechanic import MechShop
+        linked_shop=MechShop.query.filter_by(id=debtor.shop_id,user_id=current_user.id).first_or_404()
+        if linked_shop.trade=='carpentry':
+            from app.protrade_ledger import shop_statement_profile
+            protrade_shop=linked_shop
+            profile=shop_statement_profile(linked_shop)
+
     latest_job_card = None
-    if debtor.slug_reference == 'mechanic':
+    if debtor.slug_reference == 'mechanic' and not protrade_shop:
         from app.models.mechanic import MechShop, MechVehicle, MechJobCard
         shop = MechShop.query.filter_by(
             user_id=current_user.id, onboarding_status='active').first()
@@ -788,6 +815,9 @@ def email_soa():
         bank_account = BusinessBankAccount.query.filter_by(
             user_id=current_user.id, is_default=True).first()
 
+    if protrade_shop:
+        bank_account=BusinessBankAccount.query.filter_by(id=debtor.bank_account_id,user_id=current_user.id).first_or_404() if debtor.bank_account_id else None
+
     start_date_str = request.form.get('start_date')
     end_date_str = request.form.get('end_date')
     start_date = datetime.strptime(
@@ -828,8 +858,14 @@ def email_soa():
 
     if not calculated_opening_yet:
         period_opening_balance = running_balance
+    if protrade_shop:
+        from app.protrade_ledger import ledger_period
+        period_ledgers,period_opening_balance,running_balance=ledger_period(ledgers,start_date,end_date)
 
+
+    from app.protrade_ledger import format_cents
     html_content = render_template("program_debtors/soa_template.html",
+                                   carpentry_statement=protrade_shop is not None,shop=protrade_shop,carpentry_money=format_cents if protrade_shop else None,
                                    debtor=debtor,
                                    ledgers=period_ledgers,
                                    profile=profile,
@@ -856,7 +892,7 @@ def email_soa():
         log_whatsapp = request.form.get("log_whatsapp")
         log_phone = request.form.get("log_phone")
         program_slug = "debtors"
-        if debtor.slug_reference == 'mechanic':
+        if debtor.slug_reference == 'mechanic' and not protrade_shop:
             program_slug = "mechanic"
             
         if log_whatsapp:

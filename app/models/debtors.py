@@ -1,3 +1,4 @@
+from sqlalchemy.types import Numeric, TypeDecorator
 from app.extensions import db
 from datetime import datetime
 
@@ -73,7 +74,7 @@ class Debtor(db.Model):
     email = db.Column(db.String(150), nullable=True)
     phone = db.Column(db.String(50), nullable=True)
     
-    opening_balance = db.Column(db.Integer, default=0) # In cents
+    opening_balance = db.Column(db.Integer, default=0, server_default=db.text('0')) # In cents
     apply_interest = db.Column(db.Boolean, default=True)
     interest_rate = db.Column(db.Float, nullable=True) # Custom interest rate for this debtor (overrides profile)
     
@@ -83,6 +84,15 @@ class Debtor(db.Model):
     ledgers = db.relationship('DebtorLedger', backref='debtor', cascade="all, delete-orphan", lazy='dynamic')
     charge_maps = db.relationship('DebtorChargeMap', backref='debtor', cascade="all, delete-orphan")
 
+class LedgerCents(TypeDecorator):
+    """Exact integer cents with the full precision of existing BOQ quote totals."""
+    impl = Numeric(28, 0)
+    cache_ok = True
+
+    def process_result_value(self, value, dialect):
+        return int(value) if value is not None else None
+
+
 class DebtorLedger(db.Model):
     __tablename__ = 'debtor_ledger'
     id = db.Column(db.Integer, primary_key=True)
@@ -91,9 +101,18 @@ class DebtorLedger(db.Model):
     txn_date = db.Column(db.Date, nullable=False, default=datetime.utcnow)
     description = db.Column(db.String(255), nullable=False)
     kind = db.Column(db.String(20), nullable=False) # 'debit' or 'credit'
-    amount = db.Column(db.Integer, nullable=False) # In cents
+    amount = db.Column(LedgerCents(), nullable=False) # In cents
     ref = db.Column(db.String(100), nullable=True)
     
+    boq_quote_id = db.Column(db.Integer, db.ForeignKey('protrade_boq_quotes.id', name='fk_debtor_ledger_boq_quote'), nullable=True)
+    payment_key = db.Column(db.String(32), nullable=True)
+    __table_args__ = (
+        db.UniqueConstraint('boq_quote_id', name='uq_debtor_ledger_boq_quote'),
+        db.UniqueConstraint('debtor_id', 'payment_key', name='uq_debtor_payment_key'),
+        db.Index('uq_debtor_payment_fingerprint', 'debtor_id', 'txn_date', 'amount', 'ref', unique=True, postgresql_where=db.text('payment_key IS NOT NULL')),
+        db.CheckConstraint("boq_quote_id IS NULL OR (kind = 'debit' AND payment_key IS NULL AND amount >= 0)", name='ck_debtor_quote_debit'),
+        db.CheckConstraint("payment_key IS NULL OR (kind = 'credit' AND boq_quote_id IS NULL AND amount > 0 AND ref IS NOT NULL AND length(trim(ref)) > 0)", name='ck_debtor_payment_credit'),
+    )
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 class DebtorChargeMap(db.Model):

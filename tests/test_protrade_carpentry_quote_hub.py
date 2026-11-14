@@ -59,7 +59,7 @@ class CarpentryQuoteHubTests(unittest.TestCase):
         self.assertEqual(tree.xpath('//nav[@id="quote-hub-navigation"]/button/text()'),['New Quote','Register'])
         self.assertNotIn('Quote / Invoice Register',tree.text_content())
         register=tree.get_element_by_id('debtor-quote-register')
-        self.assertEqual(register.xpath('./thead/tr/th/text()'),['Quote No.','Date','Amount','Status'])
+        self.assertEqual(register.xpath('./thead/tr/th/text()'),['Quote No.','Date','Amount'])
         self.assertEqual(set(register.xpath('./tbody/tr/td[1]/a/text()')),{self.first.quote_number,self.second_quote.quote_number})
         self.assertNotIn('CAR-Q-OTHER-DEBTOR',register.text_content());self.assertNotIn('CAR-Q-FOREIGN',register.text_content())
         self.assertNotIn('LEGACY-CAR',register.text_content());self.assertIn('2026-11-13',register.text_content())

@@ -1,4 +1,5 @@
 {% if not is_pdf %}{% extends 'layout.html' %}{% endif %}
+{% macro statement_money(value) -%}{{ carpentry_money(value,True) if carpentry_money else '{:,.2f}'.format(value / 100) }}{%- endmacro %}
 {% block head %}
 {% if is_pdf %}
 <!DOCTYPE html>
@@ -135,7 +136,7 @@
 {% endblock %}
 
 {% block flashes %}{% endblock %}
-{% block page_wrap_classes %}mx-auto w-full max-w-6xl px-4 py-8{% endblock %}
+{% block page_wrap_classes %}{% if not (is_pdf and carpentry_statement) %}mx-auto w-full max-w-6xl px-4 py-8{% endif %}{% endblock %}
 
 {% block content %}
 {% if not is_pdf %}<div class="max-w-4xl mx-auto mb-8 mt-6 no-print">
@@ -255,7 +256,7 @@
             <div class="text-sm text-blue-600">Please review the transactions below.</div>
         </div>
         <div class="text-3xl font-bold {% if running_balance > 0 %}text-red-600{% elif running_balance < 0 %}text-green-600{% else %}text-gray-800{% endif %}">
-            {{ '{:,.2f}'.format(running_balance / 100) }}
+            {{ statement_money(running_balance) }}
         </div>
     </div>
     
@@ -290,7 +291,7 @@
                 <td class="py-2 px-3 border border-gray-300 text-right"></td>
                 <td class="py-2 px-3 border border-gray-300 text-right"></td>
                 <td class="py-2 px-3 border border-gray-300 text-right {% if period_opening_balance > 0 %}text-red-600{% elif period_opening_balance < 0 %}text-green-600{% endif %}">
-                    {{ '{:,.2f}'.format(period_opening_balance / 100) }}
+                    {{ statement_money(period_opening_balance) }}
                 </td>
             </tr>
             {% endif %}
@@ -302,13 +303,13 @@
                     {% if l.ref %}<div class="text-xs text-gray-500">Ref: {{ l.ref }}</div>{% endif %}
                 </td>
                 <td class="py-2 px-3 border border-gray-300 text-right">
-                    {% if l.kind == 'debit' %}{{ '{:,.2f}'.format(l.amount / 100) }}{% endif %}
+                    {% if l.kind == 'debit' %}{{ statement_money(l.amount) }}{% endif %}
                 </td>
                 <td class="py-2 px-3 border border-gray-300 text-right">
-                    {% if l.kind == 'credit' %}{{ '{:,.2f}'.format(l.amount / 100) }}{% endif %}
+                    {% if l.kind == 'credit' %}{{ statement_money(l.amount) }}{% endif %}
                 </td>
                 <td class="py-2 px-3 border border-gray-300 text-right font-bold {% if l.running_balance > 0 %}text-red-600{% elif l.running_balance < 0 %}text-green-600{% endif %}">
-                    {{ '{:,.2f}'.format(l.running_balance / 100) }}
+                    {{ statement_money(l.running_balance) }}
                 </td>
             </tr>
             {% else %}
@@ -340,7 +341,7 @@
       {% endif %}
 
       <div style="margin-top: 20px; font-size: 12px; color: #4b5563; text-align: center; font-weight: bold;">
-          Thank you for your business! Only genuine parts used. Professional services guaranteed.
+          {% if carpentry_statement %}Thank you for your business.{% else %}Thank you for your business! Only genuine parts used. Professional services guaranteed.{% endif %}
       </div>
 
       

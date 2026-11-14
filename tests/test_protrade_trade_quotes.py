@@ -48,6 +48,7 @@ class TradeQuoteTests(unittest.TestCase):
         self.foreign_item = self.boq(self.other, 'CAR-004', 'Other owner work', 'm', '1', '1')
         self.second_item = self.boq(self.second, 'CAR-004', 'Other shop work', 'm', '1', '1')
         # Real migration applied on an existing quote/job-card schema.
+        self.conn.exec_driver_sql('ALTER TABLE debtor_ledger DROP CONSTRAINT IF EXISTS fk_debtor_ledger_boq_quote')
         self.conn.exec_driver_sql('DROP TABLE protrade_boq_quotes')
         self.conn.exec_driver_sql('ALTER TABLE mech_job_cards DROP COLUMN shop_id')
         spec = importlib.util.spec_from_file_location('quote_migration', base.ROOT / 'migrations/versions/protrade_quote_005.py')
@@ -155,6 +156,7 @@ class TradeQuoteTests(unittest.TestCase):
         self.assertEqual(self.client.post(self.quote_url(self.other),data={}).status_code,404)
 
     def test_migration_preserves_preexisting_mechanic_quotation_fields(self):
+        self.conn.exec_driver_sql('ALTER TABLE debtor_ledger DROP CONSTRAINT IF EXISTS fk_debtor_ledger_boq_quote')
         self.conn.exec_driver_sql('DROP TABLE protrade_boq_quotes')
         self.conn.exec_driver_sql('ALTER TABLE mech_job_cards DROP COLUMN shop_id')
         self.conn.execute(sa.text("INSERT INTO mech_vehicles (id,client_id,make,license_plate) VALUES (-10,:client,'Legacy Make','OLD123')"), dict(client=self.customer.id))

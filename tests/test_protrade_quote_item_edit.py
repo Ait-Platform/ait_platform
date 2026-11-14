@@ -165,7 +165,7 @@ class QuoteItemEditTests(unittest.TestCase):
                     self.assertFalse(page.locator('#quote-area-form').is_visible())
                     self.assertTrue(page.get_by_role('button',name='New Quote',exact=True).is_visible())
                     self.assertEqual(page.locator('[data-quote-summary]').count(),2)
-                    self.assertEqual(page.locator('#debtor-quote-register > thead th').all_text_contents(),['Quote No.','Date','Amount','Status'])
+                    self.assertEqual(page.locator('#debtor-quote-register > thead th').all_text_contents(),['Quote No.','Date','Amount'])
                     self.assertEqual(page.get_by_role('link',name='Edit',exact=True).count(),0)
                     self.assertEqual(page.locator('[data-quote-details]').count(),0)
                     self.assertEqual(page.locator('.saved-quote-items').count(),0)

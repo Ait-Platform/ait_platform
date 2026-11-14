@@ -41,7 +41,7 @@ class DebtorLedgerLinkTests(unittest.TestCase):
         text=html.fromstring(response.data).text_content()
         self.assertIn('INV-EXISTING',text);self.assertIn('DEP-EXISTING',text);self.assertIn('700.00',text)
         self.assertNotIn('OTHER-SHOP',text)
-        self.assertIn(jobs[0].job_number,text);self.assertNotIn(jobs[1].job_number,text)
+        self.assertNotIn(jobs[0].job_number,text);self.assertNotIn(jobs[1].job_number,text)
         self.assertEqual(self.client.get(f'/mechanic/client_ledger/{debtor.id}?shop_id={self.second.id}').status_code,404)
         with self.client.session_transaction() as session:session['_user_id']='2'
         self.assertEqual(self.client.get(link).status_code,404)
@@ -49,8 +49,9 @@ class DebtorLedgerLinkTests(unittest.TestCase):
         with self.client.session_transaction() as session:session['_user_id']='1'
         payment=f'/mechanic/client_ledger/{debtor.id}/add_payment'
         self.assertEqual(self.client.post(payment+f'?shop_id={self.second.id}',data={'amount':'5'}).status_code,404)
-        self.assertEqual(self.client.post(payment,data={'amount':'5','date':'2026-11-14','ref':'EXISTING-PAYMENT-FLOW'}).status_code,302)
-        self.assertEqual(jobs[0].status,'Billed');self.assertEqual(jobs[1].status,'Approved')
+        from uuid import uuid4
+        self.assertEqual(self.client.post(payment,data={'amount':'5','date':'2026-11-14','ref':'EXISTING-PAYMENT-FLOW','payment_key':uuid4().hex}).status_code,302)
+        self.assertEqual(jobs[0].status,'Approved');self.assertEqual(jobs[1].status,'Approved')
         self.assertEqual(base.DebtorLedger.query.filter_by(debtor_id=other.id).count(),1)
 
 if __name__=='__main__':unittest.main()

@@ -45,13 +45,13 @@
       </div>
       <div class="flex items-center gap-2">
         <a href="{{ url_for('debtors_bp.generate_soa', debtor_id=debtor.id, start_date=start_date, end_date=end_date, return_url=url_for('mechanic_bp.client_ledger', debtor_id=debtor.id)) }}" title="Print / Download SOA" class="w-10 h-10 inline-flex items-center justify-center bg-indigo-100 text-indigo-700 rounded-full hover:bg-indigo-200 transition shadow-sm outline-none focus:ring-2 focus:ring-indigo-500">
-          <i class="fas fa-file-pdf"></i>
+          {% if carpentry_account %}<span>SOA</span>{% else %}<i class="fas fa-file-pdf"></i>{% endif %}
         </a>
         <a href="{{ url_for('debtors_bp.generate_soa', debtor_id=debtor.id, start_date=start_date, end_date=end_date, return_url=url_for('mechanic_bp.client_ledger', debtor_id=debtor.id)) }}#email" title="Email SOA" class="w-10 h-10 inline-flex items-center justify-center bg-blue-100 text-blue-700 rounded-full hover:bg-blue-200 transition shadow-sm outline-none focus:ring-2 focus:ring-blue-500">
           <i class="fas fa-envelope"></i>
         </a>
         <button onclick="document.getElementById('add-payment-modal').classList.remove('hidden'); document.getElementById('amount_input').focus();" class="px-4 py-2 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 shadow-sm transition text-sm outline-none focus:ring-2 focus:ring-green-500">
-          <i class="fas fa-money-bill-wave mr-1"></i> Record Transaction
+          <i class="fas fa-money-bill-wave mr-1"></i> {{ 'Record Payment' if carpentry_account else 'Record Transaction' }}
         </button>
       </div>
     </div>
@@ -82,13 +82,13 @@
                         <div class="text-slate-500 text-xs mt-0.5">{{ l.description or '' }}</div>
                     </td>
                     <td class="px-4 py-3 whitespace-nowrap text-sm text-right font-medium text-slate-900">
-                        {% if l.kind == 'debit' %}R {{ "%.2f"|format(l.amount/100) }}{% else %}-{% endif %}
+                        {% if l.kind == 'debit' %}R {{ ledger_money(l.amount) if ledger_money else "%.2f"|format(l.amount/100) }}{% else %}-{% endif %}
                     </td>
                     <td class="px-4 py-3 whitespace-nowrap text-sm text-right font-medium text-green-600">
-                        {% if l.kind == 'credit' %}R {{ "%.2f"|format(l.amount/100) }}{% else %}-{% endif %}
+                        {% if l.kind == 'credit' %}R {{ ledger_money(l.amount) if ledger_money else "%.2f"|format(l.amount/100) }}{% else %}-{% endif %}
                     </td>
                     <td class="px-4 py-3 whitespace-nowrap text-sm text-right font-bold {% if (l.running_balance|default(0)) > 0 %}text-red-600{% else %}text-green-600{% endif %}">
-                        R {{ "%.2f"|format((l.running_balance|default(0))/100) }}
+                        R {{ ledger_money(l.running_balance|default(0)) if ledger_money else "%.2f"|format((l.running_balance|default(0))/100) }}
                     </td>
                 </tr>
                 {% endfor %}
@@ -104,7 +104,7 @@
             <tr>
               <td colspan="4" class="px-4 py-3 text-right font-bold text-slate-700">Total Outstanding Balance:</td>
               <td class="px-4 py-3 text-right font-black text-lg {% if (ledgers[-1].running_balance if ledgers else 0) > 0 %}text-red-600{% else %}text-green-600{% endif %}">
-                R {{ "%.2f"|format((ledgers[-1].running_balance if ledgers else 0)/100) }}
+                R {{ ledger_money(closing_balance) if ledger_money else "%.2f"|format(closing_balance/100) }}
               </td>
             </tr>
           </tfoot>
@@ -116,6 +116,7 @@
 </div>
 
 
+  {% if not carpentry_account %}
   <!-- Client Job Cards -->
   <div class="mt-8 bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden mb-8">
     <div class="bg-slate-50 px-6 py-4 border-b border-slate-200 flex justify-between items-center">
@@ -173,6 +174,7 @@
     </div>
   </div>
 
+{% endif %}
 <!-- Record Transaction Modal -->
 
 <div id="add-payment-modal" class="fixed inset-0 z-50 hidden overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
@@ -183,34 +185,35 @@
       <form method="POST" action="{{ url_for('mechanic_bp.client_ledger_add_payment', debtor_id=debtor.id) }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="px-6 pt-6 pb-4 bg-white sm:p-6 sm:pb-4 border-b border-slate-100">
-                    <h3 class="text-xl font-bold text-slate-900" id="modal-title">Record Manual Transaction</h3>
-          <p class="mt-2 text-sm text-slate-500">Log a manual payment (credit) or refund (debit) for {{ debtor.name }}.</p>
+                    <h3 class="text-xl font-bold text-slate-900" id="modal-title">{{ 'Record Payment' if carpentry_account else 'Record Manual Transaction' }}</h3>
+          <p class="mt-2 text-sm text-slate-500">{{ 'Record money received from' if carpentry_account else 'Log a manual payment (credit) or refund (debit) for' }} {{ debtor.name }}.</p>
         </div>
         <div class="p-6 space-y-4">
                               <div>
+            {% if carpentry_account %}<input type="hidden" name="kind" value="credit"><input type="hidden" name="payment_key" value="{{ payment_key }}">{% else %}
             <label class="block text-sm font-bold text-slate-700 mb-1">Type</label>
             <select name="kind" id="transaction_kind" onchange="updateTransactionDescription()" class="block w-full rounded-lg border border-slate-300 focus:border-indigo-500 focus:ring-indigo-500 p-2.5">
               <option value="credit">Payment Received (Credit Client)</option>
               <option value="debit">Refund / Charge (Debit Client)</option>
-            </select>
+            </select>{% endif %}
           </div>
           <div>
             <label class="block text-sm font-bold text-slate-700 mb-1">Amount</label>
-            <input type="number" step="0.01" min="0.01" name="amount" required class="block w-full rounded-lg border border-slate-300 focus:border-indigo-500 focus:ring-indigo-500 p-2.5">
+            <input id="amount_input" type="number" step="0.01" min="0.01" name="amount" required class="block w-full rounded-lg border border-slate-300 focus:border-indigo-500 focus:ring-indigo-500 p-2.5">
           </div>
           <div>
             <label class="block text-sm font-bold text-slate-700 mb-1">Date</label>
             <input type="date" name="date" required value="{{ start_date if start_date else '' }}" class="block w-full rounded-lg border border-slate-300 focus:border-indigo-500 focus:ring-indigo-500 p-2.5">
           </div>
           
-          <div>
+          {% if not carpentry_account %}<div>
             <button type="button" onclick="document.getElementById('advanced_fields').classList.toggle('hidden')" class="text-sm text-indigo-600 hover:text-indigo-800 font-semibold">+ Add Custom Reference or Note</button>
-          </div>
+          </div>{% endif %}
           
-          <div id="advanced_fields" class="hidden space-y-4 pt-2 border-t border-slate-100 mt-2">
+          <div id="advanced_fields" class="{{ '' if carpentry_account else 'hidden' }} space-y-4 pt-2 border-t border-slate-100 mt-2">
               <div>
                 <label class="block text-sm font-bold text-slate-700 mb-1">Reference</label>
-                <input type="text" name="ref" value="EFT" class="block w-full rounded-lg border border-slate-300 focus:border-indigo-500 focus:ring-indigo-500 p-2.5">
+                <input type="text" name="ref" maxlength="100" {% if carpentry_account %}required{% endif %} value="{{ '' if carpentry_account else 'EFT' }}" class="block w-full rounded-lg border border-slate-300 focus:border-indigo-500 focus:ring-indigo-500 p-2.5">
               </div>
               <div>
                 <label class="block text-sm font-bold text-slate-700 mb-1">Description</label>
@@ -220,7 +223,7 @@
         </div>
         <div class="px-6 py-4 bg-slate-50 flex justify-end gap-3 rounded-b-xl border-t border-slate-100">
           <button type="button" onclick="document.getElementById('add-payment-modal').classList.add('hidden')" class="px-5 py-2.5 rounded-lg border border-slate-300 text-slate-700 font-bold hover:bg-slate-100 transition">Cancel</button>
-          <button type="submit" class="px-5 py-2.5 rounded-lg bg-green-600 text-white font-bold hover:bg-green-700 shadow-sm transition">Save Transaction</button>
+          <button type="submit" class="px-5 py-2.5 rounded-lg bg-green-600 text-white font-bold hover:bg-green-700 shadow-sm transition">{{ 'Save Payment' if carpentry_account else 'Save Transaction' }}</button>
         </div>
       </form>
     </div>

@@ -1145,7 +1145,7 @@ def shop_debtor_register(shop_id):
                 if duplicate:
                     flash('This debtor is already saved for this shop.', 'info')
                     return redirect(url_for('mechanic_bp.shop_debtor_register', shop_id=shop.id, debtor_id=duplicate.id))
-                debtor = Debtor(user_id=current_user.id, shop_id=shop.id, slug_reference='protrade')
+                debtor = Debtor(user_id=current_user.id, shop_id=shop.id, slug_reference='protrade', opening_balance=0)
                 client = MechClient(user_id=current_user.id, shop_id=shop.id, name=values['name'])
                 db.session.add(client)
                 db.session.flush()
@@ -2822,8 +2822,8 @@ def client_ledger(debtor_id):
     from datetime import datetime
     
     debtor = Debtor.query.filter_by(id=debtor_id, user_id=current_user.id).first_or_404()
-    if debtor.shop_id is not None:
-        MechShop.query.filter_by(id=debtor.shop_id, user_id=current_user.id).first_or_404()
+    shop = MechShop.query.filter_by(id=debtor.shop_id, user_id=current_user.id).first_or_404() if debtor.shop_id is not None else None
+    carpentry_account = bool(shop and shop.trade=='carpentry')
     if request.args.get('shop_id') is not None and request.args.get('shop_id', type=int) != debtor.shop_id:
         from flask import abort
         abort(404)
@@ -2846,21 +2846,27 @@ def client_ledger(debtor_id):
 
     from app.models.debtors import DebtorLedger
     ledgers_query = DebtorLedger.query.filter_by(debtor_id=debtor.id).all()
-    if start_date:
-        ledgers_query = [l for l in ledgers_query if l.txn_date and l.txn_date >= start_date]
-    if end_date:
-        ledgers_query = [l for l in ledgers_query if l.txn_date and l.txn_date <= end_date]
+    if carpentry_account:
+        from app.protrade_ledger import ledger_period
+        ledgers,period_opening_balance,closing_balance = ledger_period(ledgers_query,start_date,end_date)
+    else:
+        if start_date:
+            ledgers_query = [l for l in ledgers_query if l.txn_date and l.txn_date >= start_date]
+        if end_date:
+            ledgers_query = [l for l in ledgers_query if l.txn_date and l.txn_date <= end_date]
 
-    ledgers = sorted(ledgers_query, key=lambda l: (l.txn_date or datetime.min.date(), l.id))
+        ledgers = sorted(ledgers_query, key=lambda l: (l.txn_date or datetime.min.date(), l.id))
     
-    running_balance = 0
-    for l in ledgers:
-        if l.kind == 'debit':
-            running_balance += l.amount
-        else:
-            running_balance -= l.amount
-        l.running_balance = running_balance
+        running_balance = 0
+        for l in ledgers:
+            if l.kind == 'debit':
+                running_balance += l.amount
+            else:
+                running_balance -= l.amount
+            l.running_balance = running_balance
 
+        period_opening_balance=0
+        closing_balance=running_balance
     # Fetch job cards for this client
     from app.models.mechanic import MechJobCard, MechVehicle, MechClient
     if debtor.shop_id is not None:
@@ -2868,7 +2874,11 @@ def client_ledger(debtor_id):
     else:
         job_cards = MechJobCard.query.join(MechVehicle).join(MechClient).filter(MechClient.name == debtor.name, MechClient.user_id == current_user.id).order_by(MechJobCard.created_at.desc()).all()
 
-    return render_template("program_mechanic/client_ledger.html", 
+    from uuid import uuid4
+    from app.protrade_ledger import format_cents
+    return render_template("program_mechanic/client_ledger.html",
+                           carpentry_account=carpentry_account,payment_key=uuid4().hex,ledger_money=format_cents if carpentry_account else None,
+                           period_opening_balance=period_opening_balance,closing_balance=closing_balance,
                            debtor=debtor, 
                            ledgers=ledgers, 
                            job_cards=job_cards,
@@ -2883,12 +2893,47 @@ def client_ledger_add_payment(debtor_id):
     from datetime import datetime
     
     debtor = Debtor.query.filter_by(id=debtor_id, user_id=current_user.id).first_or_404()
-    if debtor.shop_id is not None:
-        MechShop.query.filter_by(id=debtor.shop_id, user_id=current_user.id).first_or_404()
+    shop = MechShop.query.filter_by(id=debtor.shop_id, user_id=current_user.id).first_or_404() if debtor.shop_id is not None else None
     if request.args.get('shop_id') is not None and request.args.get('shop_id', type=int) != debtor.shop_id:
         from flask import abort
         abort(404)
     
+    if shop and shop.trade=='carpentry':
+        from app.protrade_ledger import payment_cents
+        from uuid import UUID
+        from sqlalchemy.exc import IntegrityError
+        from flask import abort
+        try:
+            if request.form.get('kind','credit')!='credit':
+                raise ValueError('Payments must be credits.')
+            amount=payment_cents(request.form.get('amount',''))
+            txn_date=datetime.strptime(request.form.get('date',''),'%Y-%m-%d').date()
+            ref=request.form.get('ref','').strip()
+            desc=request.form.get('description','Payment received').strip() or 'Payment received'
+            key=UUID(request.form.get('payment_key','')).hex
+            if not ref or len(ref)>100 or len(desc)>255:
+                raise ValueError('Enter a payment reference (up to 100 characters).')
+        except (ValueError,TypeError,AttributeError):
+            flash('Enter a valid date, reference and positive payment amount, then reopen the payment form.','warning')
+            abort(400)
+        Debtor.query.filter_by(id=debtor.id,user_id=current_user.id,shop_id=shop.id).with_for_update().first()
+        existing=DebtorLedger.query.filter_by(debtor_id=debtor.id,payment_key=key).first()
+        by_ref=DebtorLedger.query.filter_by(debtor_id=debtor.id,kind='credit',txn_date=txn_date,amount=amount,ref=ref).first()
+        existing=existing or by_ref
+        if existing:
+            if int(existing.amount)!=amount or existing.txn_date!=txn_date or existing.ref!=ref:
+                abort(409)
+            flash('This payment is already recorded.','info')
+        else:
+            db.session.add(DebtorLedger(debtor_id=debtor.id,txn_date=txn_date,ref=ref,description=desc,kind='credit',amount=amount,payment_key=key))
+            try:db.session.commit()
+            except IntegrityError:
+                db.session.rollback()
+                flash('This payment is already recorded. Refresh the account before trying again.','warning')
+                abort(409)
+            flash('Payment recorded.','success')
+        return redirect(url_for('mechanic_bp.client_ledger',debtor_id=debtor.id,shop_id=shop.id))
+
     try:
         amount_str = request.form.get('amount', '0')
         amount = int(float(amount_str) * 100)

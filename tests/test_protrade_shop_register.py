@@ -35,6 +35,8 @@ class ShopDebtor(models.Base):
 models.Debtor = ShopDebtor
 models.Debtor.shop_id = sa.Column(sa.Integer, sa.ForeignKey('mech_shops.id'))
 models.Debtor.address = sa.Column(sa.Text)
+models.Debtor.opening_balance = sa.Column(sa.Integer,default=0)
+models.Debtor.bank_account_id = sa.Column(sa.Integer)
 models.MechClient.shop_id = sa.Column(sa.Integer, sa.ForeignKey('mech_shops.id'))
 
 # Load the actual price-item mapping without initializing the application.
@@ -45,7 +47,7 @@ catalog_db = SimpleNamespace(Model=models.Base, Column=sa.Column, Integer=sa.Int
                              String=sa.String, Float=sa.Float, FetchedValue=sa.FetchedValue, DateTime=sa.DateTime, JSON=sa.JSON, Boolean=sa.Boolean, Date=sa.Date,
                              Text=sa.Text, Numeric=sa.Numeric, Computed=sa.Computed,
                              UniqueConstraint=sa.UniqueConstraint, CheckConstraint=sa.CheckConstraint, Index=sa.Index, text=sa.text,
-                             ForeignKey=lambda name: sa.ForeignKey('users.id' if name == 'user.id' else name))
+                             ForeignKey=lambda target,**kwargs: sa.ForeignKey('users.id' if target == 'user.id' else target,**kwargs))
 catalog_globals = dict(db=catalog_db, datetime=datetime)
 exec(compile(ast.Module(body=[catalog_node], type_ignores=[]), 'production_catalog_model', 'exec'), catalog_globals)
 MechCatalogPart = catalog_globals['MechCatalogPart']
@@ -60,6 +62,9 @@ ProTradeBoqQuote = catalog_globals['ProTradeBoqQuote']
 output_email_node=next(node for node in ast.parse((ROOT/'app/models/mechanic.py').read_text()).body if isinstance(node,ast.ClassDef) and node.name=='ProTradeOutputEmail')
 exec(compile(ast.Module(body=[output_email_node],type_ignores=[]),'production_output_email', 'exec'),catalog_globals)
 ProTradeOutputEmail=catalog_globals['ProTradeOutputEmail']
+catalog_globals.update(TypeDecorator=sa.types.TypeDecorator,Numeric=sa.Numeric)
+cents_node=next(node for node in ast.parse((ROOT/'app/models/debtors.py').read_text()).body if isinstance(node,ast.ClassDef) and node.name=='LedgerCents')
+exec(compile(ast.Module(body=[cents_node],type_ignores=[]),'production_ledger_cents','exec'),catalog_globals)
 ledger_node=next(node for node in ast.parse((ROOT/'app/models/debtors.py').read_text()).body if isinstance(node,ast.ClassDef) and node.name=='DebtorLedger')
 exec(compile(ast.Module(body=[ledger_node],type_ignores=[]),'production_debtor_ledger','exec'),catalog_globals)
 DebtorLedger=catalog_globals['DebtorLedger']

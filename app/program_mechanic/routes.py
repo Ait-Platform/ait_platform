@@ -1333,7 +1333,7 @@ def carpentry_quote_form(shop, customer, debtor, editing_quote=None):
         if request.args.get('item_id') is not None:
             target['item_id'] = request.args['item_id']
         return redirect(url_for('mechanic_bp.carpentry_quote_items', **target))
-    initial_area = 'quote' if editing_quote is not None or raw_quote_id is not None or request.method=='POST' else request.args.get('area','hub')
+    initial_area = 'quote' if editing_quote is not None or raw_quote_id is not None or request.method=='POST' else request.args.get('area','register')
     if initial_area not in ('hub','debtor','new','quote','register'):
         abort(404)
     if initial_area == 'new':

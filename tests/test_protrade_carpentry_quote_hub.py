@@ -14,7 +14,7 @@ import test_protrade_debtor_foundation as foundation
 def open_whole_quote(page, row):
     # Full-editor regressions use its explicit existing route. Register Edit now
     # opens saved items and is covered separately by the item-navigation tests.
-    href=row.locator('a[data-expand-quote]').get_attribute('href')
+    href=row.locator('a[data-expand-quote]').first.get_attribute('href')
     match=re.search(r'/shop/(\d+)/',href)
     quote_id=parse_qs(urlsplit(href).query)['expanded_quote_id'][0]
     assert match,href
@@ -60,7 +60,7 @@ class CarpentryQuoteHubTests(unittest.TestCase):
         self.assertEqual(tree.xpath('//nav[@id="quote-hub-navigation"]/button/text()'),['New Quote','Register'])
         self.assertNotIn('Quote / Invoice Register',tree.text_content())
         register=tree.get_element_by_id('debtor-quote-register')
-        self.assertEqual(register.xpath('./thead/tr/th/text()'),['Quote No.','Date','Amount','Status'])
+        self.assertEqual(register.xpath('./thead/tr/th/text()'),['Quote No.','Date','Amount','Status','Action'])
         self.assertEqual(set(register.xpath('./tbody/tr/td[1]/a/text()')),{self.first.quote_number,self.second_quote.quote_number})
         self.assertNotIn('CAR-Q-OTHER-DEBTOR',register.text_content());self.assertNotIn('CAR-Q-FOREIGN',register.text_content())
         self.assertNotIn('LEGACY-CAR',register.text_content());self.assertIn('2026-11-13',register.text_content())
@@ -100,7 +100,9 @@ class CarpentryQuoteHubTests(unittest.TestCase):
             try:
                 page=browser.new_page();page.route('http://localhost/**',self.browser_route)
                 page.goto('http://localhost'+self.url)
-                self.assertEqual(page.locator('.quote-working-area:visible').count(),0)
+                self.assertEqual(page.locator('.quote-working-area:visible').count(),1)
+                self.assertTrue(page.locator('#quote-area-register').is_visible())
+                self.assertFalse(page.locator('#quote-area-form').is_visible())
                 self.assertTrue(page.get_by_role('link',name='Back',exact=True).is_visible())
                 for name in ('New Quote','Register'):self.assertTrue(page.get_by_role('button',name=name,exact=True).is_visible())
                 self.assertEqual(page.get_by_role('button',name='Debtor',exact=True).count(),0)
@@ -220,7 +222,7 @@ class CarpentryQuoteHubTests(unittest.TestCase):
                 page.get_by_role('button',name='Register',exact=True).click()
                 row=page.locator('#debtor-quote-register tr').filter(has_text='Q-0006')
                 self.assertIn('1149.00',row.text_content())
-                self.assertEqual(row.get_by_role('link',name='Edit',exact=True).count(),0)
+                self.assertEqual(row.get_by_role('link',name='Edit',exact=True).count(),1)
                 open_whole_quote(page,row)
                 self.assertTrue(page.get_by_role('heading',name='Edit Quotation',exact=True).is_visible())
                 self.assertEqual(page.locator('.quote-working-area:visible').count(),1)

@@ -5,7 +5,7 @@
 <div class="mx-auto max-w-6xl px-4 py-10"><div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow">
   <div class="h-2 bg-slate-700"></div><div class="p-6">
     {% include 'partials/flash_messages.html' %}
-    <div class="flex items-center justify-between gap-4"><div><h1 class="text-2xl font-semibold">{% if line %}Edit Quote Item &mdash; {{ line.code }}{% else %}Quotation Items{% endif %}</h1><p class="mt-1 text-sm text-slate-600">{{ shop.business_name }} &middot; {{ debtor.name }} &middot; {{ quote.display_quote_number }}</p></div><a class="rounded-lg bg-slate-100 px-4 py-2 font-semibold" href="{{ register_url if line else url_for('mechanic_bp.debtor_quote',shop_id=shop.id,debtor_id=debtor.id,area='register') }}">Back</a></div>
+    <div class="flex items-center justify-between gap-4"><div><h1 class="text-2xl font-semibold">{% if line %}Edit Quote Item &mdash; {{ line.code }}{% else %}Quotation {{ quote.display_quote_number }} &mdash; {{ debtor.name }}{% endif %}</h1><p class="mt-1 text-sm text-slate-600">{{ shop.business_name }} &middot; {{ debtor.name }} &middot; {{ quote.display_quote_number }}</p></div><a class="rounded-lg bg-slate-100 px-4 py-2 font-semibold" href="{{ register_url if line else url_for('mechanic_bp.debtor_quote',shop_id=shop.id,debtor_id=debtor.id,area='register') }}">Back</a></div>
     {% if line %}
     <form id="quote-item-edit" method="POST" action="{{ item_save_url }}" class="mt-5">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="item_id" value="{{ item_id }}"><input type="hidden" name="line_token" value="{{ line_token }}">

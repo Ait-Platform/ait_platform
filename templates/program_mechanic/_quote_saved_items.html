@@ -1,4 +1,9 @@
-    <div class="mt-5 overflow-x-auto rounded-lg border border-slate-200"><table id="saved-quote-items-{{ quote.id }}" class="saved-quote-items w-full text-left text-sm"><thead class="bg-slate-50"><tr>{% for heading in ['Item Code','Description','Unit','Quantity','Material','Labour','Line Total','Action'] %}<th class="p-3">{{ heading }}</th>{% endfor %}</tr></thead><tbody>
-      {% for item in quote.items %}<tr data-quote-item-row="{{ line_ids[loop.index0] }}" class="border-t border-slate-200"><td class="p-3 whitespace-nowrap">{{ item.code }}</td><td class="p-3">{{ item.description }}</td><td class="p-3">{{ item.unit }}</td><td class="p-3">{{ item.quantity }}</td><td class="p-3">R{{ item.material_rate }}</td><td class="p-3">R{{ item.labour_rate }}</td><td class="p-3">R{{ item.total }}</td><td class="p-3"><a class="inline-flex rounded-lg bg-orange-100 px-3 py-2 font-semibold text-orange-900" href="{{ url_for('mechanic_bp.carpentry_quote_items',shop_id=shop.id,debtor_id=debtor.id,quote_id=quote.id,item_id=line_ids[loop.index0]) }}">Edit</a></td></tr>{% else %}<tr><td colspan="8" class="p-6 text-center">No saved items.</td></tr>{% endfor %}
-    </tbody></table></div>
-    <p class="mt-4 text-right text-xl font-semibold">Grand Total: R<span id="saved-quote-grand-total-{{ quote.id }}">{{ '{:.2f}'.format(quote.grand_total) }}</span></p>
+<div class="mt-5 overflow-x-auto rounded-lg border border-slate-200">
+  <table id="saved-quote-items-{{ quote.id }}" class="saved-quote-items w-full text-left text-sm">
+    <thead class="bg-slate-50"><tr>{% for heading in ['Item Code','Description','Quantity','Total','Action'] %}<th class="p-3">{{ heading }}</th>{% endfor %}</tr></thead>
+    <tbody>{% for item in quote.items %}
+      <tr data-quote-item-row="{{ line_ids[loop.index0] }}" class="border-t border-slate-200"><td class="p-3 whitespace-nowrap">{{ item.code }}</td><td class="p-3">{{ item.description }}</td><td class="p-3">{{ item.quantity }}</td><td class="p-3">R{{ item.total }}</td><td class="p-3"><a class="inline-flex rounded-lg bg-orange-100 px-3 py-2 font-semibold text-orange-900" href="{{ url_for('mechanic_bp.carpentry_quote_items',shop_id=shop.id,debtor_id=debtor.id,quote_id=quote.id,item_id=line_ids[loop.index0]) }}">Edit</a></td></tr>
+    {% else %}<tr><td colspan="5" class="p-6 text-center">No saved items.</td></tr>{% endfor %}</tbody>
+    <tfoot class="border-t border-slate-200 bg-slate-50 font-semibold"><tr><th colspan="3" scope="row" class="p-3 text-right">Grand Total</th><td class="p-3">R<span id="saved-quote-grand-total-{{ quote.id }}">{{ '{:.2f}'.format(quote.grand_total) }}</span></td><td></td></tr></tfoot>
+  </table>
+</div>

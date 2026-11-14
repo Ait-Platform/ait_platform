@@ -1,6 +1,14 @@
 # Individual quotation item routing correction
 
-## Simple item page (current)
+## Separate quotation item register (current)
+
+Debtor Register Quote opens the debtor's saved quotation list. That list has Quote No., Date, Amount and Status only. Quotation numbers link directly to the existing `/mechanic/shop/<shop_id>/debtor/<debtor_id>/quotes/<quote_id>/items` route, which now renders the selected quotation as its own page headed `Quotation Q-0006 — Tomas`. Its five-column table shows Item Code, Description, Quantity, Total and one Edit action per item, followed by Grand Total.
+
+All quotation expansion markup and JavaScript have been removed. Old expanded_quote_id bookmarks remain scoped and redirect to the selected quotation page. The working individual item form, stable IDs, validation, money preview, ownership checks and save calculations are unchanged. Only the Save/Cancel return URL changes to this selected item register. Back returns to the debtor's quotation list.
+
+Real local PostgreSQL/HTTP/Chromium tests follow Debtor Register -> Quote -> Q-0006 -> CAR-003 Edit -> Save -> Q-0006. They verify only that quotation's two items appear, quantity 2/R648 changes to 3/R972, CAR-005 stays R825, Grand Total is R1797, reopening persists, and Cancel discards unsaved changes. No additional tokens, quotations, invoice/email records or Price List changes occur. No migration is required; live Render verification remains separate.
+
+## Simple item page (previous stage)
 
 The final navigation uses the existing standalone `Edit Quote Item` page. Debtor Register Quote opens that debtor's Carpentry quotation register immediately, with New Quote available and the builder hidden until explicitly requested. The quotation table includes its Edit action, which expands that quotation's saved items; the quotation-number link remains compatible. Each item has exactly one light-orange Edit link leading directly to the existing stable item-ID editor. Save and Cancel return to the selected expanded quotation. Mechanic entry/routing is unchanged. The inline script, fetch interception and inline form rows have been removed. Save Changes and Cancel use the existing return URL, keeping the selected quotation expanded.
 

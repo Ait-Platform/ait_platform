@@ -1420,12 +1420,16 @@ def carpentry_quote_form(shop, customer, debtor, editing_quote=None):
     if initial_area == 'new':
         initial_area = 'quote'
     items = ProTradeBoqItem.query.filter_by(user_id=current_user.id, shop_id=shop.id, trade=shop.trade).order_by(ProTradeBoqItem.code).all()
+    catalogues = []
+    if shop.trade == 'boq':
+        from app.protrade_boq_catalog import quotation_catalogue
+        items, catalogues = quotation_catalogue(current_user.id, shop, ProTradeBoqItem, MechShop)
     from app.protrade_boq_catalog import work_items_for
     from types import SimpleNamespace
     priced_codes = {item.code for item in items}
     items += [SimpleNamespace(id='template:'+work['code'],code=work['code'],description=work['description'],unit=work['unit'],material_rate=None,labour_rate=None)
               for work in work_items_for(shop.trade) if work['code'] not in priced_codes]
-    if shop.trade != 'carpentry' and 'WORK-001' not in priced_codes:
+    if shop.trade not in ('carpentry','boq') and 'WORK-001' not in priced_codes:
         # A quotation-only template: no invented prices or Price List writes.
         items.append(SimpleNamespace(id='template:WORK-001',code='WORK-001',description='General services',unit='Each',material_rate=None,labour_rate=None))
     fresh_items = list(items)
@@ -1435,7 +1439,8 @@ def carpentry_quote_form(shop, customer, debtor, editing_quote=None):
         by_id = {str(item.id):item for item in items}
         for line in draft.items:
             by_id[str(line['source_item_id'])] = SimpleNamespace(id=line['source_item_id'], code=line['code'], description=line['description'],
-                unit=line['unit'], material_rate=Decimal(line['material_rate']), labour_rate=Decimal(line['labour_rate']))
+                unit=line['unit'], material_rate=Decimal(line['material_rate']), labour_rate=Decimal(line['labour_rate']),
+                catalogue_key=getattr(by_id.get(str(line['source_item_id'])), 'catalogue_key', 'saved'))
         items = sorted(by_id.values(),key=lambda item:item.code)
     selected_ids = {line['source_item_id'] for line in draft.items} if draft else set()
     quantities = {line['source_item_id']:line['quantity'] for line in draft.items} if draft else {}
@@ -1549,6 +1554,7 @@ def carpentry_quote_form(shop, customer, debtor, editing_quote=None):
         return dict(label=spec['code']+' \u2014 '+spec['description'], code=spec['code'],
                     description=item.description if item else spec['description'],
                     unit=item.unit if item else spec['unit'], source_id=item.id if item else 'template:'+spec['code'],
+                    catalogue_key=getattr(item,'catalogue_key',''),
                     material_rate=format(item.material_rate,'.2f') if item and item.material_rate is not None else '',
                     labour_rate=format(item.labour_rate,'.2f') if item and item.labour_rate is not None else '',
                     rate_cents=str(int((item.material_rate+item.labour_rate)*100)) if item and item.material_rate is not None and item.labour_rate is not None else '')
@@ -1584,7 +1590,7 @@ def carpentry_quote_form(shop, customer, debtor, editing_quote=None):
     return render_template('program_mechanic/carpentry_quote.html', shop=shop, customer=customer,
                            details=details, debtor=debtor, draft=draft, boq_items=items, quote_key=quote_key, selected_ids=selected_ids,
                            quantities=quantities, error=error, saved_quote=None, work_choices=choices, initial_lines=initial_lines, fresh_choices=fresh_choices, fresh_quote_key=uuid4().hex,
-                           initial_area=initial_area, quote_history=history, quote_dates=quote_dates), status
+                           initial_area=initial_area, quote_history=history, quote_dates=quote_dates, catalogues=catalogues), status
 
 
 def carpentry_quote_item_id(quote, line):

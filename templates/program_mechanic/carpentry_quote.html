@@ -51,6 +51,7 @@
       <section id="quote-area-form" class="quote-working-area" {% if initial_area!='quote' %}hidden{% endif %}>
         <div class="mt-4 flex items-center justify-between"><h2 id="quote-form-title" class="text-lg font-semibold">{{ 'Edit Quotation' if draft else 'New Quotation' }}</h2><button type="button" data-close-quote-area class="rounded-lg bg-slate-100 px-4 py-2 font-semibold">Close</button></div>
         <div class="mt-5 rounded-lg border border-slate-200 bg-slate-50 p-4">
+          {% if shop.trade=='boq' %}<label for="quote-catalogue" class="block text-sm font-semibold">Trade catalogue</label><select id="quote-catalogue" class="mb-3 mt-1 w-full rounded-lg border border-slate-300 px-3 py-2">{% for source in catalogues %}<option value="{{ source.key }}">{{ source.label }}</option>{% endfor %}</select>{% endif %}
           <label for="quote-work-select" class="block text-sm font-semibold">Select Work Item</label>
           <input id="quote-work-select" list="quote-work-options" autocomplete="off" placeholder="Search by item code or description" autofocus class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2">
           <datalist id="quote-work-options">{% for choice in work_choices %}<option value="{{ choice.label }}">{{ 'Default rates available' if choice.material_rate!='' and choice.labour_rate!='' else 'Enter quotation rates' }}</option>{% endfor %}</datalist>
@@ -83,7 +84,8 @@
           </tr>{% else %}<tr id="quote-empty"><td colspan="8" class="p-6 text-center text-slate-600">No items added. Select a work item above.</td></tr>{% endfor %}
           </tbody></table>
         </div>
-        <p class="mt-4 text-right text-xl font-semibold">Grand Total: R<output id="quote-grand-total" aria-live="polite">{{ '{:.2f}'.format(draft.grand_total) if draft else '0.00' }}</output></p>
+        <p class="mt-4 text-right font-semibold">Subtotal: R<output id="quote-subtotal">{{ '{:.2f}'.format(draft.grand_total) if draft else '0.00' }}</output></p>
+        <p class="mt-2 text-right text-xl font-semibold">Grand Total: R<output id="quote-grand-total" aria-live="polite">{{ '{:.2f}'.format(draft.grand_total) if draft else '0.00' }}</output></p>
         <div class="mt-4 flex justify-end"><button id="quote-save" type="submit" {% if not initial_lines %}disabled{% endif %} class="rounded-lg bg-slate-800 px-4 py-2 font-semibold text-white disabled:opacity-50">{{ 'Save Changes' if draft else 'Save Quote' }}</button></div>
       </form>
       </section>
@@ -96,7 +98,7 @@
         </tbody></table></div>
       </section>
       <script id="quote-builder-data" type="application/json">{{ dict(allow_description=shop.trade!='carpentry',choices=work_choices,lines=initial_lines,fresh_choices=fresh_choices,fresh_quote_key=fresh_quote_key)|tojson }}</script>
-      <script src="{{ url_for('static',filename='js/carpentry_quote_builder.js',v='20261114-debtor-identity-011') }}" defer></script>
+      <script src="{{ url_for('static',filename='js/carpentry_quote_builder.js',v='20261115-trade-catalogues') }}" defer></script>
       <script src="{{ url_for('static',filename='js/carpentry_quote_hub.js',v='20261114-separate-register-6') }}" defer></script>
       {% endif %}
     </div>

@@ -29,3 +29,31 @@ def work_items_for(trade):
 def custom_boq_code(trade):
     from uuid import uuid4
     return f'{BOQ_CODE_PREFIXES[trade]}-C-{uuid4().hex.upper()}'
+
+
+def quotation_catalogue(user_id, shop, item_model, shop_model):
+    """Read existing owned trade catalogues; never copy or change their prices."""
+    from types import SimpleNamespace
+    items, catalogues = [], []
+    # Each additional supported trade can use the same adapter and selector.
+    for trade in BOQ_WORK_ITEMS:
+        sources = shop_model.query.filter_by(user_id=user_id, trade=trade).order_by(shop_model.id).all()
+        for source in sources or [None]:
+            key = f'{trade}:{source.id}' if source else trade
+            catalogues.append(dict(key=key, label=trade.title() + (f' — {source.business_name}' if source else '')))
+            saved = item_model.query.filter_by(user_id=user_id, shop_id=source.id, trade=trade).all() if source else []
+            by_code = {item.code:item for item in saved}
+            definitions = work_items_for(trade)
+            definitions += [dict(code=item.code, description=item.description, unit=item.unit) for item in saved if item.code not in {row['code'] for row in definitions}]
+            for definition in definitions:
+                item = by_code.get(definition['code'])
+                items.append(SimpleNamespace(id=item.id if item else f'template:{key}:{definition["code"]}',
+                    code=definition['code'], description=item.description if item else definition['description'],
+                    unit=item.unit if item else definition['unit'], material_rate=item.material_rate if item else None,
+                    labour_rate=item.labour_rate if item else None, catalogue_key=key))
+    own = item_model.query.filter_by(user_id=user_id, shop_id=shop.id, trade='boq').all()
+    if own:
+        catalogues.append(dict(key='boq', label='BOQ custom items'))
+        items.extend(SimpleNamespace(id=item.id,code=item.code,description=item.description,unit=item.unit,
+            material_rate=item.material_rate,labour_rate=item.labour_rate,catalogue_key='boq') for item in own)
+    return items, catalogues

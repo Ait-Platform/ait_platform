@@ -38,6 +38,14 @@
   const material = document.getElementById('quote-work-material');
   const labour = document.getElementById('quote-work-labour');
   const selected = new Map();
+  const catalogue = document.getElementById('quote-catalogue');
+  const availableChoices = () => data.choices.filter(item => !catalogue || item.catalogue_key===catalogue.value);
+  function catalogueOptions() {
+    const list=document.getElementById('quote-work-options');list.replaceChildren();
+    availableChoices().forEach(item => {const option=document.createElement('option');option.value=item.label;list.append(option);});
+    search.value='';preview();
+  }
+  catalogue?.addEventListener('change',catalogueOptions);
   let choice = null;
   function validValues(materialInput,labourInput,quantityInput) {
     return [materialInput,labourInput,quantityInput].every(field=>field.value!=='' && field.checkValidity()) &&
@@ -46,7 +54,7 @@
   const normalize = value => String(value || '').trim().replace(/\s+/g,' ').toLowerCase();
   function preview() {
     const query = normalize(search.value);
-    const matches = query ? data.choices.filter(item => [item.label,item.code,item.description,
+    const matches = query ? availableChoices().filter(item => [item.label,item.code,item.description,
       item.label.slice(item.label.indexOf('\u2014')+1)].some(value => normalize(value)===query)) : [];
     // Accept a native-list selection or an exact typed code/description, never an ambiguous match.
     const nextChoice = matches.length===1 ? matches[0] : null;
@@ -79,6 +87,7 @@
       total += cents;
     });
     document.getElementById('quote-grand-total').value = money(total);
+    const subtotal=document.getElementById('quote-subtotal');if(subtotal) subtotal.value=money(total);
     document.getElementById('quote-save').disabled = included === 0 || invalidIncluded;
     if (!selected.size && !document.getElementById('quote-empty')) {
       const row = body.insertRow();row.id='quote-empty';
@@ -172,6 +181,7 @@
     }
   });
   restoreServerState();
+  if (catalogue) catalogueOptions();
   // Initial pageshow can arrive after the user starts typing (e.g. slow page assets).
   // Only a genuine back/forward-cache restore should replace their working values.
   window.addEventListener('pageshow',event=>{if(event.persisted) restoreServerState();});

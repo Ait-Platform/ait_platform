@@ -29,6 +29,17 @@ class BoqPreparationTests(unittest.TestCase):
         self.url = f'/mechanic/shop/{self.boq.id}/debtor/{self.account.id}/boq-preparation'
         self.key, self.tab = uuid4().hex, uuid4().hex
         self.now = datetime(2026, 11, 15, 9)
+        import json
+        from lxml import html
+        page = self.client.get(self.quote_url(self.account), query_string={'area':'new'})
+        choices = json.loads(html.fromstring(page.data).get_element_by_id('quote-builder-data').text)['choices']
+        self.work_id = str(choices[0]['source_id'])
+
+    def preparation_quote(self):
+        return self.client.post(self.quote_url(self.account), data={
+            'area':'new', 'quote_key':self.key, 'item_id[]':[self.work_id],
+            f'quantity_{self.work_id}':'1', f'material_rate_{self.work_id}':'20',
+            f'labour_rate_{self.work_id}':'30'})
 
     def beat(self, second, tick, action='active', tab=None, key=None, url=None):
         with patch.object(timing, 'datetime') as clock:
@@ -68,10 +79,7 @@ class BoqPreparationTests(unittest.TestCase):
         self.beat(0, 1); self.beat(15, 2)
         wallet = base.models.AitTokenWallet.query.filter_by(user_id=1).one()
         balance = wallet.balance
-        response = self.client.post(self.quote_url(self.account), data={
-            'area':'new', 'quote_key':self.key, 'item_id[]':['template:WORK-001'],
-            'quantity_template:WORK-001':'1', 'material_rate_template:WORK-001':'20',
-            'labour_rate_template:WORK-001':'30'})
+        response = self.preparation_quote()
         self.assertEqual(response.status_code, 302)
         quote = base.ProTradeBoqQuote.query.filter_by(shop_id=self.boq.id).one()
         self.assertEqual(self.row().quote_id, quote.id)
@@ -163,10 +171,7 @@ class BoqPreparationTests(unittest.TestCase):
         import app.protrade_output as output
         self.prepare()
         self.beat(0, 1); self.beat(15, 2)
-        response = self.client.post(self.quote_url(self.account), data={
-            'area':'new', 'quote_key':self.key, 'item_id[]':['template:WORK-001'],
-            'quantity_template:WORK-001':'1', 'material_rate_template:WORK-001':'20',
-            'labour_rate_template:WORK-001':'30'})
+        response = self.preparation_quote()
         self.assertEqual(response.status_code, 302)
         quote = base.ProTradeBoqQuote.query.filter_by(shop_id=self.boq.id).one()
         section_url = f'/mechanic/shop/{self.boq.id}/boq/{quote.id}/sections'
@@ -178,7 +183,7 @@ class BoqPreparationTests(unittest.TestCase):
             # Unpaid sections cannot generate a final BOQ or complete its timer.
             self.assertEqual(self.client.get('/mechanic/output', query_string=dict(fields, format='pdf')).status_code, 409)
         self.assertIsNone(self.row().completed_at)
-        self.assertEqual(self.client.post(section_url, data={'action':'save','name':'Work','item_id':['template:WORK-001']}).status_code, 302)
+        self.assertEqual(self.client.post(section_url, data={'action':'save','name':'Work','item_id':[self.work_id]}).status_code, 302)
         with patch.object(output, 'pdf_bytes', return_value=b'%PDF-test'):
             self.assertEqual(self.client.post(section_url, data={'action':'generate','section_id':quote.boq_sections[0]['id']}).status_code, 302)
         self.assertIsNone(self.row().completed_at)  # One paid section isn't full finalisation.

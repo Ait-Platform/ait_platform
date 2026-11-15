@@ -253,8 +253,16 @@ def output_page():
                     abort(503,description='The PDF could not be generated. No report was saved or emailed. Contact the administrator to check the existing PDF renderer.')
                 if request.method=='POST':
                     dispatch_once(shop,selected,data,claim,pdf)
+                    if shop.trade=='boq' and entry['key'].startswith('quote:boq-'):
+                        from app.protrade_boq_time import complete_quote
+                        complete_quote(entry['source'])
+                        db.session.commit()
                     flash('Mail transport accepted the document. Inbox delivery is not confirmed.','success')
                     return redirect(url_for('mechanic_bp.protrade_output',shop_id=shop.id))
+                if shop.trade=='boq' and entry['key'].startswith('quote:boq-'):
+                    from app.protrade_boq_time import complete_quote
+                    complete_quote(entry['source'])
+                    db.session.commit()
                 return send_file(BytesIO(pdf),mimetype='application/pdf',as_attachment=True,download_name=data['filename'])
         except HTTPException as exc:
             if args.get('format')=='pdf':return jsonify(error=exc.description),exc.code

@@ -62,6 +62,10 @@ quote_node = next(n for n in ast.parse((ROOT / 'app/models/mechanic.py').read_te
                   if isinstance(n, ast.ClassDef) and n.name == 'ProTradeBoqQuote')
 exec(compile(ast.Module(body=[quote_node], type_ignores=[]), 'production_boq_quote_model', 'exec'), catalog_globals)
 ProTradeBoqQuote = catalog_globals['ProTradeBoqQuote']
+timing_node = next(n for n in ast.parse((ROOT / 'app/models/mechanic.py').read_text()).body
+                   if isinstance(n, ast.ClassDef) and n.name == 'ProTradeBoqPreparation')
+exec(compile(ast.Module(body=[timing_node], type_ignores=[]), 'production_boq_preparation_model', 'exec'), catalog_globals)
+ProTradeBoqPreparation = catalog_globals['ProTradeBoqPreparation']
 output_email_node=next(node for node in ast.parse((ROOT/'app/models/mechanic.py').read_text()).body if isinstance(node,ast.ClassDef) and node.name=='ProTradeOutputEmail')
 exec(compile(ast.Module(body=[output_email_node],type_ignores=[]),'production_output_email', 'exec'),catalog_globals)
 ProTradeOutputEmail=catalog_globals['ProTradeOutputEmail']
@@ -174,6 +178,12 @@ class ShopRegisterTests(unittest.TestCase):
         for name,value in dict(db=self.ns['db'],Debtor=models.Debtor,DebtorLedger=DebtorLedger,MechShop=models.MechShop,SenderProfile=models.SenderProfile,ProTradeDocument=ProTradeDocument).items():setattr(statements,name,value)
         import app.protrade_debtor_directory as directory
         directory.Debtor=models.Debtor;directory.MechShop=models.MechShop;directory.MechClient=models.MechClient
+        import app.protrade_boq_time as timing
+        for name, value in dict(db=self.ns['db'], MechShop=models.MechShop, Debtor=models.Debtor,
+                User=models.User, ProTradeBoqQuote=ProTradeBoqQuote,
+                ProTradeBoqPreparation=ProTradeBoqPreparation).items():
+            setattr(timing, name, value)
+        timing.register_routes(bp)
         code = ast.fix_missing_locations(ProductionImports().visit(ast.Module(body=nodes, type_ignores=[])))
         exec(compile(code, 'production_shop_routes', 'exec'), self.ns)
         self.app.register_blueprint(bp)

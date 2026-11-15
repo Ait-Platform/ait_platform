@@ -1284,6 +1284,9 @@ def new_debtor_quote(shop_id, debtor_id):
         drafts = MechJobCard.query.filter_by(shop_id=shop.id,debtor_id=debtor.id,is_draft=True,status='Quote').all()
     for draft in drafts:
         draft.is_draft = False
+        if shop.trade == 'boq':
+            from app.protrade_boq_time import complete_quote
+            complete_quote(draft)
     db.session.commit()
     return redirect(url_for('mechanic_bp.debtor_quote',shop_id=shop.id,debtor_id=debtor.id,area='new'))
 
@@ -1505,6 +1508,9 @@ def carpentry_quote_form(shop, customer, debtor, editing_quote=None):
                 # Only an actual new save retires the prior open draft. Hub navigation is read-only.
                 for previous in scoped_quotes.filter_by(is_draft=True).all():
                     previous.is_draft = False
+                    if shop.trade == 'boq':
+                        from app.protrade_boq_time import complete_quote
+                        complete_quote(previous)
                 db.session.flush()
             quote = draft or ProTradeBoqQuote(user_id=current_user.id, shop_id=shop.id,
                                     client_id=customer.id if customer else None, trade=shop.trade, quote_number=number,
@@ -1520,6 +1526,10 @@ def carpentry_quote_form(shop, customer, debtor, editing_quote=None):
             quote.items = lines
             quote.grand_total = grand_total
             db.session.add(quote)
+            if shop.trade == 'boq':
+                from app.protrade_boq_time import attach_quote
+                db.session.flush()
+                attach_quote(quote)
             if draft is None and shop.trade != 'boq':
                 from app.protrade_documents import charge_document
                 db.session.flush()

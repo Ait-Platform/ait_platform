@@ -5,6 +5,7 @@
 
 {% block admin_content %}
 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+  <a href="{{ url_for('mechanic_bp.boq_preparation_report') }}" class="block rounded-xl border border-slate-200 p-6 hover:shadow-md"><h2 class="text-xl font-semibold">BOQ Preparation Time</h2><p class="mt-2 text-slate-600">Private quotation preparation report by business and user.</p></a>
 
   <!-- General -->
   <a href="{{ url_for('admin_bp.global_settings') }}" class="group block rounded-xl border border-slate-200 p-6 hover:shadow-md hover:border-slate-300 transition-all">

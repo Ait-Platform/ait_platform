@@ -1,0 +1,5 @@
+{% if shop.trade == 'boq' and ((debtor is defined and debtor) or (quote is defined and quote and quote.debtor_id)) %}
+{% set timing_quote = quote if quote is defined and quote else (draft if draft is defined else none) %}
+<script id="boq-preparation-config" type="application/json">{{ dict(url=url_for('mechanic_bp.boq_preparation',shop_id=shop.id,debtor_id=timing_quote.debtor_id if timing_quote else debtor.id),storage_key='boq-preparation:'~current_user.id~':'~shop.id~':'~(timing_quote.debtor_id if timing_quote else debtor.id),quote_key=timing_quote.quote_number[6:]|lower if timing_quote else '',csrf=csrf_token())|tojson }}</script>
+<script src="{{ url_for('static',filename='js/boq_preparation.js',v='1') }}" defer></script>
+{% endif %}

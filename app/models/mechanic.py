@@ -256,6 +256,28 @@ class ProTradeDocument(db.Model):
         db.CheckConstraint("kind<>'soa' OR (shop_id IS NOT NULL AND debtor_id IS NOT NULL AND snapshot IS NOT NULL AND pdf IS NOT NULL)",name='ck_protrade_soa_snapshot'))
 
 
+class ProTradeBoqPreparation(db.Model):
+    """Private preparation telemetry; never a billable or client work record."""
+    __tablename__ = 'protrade_boq_preparation'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    shop_id = db.Column(db.Integer, db.ForeignKey('mech_shops.id'), nullable=False)
+    debtor_id = db.Column(db.Integer, db.ForeignKey('debtor.id'), nullable=False)
+    quote_key = db.Column(db.String(32), nullable=False)
+    quote_id = db.Column(db.Integer, db.ForeignKey('protrade_boq_quotes.id'))
+    started_at = db.Column(db.DateTime, nullable=False)
+    completed_at = db.Column(db.DateTime)
+    total_seconds = db.Column(db.Numeric(16, 3), nullable=False, default=0)
+    last_seen_at = db.Column(db.DateTime)
+    tab_key = db.Column(db.String(32))
+    tick = db.Column(db.Integer, nullable=False, default=0)
+    __table_args__ = (
+        db.UniqueConstraint('user_id', 'quote_key', name='uq_boq_preparation_key'),
+        db.UniqueConstraint('user_id', 'quote_id', name='uq_boq_preparation_quote'),
+        db.CheckConstraint('total_seconds >= 0 AND tick >= 0', name='ck_boq_preparation_time'),
+    )
+
+
 class ProTradeWorkActivity(db.Model):
     """Append-only work records and corrections for an existing client account."""
     __tablename__ = 'protrade_work_activity'

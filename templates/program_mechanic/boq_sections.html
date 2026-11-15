@@ -15,4 +15,5 @@
 {% if available %}<form class="mt-6 rounded-lg border border-slate-300 p-4" method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><label class="block font-semibold" for="name">Section name</label>{% if editing %}<input type="hidden" name="section_id" value="{{ editing.id }}">{% endif %}<input autofocus required maxlength="120" class="mt-2 rounded border border-slate-300 p-2" name="name" id="name" placeholder="Plumbing" value="{{ editing.name if editing else '' }}">
 {% for line in available %}<label class="mt-3 block"><input type="checkbox" name="item_id" value="{{ line.source_item_id }}" {% if editing and line.source_item_id|string in editing['items'] %}checked{% endif %}> {{ line.code }} ? {{ line.description }}</label>{% endfor %}<div class="mt-4 flex justify-end"><button class="rounded-lg bg-blue-100 px-4 py-2" name="action" value="save">{{ 'Save corrections' if editing else 'Save draft section' }}</button></div></form>{% endif %}
 </div></div></div>
+{% include 'program_mechanic/_boq_preparation.html' %}
 {% endblock %}

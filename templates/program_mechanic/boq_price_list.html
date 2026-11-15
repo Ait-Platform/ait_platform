@@ -1,5 +1,5 @@
 {% extends 'layout.html' %}
-{% block title %}ProTrade - Carpentry BOQ{% endblock %}
+{% block title %}ProTrade - {{ 'Carpentry BOQ' if shop.trade=='carpentry' else 'Bill of Quantities' }}{% endblock %}
 {% block flashes %}{% endblock %}
 {% block content %}
 <div class="mx-auto max-w-6xl px-4 py-10">
@@ -9,8 +9,8 @@
       {% include 'partials/flash_messages.html' %}
       <div class="flex items-center justify-between gap-4">
         <div>
-          <h1 class="text-2xl font-semibold text-slate-900">Carpentry BOQ</h1>
-          <p class="mt-1 text-sm text-slate-600">{{ shop.business_name }} &middot; Carpentry Price List</p>
+          <h1 class="text-2xl font-semibold text-slate-900">{{ 'Carpentry BOQ' if shop.trade=='carpentry' else 'Bill of Quantities' }}</h1>
+          <p class="mt-1 text-sm text-slate-600">{{ shop.business_name }} &middot; {{ 'Carpentry Price List' if shop.trade=='carpentry' else 'BOQ Price List' }}</p>
         </div>
         <a href="{{ url_for('mechanic_bp.mechanic_dashboard', shop_id=shop.id) }}" class="rounded-lg bg-slate-100 px-4 py-2 font-semibold text-slate-700">Back</a>
       </div>
@@ -72,7 +72,7 @@
               <td class="p-3 font-semibold">{{ item.code }}</td><td class="p-3">{{ item.description }}</td><td class="p-3 whitespace-nowrap">{{ item.unit }}</td><td class="p-3">{{ item.quantity }}</td>
               <td class="p-3">{{ '%.2f'|format(item.material_rate) }}</td><td class="p-3">{{ '%.2f'|format(item.labour_rate) }}</td><td class="p-3 font-semibold">{{ '%.2f'|format(item.total_rate) }}</td><td class="p-3 font-semibold">{{ '{:.2f}'.format(item.total_amount) }}</td>
               <td class="p-3"><a href="{{ url_for('mechanic_bp.catalog_manage', shop_id=shop.id, edit_id=item.id) }}" class="font-semibold text-blue-700 underline" aria-label="Edit {{ item.code }}">Edit</a></td>
-            </tr>{% else %}<tr><td colspan="9" class="p-6 text-center text-slate-600">No BOQ items yet. Add your first Carpentry item above.</td></tr>{% endfor %}
+            </tr>{% else %}<tr><td colspan="9" class="p-6 text-center text-slate-600">No BOQ items yet. Add your first item above.</td></tr>{% endfor %}
           </tbody>
         </table>
       </div>

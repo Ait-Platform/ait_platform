@@ -11,6 +11,7 @@ from . import mechanic_bp
 AVAILABLE_TRADES = [
     ('mechanic', 'General Mechanic'),
     ('carpentry', 'Carpentry'),
+    ('boq', 'Bill of Quantities'),
     ('plumbing', 'Plumbing'),
     ('electrical', 'Electrical'),
     ('painting', 'Painting'),
@@ -1280,8 +1281,8 @@ def quote_invoice_register():
             abort(404)
     rows = []
     legacy_count = 0
-    if shop and shop.trade == 'carpentry':
-        quotes = ProTradeBoqQuote.query.filter_by(user_id=current_user.id, shop_id=shop.id, trade='carpentry').all()
+    if shop and shop.trade in ('carpentry', 'boq'):
+        quotes = ProTradeBoqQuote.query.filter_by(user_id=current_user.id, shop_id=shop.id, trade=shop.trade).all()
         for quote in quotes:
             rows.append(dict(kind='Quotation', number=quote.display_quote_number, client=quote.client_name,
                              status='Draft' if quote.is_draft else 'Saved', amount=quote.grand_total, date=quote.created_at,
@@ -1759,7 +1760,7 @@ def catalog_manage():
         flash('You must complete your shop setup first.', 'warning')
         return redirect(url_for('mechanic_bp.mechanic_dashboard'))
 
-    if active_shop.trade == 'carpentry':
+    if active_shop.trade in ('carpentry', 'boq'):
         return carpentry_boq_price_list(active_shop)
 
     if request.method == 'POST':

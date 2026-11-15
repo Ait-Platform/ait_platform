@@ -18,7 +18,7 @@ BOQ_WORK_ITEMS = {
         ('CAR-015', 'General carpentry work', 'Hour'),
     ),
 }
-BOQ_CODE_PREFIXES = {'carpentry': 'CAR'}
+BOQ_CODE_PREFIXES = {'carpentry': 'CAR', 'boq': 'BOQ'}
 
 
 def work_items_for(trade):

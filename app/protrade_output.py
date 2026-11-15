@@ -45,8 +45,8 @@ def job_debtor(shop,job):
 
 def catalog(shop):
     entries=[]
-    if shop.trade=='carpentry':
-        for quote in ProTradeBoqQuote.query.filter_by(shop_id=shop.id,user_id=current_user.id,trade='carpentry').order_by(ProTradeBoqQuote.id.desc()).all():
+    if shop.trade in ('carpentry','boq'):
+        for quote in ProTradeBoqQuote.query.filter_by(shop_id=shop.id,user_id=current_user.id,trade=shop.trade).order_by(ProTradeBoqQuote.id.desc()).all():
             if quote.debtor_id is not None:
                 debtor=Debtor.query.filter_by(id=quote.debtor_id,shop_id=shop.id,user_id=current_user.id).first()
                 if not debtor or debtor.reference_id!=quote.client_id:continue
@@ -54,8 +54,8 @@ def catalog(shop):
                 client=MechClient.query.filter_by(id=quote.client_id,user_id=current_user.id).first()
                 if not client or client.shop_id not in (None,shop.id):continue
             entries.append(dict(key=f'quote:boq-{quote.id}',kind='quote',label=quote.display_quote_number+' — '+quote.client_name,source=quote))
-        if ProTradeBoqItem.query.filter_by(shop_id=shop.id,user_id=current_user.id,trade='carpentry').first():
-            entries.append(dict(key='price_list:all',kind='price_list',label='Carpentry BOQ Price List',source=None))
+        if ProTradeBoqItem.query.filter_by(shop_id=shop.id,user_id=current_user.id,trade=shop.trade).first():
+            entries.append(dict(key='price_list:all',kind='price_list',label=('Carpentry BOQ Price List' if shop.trade=='carpentry' else 'BOQ Price List'),source=None))
     else:
         if (shop.trade or 'mechanic')=='mechanic':
             jobs=MechJobCard.query.join(MechVehicle).join(MechClient).filter(MechJobCard.shop_id==shop.id,MechClient.user_id==current_user.id).order_by(MechJobCard.id.desc()).all()
@@ -128,10 +128,10 @@ def report_data(shop,entry,recipient_id=None):
         data.update(reference=f'Debtor-{debtor.id}',recipient=contact(debtor),columns=['Date','Description','Debit (R)','Credit (R)','Balance (R)'],rows=rows,
                     totals=[('Recorded ledger balance (R)',format(Decimal(balance)/100,'.2f'))],note='Transactions recorded for this debtor.')
     else:
-        if shop.trade=='carpentry':
-            data.update(reference='Carpentry-BOQ',columns=['BOQ Code','Description','Unit','Material R/unit','Labour R/unit','Unit Rate (R)'],
+        if shop.trade in ('carpentry','boq'):
+            data.update(reference=('Carpentry-BOQ' if shop.trade=='carpentry' else 'BOQ'),columns=['BOQ Code','Description','Unit','Material R/unit','Labour R/unit','Unit Rate (R)'],
                         rows=[[item.code,item.description,item.unit,format(item.material_rate,'.2f'),format(item.labour_rate,'.2f'),format(item.total_rate,'.2f')]
-                              for item in ProTradeBoqItem.query.filter_by(shop_id=shop.id,user_id=current_user.id,trade='carpentry').order_by(ProTradeBoqItem.code).all()])
+                              for item in ProTradeBoqItem.query.filter_by(shop_id=shop.id,user_id=current_user.id,trade=shop.trade).order_by(ProTradeBoqItem.code).all()])
         else:
             data.update(reference='Price-List',columns=['Item','Category','Unit Price (R)'],rows=[[item.part_name,item.category or '',format(item.default_price or 0,'.2f')] for item in price_items(shop)])
         if recipient_id:debtor=owned_debtor(shop,recipient_id)

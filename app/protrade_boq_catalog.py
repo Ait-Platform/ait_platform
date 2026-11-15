@@ -22,6 +22,18 @@ BOQ_CODE_PREFIXES = {'carpentry': 'CAR', 'boq': 'BOQ'}
 CONSTRUCTION_TRADES = {'carpentry':'CAR','plumbing':'PLUM','electrical':'ELEC','painting':'PAINT','building':'BUILD'}
 
 
+def next_catalogue_code(shop, part_model, item_model, quote_model, shop_model):
+    """Serialize allocation and reserve codes appearing in existing quote snapshots."""
+    import re
+    shop_model.query.filter_by(id=shop.id,user_id=shop.user_id).with_for_update().one()
+    prefix=CONSTRUCTION_TRADES[shop.trade]
+    codes=[row.item_code for row in part_model.query.filter_by(user_id=shop.user_id,shop_id=shop.id,trade=shop.trade).all()]
+    codes.extend(row.code for row in item_model.query.filter_by(user_id=shop.user_id,shop_id=shop.id,trade=shop.trade).all())
+    codes.extend(line.get('code') for quote in quote_model.query.filter_by(user_id=shop.user_id,shop_id=shop.id).all() for line in quote.items)
+    last=max([int(match.group(1)) for code in codes if (match:=re.fullmatch(re.escape(prefix)+r'-(\d+)',code or ''))]+[len(BOQ_WORK_ITEMS.get(shop.trade,()))])
+    return f'{prefix}-{last+1:03d}'
+
+
 def work_items_for(trade):
     return [dict(code=code, description=description, unit=unit)
             for code, description, unit in BOQ_WORK_ITEMS.get(trade, ())]

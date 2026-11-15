@@ -1443,12 +1443,20 @@ def carpentry_quote_form(shop, customer, debtor, editing_quote=None):
     if shop.trade == 'boq':
         from app.protrade_boq_catalog import quotation_catalogue
         items, catalogues = quotation_catalogue(current_user.id, shop, ProTradeBoqItem, MechShop, MechCatalogPart)
+    elif shop.trade in ('plumbing','electrical','painting','building'):
+        from app.protrade_boq_catalog import quotation_catalogue,CONSTRUCTION_TRADES
+        available,_=quotation_catalogue(current_user.id,shop,ProTradeBoqItem,MechShop,MechCatalogPart)
+        items=[item for item in available if item.catalogue_key==f'{shop.trade}:{shop.id}']
+        if not items:
+            from types import SimpleNamespace
+            code=CONSTRUCTION_TRADES[shop.trade]+'-001'
+            items=[SimpleNamespace(id='template:'+code,code=code,description=registered_trade_name(shop.trade)+' work',unit='Each',material_rate=None,labour_rate=None,catalogue_trade=shop.trade)]
     from app.protrade_boq_catalog import work_items_for
     from types import SimpleNamespace
     priced_codes = {item.code for item in items}
     items += [SimpleNamespace(id='template:'+work['code'],code=work['code'],description=work['description'],unit=work['unit'],material_rate=None,labour_rate=None)
               for work in work_items_for(shop.trade) if work['code'] not in priced_codes]
-    if shop.trade not in ('carpentry','boq') and 'WORK-001' not in priced_codes:
+    if shop.trade not in ('carpentry','boq','plumbing','electrical','painting','building') and 'WORK-001' not in priced_codes:
         # A quotation-only template: no invented prices or Price List writes.
         items.append(SimpleNamespace(id='template:WORK-001',code='WORK-001',description='General services',unit='Each',material_rate=None,labour_rate=None))
     fresh_items = list(items)
@@ -1848,6 +1856,10 @@ def catalog_manage():
         action = request.form.get('action')
         own_parts = price_list_query(active_shop).filter(MechCatalogPart.user_id == current_user.id)
         if action == 'add':
+            from app.protrade_boq_catalog import CONSTRUCTION_TRADES,next_catalogue_code
+            from app.models.mechanic import ProTradeBoqItem,ProTradeBoqQuote
+            if active_shop.trade in CONSTRUCTION_TRADES:
+                MechShop.query.filter_by(id=active_shop.id,user_id=current_user.id).with_for_update().one()
             part_name = (request.form.get('part_name') or '').strip()
             category = request.form.get('category', 'Custom')
             price = request.form.get('price', type=float, default=0.0)
@@ -1857,12 +1869,15 @@ def catalog_manage():
                 if existing:
                     existing.default_price = price
                     existing.category = category
+                    if active_shop.trade in CONSTRUCTION_TRADES and not existing.item_code:
+                        existing.item_code=next_catalogue_code(active_shop,MechCatalogPart,ProTradeBoqItem,ProTradeBoqQuote,MechShop)
                     flash(f'Updated price for {part_name}', 'success')
                 else:
                     db.session.add(MechCatalogPart(
                         user_id=current_user.id, shop_id=active_shop.id,
                         trade=active_shop.trade or 'mechanic', part_name=part_name,
-                        category=category, default_price=price))
+                        category=category, default_price=price,
+                        item_code=next_catalogue_code(active_shop,MechCatalogPart,ProTradeBoqItem,ProTradeBoqQuote,MechShop) if active_shop.trade in CONSTRUCTION_TRADES else None))
                     flash(f'Added {part_name} to your price list', 'success')
                 db.session.commit()
         elif action == 'delete':

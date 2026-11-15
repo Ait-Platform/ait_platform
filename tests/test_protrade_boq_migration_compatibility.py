@@ -126,13 +126,14 @@ class BoqMigrationCompatibilityTests(unittest.TestCase):
                     transaction.rollback()
         self.assertEqual(self.definitions(),functions)
 
-    def test_combined_alembic_012_to_018_upgrade_preserves_real_011_012_data(self):
+    def test_combined_alembic_012_to_019_upgrade_preserves_real_011_012_data(self):
         self.fixtures()
         functions = self.definitions()
         self.conn.exec_driver_sql('DROP TABLE IF EXISTS protrade_work_activity')
         self.conn.exec_driver_sql('DROP TABLE protrade_boq_preparation')
         self.conn.exec_driver_sql('DROP TABLE protrade_pricing_revision')
         self.conn.exec_driver_sql('DROP TABLE protrade_vat_rate')
+        self.conn.exec_driver_sql('ALTER TABLE mech_catalog_parts DROP COLUMN item_code CASCADE')
         self.conn.exec_driver_sql('ALTER TABLE mech_shops DROP COLUMN vat_registered')
         for table in ('protrade_boq_quotes','mech_job_cards'):
             self.conn.exec_driver_sql(f'ALTER TABLE {table} DROP COLUMN tax_snapshot')
@@ -152,8 +153,8 @@ class BoqMigrationCompatibilityTests(unittest.TestCase):
         config = Config(str(base.ROOT/'migrations/alembic.ini'))
         config.set_main_option('script_location',str(base.ROOT/'migrations'))
         config.attributes['connection'] = self.conn
-        command.upgrade(config,'protrade_vat_invoices_018')
-        self.assertEqual(self.conn.exec_driver_sql('SELECT version_num FROM alembic_version').scalar_one(),'protrade_vat_invoices_018')
+        command.upgrade(config,'protrade_trade_codes_019')
+        self.assertEqual(self.conn.exec_driver_sql('SELECT version_num FROM alembic_version').scalar_one(),'protrade_trade_codes_019')
         self.assertEqual(self.definitions(),functions)
         for table, records in before.items():
             selected = ','.join(self.conn.dialect.identifier_preparer.quote(name) for name in columns[table])
@@ -164,7 +165,7 @@ class BoqMigrationCompatibilityTests(unittest.TestCase):
         self.assertEqual(self.conn.exec_driver_sql('SELECT count(*) FROM protrade_pricing_revision').scalar_one(),1)
         self.assertEqual(self.conn.exec_driver_sql('SELECT count(*) FROM protrade_vat_rate').scalar_one(),1)
         # A second targeted upgrade is a no-op after the successful revision update.
-        command.upgrade(config,'protrade_vat_invoices_018')
+        command.upgrade(config,'protrade_trade_codes_019')
         self.assertEqual(self.definitions(),functions)
 
 

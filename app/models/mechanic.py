@@ -31,9 +31,12 @@ class MechCatalogPart(db.Model):
     shop_id = db.Column(db.Integer, db.ForeignKey('mech_shops.id'), nullable=True)
     trade = db.Column(db.String(50), nullable=True) # NULL denotes legacy mechanic pricing
     part_name = db.Column(db.String(150), nullable=False)
+    item_code = db.Column(db.String(50))
     category = db.Column(db.String(50)) # e.g. Engine, Brakes, Suspension
     default_price = db.Column(db.Float, default=0.0)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    __table_args__ = (db.UniqueConstraint('shop_id','trade','item_code',name='uq_protrade_catalogue_code'),)
 
 
 class ProTradeBoqItem(db.Model):

@@ -172,6 +172,8 @@ class ShopRegisterTests(unittest.TestCase):
         documents.AitTokenTransaction=TokenTransaction;documents.ProTradeDocument=ProTradeDocument
         import app.protrade_statements as statements
         for name,value in dict(db=self.ns['db'],Debtor=models.Debtor,DebtorLedger=DebtorLedger,MechShop=models.MechShop,SenderProfile=models.SenderProfile,ProTradeDocument=ProTradeDocument).items():setattr(statements,name,value)
+        import app.protrade_debtor_directory as directory
+        directory.Debtor=models.Debtor;directory.MechShop=models.MechShop;directory.MechClient=models.MechClient
         code = ast.fix_missing_locations(ProductionImports().visit(ast.Module(body=nodes, type_ignores=[])))
         exec(compile(code, 'production_shop_routes', 'exec'), self.ns)
         self.app.register_blueprint(bp)

@@ -28,7 +28,7 @@
     }
     const error = form.querySelector('[role="alert"]');
     if (error) error.hidden = true;
-    document.getElementById('debtor-form-title').textContent = 'Add Debtor';
+    document.getElementById('debtor-form-title').textContent = 'Add or link debtor';
     area.hidden = false;
     add.setAttribute('aria-expanded', 'true');
     form.elements.namedItem('name').focus();

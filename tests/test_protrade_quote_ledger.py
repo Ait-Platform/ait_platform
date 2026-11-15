@@ -225,7 +225,7 @@ class QuoteLedgerTests(unittest.TestCase):
         response=self.client.post(self.ledger_url(debtor)+'/add_payment',data=dict(amount='30',date='2026-11-14',ref='MECHANIC-PAYMENT'))
         self.assertEqual(response.status_code,302)
         text=html.fromstring(self.client.get(f'/debtor/{debtor.id}/soa').data).text_content()
-        self.assertIn('Existing Workshop',text);self.assertIn('70.00',text)
+        self.assertIn(self.mechanic.business_name,text);self.assertNotIn('Existing Workshop',text);self.assertIn('70.00',text)
         self.assertIn('Only genuine parts used',text)
         self.assertNotIn('Carpentry quotation',text)
         self.assertEqual(base.DebtorLedger.query.filter_by(debtor_id=debtor.id,kind='credit').one().payment_key,None)

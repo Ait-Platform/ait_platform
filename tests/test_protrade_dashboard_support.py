@@ -51,7 +51,7 @@ class DashboardSupportTests(unittest.TestCase):
             self.assertEqual(self.client.get(f'/mechanic/{path}').status_code,200)
         guide=html.fromstring(self.client.get('/mechanic/help').data)
         self.assertEqual(len(guide.xpath('//section/h2')),9)
-        for phrase in ('Record Payment','Save Changes','Save Report','Download PDF','Send PDF','R2,148.32','Tokens','Shop Setup','Reuse an existing debtor'):
+        for phrase in ('Record Payment','Save Changes','Save Report','Download PDF','Send PDF','R2,148.32','Tokens','Shop Setup','Find a debtor in this business'):
             self.assertIn(phrase,guide.text_content())
         for name,rows in before.items():self.assertEqual(self.conn.exec_driver_sql('SELECT * FROM '+name+' ORDER BY id').all(),rows)
         with self.client.session_transaction() as session:session.clear()

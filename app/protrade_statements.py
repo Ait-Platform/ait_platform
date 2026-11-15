@@ -33,7 +33,7 @@ def statement_state(shop,debtor,start,end):
     if issuer['trade'] == 'mechanic':
         profile_query = SenderProfile.query.filter_by(user_id=current_user.id)
         profile_id = getattr(debtor, 'sender_profile_id', None)
-        profile = profile_query.filter_by(id=profile_id).first() if profile_id else profile_query.filter_by(is_default=True).first()
+        profile = profile_query.filter_by(id=profile_id).first() if profile_id else None
         if profile_id and profile is None:
             abort(404)
         if profile:

@@ -1167,38 +1167,36 @@ def shop_debtor_register(shop_id):
     debtor = scoped.filter_by(id=edit_id).first() if edit_id else None
     if request.values.get('debtor_id') is not None and debtor is None:
         abort(404)
-    existing_debtors = Debtor.query.filter_by(user_id=current_user.id,identity_debtor_id=None).order_by(Debtor.name,Debtor.id).all()
+    existing_debtors = scoped.order_by(Debtor.name,Debtor.id).all()
     error, status = None, 200
     values = {}
     if request.method == 'POST':
-        source = None
         if request.form.get('existing_debtor_id'):
             if debtor is not None:
                 abort(400)
-            source = Debtor.query.filter_by(id=request.form.get('existing_debtor_id',type=int),user_id=current_user.id).first()
-            if source is None:
+            existing = scoped.filter_by(id=request.form.get('existing_debtor_id',type=int)).first()
+            if existing is None:
                 abort(404)
-            root_id = source.identity_debtor_id or source.id
-            source = Debtor.query.filter_by(id=root_id,user_id=current_user.id).with_for_update().first()
-            if source is None:
-                abort(404)
-            linked = scoped.filter((Debtor.id==root_id) | (Debtor.identity_debtor_id==root_id)).first()
-            if linked:
-                flash('This debtor is already linked to this shop.', 'info')
-                return redirect(url_for('mechanic_bp.shop_debtor_register',shop_id=shop.id))
+            return redirect(url_for('mechanic_bp.shop_debtor_register',shop_id=shop.id,debtor_id=existing.id))
         # Serialize registrations for this shop, including repeated new submissions.
         MechShop.query.filter_by(id=shop.id,user_id=current_user.id).with_for_update().first()
-        values = {field: (getattr(source,field) or '') if source else request.form.get(field, '').strip() for field in ('name','phone','email','address')}
+        values = {field: request.form.get(field, '').strip() for field in ('name','phone','email','address')}
         if not values['name'] or len(values['name']) > 150 or len(values['phone']) > 50 or len(values['email']) > 150 or len(values['address']) > 4000:
             error, status = 'Enter a name (up to 150 characters) and valid contact details.', 400
         else:
-            if debtor is None:
-                duplicate = scoped.filter(func.lower(Debtor.name) == values['name'].lower(),
-                                          Debtor.phone == values['phone'], Debtor.email == values['email']).first()
-                if duplicate:
-                    flash('This debtor is already saved for this shop.', 'info')
-                    return redirect(url_for('mechanic_bp.shop_debtor_register', shop_id=shop.id, debtor_id=duplicate.id))
-                debtor = Debtor(user_id=current_user.id, shop_id=shop.id, slug_reference='protrade', opening_balance=0, identity_debtor_id=source.id if source else None)
+            duplicates = scoped.filter(func.lower(Debtor.name) == values['name'].lower(),
+                func.coalesce(Debtor.phone, '') == values['phone'],
+                func.coalesce(Debtor.email, '') == values['email'])
+            if debtor is not None:
+                duplicates = duplicates.filter(Debtor.id != debtor.id)
+            duplicate = duplicates.first()
+            if duplicate and debtor is not None:
+                error, status = 'Another debtor with these identification details is already saved for this shop.', 409
+            elif duplicate:
+                flash('This debtor is already saved for this shop.', 'info')
+                return redirect(url_for('mechanic_bp.shop_debtor_register', shop_id=shop.id, debtor_id=duplicate.id))
+            elif debtor is None:
+                debtor = Debtor(user_id=current_user.id, shop_id=shop.id, slug_reference='protrade', opening_balance=0)
                 client = MechClient(user_id=current_user.id, shop_id=shop.id, name=values['name'])
                 db.session.add(client)
                 db.session.flush()
@@ -1208,12 +1206,13 @@ def shop_debtor_register(shop_id):
                 client = MechClient.query.filter_by(id=debtor.reference_id, shop_id=shop.id, user_id=current_user.id).first()
                 if not client:
                     abort(409)
-            for field, value in values.items():
-                setattr(debtor, field, value)
-                setattr(client, field, value)
-            db.session.commit()
-            flash('Debtor saved for this shop.', 'success')
-            return redirect(url_for('mechanic_bp.shop_debtor_register', shop_id=shop.id, debtor_id=debtor.id))
+            if duplicate is None:
+                for field, value in values.items():
+                    setattr(debtor, field, value)
+                    setattr(client, field, value)
+                db.session.commit()
+                flash('Debtor saved for this shop.', 'success')
+                return redirect(url_for('mechanic_bp.shop_debtor_register', shop_id=shop.id, debtor_id=debtor.id))
     documents = []
     if debtor:
         for quote in ProTradeBoqQuote.query.filter_by(shop_id=shop.id, user_id=current_user.id, debtor_id=debtor.id).order_by(ProTradeBoqQuote.id.desc()).all():

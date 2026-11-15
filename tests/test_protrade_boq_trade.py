@@ -20,6 +20,14 @@ class BoqTradeTests(unittest.TestCase):
 
     def fixtures(self):
         payments.PaymentMethodTests.fixtures(self)
+        # Production revision 012 includes migration 011's all-trade functions.
+        self.conn.exec_driver_sql('ALTER TABLE debtor DROP COLUMN identity_debtor_id CASCADE')
+        identity_spec = importlib.util.spec_from_file_location('identity_migration', base.ROOT / 'migrations/versions/protrade_debtor_identity_011.py')
+        identity = importlib.util.module_from_spec(identity_spec)
+        identity_spec.loader.exec_module(identity)
+        identity.op = Operations(MigrationContext.configure(self.conn))
+        identity.upgrade()
+        self.db_session.expire_all()
         spec = importlib.util.spec_from_file_location('boq_trade_migration', base.ROOT / 'migrations/versions/protrade_boq_trade_014.py')
         migration = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(migration)
@@ -80,7 +88,7 @@ class BoqTradeTests(unittest.TestCase):
 
         charge = base.DebtorLedger.query.filter_by(boq_quote_id=quote.id).one()
         self.assertEqual(charge.amount, int(quote.grand_total * 100))
-        self.assertIn('BOQ quotation', charge.description)
+        self.assertIn('Boq quotation', charge.description)
         self.assertIn('BOQ Quotation', self.client.get(response.location).get_data(as_text=True))
         self.assertEqual(self.client.get('/mechanic/catalog', query_string=dict(shop_id=self.second.id, edit_id=item.id)).status_code, 404)
         with self.client.session_transaction() as session:

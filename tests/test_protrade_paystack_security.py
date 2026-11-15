@@ -70,6 +70,18 @@ class PaystackSecurityTests(unittest.TestCase):
         payment=Payment.query.one()
         self.assertEqual((payment.user_id,payment.subject_slug,payment.checkout_id),(1,'mechanic_topup','paystack:payment-1'))
 
+    def test_historical_receipt_status_also_prevents_repeat_credit(self):
+        self.db_session.add(Payment(user_id=1,email='one@example.test',subject_slug='mechanic_topup',
+            amount_cents=10000,currency='ZAR',gateway_reference='payment-1',status='completed'))
+        self.db_session.commit()
+        balance=base.models.AitTokenWallet.query.one().balance
+        with self.app.app_context():transaction=self.transaction()
+        with patch.object(security.requests,'get',return_value=self.response(transaction)):
+            self.assertEqual(self.webhook(transaction).status_code,200)
+        self.assertEqual(base.models.AitTokenWallet.query.one().balance,balance)
+        self.assertEqual(base.TokenTransaction.query.count(),0)
+        self.assertEqual(Payment.query.count(),1)
+
     def test_amount_currency_tokens_and_reference_tampering_rejected(self):
         with self.app.app_context():
             original=self.transaction()

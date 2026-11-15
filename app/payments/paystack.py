@@ -344,7 +344,7 @@ def fulfill_order(email, subject, transaction=None):
     # The reference lock covers callback/webhook races and historical receipts.
     db.session.execute(text('SELECT pg_advisory_xact_lock(hashtextextended(:key,0))'),
         {'key': 'paystack-reference:' + reference})
-    if PaystackPayment.query.filter_by(gateway_reference=reference, status='success').first():
+    if PaystackPayment.query.filter_by(gateway_reference=reference).first():
         db.session.rollback()
         return False
     # Serialize first-time user and wallet creation across different payments.

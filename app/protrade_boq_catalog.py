@@ -19,6 +19,7 @@ BOQ_WORK_ITEMS = {
     ),
 }
 BOQ_CODE_PREFIXES = {'carpentry': 'CAR', 'boq': 'BOQ'}
+CONSTRUCTION_TRADES = {'carpentry':'CAR','plumbing':'PLUM','electrical':'ELEC','painting':'PAINT','building':'BUILD'}
 
 
 def work_items_for(trade):
@@ -31,12 +32,12 @@ def custom_boq_code(trade):
     return f'{BOQ_CODE_PREFIXES[trade]}-C-{uuid4().hex.upper()}'
 
 
-def quotation_catalogue(user_id, shop, item_model, shop_model):
+def quotation_catalogue(user_id, shop, item_model, shop_model, part_model=None):
     """Read existing owned trade catalogues; never copy or change their prices."""
     from types import SimpleNamespace
     items, catalogues = [], []
     # Each additional supported trade can use the same adapter and selector.
-    for trade in BOQ_WORK_ITEMS:
+    for trade,prefix in CONSTRUCTION_TRADES.items():
         sources = shop_model.query.filter_by(user_id=user_id, trade=trade).order_by(shop_model.id).all()
         for source in sources or [None]:
             key = f'{trade}:{source.id}' if source else trade
@@ -50,10 +51,18 @@ def quotation_catalogue(user_id, shop, item_model, shop_model):
                 items.append(SimpleNamespace(id=item.id if item else f'template:{key}:{definition["code"]}',
                     code=definition['code'], description=item.description if item else definition['description'],
                     unit=item.unit if item else definition['unit'], material_rate=item.material_rate if item else None,
-                    labour_rate=item.labour_rate if item else None, catalogue_key=key))
+                    labour_rate=item.labour_rate if item else None, catalogue_key=key,catalogue_trade=trade))
+            if source and part_model is not None:
+                # Generic construction price lists already store a combined unit rate.
+                # Read them directly; no catalogue rows or prices are copied/changed.
+                from decimal import Decimal
+                for part in part_model.query.filter_by(user_id=user_id,shop_id=source.id,trade=trade).order_by(part_model.id).all():
+                    items.append(SimpleNamespace(id=f'part:{part.id}',code=getattr(part,'item_code',None) or f'{prefix}-CAT-{part.id}',
+                        description=part.part_name,unit='Each',material_rate=Decimal(str(part.default_price or 0)),
+                        labour_rate=Decimal('0'),catalogue_key=key,catalogue_trade=trade,rate_basis='combined'))
     own = item_model.query.filter_by(user_id=user_id, shop_id=shop.id, trade='boq').all()
     if own:
         catalogues.append(dict(key='boq', label='BOQ custom items'))
         items.extend(SimpleNamespace(id=item.id,code=item.code,description=item.description,unit=item.unit,
-            material_rate=item.material_rate,labour_rate=item.labour_rate,catalogue_key='boq') for item in own)
+            material_rate=item.material_rate,labour_rate=item.labour_rate,catalogue_key='boq',catalogue_trade='boq') for item in own)
     return items, catalogues

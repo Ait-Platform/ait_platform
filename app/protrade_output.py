@@ -186,6 +186,12 @@ def report_data(shop,entry,recipient_id=None):
         data['totals']=[('Subtotal (R)',tax['subtotal']),(f"VAT ({tax['rate']}%) (R)",tax['vat']),('Total (R)',tax['total'])]
         data['note']=tax['legal_basis']
         issuer.update(vat_registered=tax['registered'],tax_number=tax['vat_number'])
+    if kind=='quote' and getattr(source,'trade',None)=='boq' and any(line.get('trade') for line in source.items):
+        totals={}
+        for line in source.items:
+            trade=line.get('trade','boq');totals[trade]=totals.get(trade,Decimal(0))+Decimal(line['total'])
+        data['totals']=[(trade.replace('_',' ').title()+' subtotal (entered rates)',format(amount,'.2f')) for trade,amount in sorted(totals.items())]+data['totals']
+        if any(line.get('rate_basis')=='combined' for line in source.items):data['columns'][4]='Material / catalogue R/unit'
     if entry['key'].startswith('statement:generated-'):
         return dict(data_bundle,email_recipient=email)
     return dict(document=data,issuer=issuer,email_recipient=email)

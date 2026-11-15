@@ -39,7 +39,7 @@
   const labour = document.getElementById('quote-work-labour');
   const selected = new Map();
   const catalogue = document.getElementById('quote-catalogue');
-  const availableChoices = () => data.choices.filter(item => !catalogue || item.catalogue_key===catalogue.value);
+  const availableChoices = () => data.choices.filter(item => !catalogue || Array.from(catalogue.selectedOptions).some(option=>option.value===item.catalogue_key));
   function catalogueOptions() {
     const list=document.getElementById('quote-work-options');list.replaceChildren();
     availableChoices().forEach(item => {const option=document.createElement('option');option.value=item.label;list.append(option);});
@@ -75,6 +75,7 @@
     let total = 0n;
     let included = 0;
     let invalidIncluded = false;
+    const tradeTotals=new Map();
     selected.forEach(({row,input,materialInput,labourInput,include,identity}) => {
       identity.disabled = !include.checked;
       for (const field of [input,materialInput,labourInput]) {field.disabled=false;field.required=include.checked;}
@@ -85,6 +86,7 @@
       const cents = include.checked ? amount(input.value,combinedRate(materialInput.value,labourInput.value)) : 0n;
       row.querySelector('.line-total').textContent = money(cents);
       total += cents;
+      if(include.checked){const trade=selected.get(row.dataset.sourceId).item.catalogue_trade || 'boq';tradeTotals.set(trade,(tradeTotals.get(trade)||0n)+cents);}
     });
     const vatOptions=document.getElementById('quote-vat-options');
     const inclusive=vatOptions?.querySelector('[name=vat_inclusive]')?.checked;
@@ -97,6 +99,8 @@
     document.getElementById('quote-grand-total').value = money(inclusive ? total : total+vat);
     const subtotal=document.getElementById('quote-subtotal');if(subtotal) subtotal.value=money(inclusive ? total-vat : total);
     const vatOutput=document.getElementById('quote-vat');if(vatOutput) vatOutput.value=money(vat);
+    const tradeSummary=document.getElementById('quote-trade-subtotals');
+    if(tradeSummary){tradeSummary.replaceChildren();for(const [trade,cents] of tradeTotals){const line=document.createElement('p');line.dataset.trade=trade;line.textContent=trade.replaceAll('_',' ').replace(/^./,letter=>letter.toUpperCase())+' subtotal: R'+money(cents);tradeSummary.append(line);}}
     document.getElementById('quote-save').disabled = included === 0 || invalidIncluded;
     if (!selected.size && !document.getElementById('quote-empty')) {
       const row = body.insertRow();row.id='quote-empty';

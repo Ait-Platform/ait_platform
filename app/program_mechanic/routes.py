@@ -1442,7 +1442,7 @@ def carpentry_quote_form(shop, customer, debtor, editing_quote=None):
     catalogues = []
     if shop.trade == 'boq':
         from app.protrade_boq_catalog import quotation_catalogue
-        items, catalogues = quotation_catalogue(current_user.id, shop, ProTradeBoqItem, MechShop)
+        items, catalogues = quotation_catalogue(current_user.id, shop, ProTradeBoqItem, MechShop, MechCatalogPart)
     from app.protrade_boq_catalog import work_items_for
     from types import SimpleNamespace
     priced_codes = {item.code for item in items}
@@ -1459,7 +1459,8 @@ def carpentry_quote_form(shop, customer, debtor, editing_quote=None):
         for line in draft.items:
             by_id[str(line['source_item_id'])] = SimpleNamespace(id=line['source_item_id'], code=line['code'], description=line['description'],
                 unit=line['unit'], material_rate=Decimal(line['material_rate']), labour_rate=Decimal(line['labour_rate']),
-                catalogue_key=getattr(by_id.get(str(line['source_item_id'])), 'catalogue_key', 'saved'))
+                catalogue_key=getattr(by_id.get(str(line['source_item_id'])), 'catalogue_key', 'saved'),
+                catalogue_trade=line.get('trade',shop.trade),rate_basis=line.get('rate_basis','split'))
         items = sorted(by_id.values(),key=lambda item:item.code)
     selected_ids = {line['source_item_id'] for line in draft.items} if draft else set()
     quantities = {line['source_item_id']:line['quantity'] for line in draft.items} if draft else {}
@@ -1523,6 +1524,7 @@ def carpentry_quote_form(shop, customer, debtor, editing_quote=None):
                 if not description or len(description)>4000:
                     raise ValueError('Enter a work description (up to 4000 characters).')
                 lines.append(dict(source_item_id=item.id, code=item.code, description=description, unit=item.unit,
+                                  trade=getattr(item,'catalogue_trade',shop.trade),catalogue_key=getattr(item,'catalogue_key',''),rate_basis=getattr(item,'rate_basis','split'),
                                   quantity=str(quantity), material_rate=format(rates['material_rate'],'.2f'),
                                   labour_rate=format(rates['labour_rate'],'.2f'), total=str(amount)))
                 grand_total += amount
@@ -1578,6 +1580,7 @@ def carpentry_quote_form(shop, customer, debtor, editing_quote=None):
                     description=item.description if item else spec['description'],
                     unit=item.unit if item else spec['unit'], source_id=item.id if item else 'template:'+spec['code'],
                     catalogue_key=getattr(item,'catalogue_key',''),
+                    catalogue_trade=getattr(item,'catalogue_trade',shop.trade),rate_basis=getattr(item,'rate_basis','split'),
                     material_rate=format(item.material_rate,'.2f') if item and item.material_rate is not None else '',
                     labour_rate=format(item.labour_rate,'.2f') if item and item.labour_rate is not None else '',
                     rate_cents=str(int((item.material_rate+item.labour_rate)*100)) if item and item.material_rate is not None and item.labour_rate is not None else '')
@@ -1608,6 +1611,7 @@ def carpentry_quote_form(shop, customer, debtor, editing_quote=None):
         # Edit the saved snapshot directly, retaining every line and its original order.
         # The current Price List provides choices for additions, not replacement values.
         initial_lines = [dict(source_id=line['source_item_id'], code=line['code'], description=line['description'],
+                              catalogue_trade=line.get('trade',shop.trade),catalogue_key=line.get('catalogue_key',''),
                               unit=line['unit'], quantity=line['quantity'], material_rate=line['material_rate'],
                               labour_rate=line['labour_rate']) for line in draft.items]
     return render_template('program_mechanic/carpentry_quote.html', shop=shop, customer=customer,

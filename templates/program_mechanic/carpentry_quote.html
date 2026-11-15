@@ -51,14 +51,14 @@
       <section id="quote-area-form" class="quote-working-area" {% if initial_area!='quote' %}hidden{% endif %}>
         <div class="mt-4 flex items-center justify-between"><h2 id="quote-form-title" class="text-lg font-semibold">{{ 'Edit Quotation' if draft else 'New Quotation' }}</h2><button type="button" data-close-quote-area class="rounded-lg bg-slate-100 px-4 py-2 font-semibold">Close</button></div>
         <div class="mt-5 rounded-lg border border-slate-200 bg-slate-50 p-4">
-          {% if shop.trade=='boq' %}<label for="quote-catalogue" class="block text-sm font-semibold">Trade catalogue</label><select id="quote-catalogue" class="mb-3 mt-1 w-full rounded-lg border border-slate-300 px-3 py-2">{% for source in catalogues %}<option value="{{ source.key }}">{{ source.label }}</option>{% endfor %}</select>{% endif %}
+          {% if shop.trade=='boq' %}<label for="quote-catalogue" class="block text-sm font-semibold">Trade catalogues (select one or more)</label><select id="quote-catalogue" multiple size="5" class="mb-3 mt-1 w-full rounded-lg border border-slate-300 px-3 py-2">{% for source in catalogues %}<option value="{{ source.key }}" {% if loop.first %}selected{% endif %}>{{ source.label }}</option>{% endfor %}</select><p class="mb-3 text-sm text-slate-700">Select multiple trades to combine their work items in this BOQ. Existing combined catalogue prices populate the material / catalogue rate with no extra labour; you can adjust either rate for this quotation.</p>{% endif %}
           <label for="quote-work-select" class="block text-sm font-semibold">Select Work Item</label>
           <input id="quote-work-select" list="quote-work-options" autocomplete="off" placeholder="Search by item code or description" autofocus class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2">
           <datalist id="quote-work-options">{% for choice in work_choices %}<option value="{{ choice.label }}">{{ 'Default rates available' if choice.material_rate!='' and choice.labour_rate!='' else 'Enter quotation rates' }}</option>{% endfor %}</datalist>
           <p class="mt-2 text-sm text-slate-700">Enter rates for this quotation, or use defaults from this shop's <a href="{{ url_for('mechanic_bp.catalog_manage',shop_id=shop.id) }}" class="text-blue-700 underline">Price List</a>. Quotation rates do not change the Price List.</p>
           <div class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
           {% for field,label in [('code','Item Code'),('description','Description'),('unit','Unit')] %}<label class="text-sm font-semibold">{{ label }}<input id="quote-work-{{ field }}" readonly class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2"></label>{% endfor %}
-          {% for field,label in [('material','Material Rate (R/unit)'),('labour','Labour Rate (R/unit)')] %}<label class="text-sm font-semibold" for="quote-work-{{ field }}">{{ label }}<input id="quote-work-{{ field }}" type="number" min="0" max="999999999999.99" step="0.01" class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2"></label>{% endfor %}
+          {% for field,label in [('material','Material / catalogue rate (R/unit)'),('labour','Labour Rate (R/unit)')] %}<label class="text-sm font-semibold" for="quote-work-{{ field }}">{{ label }}<input id="quote-work-{{ field }}" type="number" min="0" max="999999999999.99" step="0.01" class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2"></label>{% endfor %}
           <label class="text-sm font-semibold" for="quote-work-quantity">Quantity<input id="quote-work-quantity" type="number" min="0.001" max="99999999999.999" step="0.001" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"></label>
           </div>
           <div class="mt-3 flex items-center justify-end gap-3"><span>Line Total: R<output id="quote-work-total">0.00</output></span><button id="quote-add-item" type="button" disabled class="rounded-lg bg-blue-100 px-4 py-2 font-semibold disabled:opacity-50">Add Item</button></div>
@@ -87,6 +87,7 @@
           </tbody></table>
         </div>
         <p class="mt-4 text-right font-semibold">Subtotal: R<output id="quote-subtotal">{{ '{:.2f}'.format(draft.grand_total) if draft else '0.00' }}</output></p>
+        {% if shop.trade=='boq' %}<div id="quote-trade-subtotals" class="mt-3 text-right text-sm font-semibold" aria-live="polite"></div>{% endif %}
         <p class="mt-2 text-right font-semibold">VAT: R<output id="quote-vat">{{ draft.tax_snapshot.vat if draft and draft.tax_snapshot else '0.00' }}</output></p>
         <p class="mt-2 text-right text-xl font-semibold">Grand Total: R<output id="quote-grand-total" aria-live="polite">{{ '{:.2f}'.format(draft.grand_total) if draft else '0.00' }}</output></p>
         <div class="mt-4 flex justify-end"><button id="quote-save" type="submit" {% if not initial_lines %}disabled{% endif %} class="rounded-lg bg-slate-800 px-4 py-2 font-semibold text-white disabled:opacity-50">{{ 'Save Changes' if draft else 'Save Quote' }}</button></div>
@@ -101,7 +102,7 @@
         </tbody></table></div>
       </section>
       <script id="quote-builder-data" type="application/json">{{ dict(allow_description=shop.trade!='carpentry',choices=work_choices,lines=initial_lines,fresh_choices=fresh_choices,fresh_quote_key=fresh_quote_key)|tojson }}</script>
-      <script src="{{ url_for('static',filename='js/carpentry_quote_builder.js',v='20261115-vat-018') }}" defer></script>
+      <script src="{{ url_for('static',filename='js/carpentry_quote_builder.js',v='20261115-multitrade') }}" defer></script>
       <script src="{{ url_for('static',filename='js/carpentry_quote_hub.js',v='20261114-separate-register-6') }}" defer></script>
       {% endif %}
     </div>

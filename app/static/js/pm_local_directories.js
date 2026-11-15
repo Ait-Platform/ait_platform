@@ -8,11 +8,49 @@
     const catalog=JSON.parse(document.getElementById('output-catalog').textContent),sources=JSON.parse(document.getElementById('output-sources').textContent);
     return Object.entries(catalog).flatMap(([source,items])=>items.map(([code,title])=>({code,title,source:sources[source]})));
   }
-  async function destination(handle,report){
+  const marker='.ait-folder-owner.json';
+  function safeSegment(name){
+    if(typeof name!=='string' || !name || name==='.' || name==='..' || /[<>:"/\\|?*\x00-\x1f]/.test(name))throw new Error('Invalid document directory.');
+    return name;
+  }
+  async function ownership(handle){
+    try{return JSON.parse(await(await(await handle.getFileHandle(marker)).getFile()).text());}
+    catch(error){if(error.name==='NotFoundError')return null;throw error;}
+  }
+  async function ownedFolder(parent,name,owner,kind,id,create){
+    const expected={program:owner.program,user:String(owner.user),kind,id:String(id)};
+    const matches=value=>value && Object.entries(expected).every(([key,item])=>value[key]===item);
+    // Find by stable identity, including after a display-name change. Never rename files.
+    try{const candidate=await parent.getDirectoryHandle(safeSegment(name));if(matches(await ownership(candidate)))return candidate;}
+    catch(error){if(error.name!=='NotFoundError' && error.name!=='TypeMismatchError')throw error;}
+    for await(const [,candidate] of parent.entries())if(candidate.kind==='directory' && matches(await ownership(candidate)))return candidate;
+    if(!create)return null;
+    let index=0,folder;
+    while(true){
+      const candidate=index===0?name:name+' ('+owner.program+'-'+id+(index===1?'':'-'+index)+')';
+      try{await parent.getDirectoryHandle(safeSegment(candidate));index++;}
+      catch(error){if(error.name!=='NotFoundError' && error.name!=='TypeMismatchError')throw error;if(error.name==='TypeMismatchError'){index++;continue;}folder=await parent.getDirectoryHandle(candidate,{create:true});break;}
+    }
+    const writer=await(await folder.getFileHandle(marker,{create:true})).createWritable({mode:'exclusive'});
+    try{await writer.write(JSON.stringify(expected));await writer.close();}catch(error){try{await writer.abort();}catch(_){}throw error;}
+    return folder;
+  }
+  async function resolve(handle,entry,scope,create){
+    if(entry.path){
+      if(entry.path.length!==3 || !entry.owner || String(entry.owner.user)!==String(scope.user))throw new Error('Document folder is outside this user account.');
+      entry.path.forEach(safeSegment);
+      const user=await ownedFolder(handle,entry.path[0],entry.owner,'user',scope.user,create);if(!user)return null;
+      const client=await ownedFolder(user,entry.path[1],entry.owner,'client',entry.owner.client,create);if(!client)return null;
+      try{const folder=await client.getDirectoryHandle(entry.path[2],{create});return {handle:folder,path:[user.name,client.name,folder.name].join('/')};}
+      catch(error){if(!create && error.name==='NotFoundError')return null;throw error;}
+    }
+    try{const source=await handle.getDirectoryHandle(safeSegment(entry.source),{create});const folder=await source.getDirectoryHandle(safeSegment(entry.title),{create});return {handle:folder,path:[source.name,folder.name].join('/')};}
+    catch(error){if(!create && error.name==='NotFoundError')return null;throw error;}
+  }
+  async function destination(handle,report,scope){
     const entry=reports().find(item=>item.code===report);
     if(!entry)throw new Error('Select a supported report.');
-    const source=await handle.getDirectoryHandle(entry.source,{create:true});
-    return source.getDirectoryHandle(entry.title,{create:true});
+    return (await resolve(handle,entry,scope,true)).handle;
   }
   async function structure(handle){for(const entry of reports())await destination(handle,entry.code);}
   function database(){return new Promise((resolve,reject)=>{
@@ -37,19 +75,39 @@
     async set(scope,handle){
       check(scope);if(!handle || handle.kind!=='directory')throw new Error('Select a folder.');
       if(!await api.permission(handle))throw new Error('Folder permission was not granted. The previous main folder is unchanged.');
-      await structure(handle);
+      if(String(scope.property)!=='protrade')await structure(handle);
       return operation('readwrite',store=>store.put({key:key(scope),user:String(scope.user),property:String(scope.property),handle}));
     },
     async reauthorise(scope){
       const row=await api.get(scope);if(!row)throw new Error('Select a main folder first.');
       if(!await api.permission(row.handle))throw new Error('Folder permission was not granted.');
-      await structure(row.handle);return row.handle.name;
+      if(String(scope.property)!=='protrade')await structure(row.handle);return row.handle.name;
     },
     async permission(handle){
       const options={mode:'readwrite'};
       if(await handle.queryPermission(options)==='granted')return true;
       return await handle.requestPermission(options)==='granted';
     }
+  };
+
+  api.list=async(scope,report)=>{
+    const row=await api.get(scope);if(!row)throw new Error('Select Folder first.');
+    if(!await api.permission(row.handle))throw new Error('Folder permission expired. Click Allow Access and try again.');
+    const entry=reports().find(item=>item.code===report);if(!entry)throw new Error('Select a supported report.');
+    const folders=[],current=await resolve(row.handle,entry,scope,false);
+    if(current)folders.push(current);
+    // Previously saved ProTrade PDFs retain their original layout and names.
+    if(entry.path){const legacy=await resolve(row.handle,{source:entry.source,title:entry.title},scope,false);if(legacy)folders.push(legacy);}
+    if(entry.owner?.program==='protrade')for await(const [name,source] of row.handle.entries()){
+      if(source.kind!=='directory' || !(name==='Shop-'+entry.owner.client || name.startsWith('Shop-'+entry.owner.client+'-')))continue;
+      try{const folder=await source.getDirectoryHandle(entry.title);folders.push({handle:folder,path:source.name+'/'+folder.name});}
+      catch(error){if(error.name!=='NotFoundError')throw error;}
+    }
+    const files=[];
+    for(const folder of folders)for await(const [name,file] of folder.handle.entries()){
+      if(file.kind==='file' && /\.pdf$/i.test(name))files.push({name,folder:folder.path,handle:file});
+    }
+    return files;
   };
 
   async function fetchPdf(url){
@@ -96,7 +154,7 @@
     // One origin-wide lock also covers different properties assigned the same
     // folder. Check for existing files while holding it; never reuse a name.
     return navigator.locks.request('ait-pm-local-report-save',async()=>{
-      const folder=await destination(row.handle,report);
+      const folder=await destination(row.handle,report,scope);
       let number=0,name,file;
       while(true){
         name=prefix+(number===0?'':'('+number+')')+'.pdf';

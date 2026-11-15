@@ -112,4 +112,6 @@ def sections_page(shop_id, quote_id):
     available = [line for line in quote.items if str(line['source_item_id']) not in used]
     paid = {item['id'] for item in sections if paid_receipt(quote, item)}
     from app.protrade_pricing import commercial_terms
-    return render_template('program_mechanic/boq_sections.html', shop=shop, quote=quote, sections=sections, available=available, paid=paid, revenue_terms=commercial_terms(), editing=editing)
+    from app.protrade_output import folder_reports
+    from app.protrade_vat import today
+    return render_template('program_mechanic/boq_sections.html', shop=shop, quote=quote, sections=sections, available=available, paid=paid, revenue_terms=commercial_terms(), editing=editing,directory_reports=folder_reports([shop],short_codes=True),save_date=today().isoformat())

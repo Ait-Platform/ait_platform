@@ -232,9 +232,10 @@ class ProTradeOutputTests(unittest.TestCase):
               if(!node.files.has(name)){if(!options.create)throw new DOMException('Missing','NotFoundError');node.files.set(name,'');}
               return {kind:'file',name,getFile:async()=>new Blob([node.files.get(name)]),createWritable:async(options)=>{
                 if(options.mode!=='exclusive')throw new Error('Must use exclusive writer');
-                let content='';return {write:async blob=>{content=await blob.text();},close:async()=>node.files.set(name,content),abort:async()=>{}};
+                let content='';return {write:async blob=>{content=typeof blob==='string'?blob:await blob.text();},close:async()=>{if(window.failWrites && name.endsWith('.pdf'))throw new Error('Simulated disk write failure');node.files.set(name,content);},abort:async()=>{}};
               }};
             };
+            node.entries=async function*(){for(const entry of node.children)yield entry;for(const name of node.files.keys())yield [name,await node.getFileHandle(name)];};
             return node;
           }
           window.folderRoot=directory('AIT-ProTrade');window.assignments=new Map();
@@ -260,10 +261,10 @@ class ProTradeOutputTests(unittest.TestCase):
                     page.locator('#output-print').click();self.assertTrue(page.evaluate('window.didPrint'))
                     page.locator('#output-folder-select').click()
                     page.wait_for_function("document.getElementById('output-folder-name').textContent==='AIT-ProTrade'")
-                    prefix=page.evaluate("async()=>{const scope=JSON.parse(document.getElementById('output-directory-context').textContent),entry=JSON.parse(document.getElementById('directory-reports').textContent).find(item=>item.code==='quote');const folder=await folderRoot.getDirectoryHandle(entry.source);const type=await folder.getDirectoryHandle(entry.title);const d=scope.period_end;const prefix=d.slice(8,10)+d.slice(5,7)+d.slice(2,4)+'_Quotations';type.files.set(prefix+'.pdf','ORIGINAL');return prefix;}")
+                    prefix=page.evaluate("async()=>{const scope=JSON.parse(document.getElementById('output-directory-context').textContent),entry=JSON.parse(document.getElementById('directory-reports').textContent).find(item=>item.code==='quote');const user=await folderRoot.getDirectoryHandle(entry.path[0],{create:true});user.files.set('.ait-folder-owner.json',JSON.stringify({program:entry.owner.program,user:entry.owner.user,kind:'user',id:entry.owner.user}));const folder=await user.getDirectoryHandle(entry.path[1],{create:true});folder.files.set('.ait-folder-owner.json',JSON.stringify({program:entry.owner.program,user:entry.owner.user,kind:'client',id:entry.owner.client}));const type=await folder.getDirectoryHandle(entry.path[2],{create:true});const d=scope.period_end;const prefix=d.slice(8,10)+d.slice(5,7)+d.slice(2,4)+'_Quotations';type.files.set(prefix+'.pdf','ORIGINAL');return prefix;}")
                     page.locator('#output-save').click()
                     page.wait_for_function("document.getElementById('output-save-message').textContent.startsWith('Saved ')")
-                    result=page.evaluate("async()=>{const scope=JSON.parse(document.getElementById('output-directory-context').textContent);const second=await AITDirectories.save(scope,'quote',scope.pdf_url);const entry=JSON.parse(document.getElementById('directory-reports').textContent).find(item=>item.code==='quote'),folder=await (await folderRoot.getDirectoryHandle(entry.source)).getDirectoryHandle(entry.title);return {files:Array.from(folder.files.entries()),second,assignments:Array.from(window.assignments.values()).map(row=>({user:row.user,property:row.property}))};}")
+                    result=page.evaluate("async()=>{const scope=JSON.parse(document.getElementById('output-directory-context').textContent);const second=await AITDirectories.save(scope,'quote',scope.pdf_url);const entry=JSON.parse(document.getElementById('directory-reports').textContent).find(item=>item.code==='quote'),folder=await(await(await folderRoot.getDirectoryHandle(entry.path[0])).getDirectoryHandle(entry.path[1])).getDirectoryHandle(entry.path[2]);return {files:Array.from(folder.files.entries()),second,assignments:Array.from(window.assignments.values()).map(row=>({user:row.user,property:row.property}))};}")
                     files=dict(result['files']);self.assertEqual(files[prefix+'.pdf'],'ORIGINAL')
                     self.assertEqual(files[prefix+'(1).pdf'],f'%PDF-Shop-{self.carpentry.id}')
                     self.assertEqual(result['second'],prefix+'(2).pdf')
@@ -274,10 +275,14 @@ class ProTradeOutputTests(unittest.TestCase):
                     other_url=tree.get_element_by_id('output-download').get('href')
                     page.evaluate("reports=>document.getElementById('directory-reports').textContent=reports",reports)
                     page.evaluate("async url=>{const scope=JSON.parse(document.getElementById('output-directory-context').textContent);await AITDirectories.save(scope,'quote',url);}",other_url)
-                    sources=page.evaluate('Array.from(folderRoot.children.keys())')
+                    sources=page.evaluate('Array.from(Array.from(folderRoot.children.values())[0].children.keys())')
                     self.assertEqual(len(sources),2)
-                    self.assertTrue(any(f'Shop-{self.carpentry.id}-' in source for source in sources))
-                    self.assertTrue(any(f'Shop-{self.second.id}-' in source for source in sources))
+                    page.evaluate('window.failWrites=true')
+                    page.locator('#output-save').click()
+                    page.wait_for_function("document.getElementById('output-save-message').textContent==='Simulated disk write failure'")
+                    self.assertNotIn('Saved ',page.locator('#output-save-message').inner_text())
+                    self.assertIn(self.carpentry.business_name,sources)
+                    self.assertTrue(any(f'(protrade-{self.second.id})' in source for source in sources))
                 self.assertEqual(base.ProTradeOutputEmail.query.count(),0)
             finally:browser.close()
 

@@ -21,6 +21,25 @@ from app.models.debtors import Debtor,DebtorLedger
 LABELS={'quote':'Quotations','invoice':'Invoices','statement':'Debtor Statements','price_list':'Price Lists'}
 
 
+def folder_reports(shops, short_codes=False):
+    """Browser destinations reuse owned shops; legacy source/title paths stay readable."""
+    import re
+    def label(value,fallback):
+        value=re.sub(r'[<>:"/\\|?*\x00-\x1f]','_',str(value or '')).strip(' .')[:100]
+        if not value or re.fullmatch(r'(?i)(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\..*)?',value):return fallback
+        return value
+    user=label(current_user.name,'User-'+str(current_user.id))
+    reports=[]
+    for shop in shops:
+        for kind,title in dict(LABELS,**({'boq_section':'BOQ Sections'} if shop.trade=='boq' else {})).items():
+            group='SOA' if kind=='statement' else 'BOQ' if kind in ('price_list','boq_section') or (kind=='quote' and shop.trade=='boq') else 'Quotes & Invoices'
+            reports.append(dict(code=kind if short_codes else f'{shop.id}:{kind}',title=title,
+                source=secure_filename(f'Shop-{shop.id}-{shop.business_name}')[:80] or f'Shop-{shop.id}',
+                path=[user,label(shop.business_name,'Shop-'+str(shop.id)),group],
+                owner=dict(program='protrade',user=str(current_user.id),client=str(shop.id))))
+    return reports
+
+
 def price_items(shop):
     from app.program_mechanic.routes import selected_price_list
     return selected_price_list(shop)
@@ -297,7 +316,7 @@ def output_page():
             error,status=exc.description,exc.code
             if claim is None:
                 data=None;token=''
-    directory_reports=[dict(code=key,title=value,source=secure_filename(f'Shop-{shop.id}-{shop.business_name}')[:80] or f'Shop-{shop.id}') for key,value in LABELS.items()] if shop else []
+    directory_reports=folder_reports([shop],short_codes=True) if shop else []
     pdf_url=url_for('mechanic_bp.protrade_output',shop_id=shop.id,selection=selected,recipient_id=recipient_id,format='pdf',preview_token=token) if data else ''
     return render_template('program_mechanic/output.html',shop=shop,shops=shops,choices=public_choices,labels=LABELS,selection=selected,
                            debtors=debtors,recipient_id=recipient_id,report_data=data,preview_token=token,generated=claim['generated'] if claim else '',
@@ -318,8 +337,6 @@ def support_page(page):
         if shop is None:abort(404)
     # Unique manager codes let the shared API create every shop's folders.
     # Output continues using its existing report codes and exactly the same paths.
-    directory_reports=[dict(code=f'{candidate.id}:{kind}',title=label,
-        source=secure_filename(f'Shop-{candidate.id}-{candidate.business_name}')[:80] or f'Shop-{candidate.id}')
-        for candidate in shops for kind,label in LABELS.items()]
+    directory_reports=folder_reports(shops)
     return render_template('program_mechanic/'+page+'.html',shop=shop,shops=shops,
                            directory_reports=directory_reports,protrade_menu_active=page)

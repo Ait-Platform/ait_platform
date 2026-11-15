@@ -71,6 +71,7 @@ class DashboardSupportTests(unittest.TestCase):
                 page.goto(folder_url)
                 page.locator('#output-folder-select').click()
                 page.wait_for_function("document.getElementById('output-folder-name').textContent==='ProTrade-Test'")
+                self.assertEqual(page.evaluate("async()=>{const root=(await AITDirectories.get({user:'1',property:'protrade'})).handle;const names=[];for await(const [name] of root.entries())names.push(name);return names;}"),[])
                 page.reload()
                 page.wait_for_function("document.getElementById('output-folder-name').textContent==='ProTrade-Test'")
                 page.locator('#output-folder-allow').click()
@@ -87,7 +88,7 @@ class DashboardSupportTests(unittest.TestCase):
                         page.wait_for_function("document.getElementById('output-folder-name').textContent==='ProTrade-Test'")
                         page.locator('#output-save').click()
                         page.wait_for_function("document.getElementById('output-save-message').textContent.startsWith('Saved ')")
-                        result=page.evaluate("""async()=>{const scope=JSON.parse(document.getElementById('output-directory-context').textContent),entry=JSON.parse(document.getElementById('directory-reports').textContent).find(row=>row.code==='quote'),root=(await AITDirectories.get(scope)).handle,folder=await(await root.getDirectoryHandle(entry.source)).getDirectoryHandle(entry.title),files=[];for await(const [name,file] of folder.entries())files.push([name,await(await file.getFile()).text()]);return {source:entry.source,title:entry.title,files};}""")
+                        result=page.evaluate("""async()=>{const scope=JSON.parse(document.getElementById('output-directory-context').textContent),entry=JSON.parse(document.getElementById('directory-reports').textContent).find(row=>row.code==='quote'),saved=await AITDirectories.list(scope,'quote'),files=[];for(const file of saved)files.push([file.name,await(await file.handle.getFile()).text()]);return {source:saved[0].folder,title:entry.title,files};}""")
                         self.assertEqual(result['title'],'Quotations');self.assertEqual(len(result['files']),1)
                         self.assertEqual(result['files'][0][1],f'%PDF-Shop-{shop.id}')
                         paths.append(result['source'])
@@ -96,10 +97,35 @@ class DashboardSupportTests(unittest.TestCase):
                         response=self.client.get(page.locator('#output-download').get_attribute('href'))
                         self.assertEqual(response.status_code,200);self.assertTrue(response.data.startswith(b'%PDF-'))
                     self.assertNotEqual(paths[0],paths[1])
+                self.carpentry.business_name='Renamed Business';self.db_session.commit()
+                page.goto(folder_url)
+                page.evaluate("""async()=>{
+                    const scope=JSON.parse(document.getElementById('output-directory-context').textContent),root=(await AITDirectories.get(scope)).handle;
+                    const entry=JSON.parse(document.getElementById('directory-reports').textContent)[0];
+                    const legacy=await root.getDirectoryHandle('Shop-'+entry.owner.client+'-Old_Business_Name',{create:true});
+                    const quotes=await legacy.getDirectoryHandle('Quotations',{create:true});
+                    const writer=await(await quotes.getFileHandle('Original historical quote.pdf',{create:true})).createWritable();
+                    await writer.write('%PDF-HISTORICAL');await writer.close();
+                    window.open=()=>{window.pdfViewer={location:{href:''},close(){},opener:null};return window.pdfViewer;};
+                }""")
+                page.locator('#document-history-refresh').click()
+                page.wait_for_function("document.getElementById('document-history-message').textContent.startsWith('3 saved PDF')")
+                row=page.locator('#document-history-files li').filter(has_text='Original historical quote.pdf')
+                self.assertEqual(row.count(),1)
+                row.get_by_role('button',name='View / Print').click()
+                page.wait_for_function("window.pdfViewer.location.href.startsWith('blob:')")
+                self.assertIn('Print control',page.locator('#document-history-message').inner_text())
+                directories=page.evaluate("""async()=>{const root=(await AITDirectories.get({user:'1',property:'protrade'})).handle,user=await root.getDirectoryHandle('Owner'),paths=[];for await(const [,client] of user.entries())if(client.kind==='directory')for await(const [name,child] of client.entries())if(child.kind==='directory')paths.push(name);return paths;}""")
+                self.assertEqual(directories,['Quotes & Invoices','Quotes & Invoices'])
                 with self.client.session_transaction() as session:session['_user_id']='2'
                 page.goto(f'http://localhost/mechanic/folders?shop_id={self.foreign.id}')
                 self.assertTrue(page.evaluate("async()=>!(await AITDirectories.get(JSON.parse(document.getElementById('output-directory-context').textContent)))"))
                 self.assertEqual(page.locator('#output-folder-name').inner_text(),'Not selected on this browser')
+                page.locator('#output-folder-select').click()
+                page.wait_for_function("document.getElementById('output-folder-name').textContent==='ProTrade-Test'")
+                page.locator('#document-history-refresh').click()
+                page.wait_for_function("document.getElementById('document-history-message').textContent.startsWith('No saved PDFs')")
+                self.assertEqual(page.locator('#document-history-files li').count(),0)
                 self.assertEqual(errors,[])
             finally:browser.close()
 

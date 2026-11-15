@@ -13,6 +13,7 @@ class MechShop(db.Model):
     registration_number = db.Column(db.String(100))
     tax_number = db.Column(db.String(100))
     vat_rate = db.Column(db.Float, default=0.0)
+    vat_registered = db.Column(db.Boolean, nullable=True)
     logo_url = db.Column(db.String(255))
     letterhead_url = db.Column(db.String(255))
     use_custom_letterhead = db.Column(db.Boolean, default=False)
@@ -85,6 +86,7 @@ class ProTradeBoqQuote(db.Model):
     client_address = db.Column(db.Text)
     items = db.Column(db.JSON, nullable=False)
     grand_total = db.Column(db.Numeric(28, 2), nullable=False)
+    tax_snapshot = db.Column(db.JSON)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     __table_args__ = (
         db.UniqueConstraint('shop_id','quotation_seq',name='uq_boq_shop_quote_number'),
@@ -154,11 +156,12 @@ class MechJobCard(db.Model):
 
     @property
     def display_document_number(self):
-        return self.display_quote_number if self.status in ('Quote','Rejected') else self.job_number
+        return self.display_quote_number if self.tax_snapshot or self.status in ('Quote','Rejected') else self.job_number
     vehicle_id = db.Column(db.Integer, db.ForeignKey('mech_vehicles.id'), nullable=False)
     status = db.Column(db.String(50), default='Quote') # Quote, Approved, In Progress, Quality Check, Ready, Billed
     description = db.Column(db.Text)
     vat_rate = db.Column(db.Float, default=0.0)
+    tax_snapshot = db.Column(db.JSON)
     deposit_amount = db.Column(db.Float, default=0.0)
     payment_method = db.Column(db.String(50), default='EFT')
     next_service_due = db.Column(db.String(100), nullable=True)
@@ -195,12 +198,19 @@ class MechPartLine(db.Model):
 class MechInvoice(db.Model):
     __tablename__ = 'mech_invoices'
     id = db.Column(db.Integer, primary_key=True)
-    job_card_id = db.Column(db.Integer, db.ForeignKey('mech_job_cards.id'), nullable=False)
+    job_card_id = db.Column(db.Integer, db.ForeignKey('mech_job_cards.id'), nullable=True)
+    boq_quote_id = db.Column(db.Integer, db.ForeignKey('protrade_boq_quotes.id'), unique=True)
+    invoice_number = db.Column(db.String(50), unique=True)
+    source_data = db.Column(db.JSON)
     subtotal = db.Column(db.Float, default=0.0)
     tax = db.Column(db.Float, default=0.0)
     total = db.Column(db.Float, default=0.0)
     status = db.Column(db.String(50), default='Unpaid') # Unpaid, Paid, Void
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    __table_args__ = (
+        db.CheckConstraint('(job_card_id IS NULL) <> (boq_quote_id IS NULL)',name='ck_protrade_invoice_source'),
+        db.Index('uq_protrade_converted_job','job_card_id',unique=True,postgresql_where=db.text('invoice_number IS NOT NULL')),
+    )
 
 
 
@@ -254,6 +264,17 @@ class ProTradeDocument(db.Model):
     __table_args__=(db.UniqueConstraint('user_id','document_key',name='uq_protrade_document_key'),
         db.CheckConstraint("tokens > 0 AND kind IN ('quote','invoice','soa','boq_section')",name='ck_protrade_document_charge'),
         db.CheckConstraint("kind<>'soa' OR (shop_id IS NOT NULL AND debtor_id IS NOT NULL AND snapshot IS NOT NULL AND pdf IS NOT NULL)",name='ck_protrade_soa_snapshot'))
+
+
+class ProTradeVatRate(db.Model):
+    __tablename__ = 'protrade_vat_rate'
+    id = db.Column(db.Integer, primary_key=True)
+    effective_date = db.Column(db.Date, nullable=False)
+    rate = db.Column(db.Numeric(5,2), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    reason = db.Column(db.String(400), nullable=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    __table_args__ = (db.CheckConstraint('rate > 0 AND rate <= 100', name='ck_protrade_vat_rate'),)
 
 
 class ProTradePricingRevision(db.Model):

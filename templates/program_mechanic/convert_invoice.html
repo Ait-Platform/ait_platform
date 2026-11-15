@@ -1,0 +1,15 @@
+{% extends 'layout.html' %}
+{% block title %}Convert to Invoice{% endblock %}{% block flashes %}{% endblock %}
+{% block content %}<div class="mx-auto max-w-4xl px-4 py-8"><div class="overflow-hidden rounded-xl bg-white shadow"><div class="h-2 bg-slate-700"></div><div class="p-6">
+{% include 'partials/flash_messages.html' %}
+<div class="flex items-center justify-between"><h1 class="text-2xl font-semibold">Convert {{ quote.display_quote_number }} to Invoice</h1><a class="rounded border border-slate-300 px-4 py-2" href="{{ url_for('mechanic_bp.debtor_quote',shop_id=shop.id,debtor_id=debtor.id) }}">Back</a></div>
+<p class="mt-4 text-slate-700">{{ shop.business_name }} → {{ debtor.name }}. The agreed quotation total is retained. Its VAT component is extracted using the approved rate and supply treatment. Conversion creates no additional debtor debit or payment. Issuing a new invoice costs {{ protrade_prices.tokens.invoice }} tokens; reopening the same invoice is free.</p>
+{% if error %}<p role="alert" class="mt-4 text-red-700">{{ error }}</p>{% endif %}
+<form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+<div class="mt-4 flex justify-end"><button class="rounded bg-slate-800 px-4 py-2 text-white">Convert to Invoice</button></div>
+<div class="mt-4 grid gap-4 sm:grid-cols-2"><label>Actual supply date<input autofocus required type="date" max="{{ today }}" name="supply_date" value="{{ today }}" class="block w-full rounded border border-slate-300 p-2"></label>
+<label>VAT treatment<select name="vat_treatment" class="block w-full rounded border border-slate-300 p-2">{% for key,label in [('standard','Standard-rated'),('zero','Legally zero-rated'),('exempt','Legally exempt')] %}<option value="{{ key }}" {% if quote.tax_snapshot and quote.tax_snapshot.treatment==key %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+<label class="sm:col-span-2">Legal basis if zero-rated or exempt<input name="vat_basis" maxlength="400" value="{{ quote.tax_snapshot.legal_basis if quote.tax_snapshot else '' }}" class="block w-full rounded border border-slate-300 p-2"></label>
+<label><input type="checkbox" name="recipient_vendor" value="yes"> Customer is VAT registered</label><label>Customer VAT registration number<input name="recipient_vat" maxlength="10" class="block w-full rounded border border-slate-300 p-2"></label></div>
+<label class="mt-4 block"><input required type="checkbox" name="confirm_invoice" value="yes"> I confirm the supply details and approve issuing a separate invoice.</label></form>
+</div></div></div>{% endblock %}

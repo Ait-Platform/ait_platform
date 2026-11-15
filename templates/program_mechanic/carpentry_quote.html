@@ -70,6 +70,8 @@
         <input type="hidden" name="area" value="{{ 'quote' if draft else 'new' }}">
         <input type="hidden" name="quote_id" value="{{ draft.id if draft else '' }}" {% if not draft %}disabled{% endif %}>
         {% if customer %}<input type="hidden" name="client_id" value="{{ customer.id }}">{% endif %}
+        {% include 'program_mechanic/_vat_fields.html' %}
+        {% if draft %}<div class="mt-4 flex justify-end"><a class="rounded-lg bg-blue-100 px-4 py-2 font-semibold" href="{{ url_for('mechanic_bp.convert_invoice',shop_id=shop.id,kind='boq',quote_id=draft.id) }}">Convert to Invoice</a></div>{% endif %}
         {% if shop.trade=='boq' and (saved_quote or draft) %}<div class="mt-4 flex justify-end"><a class="rounded-lg bg-slate-800 px-4 py-2 font-semibold text-white" href="{{ url_for('mechanic_bp.boq_sections',shop_id=shop.id,quote_id=(saved_quote or draft).id) }}">BOQ Sections</a></div>{% endif %}
       <h2 class="mt-6 text-lg font-semibold">Quotation Items</h2><p class="mt-2 text-sm text-slate-700">{% if shop is defined and shop.trade=='boq' %}Draft BOQs are free. Each section costs {{ protrade_prices.tokens.boq_section }} tokens on first generation. A complete BOQ adds no quotation charge.{% else %}A successfully saved new quotation costs {{ protrade_prices.tokens.quote }} tokens. Editing an existing quotation is free.{% endif %}</p>
         {% if error %}<p role="alert" class="mt-3 text-sm font-semibold text-red-700">{{ error }}</p>{% endif %}
@@ -85,6 +87,7 @@
           </tbody></table>
         </div>
         <p class="mt-4 text-right font-semibold">Subtotal: R<output id="quote-subtotal">{{ '{:.2f}'.format(draft.grand_total) if draft else '0.00' }}</output></p>
+        <p class="mt-2 text-right font-semibold">VAT: R<output id="quote-vat">{{ draft.tax_snapshot.vat if draft and draft.tax_snapshot else '0.00' }}</output></p>
         <p class="mt-2 text-right text-xl font-semibold">Grand Total: R<output id="quote-grand-total" aria-live="polite">{{ '{:.2f}'.format(draft.grand_total) if draft else '0.00' }}</output></p>
         <div class="mt-4 flex justify-end"><button id="quote-save" type="submit" {% if not initial_lines %}disabled{% endif %} class="rounded-lg bg-slate-800 px-4 py-2 font-semibold text-white disabled:opacity-50">{{ 'Save Changes' if draft else 'Save Quote' }}</button></div>
       </form>
@@ -98,7 +101,7 @@
         </tbody></table></div>
       </section>
       <script id="quote-builder-data" type="application/json">{{ dict(allow_description=shop.trade!='carpentry',choices=work_choices,lines=initial_lines,fresh_choices=fresh_choices,fresh_quote_key=fresh_quote_key)|tojson }}</script>
-      <script src="{{ url_for('static',filename='js/carpentry_quote_builder.js',v='20261115-trade-catalogues') }}" defer></script>
+      <script src="{{ url_for('static',filename='js/carpentry_quote_builder.js',v='20261115-vat-018') }}" defer></script>
       <script src="{{ url_for('static',filename='js/carpentry_quote_hub.js',v='20261114-separate-register-6') }}" defer></script>
       {% endif %}
     </div>

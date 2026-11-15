@@ -7,7 +7,7 @@ from zoneinfo import ZoneInfo
 from flask import abort,request,redirect,url_for,render_template,flash
 from flask_login import current_user
 from app.extensions import db
-from app.models.mechanic import MechShop,MechClient,MechVehicle,MechJobCard,MechPartLine,MechLaborLine
+from app.models.mechanic import MechShop,MechClient,MechVehicle,MechJobCard,MechPartLine,MechLaborLine,MechInvoice
 from app.models.debtors import Debtor,BusinessBankAccount
 
 
@@ -17,6 +17,10 @@ def totals(job):
         parts=[dict(kind='part',item=line,quantity=str(line.quantity or 0),rate=str(line.markup_price or 0),amount=Decimal(str(line.quantity or 0))*Decimal(str(line.markup_price or 0))) for line in job.part_lines]
         labour=[dict(kind='labour',item=line,quantity=str(line.hours or 0),rate=str(line.rate_per_hour or 0),amount=Decimal(str(line.hours or 0))*Decimal(str(line.rate_per_hour or 0))) for line in job.labor_lines]
         subtotal=sum((line['amount'] for line in parts+labour),Decimal('0'))
+        if job.tax_snapshot:
+            from app.protrade_vat import refresh_snapshot
+            tax=refresh_snapshot(job.tax_snapshot,subtotal)
+            return dict(lines=parts+labour,subtotal=Decimal(tax['subtotal']),vat=Decimal(tax['vat']),total=Decimal(tax['total']))
         tax=subtotal*Decimal(str(job.vat_rate or 0))/100
         return dict(lines=parts+labour,subtotal=subtotal,vat=tax,total=(subtotal+tax).quantize(Decimal('.01'),rounding=ROUND_HALF_UP))
 
@@ -48,6 +52,8 @@ def items_page(shop_id,debtor_id,quote_id):
     token=sha256(json.dumps(snapshot,sort_keys=True).encode()).hexdigest()
     values=dict(snapshot);error=None;status=200
     if request.method=='POST':
+        if MechInvoice.query.filter_by(job_card_id=job.id).filter(MechInvoice.source_data.isnot(None)).first():
+            abort(409,description='This quotation has been invoiced. Create a new quotation for changes.')
         if line is None:abort(400)
         if job.status!='Quote':abort(409,description='Only quotations can be edited. This job has progressed.')
         try:
@@ -63,6 +69,11 @@ def items_page(shop_id,debtor_id,quote_id):
             line.description=values['description']
             if kind=='part':line.quantity=int(quantity);line.markup_price=float(rate)
             else:line.hours=float(quantity);line.rate_per_hour=float(rate)
+            if job.tax_snapshot:
+                from app.protrade_vat import refresh_snapshot
+                raw=sum((Decimal(str(p.quantity or 0))*Decimal(str(p.markup_price or 0)) for p in job.part_lines),Decimal(0))
+                raw+=sum((Decimal(str(l.hours or 0))*Decimal(str(l.rate_per_hour or 0)) for l in job.labor_lines),Decimal(0))
+                job.tax_snapshot=refresh_snapshot(job.tax_snapshot,raw)
             db.session.commit()
             flash('Quote item updated.','success')
             return redirect(url)

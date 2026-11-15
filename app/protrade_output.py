@@ -45,7 +45,7 @@ def job_debtor(shop,job):
 
 def catalog(shop):
     entries=[]
-    if shop.trade in ('carpentry','boq'):
+    if (shop.trade or 'mechanic')!='mechanic':
         for quote in ProTradeBoqQuote.query.filter_by(shop_id=shop.id,user_id=current_user.id,trade=shop.trade).order_by(ProTradeBoqQuote.id.desc()).all():
             if quote.debtor_id is not None:
                 debtor=Debtor.query.filter_by(id=quote.debtor_id,shop_id=shop.id,user_id=current_user.id).first()
@@ -61,13 +61,22 @@ def catalog(shop):
             jobs=MechJobCard.query.join(MechVehicle).join(MechClient).filter(MechJobCard.shop_id==shop.id,MechClient.user_id==current_user.id).order_by(MechJobCard.id.desc()).all()
             for job in jobs:
                 invoices=MechInvoice.query.filter_by(job_card_id=job.id).order_by(MechInvoice.id).all()
-                if job.status!='Billed':
+                if job.status!='Billed' or job.tax_snapshot:
                     entries.append(dict(key=f'quote:job-{job.id}',kind='quote',label=job.job_number+' — '+job.vehicle.client.name,source=job))
                 elif not invoices:
                     entries.append(dict(key=f'invoice:billed-{job.id}',kind='invoice',label=job.job_number+' — Existing billed document',source=job))
                 for invoice in invoices:
+                    if invoice.source_data:continue
                     entries.append(dict(key=f'invoice:stored-{invoice.id}',kind='invoice',label=job.job_number+f' — Invoice record {invoice.id}',source=(invoice,job)))
         if price_items(shop):entries.append(dict(key='price_list:all',kind='price_list',label='Price List',source=None))
+    from sqlalchemy import or_
+    quote_ids=ProTradeBoqQuote.query.filter_by(shop_id=shop.id,user_id=current_user.id).with_entities(ProTradeBoqQuote.id)
+    job_ids=MechJobCard.query.filter_by(shop_id=shop.id).with_entities(MechJobCard.id)
+    for invoice in MechInvoice.query.filter(MechInvoice.source_data.isnot(None),or_(MechInvoice.boq_quote_id.in_(quote_ids),MechInvoice.job_card_id.in_(job_ids))).all():
+        if invoice.job_card_id:
+            job=MechJobCard.query.filter_by(id=invoice.job_card_id,shop_id=shop.id).first()
+            if not job or not job_debtor(shop,job):continue
+        entries.append(dict(key=f'invoice:converted-{invoice.id}',kind='invoice',label=invoice.invoice_number,source=invoice))
     for document in ProTradeDocument.query.filter_by(user_id=current_user.id,shop_id=shop.id,kind='soa').order_by(ProTradeDocument.id.desc()).all():
         entries.append(dict(key=f'statement:generated-{document.id}',kind='statement',label='SOA-'+str(document.id)+' - '+document.snapshot['debtor']['name'],source=document))
     for debtor in Debtor.query.filter_by(shop_id=shop.id,user_id=current_user.id).order_by(Debtor.name,Debtor.id).all():
@@ -88,6 +97,19 @@ def contact(source):
 
 def report_data(shop,entry,recipient_id=None):
     kind=entry['kind'];source=entry['source'];debtor=None
+    if entry['key'].startswith('invoice:converted-'):
+        from copy import deepcopy
+        bundle=deepcopy(source.source_data)
+        if bundle['issuer']['id']!=shop.id:abort(404)
+        debtor=owned_debtor(shop,bundle['email_recipient']['id'])
+        if source.boq_quote_id:
+            if not ProTradeBoqQuote.query.filter_by(id=source.boq_quote_id,shop_id=shop.id,user_id=current_user.id,debtor_id=debtor.id).first():abort(404)
+        else:
+            job=MechJobCard.query.filter_by(id=source.job_card_id,shop_id=shop.id,debtor_id=debtor.id).first()
+            if not job or job_debtor(shop,job).id!=debtor.id:abort(404)
+        if recipient_id and str(recipient_id)!=str(debtor.id):abort(400)
+        bundle['email_recipient']=dict(id=debtor.id,**contact(debtor))
+        return bundle
     data=dict(kind=kind,title=LABELS[kind].rstrip('s'),reference=entry['label'],recipient=None,
               columns=[],rows=[],totals=[],note='',date='')
     if entry['key'].startswith('quote:boq-'):
@@ -139,6 +161,12 @@ def report_data(shop,entry,recipient_id=None):
         abort(400,description='Select the saved debtor linked to this document.')
     email=dict(id=debtor.id,**contact(debtor)) if debtor else None
     issuer=dict(id=shop.id,name=shop.business_name or '',trade=shop.trade or 'mechanic',address=shop.address or '',phone=shop.phone or '',email=shop.email or '',tax_number=shop.tax_number or '')
+    tax=getattr(source,'tax_snapshot',None) if kind=='quote' else None
+    if tax:
+        data['tax']=tax
+        data['totals']=[('Subtotal (R)',tax['subtotal']),(f"VAT ({tax['rate']}%) (R)",tax['vat']),('Total (R)',tax['total'])]
+        data['note']=tax['legal_basis']
+        issuer.update(vat_registered=tax['registered'],tax_number=tax['vat_number'])
     if entry['key'].startswith('statement:generated-'):
         return dict(data_bundle,email_recipient=email)
     return dict(document=data,issuer=issuer,email_recipient=email)

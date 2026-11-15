@@ -50,6 +50,7 @@ class TradeQuoteTests(unittest.TestCase):
         # Real migration applied on an existing quote/job-card schema.
         self.conn.exec_driver_sql('ALTER TABLE debtor_ledger DROP CONSTRAINT IF EXISTS fk_debtor_ledger_boq_quote')
         self.conn.exec_driver_sql('DROP TABLE protrade_boq_preparation')
+        self.conn.exec_driver_sql('ALTER TABLE mech_invoices DROP CONSTRAINT IF EXISTS mech_invoices_boq_quote_id_fkey')
         self.conn.exec_driver_sql('DROP TABLE protrade_boq_quotes')
         self.conn.exec_driver_sql('ALTER TABLE mech_job_cards DROP COLUMN shop_id')
         spec = importlib.util.spec_from_file_location('quote_migration', base.ROOT / 'migrations/versions/protrade_quote_005.py')
@@ -62,6 +63,7 @@ class TradeQuoteTests(unittest.TestCase):
         foundation.op=Operations(MigrationContext.configure(self.conn));foundation.upgrade()
         self.conn.exec_driver_sql("ALTER TABLE protrade_boq_quotes ADD COLUMN boq_sections JSON NOT NULL DEFAULT '[]'")
         self.conn.exec_driver_sql('ALTER TABLE protrade_boq_quotes ADD COLUMN quotation_seq integer')
+        self.conn.exec_driver_sql('ALTER TABLE protrade_boq_quotes ADD COLUMN tax_snapshot json')
         ProTradeBoqPreparation.__table__.create(self.conn)
         self.customers_by_shop={}
         self.debtors_by_shop={}
@@ -161,6 +163,7 @@ class TradeQuoteTests(unittest.TestCase):
     def test_migration_preserves_preexisting_mechanic_quotation_fields(self):
         self.conn.exec_driver_sql('ALTER TABLE debtor_ledger DROP CONSTRAINT IF EXISTS fk_debtor_ledger_boq_quote')
         self.conn.exec_driver_sql('DROP TABLE protrade_boq_preparation')
+        self.conn.exec_driver_sql('ALTER TABLE mech_invoices DROP CONSTRAINT IF EXISTS mech_invoices_boq_quote_id_fkey')
         self.conn.exec_driver_sql('DROP TABLE protrade_boq_quotes')
         self.conn.exec_driver_sql('ALTER TABLE mech_job_cards DROP COLUMN shop_id')
         self.conn.execute(sa.text("INSERT INTO mech_vehicles (id,client_id,make,license_plate) VALUES (-10,:client,'Legacy Make','OLD123')"), dict(client=self.customer.id))

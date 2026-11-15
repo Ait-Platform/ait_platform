@@ -25,6 +25,8 @@ spec = importlib.util.spec_from_file_location('shop_test_models', ROOT / 'tests/
 models = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(models)
 models.MechShop.bank_details = sa.Column(sa.Text)
+models.MechShop.vat_registered = sa.Column(sa.Boolean,default=False)
+models.MechJobCard.tax_snapshot = sa.Column(sa.JSON)
 for field in ('logo_url', 'letterhead_url'):
     setattr(models.SenderProfile, field, sa.Column(sa.String(255)))
 models.SenderProfile.use_custom_letterhead = sa.Column(sa.Boolean, default=False)
@@ -78,11 +80,12 @@ DebtorLedger=catalog_globals['DebtorLedger']
 catalog_db.LargeBinary=sa.LargeBinary
 catalog_db.func=sa.func
 catalog_db.BigInteger=sa.BigInteger
-for class_name, source in (('TokenTariff','app/models/billing.py'), ('ProTradePricingRevision','app/models/mechanic.py')):
+for class_name, source in (('TokenTariff','app/models/billing.py'), ('ProTradePricingRevision','app/models/mechanic.py'), ('ProTradeVatRate','app/models/mechanic.py')):
     node=next(node for node in ast.parse((ROOT/source).read_text(encoding='utf-8')).body if isinstance(node,ast.ClassDef) and node.name==class_name)
     exec(compile(ast.Module(body=[node],type_ignores=[]),'production_pricing_model','exec'),catalog_globals)
 TokenTariff=catalog_globals['TokenTariff']
 ProTradePricingRevision=catalog_globals['ProTradePricingRevision']
+ProTradeVatRate=catalog_globals['ProTradeVatRate']
 original_fk=catalog_db.ForeignKey
 catalog_db.ForeignKey=lambda target,**kw: original_fk('ait_token_wallets.id' if target=='ait_token_wallet.id' else target,**kw)
 transaction_node=next(node for node in ast.parse((ROOT/'app/models/auth.py').read_text(encoding='utf-8')).body if isinstance(node,ast.ClassDef) and node.name=='AitTokenTransaction')
@@ -175,7 +178,7 @@ class ShopRegisterTests(unittest.TestCase):
                        flash=flash, redirect=redirect, url_for=url_for, render_template=render_template,
                        current_app=current_app, current_user=current_user, login_required=login_required)
         import app.protrade_mechanic_quotes as mechanic_quotes
-        for name in ('db','MechShop','MechClient','MechVehicle','MechJobCard','MechPartLine','MechLaborLine','Debtor'):
+        for name in ('db','MechShop','MechClient','MechVehicle','MechJobCard','MechPartLine','MechLaborLine','MechInvoice','Debtor'):
             setattr(mechanic_quotes,name,self.ns[name])
         import app.protrade_documents as documents
         documents.db=self.ns['db'];documents.AitTokenWallet=models.AitTokenWallet
@@ -193,8 +196,18 @@ class ShopRegisterTests(unittest.TestCase):
         import app.protrade_pricing as pricing
         pricing.db=self.ns['db'];pricing.TokenTariff=TokenTariff;pricing.ProTradePricingRevision=ProTradePricingRevision
         pricing.register_routes(bp)
+        import app.protrade_vat as vat
+        for name,value in dict(db=self.ns['db'],MechShop=models.MechShop,MechJobCard=models.MechJobCard,
+            MechInvoice=catalog_globals['MechInvoice'],ProTradeBoqQuote=ProTradeBoqQuote,ProTradeVatRate=ProTradeVatRate,
+            Debtor=models.Debtor,User=models.User).items():setattr(vat,name,value)
+        vat.register_routes(bp)
         code = ast.fix_missing_locations(ProductionImports().visit(ast.Module(body=nodes, type_ignores=[])))
         exec(compile(code, 'production_shop_routes', 'exec'), self.ns)
+        import app.protrade_output as output
+        for name,value in self.ns.items():
+            if name=='db' or name.startswith(('Mech','ProTrade','Debtor')):setattr(output,name,value)
+        output.ProTradeDocument=ProTradeDocument
+        output.price_items=self.ns['selected_price_list']
         self.app.register_blueprint(bp)
         template = (ROOT / 'templates/program_mechanic/dashboard.html').read_text(encoding='utf-8')
         template += (ROOT / 'templates/program_mechanic/menu.html').read_text(encoding='utf-8')
@@ -210,6 +223,9 @@ class ShopRegisterTests(unittest.TestCase):
         self.db_session.add_all([models.User(id=1, name='Owner', email='one@example.test'), models.User(id=2, name='Other', email='two@example.test')])
         self.db_session.commit()
         self.db_session.add(models.AitTokenWallet(user_id=1,balance=1000));self.db_session.commit()
+        from datetime import date
+        self.db_session.add(ProTradeVatRate(effective_date=date(2018,4,1),rate=15,reason='Verified statutory test baseline'))
+        self.db_session.commit()
         self.client = self.app.test_client()
         with self.client.session_transaction() as sess:
             sess['_user_id'] = '1'

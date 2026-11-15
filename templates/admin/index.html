@@ -5,6 +5,7 @@
 
 {% block admin_content %}
 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+  <a href="{{ url_for('mechanic_bp.protrade_vat_settings') }}" class="block rounded-xl border border-slate-200 p-6 hover:shadow-md"><h2 class="text-xl font-semibold">ProTrade VAT Rates</h2><p class="mt-2 text-slate-600">Approve effective-dated statutory VAT rates.</p></a>
   <a href="{{ url_for('mechanic_bp.protrade_pricing') }}" class="block rounded-xl border border-slate-200 p-6 hover:shadow-md"><h2 class="text-xl font-semibold">ProTrade Pricing</h2><p class="mt-2 text-slate-600">Approve prospective token charges and suggested customer prices with audit history.</p></a>
   <a href="{{ url_for('mechanic_bp.boq_preparation_report') }}" class="block rounded-xl border border-slate-200 p-6 hover:shadow-md"><h2 class="text-xl font-semibold">BOQ Preparation Time</h2><p class="mt-2 text-slate-600">Private quotation preparation report by business and user.</p></a>
 

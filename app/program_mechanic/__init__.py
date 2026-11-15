@@ -12,3 +12,5 @@ from app.protrade_boq_time import register_routes
 register_routes(mechanic_bp)
 from app.protrade_pricing import register_routes as register_pricing_routes
 register_pricing_routes(mechanic_bp)
+from app.protrade_vat import register_routes as register_vat_routes
+register_vat_routes(mechanic_bp)

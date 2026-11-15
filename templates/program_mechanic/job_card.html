@@ -130,8 +130,8 @@ document.addEventListener("DOMContentLoaded", function() {
           <div class="flex items-center justify-between border-b border-slate-100 px-6 pb-4">
         <div>
           <h1 class="text-2xl md:text-3xl font-bold text-slate-900">
-            {% if job_card.status == 'Quote' %}Quote / Tax Invoice
-            {% elif job_card.status in ['Approved', 'Billed'] %}Tax Invoice
+            {% if job_card.status == 'Quote' %}Quotation
+            {% elif job_card.status in ['Approved', 'Billed'] %}Job Card
             {% else %}Job Card
             {% endif %} #{{ job_card.display_document_number|default(job_card.job_number) }}
           </h1>
@@ -146,7 +146,7 @@ document.addEventListener("DOMContentLoaded", function() {
       
       <!-- Row 2: Actions & Status -->
       <div class="px-6 py-4 bg-slate-50 border-b border-slate-100 flex flex-wrap justify-between items-center gap-4 mb-8 rounded-xl shadow-sm">
-        <div class="flex items-center gap-3">
+        <div class="flex items-center gap-3">{% if job_card.shop_id %}<a class="rounded-lg bg-blue-100 px-4 py-2 font-semibold" href="{{ url_for('mechanic_bp.convert_invoice',shop_id=job_card.shop_id,kind='mechanic',quote_id=job_card.id) }}">Convert to Invoice</a>{% endif %}
           <span class="text-sm font-bold text-slate-600 uppercase tracking-wider">Status:</span>
           <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-bold 
             {% if job_card.status == 'Billed' %}bg-green-100 text-green-800
@@ -338,7 +338,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 
                 {% set vat_rate = job_card.vat_rate if job_card.vat_rate else 0.0 %}
                 {% set vat_amount = ns.subtotal * (vat_rate / 100.0) %}
-                {% set grand_total = ns.subtotal + vat_amount %}
+                {% set grand_total = ns.subtotal + vat_amount %}{% if job_card.tax_snapshot %}{% set vat_rate=job_card.tax_snapshot.rate|float %}{% set ns.subtotal=job_card.tax_snapshot.subtotal|float %}{% set vat_amount=job_card.tax_snapshot.vat|float %}{% set grand_total=job_card.tax_snapshot.total|float %}{% endif %}
 
                 {% if vat_rate > 0 %}
                 <tr class="bg-slate-50 border-t border-slate-200">

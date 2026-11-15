@@ -689,11 +689,16 @@ def onboarding_process():
     shop.email = request.form.get("email")
     shop.tax_number = request.form.get("tax_number")
 
-    try:
-        vat_rate = float(request.form.get("vat_rate", 0))
-    except ValueError:
-        vat_rate = 0.0
-    shop.vat_rate = vat_rate
+    if request.form.get('vat_registered') in ('yes','no'):
+        shop.vat_registered=request.form['vat_registered']=='yes'
+    from app.protrade_vat import rate_for,vat_number,today
+    if shop.vat_registered:
+        if not vat_number(shop.tax_number):
+            from flask import abort
+            db.session.rollback();abort(400,description='Enter a valid VAT registration number starting with 4 (10 digits).')
+        shop.vat_rate=float(rate_for(today()).rate)
+    elif shop.vat_registered is False:
+        shop.vat_rate=0
 
     shop.terms_and_conditions = request.form.get("terms_and_conditions")
     shop.bank_details = request.form.get("bank_details")
@@ -858,6 +863,10 @@ def download_document(id):
     from flask import abort
     if not job_card.vehicle or job_card.vehicle.client.user_id != current_user.id:
         abort(404)
+    from app.protrade_vat import invoice_output
+    issued=invoice_output(job_card)
+    if issued is not None:return issued
+
     
     client = job_card.vehicle.client if job_card.vehicle else None
     if (client and (not client.email or not client.phone)) or (job_card.vehicle and not job_card.vehicle.vin):
@@ -900,13 +909,17 @@ def email_document(id):
     from flask import abort
     if not job_card.vehicle or job_card.vehicle.client.user_id != current_user.id:
         abort(404)
+    from app.protrade_vat import invoice_output
+    issued=invoice_output(job_card)
+    if issued is not None:return issued
+
     
     client = job_card.vehicle.client if job_card.vehicle else None
     if (client and (not client.email or not client.phone)) or (job_card.vehicle and not job_card.vehicle.vin):
         flash("Please fill in the client's email, phone, and vehicle VIN before generating documents.", "warning")
         return redirect(url_for('mechanic_bp.job_card_detail', id=job_card.id))
 
-    doc_type = "SOA" if job_card.status == 'Billed' else ("Tax Invoice" if job_card.status not in ['Quote', 'Rejected'] else "Quote")
+    doc_type = "SOA" if job_card.status == 'Billed' else "Quote"
     default_email = ""
     if job_card.vehicle and job_card.vehicle.client and job_card.vehicle.client.email:
         default_email = job_card.vehicle.client.email
@@ -1066,7 +1079,7 @@ def approve_quote(id):
             txn_date=datetime.utcnow(),
             kind='debit',
             amount=int(job_card_total * 100),
-            description=f'Quote/Tax Invoice for Job #{job_card.job_number}',
+            description=f'Quotation for Job #{job_card.job_number}',
             ref=f"JOB-{job_card.job_number}"
         )
         db.session.add(charge_ledger)
@@ -1083,11 +1096,8 @@ def approve_quote(id):
         )
         db.session.add(payment_ledger)
 
-    from app.protrade_documents import charge_document
-    db.session.flush()
-    charge_document(current_user.id,job_card.shop_id,debtor.id,'mechanic-invoice:'+str(job_card.id),'invoice')
     db.session.commit()
-    flash("Proof of Payment captured! Document converted to Tax Invoice.", "success")
+    flash("Quotation accepted and payment recorded. Use Convert to Invoice to issue a separate invoice.", "success")
     return redirect(url_for("mechanic_bp.job_cards_list"))
 
 
@@ -1311,12 +1321,17 @@ def quote_invoice_register():
             abort(404)
     rows = []
     legacy_count = 0
-    if shop and shop.trade in ('carpentry', 'boq'):
+    if shop and (shop.trade or 'mechanic')!='mechanic':
         quotes = ProTradeBoqQuote.query.filter_by(user_id=current_user.id, shop_id=shop.id, trade=shop.trade).all()
         for quote in quotes:
             rows.append(dict(kind='Quotation', number=quote.display_quote_number, client=quote.client_name,
                              status='Draft' if quote.is_draft else 'Saved', amount=quote.grand_total, date=quote.created_at,
                              href=url_for('mechanic_bp.carpentry_quote_view', shop_id=shop.id, quote_id=quote.id)))
+        for quote in quotes:
+            for invoice in MechInvoice.query.filter_by(boq_quote_id=quote.id).all():
+                rows.append(dict(kind='Invoice',number=invoice.invoice_number,client=quote.client_name,status=invoice.status,
+                    amount=Decimal(str(invoice.total or 0)),date=invoice.created_at,
+                    href=url_for('mechanic_bp.protrade_output',shop_id=shop.id,selection=f'invoice:converted-{invoice.id}',preview=1)))
     elif shop and (shop.trade or 'mechanic') == 'mechanic':
         owned_jobs = MechJobCard.query.join(MechVehicle).join(MechClient).filter(MechClient.user_id == current_user.id)
         legacy_count = owned_jobs.filter(MechJobCard.shop_id.is_(None)).count()
@@ -1329,13 +1344,13 @@ def quote_invoice_register():
                 subtotal = sum((line.hours or 0) * (line.rate_per_hour or 0) for line in labour)
                 subtotal += sum((line.quantity or 0) * (line.markup_price or 0) for line in parts)
                 amount = subtotal * (1 + (job.vat_rate or 0) / 100)
-                rows.append(dict(kind='Invoice (legacy)' if job.status == 'Billed' else 'Quotation',
-                                 number=job.job_number if job.status=='Billed' else job.display_quote_number, client=job.vehicle.client.name, status=job.status,
+                rows.append(dict(kind='Invoice (legacy)' if job.status == 'Billed' and not job.tax_snapshot else 'Quotation',
+                                 number=job.job_number if job.status=='Billed' and not job.tax_snapshot else job.display_quote_number, client=job.vehicle.client.name, status=job.status,
                                  amount=Decimal(str(amount)), date=job.created_at, href=href))
             for invoice in invoices:
-                rows.append(dict(kind='Invoice', number=job.job_number, client=job.vehicle.client.name,
+                rows.append(dict(kind='Invoice', number=invoice.invoice_number or job.job_number, client=job.vehicle.client.name,
                                  status=invoice.status, amount=Decimal(str(invoice.total or 0)),
-                                 date=invoice.created_at, href=href))
+                                 date=invoice.created_at, href=url_for('mechanic_bp.protrade_output',shop_id=shop.id,selection=f'invoice:converted-{invoice.id}',preview=1) if invoice.source_data else href))
     rows.sort(key=lambda row: (row['date'].isoformat() if row['date'] else '', row['number']), reverse=True)
     return render_template('program_mechanic/quote_invoice_register.html', shop=shop,
                            user_shops=shops, documents=rows, legacy_count=legacy_count)
@@ -1419,6 +1434,10 @@ def carpentry_quote_form(shop, customer, debtor, editing_quote=None):
         abort(404)
     if initial_area == 'new':
         initial_area = 'quote'
+    if request.method=='POST' and draft:
+        from app.models.mechanic import MechInvoice
+        if MechInvoice.query.filter_by(boq_quote_id=draft.id).filter(MechInvoice.source_data.isnot(None)).first():
+            abort(409,description='This quotation has been invoiced. Create a new quotation for changes.')
     items = ProTradeBoqItem.query.filter_by(user_id=current_user.id, shop_id=shop.id, trade=shop.trade).order_by(ProTradeBoqItem.code).all()
     catalogues = []
     if shop.trade == 'boq':
@@ -1509,6 +1528,9 @@ def carpentry_quote_form(shop, customer, debtor, editing_quote=None):
                 grand_total += amount
             if grand_total > Decimal('99999999999999999999999999.99'):
                 raise ValueError('Quotation total is too large to save.')
+            from app.protrade_vat import from_form
+            tax_snapshot=from_form(grand_total,shop)
+            grand_total=Decimal(tax_snapshot['total'])
             if draft is None:
                 # Only an actual new save retires the prior open draft. Hub navigation is read-only.
                 for previous in scoped_quotes.filter_by(is_draft=True).all():
@@ -1530,6 +1552,7 @@ def carpentry_quote_form(shop, customer, debtor, editing_quote=None):
                 quote.is_draft = True
             quote.items = lines
             quote.grand_total = grand_total
+            quote.tax_snapshot = tax_snapshot
             db.session.add(quote)
             if shop.trade == 'boq':
                 from app.protrade_boq_time import attach_quote
@@ -1643,6 +1666,9 @@ def carpentry_quote_items(shop_id, debtor_id, quote_id):
     error,status = None,200
     if request.method=='POST':
         values = {key:request.form.get(key,'').strip() for key in values}
+        from app.models.mechanic import MechInvoice
+        if MechInvoice.query.filter_by(boq_quote_id=quote.id).filter(MechInvoice.source_data.isnot(None)).first():
+            abort(409,description='This quotation has been invoiced. Create a new quotation for changes.')
         try:
             if request.form.get('line_token') != token:
                 status=409
@@ -1669,6 +1695,10 @@ def carpentry_quote_items(shop_id, debtor_id, quote_id):
             if grand_total>Decimal('99999999999999999999999999.99'):
                 raise ValueError('Quotation total is too large to save.')
             quote.items=lines
+            if quote.tax_snapshot:
+                from app.protrade_vat import refresh_snapshot
+                quote.tax_snapshot=refresh_snapshot(quote.tax_snapshot,grand_total)
+                grand_total=Decimal(quote.tax_snapshot['total'])
             quote.grand_total=grand_total
             db.session.commit()
             flash('Quote item updated.','success')
@@ -2103,7 +2133,7 @@ def new_quote():
             is_draft=True,
             vehicle_id=vehicle.id,
             status='Quote',
-            vat_rate=active_shop.vat_rate
+            vat_rate=0
         )
         db.session.add(job_card)
         db.session.flush()
@@ -2177,6 +2207,16 @@ def new_quote():
                 
         from app.protrade_documents import charge_document
         db.session.flush()
+        from app.protrade_vat import from_form
+        from decimal import Decimal
+        raw_total=sum((Decimal(str(p.quantity or 0))*Decimal(str(p.markup_price or 0)) for p in job_card.part_lines),Decimal(0))
+        raw_total+=sum((Decimal(str(l.hours or 0))*Decimal(str(l.rate_per_hour or 0)) for l in job_card.labor_lines),Decimal(0))
+        try:
+            job_card.tax_snapshot=from_form(raw_total,active_shop)
+        except ValueError as exc:
+            db.session.rollback();abort(400,description=str(exc))
+        # Existing ledger triggers apply an uplift; inclusive prices already contain VAT.
+        job_card.vat_rate=0 if job_card.tax_snapshot['inclusive'] else float(job_card.tax_snapshot['rate'])
         charge_document(current_user.id,active_shop.id,debtor.id,'mechanic-quote:'+str(job_card.id),'quote')
         try:
             db.session.commit()
@@ -2611,121 +2651,16 @@ def mark_billed(id):
 @mechanic_bp.route("/mechanic/job_card/<int:id>/accept", methods=["POST"])
 @login_required
 def accept_quote(id):
-    from app.models.debtors import Debtor, SenderProfile, DebtorLedger
-    from datetime import datetime
-    from app.models.auth import AitTokenWallet, AitTokenTransaction
-    from sqlalchemy import text
-    from app.utils.mailer import send_pdf_email
-    from app.utils.pdf_render import html_to_pdf_bytes
-    
-    job_card = MechJobCard.query.filter_by(id=id).populate_existing().with_for_update().first_or_404()
     from flask import abort
+    job_card = MechJobCard.query.filter_by(id=id).populate_existing().with_for_update().first_or_404()
     if not job_card.vehicle or job_card.vehicle.client.user_id != current_user.id:
         abort(404)
     if job_card.status == 'Quote':
-        
         job_card.status = 'Awaiting Deposit'
-        
-        # Ensure Debtor profile exists
-        client = job_card.vehicle.client
-        debtor = None
-        if client:
-            debtor = Debtor.query.filter_by(id=job_card.debtor_id,shop_id=job_card.shop_id,user_id=current_user.id).first() if job_card.debtor_id is not None else Debtor.query.filter_by(user_id=current_user.id, slug_reference='mechanic', name=client.name).first()
-            if not debtor:
-                sender_profile = SenderProfile.query.filter_by(user_id=current_user.id, is_default=True).first()
-                debtor = Debtor(
-                    user_id=current_user.id,
-                    name=client.name,
-                    phone=client.phone,
-                    email=client.email,
-                    slug_reference='mechanic',
-                    sender_profile_id=sender_profile.id if sender_profile else None
-                )
-                db.session.add(debtor)
-                db.session.flush() # get id
-                
-            # Log the full quote amount as a Debit
-            existing_charge = DebtorLedger.query.filter_by(
-                debtor_id=debtor.id, 
-                ref=f"JOB-{job_card.job_number}", 
-                kind='debit'
-            ).first()
-            
-            if not existing_charge:
-                labor_total = sum(l.hours * l.rate_per_hour for l in job_card.labor_lines)
-                parts_total = sum(p.quantity * p.markup_price for p in job_card.part_lines)
-                subtotal = labor_total + parts_total
-                vat_amount = subtotal * (job_card.vat_rate / 100.0)
-                job_card_total = subtotal + vat_amount
-                
-                if job_card_total > 0:
-                    charge_ledger = DebtorLedger(
-                        debtor_id=debtor.id,
-                        txn_date=db.func.current_date(),
-                        kind='debit',
-                        amount=int(job_card_total * 100),
-                        description=f"Quote/Tax Invoice for Job #{job_card.job_number}",
-                        ref=f"JOB-{job_card.job_number}"
-                    )
-                    db.session.add(charge_ledger)
-                    
-        from app.protrade_documents import charge_document
-        db.session.flush()
-        charge_document(current_user.id,job_card.shop_id,debtor.id if debtor else None,'mechanic-invoice:'+str(job_card.id),'invoice')
         db.session.commit()
-        
-        # AUTO-EMAIL TAX INVOICE LOGIC
-        if client and client.email:
-            try:
-                active_shop = MechShop.query.filter_by(id=job_card.shop_id,user_id=current_user.id).first_or_404() if job_card.shop_id is not None else get_active_shop(current_user.id)
-                from app.models.debtors import BusinessBankAccount
-                bank_account = BusinessBankAccount.query.filter_by(user_id=current_user.id).order_by(BusinessBankAccount.is_default.desc()).first()
-                
-                doc_type = "Tax Invoice"
-                subject = f"Your {doc_type} #{job_card.display_document_number} from {active_shop.business_name if active_shop else 'AIT ProTrade'}"
-                
-                body = f"""Hello,\n\nYour {doc_type} #{job_card.display_document_number} is ready. We have attached a PDF copy for your records.\n\nThank you for choosing us!"""
-                
-                letterhead_html = ""
-                if active_shop and active_shop.use_custom_letterhead and active_shop.letterhead_url:
-                    lh_url = url_for('static', filename=f'uploads/mechanic/{active_shop.letterhead_url}', _external=True)
-                    letterhead_html = f'<div style="text-align: center; margin-bottom: 20px;"><img src="{lh_url}" alt="Shop Letterhead" style="max-width: 100%; height: auto; max-height: 150px; border-radius: 8px;"></div><hr style="border: 0; border-top: 1px solid #e2e8f0; margin-bottom: 20px;">'
-        
-                html = f"""{letterhead_html}
-                <div style="font-family: sans-serif; color: #334155; max-width: 600px; margin: 0 auto;">
-                    <p>Hello,</p>
-                    <p>Your {doc_type} <strong>#{job_card.display_document_number}</strong> is ready. We have attached a PDF copy for your records.</p>
-                    <br>
-                    <p>Thank you for choosing us!</p>
-                </div>"""
-                
-                today_date = datetime.utcnow().strftime('%Y-%m-%d')
-                pdf_html_content = render_template("program_mechanic/public_job_card.html", job_card=job_card, shop=active_shop, today_date=today_date, bank_account=bank_account)
-                pdf_bytes = html_to_pdf_bytes(pdf_html_content, base_url=request.host_url)
-                
-                file_name = f"{doc_type.replace(' ', '_')}_{job_card.display_document_number}.pdf"
-                
-                send_pdf_email(
-                    to_email=client.email,
-                    subject=subject,
-                    body=body,
-                    html=html,
-                    pdf_bytes=pdf_bytes,
-                    filename=file_name
-                )
-                
-                flash("Quote Confirmed and Tax Invoice automatically emailed to client!", "success")
-                
-            except Exception as e:
-                current_app.logger.error(f"Auto-email failed: {e}")
-                flash("Quote Confirmed! WARNING: Auto-email failed. Please print and send the Tax Invoice manually.", "warning")
-        else:
-            flash("Quote Confirmed! WARNING: Client has no email address. Please WhatsApp or Print the Tax Invoice manually to remain legally compliant.", "warning")
-            
-        if debtor:
-            return redirect(url_for('mechanic_bp.job_card_detail', id=job_card.id))
-            
-    return redirect(url_for('mechanic_bp.job_card_detail', id=id))
+        flash('Quotation accepted. Use Convert to Invoice when ready to issue an invoice.', 'success')
+    return redirect(url_for('mechanic_bp.job_card_detail',id=id))
+
 
 @mechanic_bp.route("/mechanic/job_card/<int:id>/record_deposit", methods=["POST"])
 @login_required
@@ -2782,7 +2717,7 @@ def record_deposit(id):
                     txn_date=db.func.current_date(),
                     kind='debit',
                     amount=int(job_card_total * 100),
-                    description=f"Quote/Tax Invoice for Job #{job_card.job_number}",
+                    description=f"Quotation for Job #{job_card.job_number}",
                     ref=f"JOB-{job_card.job_number}"
                 )
                 db.session.add(charge_ledger)

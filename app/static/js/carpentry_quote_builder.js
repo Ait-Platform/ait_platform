@@ -86,8 +86,17 @@
       row.querySelector('.line-total').textContent = money(cents);
       total += cents;
     });
-    document.getElementById('quote-grand-total').value = money(total);
-    const subtotal=document.getElementById('quote-subtotal');if(subtotal) subtotal.value=money(total);
+    const vatOptions=document.getElementById('quote-vat-options');
+    const inclusive=vatOptions?.querySelector('[name=vat_inclusive]')?.checked;
+    const day=vatOptions?.querySelector('[name=supply_date]')?.value;
+    const schedule=JSON.parse(document.getElementById('quote-vat-schedule')?.textContent || '[]');
+    const standard=schedule.filter(row=>row.day<=day).at(-1)?.rate || '0';
+    const rate=vatOptions?.dataset.registered==='yes' && vatOptions.querySelector('[name=vat_treatment]')?.value==='standard' ? (rateCents(standard) || 0n) : 0n;
+    const divisor=inclusive ? 10000n+rate : 10000n;
+    const vat=(total*rate+divisor/2n)/divisor;
+    document.getElementById('quote-grand-total').value = money(inclusive ? total : total+vat);
+    const subtotal=document.getElementById('quote-subtotal');if(subtotal) subtotal.value=money(inclusive ? total-vat : total);
+    const vatOutput=document.getElementById('quote-vat');if(vatOutput) vatOutput.value=money(vat);
     document.getElementById('quote-save').disabled = included === 0 || invalidIncluded;
     if (!selected.size && !document.getElementById('quote-empty')) {
       const row = body.insertRow();row.id='quote-empty';
@@ -171,6 +180,13 @@
     document.getElementById('quote-form-title').textContent='New Quotation';
     const reference=document.getElementById('quote-current-reference');if(reference) reference.hidden=true;
     const error=form.querySelector('[role="alert"]');if(error) error.hidden=true;
+    const vat=form.querySelector('#quote-vat-options');
+    if(vat) {
+      vat.querySelector('[name=supply_date]').value=vat.dataset.today;
+      const treatment=vat.querySelector('[name=vat_treatment]');if(treatment) treatment.value='standard';
+      const inclusive=vat.querySelector('[name=vat_inclusive]');if(inclusive) inclusive.checked=false;
+      const basis=vat.querySelector('[name=vat_basis]');if(basis) basis.value='';
+    }
     restoreServerState();search.focus();
   });
   document.getElementById('carpentry-quote-form').addEventListener('submit',event=>{
@@ -181,6 +197,7 @@
     }
   });
   restoreServerState();
+  document.getElementById('quote-vat-options')?.addEventListener('change',calculate);
   if (catalogue) catalogueOptions();
   // Initial pageshow can arrive after the user starts typing (e.g. slow page assets).
   // Only a genuine back/forward-cache restore should replace their working values.

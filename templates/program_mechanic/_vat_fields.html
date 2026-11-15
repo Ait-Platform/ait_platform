@@ -1,0 +1,11 @@
+{% set saved_tax = draft.tax_snapshot if draft is defined and draft and draft.tax_snapshot else none %}
+<fieldset id="quote-vat-options" class="mt-4 rounded-lg border border-slate-300 p-4" data-registered="{{ 'yes' if shop.vat_registered else 'no' }}" data-today="{{ protrade_today }}">
+<legend class="px-2 font-semibold">VAT treatment</legend>
+{% if shop.vat_registered is none %}<p class="text-amber-800">Confirm VAT registration in Shop Profile before saving a new quotation.</p>{% elif not shop.vat_registered %}<p class="text-slate-700">This contractor is not VAT registered. No VAT will be charged.</p>{% endif %}
+<div class="grid gap-3 sm:grid-cols-2"><label>Supply date<input type="date" required name="supply_date" value="{{ saved_tax.supply_date if saved_tax else protrade_today }}" class="block w-full rounded border border-slate-300 p-2"></label>
+{% if shop.vat_registered %}<label>Supply treatment<select name="vat_treatment" class="block w-full rounded border border-slate-300 p-2">{% for key,label in [('standard','Standard-rated'),('zero','Legally zero-rated'),('exempt','Legally exempt')] %}<option value="{{ key }}" {% if saved_tax and saved_tax.treatment==key %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+<label class="sm:col-span-2">Legal basis for zero-rated / exempt supply<input name="vat_basis" maxlength="400" value="{{ saved_tax.legal_basis if saved_tax else '' }}" class="block w-full rounded border border-slate-300 p-2" placeholder="Required for legally zero-rated or exempt supplies"></label>
+<label class="sm:col-span-2"><input type="checkbox" name="vat_inclusive" value="yes" {% if saved_tax and saved_tax.inclusive %}checked{% endif %}> Entered rates already include VAT</label>{% endif %}</div>
+<p class="mt-2 text-sm text-slate-700">VAT rates are approved by AIT Admin and applied by supply date. A signature accepts a quotation; use Convert to Invoice to issue a separate invoice.</p>
+</fieldset>
+<script id="quote-vat-schedule" type="application/json">{{ protrade_vat_schedule|tojson }}</script>

@@ -45,6 +45,10 @@ def section_data(shop, quote, section):
     data['document'].update(title='BOQ Section', reference=quote.display_quote_number + ' - ' + section['name'],
         rows=[[line['code'], line['description'], line['unit'], line['quantity'], line['material_rate'], line['labour_rate'], line['total']] for line in lines],
         totals=[('Total (R)', format(sum(Decimal(line['total']) for line in lines), '.2f'))])
+    if quote.tax_snapshot:
+        from app.protrade_vat import refresh_snapshot
+        tax=refresh_snapshot(quote.tax_snapshot,sum(Decimal(line['total']) for line in lines))
+        data['document'].update(tax=tax,totals=[('Subtotal (R)',tax['subtotal']),(f"VAT ({tax['rate']}%) (R)",tax['vat']),('Total (R)',tax['total'])])
     return data
 
 

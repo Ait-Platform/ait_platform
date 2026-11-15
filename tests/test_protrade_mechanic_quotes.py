@@ -198,7 +198,7 @@ class MechanicQuotationTests(unittest.TestCase):
         self.assertEqual(base.DebtorLedger.query.filter_by(debtor_id=self.customer.id,kind='credit').one().amount,10000)
         self.assertEqual(base.DebtorLedger.query.filter_by(debtor_id=self.customer.id,kind='debit').count(),1)
         self.assertEqual(base.models.Debtor.query.filter_by(shop_id=self.mechanic.id).count(),1)
-        self.assertEqual(self.wallet.balance,40)
+        self.assertEqual(self.wallet.balance,50)  # Acceptance and payment are not invoice issuance.
         with self.conn.begin_nested() as transaction:
             with self.assertRaises(sa.exc.DBAPIError):
                 self.conn.execute(sa.text("INSERT INTO debtor_ledger(debtor_id,txn_date,description,kind,amount,ref) VALUES(:debtor,current_date,'old duplicate','debit',98937,:ref)"),dict(debtor=self.customer.id,ref='JOB-'+self.job.job_number))
@@ -214,7 +214,7 @@ class MechanicQuotationTests(unittest.TestCase):
         from test_protrade_trade_quotes import TokenTransaction,InviteLog
         self.ns.update(text=sa.text,AitTokenTransaction=TokenTransaction,InviteLog=InviteLog)
         self.conn.exec_driver_sql('CREATE TEMP TABLE system_settings(key text PRIMARY KEY,value text)')
-        self.mechanic.vat_rate=15;self.db_session.commit()
+        self.mechanic.vat_rate=15;self.mechanic.vat_registered=True;self.mechanic.tax_number='4123456789';self.db_session.commit()
         data=dict(shop_id=self.mechanic.id,debtor_id=self.customer.id,client_id=self.customer.reference_id,customer_name=self.customer.name,vehicle_reg='NEW123')
         data.update({'part_qty[]':['2'],'part_desc[]':['New part'],'part_rate[]':['100'],'labor_desc[]':['New labour'],'labor_in[]':['08:00'],'labor_out[]':['09:00'],'labor_rate[]':['50']})
         for _ in range(2):self.assertEqual(self.client.post('/mechanic/quote/new',data=data).status_code,302)
@@ -226,7 +226,7 @@ class MechanicQuotationTests(unittest.TestCase):
         self.assertEqual(self.wallet.balance,40)
         self.assertEqual(self.job.display_quote_number,'Q-0001')
 
-    def test_existing_tax_invoice_action_keeps_one_debit_and_correct_shop(self):
+    def test_acceptance_keeps_one_debit_without_invoice_charge_or_auto_email(self):
         self.fixtures()
         from test_protrade_trade_quotes import TokenTransaction
         self.ns.update(SenderProfile=base.models.SenderProfile,BusinessBankAccount=ledger.Bank,AitTokenTransaction=TokenTransaction)
@@ -235,11 +235,32 @@ class MechanicQuotationTests(unittest.TestCase):
         with patch('app.utils.mailer.send_pdf_email',return_value=True) as sender:
             result=self.client.post('/mechanic/job_card/18/accept')
             self.assertEqual(result.status_code,302)
-            self.assertEqual(sender.call_count,1)
-            self.assertIn(self.mechanic.business_name,sender.call_args.kwargs['subject'])
+            self.assertEqual(sender.call_count,0)
         self.assertEqual(base.DebtorLedger.query.filter_by(debtor_id=self.customer.id,kind='debit').count(),1)
         self.assertEqual(base.models.Debtor.query.filter_by(shop_id=self.mechanic.id).count(),1)
-        self.assertEqual(self.wallet.balance,40)  # Confirmed ten-token invoice charge.
+        self.assertEqual(self.wallet.balance,50)
+        self.assertEqual(base.catalog_globals['MechInvoice'].query.count(),0)
+
+    def test_explicit_invoice_conversion_keeps_quotation_debit_and_number(self):
+        self.fixtures()
+        self.mechanic.vat_registered=True;self.mechanic.tax_number='4123456789'
+        self.customer.address='Customer physical address';self.db_session.commit()
+        before=[(row.id,row.amount,row.ref) for row in base.DebtorLedger.query.all()]
+        reference=self.job.display_quote_number
+        url=f'/mechanic/shop/{self.mechanic.id}/mechanic/18/invoice'
+        for _ in range(2):
+            response=self.client.post(url,data=dict(confirm_invoice='yes',supply_date=date.today().isoformat(),vat_treatment='standard'))
+            self.assertEqual(response.status_code,302)
+        invoice=base.catalog_globals['MechInvoice'].query.one()
+        self.assertTrue(invoice.invoice_number.startswith('INV-'))
+        self.assertEqual(invoice.source_data['document']['title'],'Tax Invoice')
+        self.assertEqual(invoice.source_data['document']['tax']['total'],'989.37')
+        self.assertEqual(self.job.display_quote_number,reference)
+        self.assertEqual(self.wallet.balance,40)
+        self.assertEqual([(row.id,row.amount,row.ref) for row in base.DebtorLedger.query.all()],before)
+        response=self.client.get(response.location)
+        self.assertEqual(response.status_code,200)
+        self.assertIn(invoice.invoice_number,response.get_data(as_text=True))
 
     def browser_route(self,route):
         req=route.request;url=urlsplit(req.url)

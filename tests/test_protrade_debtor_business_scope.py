@@ -1,5 +1,6 @@
 """Central debtor identities retain separate business financial accounts."""
 from uuid import uuid4
+from datetime import date
 import unittest
 from lxml import html
 import sqlalchemy as sa
@@ -186,11 +187,15 @@ class BusinessDebtorTests(unittest.TestCase):
         other_shop=self.shop(name='Second workshop',trade='mechanic',status='active')
         self.save_debtor(other_shop,name=self.customer.name,phone=self.customer.phone,email=self.customer.email)
         other=self.debtor(other_shop)
+        other.address='Separate business customer address';self.db_session.commit()
         before=self.conn.exec_driver_sql('SELECT * FROM debtor_ledger WHERE debtor_id=%s ORDER BY id',(self.customer.id,)).all()
         payload=dict(shop_id=other_shop.id,debtor_id=other.id,client_id=other.reference_id,customer_name=other.name,vehicle_reg='BUSINESS-B')
+        payload.update({'part_qty[]':['1'],'part_desc[]':['Separate business work'],'part_rate[]':['100']})
         self.assertEqual(self.client.post('/mechanic/quote/new',data=payload).status_code,302)
         quote=base.models.MechJobCard.query.filter_by(shop_id=other_shop.id).one()
         self.assertEqual(self.client.post(f'/mechanic/job/{quote.id}/approve',data={'pop_amount':'0'}).status_code,302)
+        self.assertEqual(base.ProTradeDocument.query.filter_by(kind='invoice').count(),0)
+        self.assertEqual(self.client.post(f'/mechanic/shop/{other_shop.id}/mechanic/{quote.id}/invoice',data=dict(confirm_invoice='yes',supply_date=date.today().isoformat())).status_code,302)
         invoice=base.ProTradeDocument.query.filter_by(kind='invoice').one()
         self.assertEqual((invoice.shop_id,invoice.debtor_id),(other_shop.id,other.id))
         self.db_session.add(base.models.SenderProfile(user_id=1,business_name='Unrelated default business',is_default=True))

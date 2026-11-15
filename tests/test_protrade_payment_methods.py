@@ -106,6 +106,7 @@ class PaymentMethodTests(unittest.TestCase):
         self.assertEqual(self.payment('eWallet',key,amount='1125.00',ref='EW-1125').status_code,302)
         self.assertEqual(base.DebtorLedger.query.filter_by(debtor_id=self.tomas.id,kind='credit').count(),1)
         self.assertIn('2148.32',self.client.get(self.ledger_url()).get_data(as_text=True))
+        self.assertEqual(self.client.post(f'/debtor/{self.tomas.id}/soa', data={'action':'generate'}).status_code,302)
         response=self.client.get(f'/debtor/{self.tomas.id}/soa?pdf=1')
         self.assertEqual(response.mimetype,'application/pdf')
         (base.ROOT/'tmp/protrade-method-soa.pdf').write_bytes(response.data)
@@ -127,7 +128,7 @@ class PaymentMethodTests(unittest.TestCase):
         from werkzeug.serving import make_server
         from playwright.sync_api import sync_playwright
         self.fixtures()
-        self.db_session.add(base.models.AitTokenWallet(user_id=1,balance=50));self.db_session.commit()
+        self.db_session.add(base.models.test_wallet(self.db_session,balance=50));self.db_session.commit()
         self.app.static_folder=str(base.ROOT/'app/static')
         self.app.jinja_loader.loaders[0].mapping['layout.html']='<style>.hidden{display:none!important}</style>{% block head %}{% endblock %}{% block content %}{% endblock %}'
         server=make_server('127.0.0.1',0,self.app)

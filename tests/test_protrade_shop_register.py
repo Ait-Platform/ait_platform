@@ -71,6 +71,18 @@ exec(compile(ast.Module(body=[cents_node],type_ignores=[]),'production_ledger_ce
 ledger_node=next(node for node in ast.parse((ROOT/'app/models/debtors.py').read_text()).body if isinstance(node,ast.ClassDef) and node.name=='DebtorLedger')
 exec(compile(ast.Module(body=[ledger_node],type_ignores=[]),'production_debtor_ledger','exec'),catalog_globals)
 DebtorLedger=catalog_globals['DebtorLedger']
+catalog_db.LargeBinary=sa.LargeBinary
+catalog_db.func=sa.func
+original_fk=catalog_db.ForeignKey
+catalog_db.ForeignKey=lambda target,**kw: original_fk('ait_token_wallets.id' if target=='ait_token_wallet.id' else target,**kw)
+transaction_node=next(node for node in ast.parse((ROOT/'app/models/auth.py').read_text(encoding='utf-8')).body if isinstance(node,ast.ClassDef) and node.name=='AitTokenTransaction')
+exec(compile(ast.Module(body=[transaction_node],type_ignores=[]),'production_token_transaction','exec'),catalog_globals)
+TokenTransaction=catalog_globals['AitTokenTransaction']
+document_node=next(node for node in ast.parse((ROOT/'app/models/mechanic.py').read_text(encoding='utf-8')).body if isinstance(node,ast.ClassDef) and node.name=='ProTradeDocument')
+exec(compile(ast.Module(body=[document_node],type_ignores=[]),'production_document_receipt','exec'),catalog_globals)
+ProTradeDocument=catalog_globals['ProTradeDocument']
+catalog_db.ForeignKey=original_fk
+
 
 for class_name in ('MechLaborLine', 'MechPartLine', 'MechInvoice'):
     node = next(n for n in ast.parse((ROOT / 'app/models/mechanic.py').read_text()).body
@@ -99,6 +111,15 @@ sa.Index('uq_protrade_mech_open_draft',models.MechJobCard.shop_id,models.MechJob
 class ProductionImports(ast.NodeTransformer):
     def visit_ImportFrom(self, node):
         return None if (node.module or '').startswith('app.models.') else node
+
+
+def test_wallet(session,balance=50):
+    wallet=models.AitTokenWallet.query.filter_by(user_id=1).first()
+    if wallet is None:wallet=models.AitTokenWallet(user_id=1,balance=balance);session.add(wallet)
+    wallet.balance=balance
+    return wallet
+test_wallet.__test__ = False
+models.test_wallet=test_wallet
 
 
 class ShopRegisterTests(unittest.TestCase):
@@ -132,7 +153,7 @@ class ShopRegisterTests(unittest.TestCase):
         bp = Blueprint('mechanic_bp', __name__)
         tree = ast.parse((ROOT / 'app/program_mechanic/routes.py').read_text(encoding='utf-8'))
         names = {'ensure_sender_profile_synced', 'shop_register_rows', 'get_active_shop', 'mechanic_dashboard', 'onboarding_process',
-                 'registered_trade_name', 'price_list_shop', 'price_list_query',
+                 'boq_sections', 'registered_trade_name', 'price_list_shop', 'price_list_query',
                  'selected_price_list', 'catalog_manage', 'carpentry_boq_price_list', 'client_register_quote', 'shop_register_quote',
                  'public_job_card','approve_quote','accept_quote','record_deposit','mark_billed','mechanic_quote_items','job_card_detail','download_document','email_document','register_trade_quote', 'carpentry_quote_form', 'carpentry_quote_item_id', 'carpentry_quote_items', 'carpentry_quote_view', 'new_quote', 'quote_invoice_register', 'edit_quote',
                  'protrade_folders', 'protrade_help', 'debtor_register_entry', 'shop_debtor_register', 'debtor_quote', 'new_debtor_quote','protrade_output','client_ledger','client_ledger_add_payment'}
@@ -146,6 +167,11 @@ class ShopRegisterTests(unittest.TestCase):
         import app.protrade_mechanic_quotes as mechanic_quotes
         for name in ('db','MechShop','MechClient','MechVehicle','MechJobCard','MechPartLine','MechLaborLine','Debtor'):
             setattr(mechanic_quotes,name,self.ns[name])
+        import app.protrade_documents as documents
+        documents.db=self.ns['db'];documents.AitTokenWallet=models.AitTokenWallet
+        documents.AitTokenTransaction=TokenTransaction;documents.ProTradeDocument=ProTradeDocument
+        import app.protrade_statements as statements
+        for name,value in dict(db=self.ns['db'],Debtor=models.Debtor,DebtorLedger=DebtorLedger,MechShop=models.MechShop,SenderProfile=models.SenderProfile,ProTradeDocument=ProTradeDocument).items():setattr(statements,name,value)
         code = ast.fix_missing_locations(ProductionImports().visit(ast.Module(body=nodes, type_ignores=[])))
         exec(compile(code, 'production_shop_routes', 'exec'), self.ns)
         self.app.register_blueprint(bp)
@@ -161,6 +187,7 @@ class ShopRegisterTests(unittest.TestCase):
                                       endpoint, lambda **kw: 'stub')
         self.db_session.add_all([models.User(id=1, name='Owner', email='one@example.test'), models.User(id=2, name='Other', email='two@example.test')])
         self.db_session.commit()
+        self.db_session.add(models.AitTokenWallet(user_id=1,balance=1000));self.db_session.commit()
         self.client = self.app.test_client()
         with self.client.session_transaction() as sess:
             sess['_user_id'] = '1'

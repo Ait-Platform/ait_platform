@@ -37,6 +37,26 @@ def migrate(conn):
     module.op=Operations(MigrationContext.configure(conn));module.upgrade();return module
 
 
+
+def register_soa_routes(self):
+    import app.protrade_statements as statements
+    statements.BusinessBankAccount=Bank
+    def first_or_404(query):
+        row=query.first()
+        if row is None:abort(404)
+        return row
+    patcher=patch.object(Query,'first_or_404',first_or_404,create=True);patcher.start();self.addCleanup(patcher.stop)
+    bp=Blueprint('debtors_bp',__name__)
+    from app.utils.pdf_render import html_to_pdf_bytes
+    namespace=dict(self.ns,debtors_bp=bp,Debtor=base.models.Debtor,DebtorLedger=base.DebtorLedger,SenderProfile=base.models.SenderProfile,BusinessBankAccount=Bank,io=io,send_file=send_file,html_to_pdf_bytes=html_to_pdf_bytes,send_pdf_email=Mock(side_effect=AssertionError('No automatic SOA email')))
+    tree=ast.parse((base.ROOT/'app/program_debtors/routes.py').read_text(encoding='utf-8'))
+    nodes=[node for node in tree.body if isinstance(node,ast.FunctionDef) and node.name in ('generate_soa','email_soa')]
+    exec(compile(ast.fix_missing_locations(base.ProductionImports().visit(ast.Module(body=nodes,type_ignores=[]))),'production_soa_routes','exec'),namespace)
+    self.app.register_blueprint(bp)
+    templates=['templates/program_mechanic/client_ledger.html','templates/program_debtors/soa_template.html']
+    for endpoint in set(re.findall(r"url_for\(['\"]([^'\"]+)",''.join((base.ROOT/name).read_text(encoding='utf-8') for name in templates))):
+        if endpoint not in self.app.view_functions:self.app.add_url_rule('/stub/'+endpoint,endpoint,lambda **kw:'stub')
+
 class QuoteLedgerTests(unittest.TestCase):
     shop=foundation.DebtorFoundationTests.shop
     save_debtor=foundation.DebtorFoundationTests.save_debtor
@@ -46,21 +66,7 @@ class QuoteLedgerTests(unittest.TestCase):
 
     def setUp(self):
         foundation.DebtorFoundationTests.setUp(self)
-        def first_or_404(query):
-            row=query.first()
-            if row is None:abort(404)
-            return row
-        patcher=patch.object(Query,'first_or_404',first_or_404,create=True);patcher.start();self.addCleanup(patcher.stop)
-        bp=Blueprint('debtors_bp',__name__)
-        from app.utils.pdf_render import html_to_pdf_bytes
-        namespace=dict(self.ns,debtors_bp=bp,Debtor=base.models.Debtor,DebtorLedger=base.DebtorLedger,SenderProfile=base.models.SenderProfile,BusinessBankAccount=Bank,io=io,send_file=send_file,html_to_pdf_bytes=html_to_pdf_bytes,send_pdf_email=Mock(side_effect=AssertionError('No automatic SOA email')))
-        tree=ast.parse((base.ROOT/'app/program_debtors/routes.py').read_text(encoding='utf-8'))
-        nodes=[node for node in tree.body if isinstance(node,ast.FunctionDef) and node.name in ('generate_soa','email_soa')]
-        exec(compile(ast.fix_missing_locations(base.ProductionImports().visit(ast.Module(body=nodes,type_ignores=[]))),'production_soa_routes','exec'),namespace)
-        self.app.register_blueprint(bp)
-        templates=['templates/program_mechanic/client_ledger.html','templates/program_debtors/soa_template.html']
-        for endpoint in set(re.findall(r"url_for\(['\"]([^'\"]+)",''.join((base.ROOT/name).read_text(encoding='utf-8') for name in templates))):
-            if endpoint not in self.app.view_functions:self.app.add_url_rule('/stub/'+endpoint,endpoint,lambda **kw:'stub')
+        register_soa_routes(self)
 
     def fixtures(self,adopt=False,upgrade=True):
         self.save_debtor(name='Tomas');self.tomas=self.debtor()
@@ -149,6 +155,7 @@ class QuoteLedgerTests(unittest.TestCase):
         self.assertIn('2773.32',ledger.get_data(as_text=True))
         prior=html.fromstring(self.client.get(url+'?end_date=2026-11-13').data).text_content()
         self.assertIn('3,273.32',prior);self.assertNotIn('EFT-500',prior)
+        self.assertEqual(self.client.post(url,data={'action':'generate'}).status_code,302)
         pdf=self.client.get(url+'?pdf=1')
         self.assertEqual(pdf.mimetype,'application/pdf');self.assertTrue(pdf.data.startswith(b'%PDF'))
         (base.ROOT/'tmp/protrade-quote-ledger-soa.pdf').write_bytes(pdf.data)
@@ -158,7 +165,7 @@ class QuoteLedgerTests(unittest.TestCase):
         from werkzeug.serving import make_server
         from playwright.sync_api import sync_playwright
         self.fixtures()
-        self.db_session.add(base.models.AitTokenWallet(user_id=1,balance=50));self.db_session.commit()
+        self.db_session.add(base.models.test_wallet(self.db_session,balance=50));self.db_session.commit()
         tables=('ait_token_wallets','quote_test_token_transactions','mech_invoices','protrade_output_email','protrade_boq_items')
         before={table:self.conn.exec_driver_sql('SELECT * FROM '+table+' ORDER BY id').all() for table in tables}
         count=base.ProTradeBoqQuote.query.count();identity=(self.quotes[1].id,self.quotes[1].quote_number,self.quotes[1].quotation_seq)

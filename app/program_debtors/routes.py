@@ -591,12 +591,16 @@ def soa_redirect():
     return redirect(url_for('debtors_bp.generate_soa', debtor_id=debtor_id, start_date=start_date, end_date=end_date, pdf=1))
 
 
-@debtors_bp.route("/debtor/<int:debtor_id>/soa")
+@debtors_bp.route("/debtor/<int:debtor_id>/soa",methods=["GET","POST"])
 @login_required
 def generate_soa(debtor_id):
     from datetime import datetime
     debtor = Debtor.query.filter_by(
         id=debtor_id, user_id=current_user.id).first_or_404()
+
+    if debtor.shop_id is not None:
+        from app.protrade_statements import statement_page
+        return statement_page(debtor)
 
     if debtor.sender_profile_id:
         profile = SenderProfile.query.get(debtor.sender_profile_id)
@@ -755,6 +759,11 @@ def email_soa():
 
     debtor = Debtor.query.filter_by(
         id=debtor_id, user_id=current_user.id).first_or_404()
+    if debtor.shop_id is not None:
+        from app.protrade_statements import owned_statement
+        document=owned_statement(request.form.get('document_id',type=int),debtor.id,debtor.shop_id)
+        return redirect(url_for('mechanic_bp.protrade_output',shop_id=debtor.shop_id,selection='statement:generated-'+str(document.id),preview=1))
+
     if debtor.sender_profile_id:
         profile = SenderProfile.query.get(debtor.sender_profile_id)
     else:

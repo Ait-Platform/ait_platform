@@ -155,7 +155,7 @@ class DebtorFoundationTests(unittest.TestCase):
     def test_mechanic_quote_opens_and_edits_same_draft_without_repeat_charge(self):
         self.ns.update(text=sa.text,AitTokenTransaction=TokenTransaction,InviteLog=InviteLog)
         self.conn.exec_driver_sql('CREATE TEMP TABLE system_settings (key text PRIMARY KEY,value text)')
-        wallet=base.models.AitTokenWallet(user_id=1,balance=50)
+        wallet=base.models.test_wallet(self.db_session,balance=50)
         self.db_session.add(wallet);self.db_session.commit()
         self.save_debtor(self.mechanic)
         debtor=self.debtor(self.mechanic)
@@ -170,7 +170,7 @@ class DebtorFoundationTests(unittest.TestCase):
         self.assertEqual(created.status_code,302)
         draft=base.models.MechJobCard.query.one()
         self.assertEqual((draft.debtor_id,draft.shop_id,draft.is_draft),(debtor.id,self.mechanic.id,True))
-        self.assertEqual(wallet.balance,45)
+        self.assertEqual(wallet.balance,40)
         for _ in range(2):
             reopened=self.client.get(url)
             self.assertEqual(reopened.status_code,200)
@@ -182,13 +182,13 @@ class DebtorFoundationTests(unittest.TestCase):
             self.assertEqual(self.client.post(action,data=payload).status_code,302)
             self.assertEqual(self.client.post('/mechanic/quote/new',data=payload).status_code,302)
         self.assertEqual(base.models.MechJobCard.query.count(),1)
-        self.assertEqual(wallet.balance,45)
+        self.assertEqual(wallet.balance,40)
         self.client.post(f'/mechanic/shop/{self.mechanic.id}/debtor/{debtor.id}/quotes/new')
         self.assertFalse(draft.is_draft)
         self.assertEqual(base.models.MechJobCard.query.count(),1)
         self.client.post('/mechanic/quote/new',data=payload)
         self.assertEqual(base.models.MechJobCard.query.count(),2)
-        self.assertEqual(wallet.balance,40)
+        self.assertEqual(wallet.balance,30)
 
     def test_migration_from_old_columns_preserves_existing_documents_and_prices(self):
         legacy=base.models.Debtor(user_id=1,name='Old unassigned debtor')

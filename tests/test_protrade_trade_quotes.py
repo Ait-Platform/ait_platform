@@ -38,7 +38,7 @@ class TradeQuoteTests(unittest.TestCase):
         self.ns.update(text=sa.text, AitTokenTransaction=TokenTransaction, InviteLog=InviteLog,
                        MechLaborLine=catalog_globals['MechLaborLine'], MechPartLine=catalog_globals['MechPartLine'])
         self.conn.exec_driver_sql('CREATE TEMP TABLE system_settings (key text PRIMARY KEY, value text)')
-        self.db_session.add(models.AitTokenWallet(user_id=1, balance=50))
+        self.db_session.add(models.test_wallet(self.db_session,balance=50))
         self.customer = models.MechClient(user_id=1, name='Customer Jane', phone='0123456789', email='jane@example.test', address='Customer address')
         self.foreign_customer = models.MechClient(user_id=2, name='Foreign Customer')
         self.db_session.add_all([self.customer, self.foreign_customer])
@@ -59,6 +59,7 @@ class TradeQuoteTests(unittest.TestCase):
         spec=importlib.util.spec_from_file_location('foundation_migration',base.ROOT/'migrations/versions/protrade_debtor_006.py')
         foundation=importlib.util.module_from_spec(spec);spec.loader.exec_module(foundation)
         foundation.op=Operations(MigrationContext.configure(self.conn));foundation.upgrade()
+        self.conn.exec_driver_sql("ALTER TABLE protrade_boq_quotes ADD COLUMN boq_sections JSON NOT NULL DEFAULT '[]'")
         self.conn.exec_driver_sql('ALTER TABLE protrade_boq_quotes ADD COLUMN quotation_seq integer')
         self.customers_by_shop={}
         self.debtors_by_shop={}
@@ -226,7 +227,7 @@ class TradeQuoteTests(unittest.TestCase):
         card = models.MechJobCard.query.one()
         self.assertEqual(card.shop_id, self.mechanic.id)
         self.assertEqual(card.vehicle.client_id, self.customers_by_shop[self.mechanic.id].id)
-        self.assertEqual(models.AitTokenWallet.query.one().balance, 45)
+        self.assertEqual(models.AitTokenWallet.query.one().balance, 40)
         self.assertEqual(ProTradeBoqQuote.query.count(), 0)
         self.assertEqual(self.snapshot(), self.original)
 

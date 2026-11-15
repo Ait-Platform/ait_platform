@@ -73,7 +73,7 @@ class MechanicQuotationTests(unittest.TestCase):
         self.migration.op=Operations(MigrationContext.configure(self.conn));self.migration.upgrade()
         self.db_session.expire_all()
         if new_account:self.customer=base.models.Debtor.query.filter_by(reference_id=self.vehicle.client_id,shop_id=self.mechanic.id).one()
-        self.wallet=base.models.AitTokenWallet(user_id=1,balance=50);self.db_session.add(self.wallet);self.db_session.commit()
+        self.wallet=base.models.test_wallet(self.db_session,balance=50);self.db_session.add(self.wallet);self.db_session.commit()
         self.url=f'/mechanic/shop/{self.mechanic.id}/debtor/{self.customer.id}/mechanic-quotes/18/items'
 
     def edit_values(self,kind='part',identifier=None):
@@ -198,7 +198,7 @@ class MechanicQuotationTests(unittest.TestCase):
         self.assertEqual(base.DebtorLedger.query.filter_by(debtor_id=self.customer.id,kind='credit').one().amount,10000)
         self.assertEqual(base.DebtorLedger.query.filter_by(debtor_id=self.customer.id,kind='debit').count(),1)
         self.assertEqual(base.models.Debtor.query.filter_by(shop_id=self.mechanic.id).count(),1)
-        self.assertEqual(self.wallet.balance,50)
+        self.assertEqual(self.wallet.balance,40)
         with self.conn.begin_nested() as transaction:
             with self.assertRaises(sa.exc.DBAPIError):
                 self.conn.execute(sa.text("INSERT INTO debtor_ledger(debtor_id,txn_date,description,kind,amount,ref) VALUES(:debtor,current_date,'old duplicate','debit',98937,:ref)"),dict(debtor=self.customer.id,ref='JOB-'+self.job.job_number))
@@ -223,7 +223,7 @@ class MechanicQuotationTests(unittest.TestCase):
         self.assertEqual(created.display_quote_number,'Q-0002')
         self.assertEqual(base.DebtorLedger.query.filter_by(mech_job_card_id=created.id).one().amount,28750)
         self.assertEqual(base.DebtorLedger.query.filter_by(debtor_id=self.customer.id,kind='debit').count(),2)
-        self.assertEqual(self.wallet.balance,45)
+        self.assertEqual(self.wallet.balance,40)
         self.assertEqual(self.job.display_quote_number,'Q-0001')
 
     def test_existing_tax_invoice_action_keeps_one_debit_and_correct_shop(self):
@@ -239,7 +239,7 @@ class MechanicQuotationTests(unittest.TestCase):
             self.assertIn(self.mechanic.business_name,sender.call_args.kwargs['subject'])
         self.assertEqual(base.DebtorLedger.query.filter_by(debtor_id=self.customer.id,kind='debit').count(),1)
         self.assertEqual(base.models.Debtor.query.filter_by(shop_id=self.mechanic.id).count(),1)
-        self.assertEqual(self.wallet.balance,45)  # Existing invoice action fee, never an editing fee.
+        self.assertEqual(self.wallet.balance,40)  # Confirmed ten-token invoice charge.
 
     def browser_route(self,route):
         req=route.request;url=urlsplit(req.url)

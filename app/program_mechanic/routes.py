@@ -342,13 +342,8 @@ def price_page():
     from app.utils.country import get_active_countries
     countries = get_active_countries()
 
-    val_quote = db.session.execute(text(
-        "SELECT value FROM system_settings WHERE key = 'mechanic_quote_cents'")).scalar()
-    quote_cents = int(float(val_quote)) if val_quote else 500
-
-    val_invoice = db.session.execute(text(
-        "SELECT value FROM system_settings WHERE key = 'mechanic_invoice_cents'")).scalar()
-    invoice_cents = int(float(val_invoice)) if val_invoice else 1000
+    quote_cents = 1000
+    invoice_cents = 1000
     
     from app.models.billing import TokenTariff
     schedule_tariff = TokenTariff.query.filter_by(program_slug='mechanic', action_name='generate_schedule').first()
@@ -1005,7 +1000,7 @@ def email_document(id):
 @login_required
 def approve_quote(id):
     from datetime import datetime
-    job_card = MechJobCard.query.get_or_404(id)
+    job_card = MechJobCard.query.filter_by(id=id).populate_existing().with_for_update().first_or_404()
     from flask import abort
     if not job_card.vehicle or job_card.vehicle.client.user_id != current_user.id:
         abort(404)
@@ -1088,6 +1083,9 @@ def approve_quote(id):
         )
         db.session.add(payment_ledger)
 
+    from app.protrade_documents import charge_document
+    db.session.flush()
+    charge_document(current_user.id,job_card.shop_id,debtor.id,'mechanic-invoice:'+str(job_card.id),'invoice')
     db.session.commit()
     flash("Proof of Payment captured! Document converted to Tax Invoice.", "success")
     return redirect(url_for("mechanic_bp.job_cards_list"))
@@ -1493,6 +1491,10 @@ def carpentry_quote_form(shop, customer, debtor, editing_quote=None):
             quote.items = lines
             quote.grand_total = grand_total
             db.session.add(quote)
+            if draft is None and shop.trade != 'boq':
+                from app.protrade_documents import charge_document
+                db.session.flush()
+                charge_document(current_user.id,shop.id,debtor.id,'boq-quote:'+str(quote.id),'quote')
             db.session.commit()
             flash('Quotation saved.', 'success')
             if draft is not None:
@@ -1975,28 +1977,9 @@ def new_quote():
     catalog_parts = selected_price_list(active_shop)
     
     if request.method == "POST":
-        setting = db.session.execute(text("SELECT value FROM system_settings WHERE key = 'mechanic_quote_cents'")).fetchone()
-        quote_cost = int(setting[0]) if setting else 500
-        token_cost = quote_cost // 100
-
-        from app.models.auth import AitTokenWallet, AitTokenTransaction
-        wallet = AitTokenWallet.query.filter_by(user_id=current_user.id).first()
-
-        if not wallet or wallet.balance < token_cost:
-            flash("Insufficient tokens. Please top up your wallet.", "warning")
-            return redirect(url_for("mechanic_bp.mock_bill"))
-            
         vehicle_reg = request.form.get("vehicle_reg", "Unknown")
         import uuid
         job_number = f"JOB-{uuid.uuid4().hex[:6].upper()}"
-        
-        wallet.balance -= token_cost
-        txn = AitTokenTransaction(
-            wallet_id=wallet.id,
-            amount=-token_cost,
-            description=f"Generated quote {job_number} for {vehicle_reg}"
-        )
-        db.session.add(txn)
         
         customer_name = request.form.get("customer_name")
         
@@ -2147,6 +2130,9 @@ def new_quote():
         )
         db.session.add(ilog)
                 
+        from app.protrade_documents import charge_document
+        db.session.flush()
+        charge_document(current_user.id,active_shop.id,debtor.id,'mechanic-quote:'+str(job_card.id),'quote')
         try:
             db.session.commit()
             flash("Quote created and Job Card generated successfully!", "success")
@@ -2587,29 +2573,11 @@ def accept_quote(id):
     from app.utils.mailer import send_pdf_email
     from app.utils.pdf_render import html_to_pdf_bytes
     
-    job_card = MechJobCard.query.get_or_404(id)
+    job_card = MechJobCard.query.filter_by(id=id).populate_existing().with_for_update().first_or_404()
     from flask import abort
     if not job_card.vehicle or job_card.vehicle.client.user_id != current_user.id:
         abort(404)
     if job_card.status == 'Quote':
-        
-        # Charge tokens for generating Tax Invoice
-        setting = db.session.execute(text("SELECT value FROM system_settings WHERE key = 'mechanic_quote_cents'")).fetchone()
-        quote_cost = int(setting[0]) if setting else 500
-        token_cost = quote_cost // 100
-        
-        wallet = AitTokenWallet.query.filter_by(user_id=current_user.id).first()
-        if not wallet or wallet.balance < token_cost:
-            flash("Insufficient tokens to generate Tax Invoice. Please top up your wallet.", "danger")
-            return redirect(url_for("mechanic_bp.mock_bill"))
-            
-        wallet.balance -= token_cost
-        txn = AitTokenTransaction(
-            wallet_id=wallet.id,
-            amount=-token_cost,
-            description=f"Generated and sent Tax Invoice {job_card.job_number}"
-        )
-        db.session.add(txn)
         
         job_card.status = 'Awaiting Deposit'
         
@@ -2656,6 +2624,9 @@ def accept_quote(id):
                     )
                     db.session.add(charge_ledger)
                     
+        from app.protrade_documents import charge_document
+        db.session.flush()
+        charge_document(current_user.id,job_card.shop_id,debtor.id if debtor else None,'mechanic-invoice:'+str(job_card.id),'invoice')
         db.session.commit()
         
         # AUTO-EMAIL TAX INVOICE LOGIC
@@ -3195,3 +3166,10 @@ def update_payment_method(id):
         flash(f"Payment method updated to {pm}.", "success")
         
     return redirect(url_for('mechanic_bp.job_card_detail', id=job_card.id))
+
+
+@mechanic_bp.route('/mechanic/shop/<int:shop_id>/boq/<int:quote_id>/sections', methods=['GET', 'POST'])
+@login_required
+def boq_sections(shop_id, quote_id):
+    from app.protrade_sections import sections_page
+    return sections_page(shop_id, quote_id)

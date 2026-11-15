@@ -42,7 +42,7 @@ class DebtorReuseTests(unittest.TestCase):
             query='SELECT '+(','.join(columns) if name=='debtor' else '*')+' FROM '+name+' ORDER BY id'
             self.assertEqual(self.conn.exec_driver_sql(query).all(),rows)
         self.db_session.expire_all()
-        self.wallet=base.models.AitTokenWallet(user_id=1,balance=50)
+        self.wallet=base.models.test_wallet(self.db_session,balance=50)
         self.db_session.add(self.wallet);self.db_session.commit()
 
     def link(self,shop,source,**extras):
@@ -70,7 +70,7 @@ class DebtorReuseTests(unittest.TestCase):
         self.assertEqual(base.DebtorLedger.query.filter_by(debtor_id=account.id).one().amount,64800)
         self.assertEqual(sum(row.amount for row in base.DebtorLedger.query.filter_by(debtor_id=self.tomas.id)),327332)
         self.assertEqual((self.tomas.id,self.tomas.reference_id,self.quotes[0].items,self.quotes[0].grand_total),old)
-        self.assertEqual(self.wallet.balance,50)
+        self.assertEqual(self.wallet.balance,40)
         self.assertEqual(self.client.get(self.ledger_url(account)+f'?shop_id={self.carpentry.id}').status_code,404)
         self.assertEqual(self.client.get(f'/mechanic/shop/{third.id}/debtor/{self.tomas.id}/quote').status_code,404)
         foreign=base.models.Debtor(user_id=2,shop_id=self.foreign.id,name='Private',opening_balance=0)
@@ -118,7 +118,7 @@ class DebtorReuseTests(unittest.TestCase):
         self.assertIn('1300.00',self.client.get(self.ledger_url(dick)).get_data(as_text=True))
         statement=self.client.get(f'/debtor/{dick.id}/soa').get_data(as_text=True)
         self.assertIn('1,300.00',statement);self.assertNotIn('Q-0005',statement)
-        self.assertEqual(self.wallet.balance,50)
+        self.assertEqual(self.wallet.balance,40)
 
     def test_real_new_quote_imports_do_not_shadow_module_jobcard(self):
         self.fixtures();self.save_debtor(self.mechanic,name='Mechanic customer')
@@ -178,7 +178,7 @@ class DebtorReuseTests(unittest.TestCase):
                 quote=base.ProTradeBoqQuote.query.filter_by(debtor_id=dick.id).one()
                 self.assertEqual(quote.grand_total,Decimal('1200.00'))
                 self.assertEqual(quote.items[0]['description'],'General business services')
-                self.assertEqual(self.wallet.balance,50)
+                self.assertEqual(self.wallet.balance,40)
             finally:browser.close()
 
 if __name__=='__main__':unittest.main()

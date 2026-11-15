@@ -15,7 +15,7 @@ from werkzeug.utils import secure_filename
 from app.extensions import db
 from app.models.mechanic import (MechShop,MechClient,MechVehicle,MechJobCard,MechInvoice,
                                 MechLaborLine,MechPartLine,MechCatalogPart,ProTradeBoqItem,
-                                ProTradeBoqQuote,ProTradeOutputEmail)
+                                ProTradeBoqQuote,ProTradeOutputEmail,ProTradeDocument)
 from app.models.debtors import Debtor,DebtorLedger
 
 LABELS={'quote':'Quotations','invoice':'Invoices','statement':'Debtor Statements','price_list':'Price Lists'}
@@ -68,6 +68,8 @@ def catalog(shop):
                 for invoice in invoices:
                     entries.append(dict(key=f'invoice:stored-{invoice.id}',kind='invoice',label=job.job_number+f' — Invoice record {invoice.id}',source=(invoice,job)))
         if price_items(shop):entries.append(dict(key='price_list:all',kind='price_list',label='Price List',source=None))
+    for document in ProTradeDocument.query.filter_by(user_id=current_user.id,shop_id=shop.id,kind='soa').order_by(ProTradeDocument.id.desc()).all():
+        entries.append(dict(key=f'statement:generated-{document.id}',kind='statement',label='SOA-'+str(document.id)+' - '+document.snapshot['debtor']['name'],source=document))
     for debtor in Debtor.query.filter_by(shop_id=shop.id,user_id=current_user.id).order_by(Debtor.name,Debtor.id).all():
         if DebtorLedger.query.filter_by(debtor_id=debtor.id).first():
             entries.append(dict(key=f'statement:debtor-{debtor.id}',kind='statement',label=debtor.name+' — Saved ledger',source=debtor))
@@ -117,16 +119,14 @@ def report_data(shop,entry,recipient_id=None):
             vat=subtotal*((job.vat_rate or 0)/100)
             data.update(columns=['Description','Quantity / Hours','Rate (R)','Total (R)'],rows=rows,
                         totals=[('Subtotal (R)',format(subtotal,'.2f')),('VAT (R)',format(vat,'.2f')),('Total (R)',format(subtotal+vat,'.2f'))])
+    elif entry['key'].startswith('statement:generated-'):
+        from app.protrade_statements import output_snapshot
+        saved=source
+        debtor=owned_debtor(shop,saved.debtor_id)
+        data_bundle=output_snapshot(saved)
+        data=data_bundle['document']
     elif kind=='statement':
-        debtor=owned_debtor(shop,source.id)
-        balance=0;rows=[]
-        for line in DebtorLedger.query.filter_by(debtor_id=debtor.id).order_by(DebtorLedger.txn_date,DebtorLedger.id).all():
-            if line.kind not in ('debit','credit'):abort(409,description='The saved ledger contains an unsupported entry. Review the existing ledger before exporting.')
-            balance+=line.amount if line.kind=='debit' else -line.amount
-            rows.append([line.txn_date.isoformat(),line.description,format(Decimal(line.amount)/100,'.2f') if line.kind=='debit' else '',
-                         format(Decimal(line.amount)/100,'.2f') if line.kind=='credit' else '',format(Decimal(balance)/100,'.2f')])
-        data.update(reference=f'Debtor-{debtor.id}',recipient=contact(debtor),columns=['Date','Description','Debit (R)','Credit (R)','Balance (R)'],rows=rows,
-                    totals=[('Recorded ledger balance (R)',format(Decimal(balance)/100,'.2f'))],note='Transactions recorded for this debtor.')
+        abort(409,description='Generate and save this debtor statement first using Generate SOA in the debtor ledger.')
     else:
         if shop.trade in ('carpentry','boq'):
             data.update(reference=('Carpentry-BOQ' if shop.trade=='carpentry' else 'BOQ'),columns=['BOQ Code','Description','Unit','Material R/unit','Labour R/unit','Unit Rate (R)'],
@@ -139,6 +139,8 @@ def report_data(shop,entry,recipient_id=None):
         abort(400,description='Select the saved debtor linked to this document.')
     email=dict(id=debtor.id,**contact(debtor)) if debtor else None
     issuer=dict(id=shop.id,name=shop.business_name or '',trade=shop.trade or 'mechanic',address=shop.address or '',phone=shop.phone or '',email=shop.email or '',tax_number=shop.tax_number or '')
+    if entry['key'].startswith('statement:generated-'):
+        return dict(data_bundle,email_recipient=email)
     return dict(document=data,issuer=issuer,email_recipient=email)
 
 
@@ -165,6 +167,9 @@ def verify_token(token,shop,selection,recipient_id,data):
 
 
 def pdf_bytes(data,claim):
+    if data.get('stored_soa_id'):
+        from app.protrade_statements import owned_statement
+        return owned_statement(data['stored_soa_id'],shop_id=data['issuer']['id']).pdf
     from app.utils.pdf_render import html_to_pdf_bytes
     return html_to_pdf_bytes(render_template('program_mechanic/output_pdf.html',**data,generated=claim['generated']))
 
@@ -226,6 +231,8 @@ def output_page():
             if not shop:abort(400,description='Select a shop first.')
             entry=next((item for item in choices if item['key']==selected),None)
             if not entry:abort(404)
+            if entry['kind']=='statement' and entry['key'].startswith('statement:debtor-') and args.get('format')!='pdf' and request.method=='GET':
+                return redirect(url_for('debtors_bp.generate_soa',debtor_id=entry['source'].id))
             data=report_data(shop,entry,recipient_id)
             if request.method=='POST' or args.get('format')=='pdf':
                 token=args.get('preview_token','');claim=verify_token(token,shop,selected,recipient_id,data)
@@ -235,6 +242,9 @@ def output_page():
             if request.method=='POST' and (args.get('action')!='email' or args.get('confirm_email')!='yes'):
                 abort(400,description='Confirm sending to the saved debtor email address before sending.')
             if request.method=='POST' or args.get('format')=='pdf':
+                if shop.trade=='boq' and entry['key'].startswith('quote:boq-'):
+                    from app.protrade_sections import require_paid_sections
+                    require_paid_sections(entry['source'])
                 try:
                     pdf=pdf_bytes(data,claim)
                     if not pdf.startswith(b'%PDF-'):raise RuntimeError('PDF renderer did not return a PDF')

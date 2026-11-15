@@ -73,6 +73,7 @@ class ProTradeBoqQuote(db.Model):
     is_draft = db.Column(db.Boolean, nullable=True)
     trade = db.Column(db.String(50), nullable=False)
     quote_number = db.Column(db.String(50), nullable=False, unique=True)
+    boq_sections = db.Column(db.JSON, nullable=False, default=list, server_default='[]')
     quotation_seq = db.Column(db.Integer, server_default=db.FetchedValue())
 
     @property
@@ -234,3 +235,22 @@ class ProTradeQuoteNumber(db.Model):
         db.UniqueConstraint('document_kind','document_id',name='uq_protrade_quote_document'),
         db.CheckConstraint("number > 0 AND document_kind IN ('boq','mechanic')", name='ck_protrade_quote_number'),
     )
+
+
+class ProTradeDocument(db.Model):
+    """Immutable receipt for one completed paid document; SOAs retain their PDF."""
+    __tablename__='protrade_document'
+    id=db.Column(db.Integer,primary_key=True)
+    user_id=db.Column(db.Integer,db.ForeignKey('user.id'),nullable=False)
+    shop_id=db.Column(db.Integer,db.ForeignKey('mech_shops.id'))
+    debtor_id=db.Column(db.Integer,db.ForeignKey('debtor.id'))
+    document_key=db.Column(db.String(120),nullable=False)
+    kind=db.Column(db.String(12),nullable=False)
+    token_transaction_id=db.Column(db.Integer,db.ForeignKey('ait_token_transaction.id'),nullable=False,unique=True)
+    tokens=db.Column(db.Integer,nullable=False,default=10)
+    snapshot=db.Column(db.JSON)
+    pdf=db.Column(db.LargeBinary)
+    created_at=db.Column(db.DateTime,nullable=False,default=datetime.utcnow)
+    __table_args__=(db.UniqueConstraint('user_id','document_key',name='uq_protrade_document_key'),
+        db.CheckConstraint("(tokens=10 AND kind IN ('quote','invoice','soa')) OR (tokens=25 AND kind='boq_section')",name='ck_protrade_document_charge'),
+        db.CheckConstraint("kind<>'soa' OR (shop_id IS NOT NULL AND debtor_id IS NOT NULL AND snapshot IS NOT NULL AND pdf IS NOT NULL)",name='ck_protrade_soa_snapshot'))

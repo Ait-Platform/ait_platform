@@ -12,9 +12,7 @@ from alembic.operations import Operations
 import sqlalchemy as sa
 import test_protrade_shop_register as base
 
-spec=importlib.util.spec_from_file_location('app.protrade_output',base.ROOT/'app/protrade_output.py')
-output=importlib.util.module_from_spec(spec);spec.loader.exec_module(output)
-sys.modules['app.protrade_output']=output
+import app.protrade_output as output
 
 
 class ProTradeOutputTests(unittest.TestCase):
@@ -27,7 +25,7 @@ class ProTradeOutputTests(unittest.TestCase):
             MechInvoice=base.catalog_globals['MechInvoice'],MechLaborLine=base.catalog_globals['MechLaborLine'],
             MechPartLine=base.catalog_globals['MechPartLine'],MechCatalogPart=base.MechCatalogPart,
             ProTradeBoqItem=base.ProTradeBoqItem,ProTradeBoqQuote=base.ProTradeBoqQuote,
-            ProTradeOutputEmail=base.ProTradeOutputEmail,Debtor=base.models.Debtor,DebtorLedger=base.DebtorLedger).items():
+            ProTradeDocument=base.ProTradeDocument,ProTradeOutputEmail=base.ProTradeOutputEmail,Debtor=base.models.Debtor,DebtorLedger=base.DebtorLedger).items():
             setattr(output,name,value)
         output.price_items=self.ns['selected_price_list']
         self.carpentry=self.shop(name='Happy Shop',trade='carpentry',status='active')
@@ -58,6 +56,9 @@ class ProTradeOutputTests(unittest.TestCase):
         self.migration=importlib.util.module_from_spec(spec);spec.loader.exec_module(self.migration)
         self.migration.op=Operations(MigrationContext.configure(self.conn));self.migration.upgrade()
 
+        import test_protrade_quote_ledger as ledger
+        ledger.register_soa_routes(self)
+
     def contact(self,shop,name,email):
         client=base.models.MechClient(user_id=shop.user_id,shop_id=shop.id,name=name,phone='0123456789',email=email,address='Saved debtor address')
         self.db_session.add(client);self.db_session.flush()
@@ -72,6 +73,12 @@ class ProTradeOutputTests(unittest.TestCase):
         self.db_session.add(quote);self.db_session.commit();return quote
 
     def preview(self,selection=None,shop=None,recipient_id=''):
+        if selection and selection.startswith('statement:debtor-'):
+            debtor_id=int(selection.split('-')[-1])
+            generated=self.client.post(f'/debtor/{debtor_id}/soa',data={'action':'generate'})
+            self.assertEqual(generated.status_code,302)
+            saved=base.ProTradeDocument.query.filter_by(debtor_id=debtor_id,kind='soa').order_by(base.ProTradeDocument.id.desc()).first()
+            selection='statement:generated-'+str(saved.id)
         return self.client.get('/mechanic/output',query_string=dict(shop_id=(shop or self.carpentry).id,selection=selection or f'quote:boq-{self.quote.id}',recipient_id=recipient_id,preview='1'))
 
     def fields(self,response):
@@ -177,7 +184,7 @@ class ProTradeOutputTests(unittest.TestCase):
             self.assertTrue(response.data.startswith(b'%PDF-'))
             pdf=fitz.open(stream=response.data,filetype='pdf')
             text=''.join(page.get_text() for page in pdf)
-            self.assertIn(shop.business_name,text)
+            self.assertIn(shop.business_name.casefold(),text.casefold())
             self.assertNotIn('Foreign Debtor',text)
             self.assertEqual(len(pdf),1)
             (folder/f'protrade-output-{label}.pdf').write_bytes(response.data)

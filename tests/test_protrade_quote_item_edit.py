@@ -128,7 +128,7 @@ class QuoteItemEditTests(unittest.TestCase):
         self.db_session.add(debtor);self.db_session.flush()
         starting=deepcopy(self.first.items);starting[0].update(quantity='2',total='648.00')
         quote=base.ProTradeBoqQuote(id=6,user_id=1,shop_id=6,debtor_id=15,client_id=15,trade='carpentry',quote_number='CAR-Q-'+uuid4().hex.upper(),quotation_seq=6,client_name='Tomas',items=starting,grand_total=Decimal('1473'),is_draft=True)
-        wallet=base.models.AitTokenWallet(user_id=1,balance=50)
+        wallet=base.models.test_wallet(self.db_session,balance=50)
         previous=base.ProTradeBoqQuote(id=7,user_id=1,shop_id=6,debtor_id=15,client_id=15,trade='carpentry',quote_number='CAR-Q-'+uuid4().hex.upper(),quotation_seq=5,client_name='Tomas',items=[deepcopy(self.first.items[1])],grand_total=Decimal('825'),is_draft=False)
         self.db_session.add_all([quote,previous,wallet]);self.db_session.flush()
         self.db_session.add(TokenTransaction(wallet_id=wallet.id,amount=-3,description='Existing transaction'))

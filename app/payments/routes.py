@@ -236,6 +236,10 @@ def wallet_topup(subject_slug):
     elif currency == "RWF": currency_symbol = "FRw "
     elif currency != "ZAR": currency_symbol = ""
     
+    wallet_quotes = dict(session.get('wallet_quotes', {}))
+    wallet_quotes[subject_slug] = dict(user_id=current_user.id, tokens=100,
+        amount_cents=zar_price_cents, currency='ZAR')
+    session['wallet_quotes'] = wallet_quotes
     price_display = f"{price_cents / 100:.2f}"
             
     return render_template("wallet_topup.html", wallet=wallet, currency=currency, currency_symbol=currency_symbol, price_display=price_display, price_cents=price_cents, zar_price_cents=zar_price_cents, subject_slug=subject_slug)
@@ -247,14 +251,14 @@ def wallet_checkout():
     if not current_user.is_authenticated:
         return redirect(url_for("auth_bp.login"))
         
-    tokens = int(request.form.get("tokens", 100))
-    price_cents = int(request.form.get("price_cents", 10000))
-    zar_price_cents = int(request.form.get("zar_price_cents", 10000))
-    currency = request.form.get("currency", "ZAR")
-    if currency == "None" or not currency:
-        currency = "ZAR"
-    subject_slug = request.form.get("subject_slug", "debtors")
-            
+    subject_slug = request.form.get('subject_slug', 'debtors')
+    quote = session.get('wallet_quotes', {}).get(subject_slug)
+    if not quote or quote.get('user_id') != current_user.id:
+        return redirect(url_for('payment_bp.wallet_topup', subject_slug=subject_slug))
+    tokens = quote['tokens']
+    zar_price_cents = quote['amount_cents']
+    session['topup_user_id'] = current_user.id
+
     # For Paystack, we MUST use ZAR if the local currency isn't supported by their active channels.
     # We will just charge in ZAR across the board for wallet topups to be safe.
     session["topup_amount_cents"] = zar_price_cents

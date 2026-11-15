@@ -4,6 +4,7 @@ import requests
 import hmac
 import hashlib
 import json
+from uuid import uuid4
 from datetime import datetime
 from flask import (
     Blueprint,
@@ -113,10 +114,14 @@ def get_paystack_secret(subject=None):
 
     if is_live:
         return os.environ.get("PAYSTACK_LIVE_KEY", os.environ.get("PAYSTACK_SECRET_KEY"))
-    return os.environ.get("PAYSTACK_TEST_KEY", os.environ.get("PAYSTACK_SECRET_KEY", "sk_test_2e6012a225612c95a187a8b706d401de89e75bbe"))
+    return os.environ.get("PAYSTACK_TEST_KEY", os.environ.get("PAYSTACK_SECRET_KEY"))
 
 def create_paystack_transaction(amount_cents, display_name, subject, email, currency_code="ZAR", tokens_purchased=None):
     secret_key = get_paystack_secret(subject)
+    if not secret_key:
+        return None, None, 'Paystack credentials are not configured.'
+    if subject.endswith('_topup') and tokens_purchased is None:
+        tokens_purchased = int(amount_cents) // 100
     
     url = "https://api.paystack.co/transaction/initialize"
     
@@ -128,7 +133,10 @@ def create_paystack_transaction(amount_cents, display_name, subject, email, curr
     # Paystack expects amounts in cents/kobo
     amount_in_lowest_denom = int(amount_cents)
     
+    from app.payments.paystack_security import signed_order
+    reference = uuid4().hex
     payload = {
+        "reference": reference,
         "email": email,
         "amount": amount_in_lowest_denom,
         "currency": currency_code,
@@ -137,6 +145,8 @@ def create_paystack_transaction(amount_cents, display_name, subject, email, curr
             "subject": subject,
             "email": email,
             "tokens_purchased": tokens_purchased,
+            "order_token": signed_order(reference, email.strip().lower(), subject.strip().lower(),
+                amount_in_lowest_denom, currency_code, tokens_purchased),
             "custom_fields": [
                 {
                     "display_name": "Product Name",
@@ -149,8 +159,8 @@ def create_paystack_transaction(amount_cents, display_name, subject, email, curr
     
     try:
         from flask import current_app
-        current_app.logger.warning(f"PAYSTACK INITIALIZE PAYLOAD: {payload}")
-        r = requests.post(url, json=payload, headers=headers)
+        current_app.logger.info("Initializing Paystack checkout")
+        r = requests.post(url, json=payload, headers=headers, timeout=15)
         r.raise_for_status()
         data = r.json()
         if data.get("status"):
@@ -185,6 +195,14 @@ def start():
         session["pending_email"] = email
     if subject:
         session["pending_subject"] = subject
+
+    if subject.endswith('_topup'):
+        if not current_user.is_authenticated:
+            return redirect(url_for('auth_bp.login'))
+        email = current_user.email.strip().lower()
+        owner_id = session.get('topup_user_id')
+        if owner_id is not None and owner_id != current_user.id:
+            return redirect(url_for('payment_bp.wallet_topup', subject_slug=subject.removesuffix('_topup')))
 
     if not subject:
         flash("Could not determine which module to purchase.", "error")
@@ -264,121 +282,75 @@ def start():
 
 @paystack_bp.get("/success", endpoint="paystack_success")
 def success():
-    # Callback from Paystack
-    # Actual fulfillment should be done in the webhook, but we do a synchronous check here as a fallback
-    email = request.args.get("email", "").strip().lower()
-    subject = request.args.get("subject", "loss").strip().lower()
-    reference = request.args.get("reference") or request.args.get("trxref")
-    
+    subject = request.args.get('subject', '').strip().lower()
+    reference = request.args.get('reference') or request.args.get('trxref')
     if reference:
         try:
-            secret = get_paystack_secret(subject)
-            headers = {"Authorization": f"Bearer {secret}"}
-            r = requests.get(f"https://api.paystack.co/transaction/verify/{reference}", headers=headers, timeout=10)
-            if r.status_code == 200:
-                data = r.json()
-                if data.get("status") and data.get("data", {}).get("status") == "success":
-                    tx_data = data["data"]
-                    # Check if already fulfilled
-                    from app.models.payment import PaystackPayment
-                    existing = PaystackPayment.query.filter_by(gateway_reference=reference).first()
-                    if not existing:
-                        metadata = tx_data.get("metadata", {})
-                        if isinstance(metadata, str):
-                            import json
-                            try:
-                                metadata = json.loads(metadata)
-                            except:
-                                metadata = {}
-                        meta_email = email or metadata.get("email") or tx_data.get("customer", {}).get("email", "")
-                        meta_subject = subject or metadata.get("subject", "")
-                        if meta_email and meta_subject:
-                            fulfill_order(meta_email.strip().lower(), meta_subject.strip().lower(), tx_data)
-                            flash("Payment verified and applied successfully!", "success")
-        except Exception as e:
-            current_app.logger.error(f"Sync fallback error: {e}")
-    
-    if not email:
-        flash("Payment processing... Please sign in to continue.", "info")
-    
-    return render_template("payments/success.html", subject=subject), 200
+            applied = process_verified_payment(reference, subject)
+            if applied:
+                flash('Payment verified and applied successfully!', 'success')
+        except Exception:
+            db.session.rollback()
+            current_app.logger.exception('Paystack callback verification failed')
+            flash('Payment verification is pending. Please check your wallet before retrying.', 'info')
+    return render_template('payments/success.html', subject=subject), 200
 
 
 @paystack_bp.post("/webhook", endpoint="paystack_webhook")
 @csrf.exempt
 def webhook():
-    log_entry = {"time": str(datetime.utcnow()), "event": "paystack_webhook"}
-    log_file = os.path.join(current_app.instance_path, 'webhook_debug.json')
-    os.makedirs(current_app.instance_path, exist_ok=True)
-    
-    def write_log():
-        logs = []
-        if os.path.exists(log_file):
-            try:
-                with open(log_file, 'r') as f:
-                    logs = json.load(f)
-            except: pass
-        logs.insert(0, log_entry)
-        with open(log_file, 'w') as f:
-            json.dump(logs[:20], f, indent=2)
-
+    from app.payments.paystack_security import metadata_for
+    body = request.get_data()
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return jsonify(error='Invalid event'), 400
     try:
-        raw_body = request.get_data()
-        signature = request.headers.get("x-paystack-signature")
-        
-        # Extract subject to get correct secret (sandbox vs live)
-        data = request.get_json(silent=True) or {}
-        subject = None
-        try:
-            subject = data.get("data", {}).get("metadata", {}).get("subject")
-        except Exception:
-            pass
-            
-        secret = get_paystack_secret(subject)
+        transaction = payload.get('data') or {}
+        metadata = metadata_for(transaction)
+        subject = metadata.get('subject')
+        secret = (current_app.config.get('PAYSTACK_WEBHOOK_SECRET') or
+            os.environ.get('PAYSTACK_WEBHOOK_SECRET') or get_paystack_secret(subject))
+        signature = request.headers.get('x-paystack-signature', '')
+        digest = hmac.new(secret.encode('utf-8'), body, hashlib.sha512).hexdigest()
+        if not hmac.compare_digest(digest, signature):
+            return jsonify(error='Invalid signature'), 401
+        if payload.get('event') == 'charge.success':
+            process_verified_payment(transaction.get('reference'), subject)
+    except ValueError:
+        db.session.rollback()
+        current_app.logger.warning('Paystack webhook rejected invalid payment data')
+        return jsonify(error='Payment verification failed'), 400
+    except Exception:
+        db.session.rollback()
+        current_app.logger.exception('Paystack webhook fulfillment failed')
+        return jsonify(error='Payment verification unavailable'), 503
+    return jsonify(status='ok'), 200
 
-        # Validate signature
-        hash = hmac.new(secret.encode('utf-8'), raw_body, hashlib.sha512).hexdigest()
-        if hash != signature:
-            log_entry["error"] = "Invalid Paystack signature"
-            write_log()
-            return "Invalid signature", 401
 
-        data = request.json
-        event_type = data.get("event")
-        
-        if event_type == "charge.success":
-            tx_data = data.get("data", {})
-            metadata = tx_data.get("metadata", {})
-            if isinstance(metadata, str):
-                import json
-                try:
-                    metadata = json.loads(metadata)
-                except:
-                    metadata = {}
-            
-            email = metadata.get("email") or tx_data.get("customer", {}).get("email", "")
-            subject = metadata.get("subject", "")
-            email = email.strip().lower()
-            subject = subject.strip().lower()
-
-            if email and subject:
-                try:
-                    fulfill_order(email, subject, tx_data)
-                    log_entry["fulfill_success"] = True
-                except Exception as e:
-                    log_entry["fulfill_error"] = str(e)
-            else:
-                log_entry["skip_reason"] = "Missing email or subject in metadata"
-                
-    except Exception as e:
-        log_entry["fatal_error"] = str(e)
-        
-    write_log()
-    return jsonify({"status": "ok"}), 200
+def process_verified_payment(reference, subject_hint=None):
+    from app.payments.paystack_security import verified_transaction
+    try:
+        email, subject, transaction = verified_transaction(reference, get_paystack_secret(subject_hint))
+        return fulfill_order(email, subject, transaction)
+    except Exception:
+        db.session.rollback()
+        raise
 
 
 def fulfill_order(email, subject, transaction=None):
-    u = User.query.filter_by(email=email).first()
+    if not transaction or transaction.get('status') != 'success' or not transaction.get('reference'):
+        raise ValueError('A verified successful transaction is required')
+    reference = transaction['reference']
+    # The reference lock covers callback/webhook races and historical receipts.
+    db.session.execute(text('SELECT pg_advisory_xact_lock(hashtextextended(:key,0))'),
+        {'key': 'paystack-reference:' + reference})
+    if PaystackPayment.query.filter_by(gateway_reference=reference, status='success').first():
+        db.session.rollback()
+        return False
+    # Serialize first-time user and wallet creation across different payments.
+    db.session.execute(text('SELECT pg_advisory_xact_lock(hashtextextended(:key,0))'),
+        {'key': 'paystack-user:' + email})
+    u = User.query.filter_by(email=email).populate_existing().with_for_update().first()
     if not u:
         u = User(email=email, name=email.split("@", 1)[0].title(), is_active=1)
         db.session.add(u)
@@ -392,7 +364,8 @@ def fulfill_order(email, subject, transaction=None):
             amount_cents=int(transaction.get("amount", 0)),
             currency=transaction.get("currency", "ZAR"),
             status=transaction.get("status", "success"),
-            gateway_reference=transaction.get("reference", ""),
+            checkout_id="paystack:" + reference,
+            gateway_reference=reference,
             paid_at=datetime.utcnow()
         )
         db.session.add(payment)
@@ -411,7 +384,7 @@ def fulfill_order(email, subject, transaction=None):
             if tokens_purchased is None:
                 tokens_purchased = total // 100 # Legacy fallback
             
-            wallet = AitTokenWallet.query.filter_by(user_id=u.id).first()
+            wallet = AitTokenWallet.query.filter_by(user_id=u.id).populate_existing().with_for_update().first()
             if not wallet:
                 wallet = AitTokenWallet(user_id=u.id, balance=0)
                 db.session.add(wallet)
@@ -425,7 +398,7 @@ def fulfill_order(email, subject, transaction=None):
             )
             db.session.add(tx)
             db.session.commit()
-        return
+        return True
 
     # ---------- METRO BILLING (DEBTORS) SUBSCRIPTION ----------
     if subject == "metro_billing":
@@ -523,7 +496,7 @@ def fulfill_order(email, subject, transaction=None):
             
         if subject.lower() in ("cultural_fire", "culturalfire"):
             from app.models.auth import AitTokenWallet, AitTokenTransaction
-            wallet = AitTokenWallet.query.filter_by(user_id=u.id).first()
+            wallet = AitTokenWallet.query.filter_by(user_id=u.id).populate_existing().with_for_update().first()
             if not wallet:
                 wallet = AitTokenWallet(user_id=u.id, balance=0)
                 db.session.add(wallet)
@@ -538,4 +511,5 @@ def fulfill_order(email, subject, transaction=None):
             db.session.add(txn)
             
     db.session.commit()
-    current_app.logger.info(f"Fulfilled {subject} for {email} via Paystack.")
+    current_app.logger.info("Paystack order fulfilled")
+    return True

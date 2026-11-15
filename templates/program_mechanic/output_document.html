@@ -1,7 +1,7 @@
 <section id="protrade-output-document">
   <header><h1>{{ issuer.name }}</h1><p>{{ issuer.address }}<br>{{ issuer.phone }}{% if issuer.phone and issuer.email %} &middot; {% endif %}{{ issuer.email }}</p>{% if issuer.tax_number %}<p>Tax / VAT: {{ issuer.tax_number }}</p>{% endif %}</header>
   <h2>{{ document.title }}</h2><p><strong>Reference:</strong> {{ document.reference }}{% if document.date %}<br><strong>Date:</strong> {{ document.date }}{% endif %}</p>
-  {% if document.recipient %}<div class="report-recipient"><strong>{{ document.recipient.name }}</strong><br>{{ document.recipient.address }}<br>{{ document.recipient.phone }}{% if document.recipient.email %} &middot; {{ document.recipient.email }}{% endif %}</div>{% endif %}
+  {% if document.recipient %}<div class="report-recipient"><strong>{{ document.recipient.name }}</strong><br>{{ document.recipient.address }}<br>{{ document.recipient.phone }}{% if document.recipient.phone and document.recipient.email %} &middot; {% endif %}{{ document.recipient.email }}</div>{% endif %}
   {% if issuer.bank_details %}<p class="report-note">Banking: {{ issuer.bank_details }}</p>{% endif %}
   {% if document.note %}<p class="report-note">{{ document.note }}</p>{% endif %}
   {% set widths={2:[65,35],3:[50,25,25],4:[46,14,20,20],5:[14,41,15,15,15],6:[12,35,8,15,15,15],7:[12,28,7,8,15,15,15]} %}

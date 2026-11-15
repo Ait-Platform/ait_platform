@@ -5,6 +5,7 @@
 <div class="mx-auto max-w-6xl px-4 py-10"><div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow"><div class="h-2 bg-slate-700"></div><div class="p-6">
 {% include 'partials/flash_messages.html' %}
 <div class="flex items-center justify-between gap-4"><h1 class="text-2xl font-semibold">ProTrade User Guide</h1><a href="{{ url_for('mechanic_bp.mechanic_dashboard',shop_id=shop.id if shop else none) }}" class="rounded-lg bg-slate-100 px-4 py-2 font-semibold">Back to Dashboard</a></div>
+<div class="mt-4 flex justify-end"><a class="rounded-lg bg-blue-100 px-4 py-2 font-semibold" href="{{ url_for('mechanic_bp.marketing_samples') }}">Marketing Samples</a></div>
 {% include 'program_mechanic/menu.html' %}
 <p class="mt-4 text-slate-700">Start with the correct shop, then choose its debtor. Each shop keeps its own quotations, payments and balance.</p>
 <div class="mt-6 space-y-6 text-slate-700 leading-relaxed">

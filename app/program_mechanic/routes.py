@@ -3180,3 +3180,10 @@ def boq_sections(shop_id, quote_id):
 def work_activity(shop_id, debtor_id):
     from app.protrade_activity import activity_page
     return activity_page(shop_id, debtor_id)
+
+
+@mechanic_bp.get('/mechanic/samples')
+@login_required
+def marketing_samples():
+    from app.protrade_samples import samples_page
+    return samples_page()

@@ -3173,3 +3173,10 @@ def update_payment_method(id):
 def boq_sections(shop_id, quote_id):
     from app.protrade_sections import sections_page
     return sections_page(shop_id, quote_id)
+
+
+@mechanic_bp.route('/mechanic/shop/<int:shop_id>/debtor/<int:debtor_id>/activity', methods=['GET', 'POST'])
+@login_required
+def work_activity(shop_id, debtor_id):
+    from app.protrade_activity import activity_page
+    return activity_page(shop_id, debtor_id)

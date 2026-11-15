@@ -254,3 +254,23 @@ class ProTradeDocument(db.Model):
     __table_args__=(db.UniqueConstraint('user_id','document_key',name='uq_protrade_document_key'),
         db.CheckConstraint("(tokens=10 AND kind IN ('quote','invoice','soa')) OR (tokens=25 AND kind='boq_section')",name='ck_protrade_document_charge'),
         db.CheckConstraint("kind<>'soa' OR (shop_id IS NOT NULL AND debtor_id IS NOT NULL AND snapshot IS NOT NULL AND pdf IS NOT NULL)",name='ck_protrade_soa_snapshot'))
+
+
+class ProTradeWorkActivity(db.Model):
+    """Append-only work records and corrections for an existing client account."""
+    __tablename__ = 'protrade_work_activity'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    shop_id = db.Column(db.Integer, db.ForeignKey('mech_shops.id'), nullable=False)
+    debtor_id = db.Column(db.Integer, db.ForeignKey('debtor.id'), nullable=False)
+    entry_key = db.Column(db.String(32), nullable=False)
+    revision = db.Column(db.Integer, nullable=False)
+    previous_id = db.Column(db.Integer, db.ForeignKey('protrade_work_activity.id'), unique=True)
+    work_date = db.Column(db.Date, nullable=False)
+    description = db.Column(db.Text, nullable=False)
+    recorded_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    __table_args__ = (
+        db.UniqueConstraint('user_id', 'entry_key', 'revision', name='uq_protrade_work_revision'),
+        db.CheckConstraint('revision > 0 AND ((revision=1 AND previous_id IS NULL) OR (revision>1 AND previous_id IS NOT NULL))', name='ck_protrade_work_revision'),
+        db.CheckConstraint('length(trim(description)) BETWEEN 1 AND 4000', name='ck_protrade_work_description'),
+    )

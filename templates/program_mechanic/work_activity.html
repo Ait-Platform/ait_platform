@@ -1,0 +1,15 @@
+{% extends 'layout.html' %}
+{% block title %}Work Activity Register{% endblock %}
+{% block flashes %}{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-6xl px-4 py-10"><div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow">
+<div class="h-2 bg-slate-700"></div><div class="p-6">
+{% include 'partials/flash_messages.html' %}
+<div class="flex items-center justify-between"><div><h1 class="text-2xl font-semibold">Work Activity Register</h1><p class="mt-1 text-slate-600">{{ shop.business_name }} ? {{ debtor.name }}</p></div><a class="rounded-lg bg-slate-100 px-4 py-2 font-semibold" href="{{ url_for('mechanic_bp.client_ledger',debtor_id=debtor.id,shop_id=shop.id) }}">Back</a></div>
+<form method="post" class="mt-5 rounded-lg border border-slate-300 p-4"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="entry_key" value="{{ entry_key }}">{% if editing %}<input type="hidden" name="previous_id" value="{{ editing.id }}">{% endif %}
+<label class="block font-semibold" for="work_date">Work date</label><input autofocus required type="date" id="work_date" name="work_date" value="{{ editing.work_date if editing else today }}" class="mt-1 rounded border border-slate-300 p-2">
+<label class="mt-4 block font-semibold" for="description">Work undertaken</label><textarea required maxlength="4000" rows="3" id="description" name="description" class="mt-1 w-full rounded border border-slate-300 p-2">{{ editing.description if editing else '' }}</textarea>
+<div class="mt-4 flex justify-end gap-3">{% if editing %}<a class="rounded-lg bg-slate-100 px-4 py-2" href="{{ url_for('mechanic_bp.work_activity',shop_id=shop.id,debtor_id=debtor.id) }}">Cancel</a>{% endif %}<button class="rounded-lg bg-slate-800 px-4 py-2 font-semibold text-white">{{ 'Save correction' if editing else 'Record work' }}</button></div></form>
+{% for key, versions in history.items() %}{% set current=versions[-1] %}<article class="mt-5 rounded-lg border border-slate-300 p-4"><div class="flex items-start justify-between gap-4"><div><p class="font-semibold">{{ current.work_date }}</p><p class="mt-2 whitespace-pre-line">{{ current.description }}</p></div><a class="text-blue-700 underline" href="{{ url_for('mechanic_bp.work_activity',shop_id=shop.id,debtor_id=debtor.id,edit_id=current.id) }}">Correct</a></div><details class="mt-3"><summary class="cursor-pointer text-sm text-slate-600">Audit history ? {{ versions|length }} {{ 'revision' if versions|length==1 else 'revisions' }}</summary>{% for version in versions %}<p class="mt-3 text-sm">Revision {{ version.revision }} ? work date {{ version.work_date }} ? recorded {{ version.recorded_at }} UTC ? user {{ version.user_id }}</p><p class="whitespace-pre-line text-sm">{{ version.description }}</p>{% endfor %}</details></article>{% else %}<p class="mt-6 text-slate-600">No work activity recorded for this client.</p>{% endfor %}
+</div></div></div>
+{% endblock %}

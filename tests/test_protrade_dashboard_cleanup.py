@@ -28,7 +28,7 @@ class DashboardCleanupTests(unittest.TestCase):
         for row in table.xpath('./tbody/tr'):
             self.assertEqual(row.xpath('./td[last()]/a/text()'),['Debtor Register'])
         happy=table.xpath('.//td[1]/a[text()="Happy Shop"]')
-        self.assertEqual({link.get('href') for link in happy},{f'/mechanic/shop/{carpentry.id}/debtors',f'/mechanic/shop/{generic.id}/debtors'})
+        self.assertEqual({link.get('href') for link in happy},{f'/mechanic/dashboard?shop_id={carpentry.id}&action=setup',f'/mechanic/dashboard?shop_id={generic.id}&action=setup'})
         self.assertNotIn('Legacy Customer',table.text_content())
         self.assertNotIn('Private Foreign Shop',table.text_content())
         self.assertEqual(self.conn.exec_driver_sql('SELECT * FROM mech_shops ORDER BY id').all(),before)
@@ -40,7 +40,7 @@ class DashboardCleanupTests(unittest.TestCase):
             menu=self.app.jinja_env.from_string(source).render(protrade_menu_active='dashboard',active_shop=carpentry)
         self.assertEqual(html.fromstring(menu).xpath('//a/text()'),['Price List','Debtor','Tokens','Output','Folders','Help'])
 
-    def test_shop_name_opens_exact_debtor_register_without_creating_documents(self):
+    def test_shop_name_opens_exact_profile_without_creating_records(self):
         carpentry,generic,_=self.fixtures()
         with sync_playwright() as playwright:
             browser=playwright.chromium.launch(headless=True)
@@ -52,16 +52,23 @@ class DashboardCleanupTests(unittest.TestCase):
                     route.fulfill(status=response.status_code,content_type='text/html',body=response.get_data(as_text=True))
                 page.route('http://stage3h.test/**',route_request)
                 page.goto(f'http://stage3h.test/mechanic/dashboard?shop_id={carpentry.id}')
-                page.locator(f'#client-register-table td:first-child a[href="/mechanic/shop/{generic.id}/debtors"]').click()
-                self.assertIn(f'/shop/{generic.id}/debtors',page.url)
-                self.assertEqual(page.get_by_role('heading',name='Debtor Register',exact=True).count(),1)
-                self.assertTrue(page.get_by_role('button',name='Add Debtor',exact=True).is_visible())
-                self.assertFalse(page.locator('#debtor-working-area').is_visible())
-                self.assertTrue(page.locator('#shop-debtors').is_visible())
+                page.locator(f'#client-register-table td:first-child a[href="/mechanic/dashboard?shop_id={generic.id}&action=setup"]').click()
+                self.assertIn(f'shop_id={generic.id}',page.url)
+                self.assertTrue(page.locator('#manual-setup-modal').is_visible())
+                self.assertEqual(page.locator('#manual-setup-modal input[name=shop_id]').input_value(),str(generic.id))
+                self.assertEqual(page.locator('#manual-setup-modal input[name=business_name]').input_value(),'Happy Shop')
+                self.assertEqual(page.locator('#manual-setup-modal [name=address]').input_value(),'Existing address')
             finally:
                 browser.close()
         self.assertEqual(base.models.Debtor.query.count(),0)
         self.assertEqual(base.ProTradeBoqQuote.query.count(),0)
+        self.assertEqual(base.models.MechShop.query.filter_by(user_id=1).count(),2)
+
+    def test_foreign_or_invalid_profile_id_cannot_fall_back_to_another_shop(self):
+        self.fixtures()
+        foreign=base.models.MechShop.query.filter_by(user_id=2).one()
+        for identifier in [foreign.id,999999,'invalid']:
+            self.assertEqual(self.client.get('/mechanic/dashboard',query_string=dict(shop_id=identifier,action='setup')).status_code,404)
 
 
 if __name__=='__main__':

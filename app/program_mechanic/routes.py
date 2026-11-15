@@ -405,6 +405,11 @@ def document_preview():
 @mechanic_bp.route("/mechanic/dashboard", methods=["GET", "POST"])
 @login_required
 def mechanic_dashboard():
+    if request.args.get('shop_id') is not None:
+        from flask import abort
+        selected_id=request.args.get('shop_id',type=int)
+        if selected_id is None or not MechShop.query.filter_by(id=selected_id,user_id=current_user.id).first():
+            abort(404)
     # Auto-migrate payment_method column if it doesn't exist
     from sqlalchemy import inspect, text, func
     from app.models.mechanic import MechClient, MechVehicle

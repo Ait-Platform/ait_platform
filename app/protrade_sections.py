@@ -11,6 +11,17 @@ from app.models.mechanic import MechShop, ProTradeBoqQuote, ProTradeDocument
 from app.protrade_documents import charge_document
 
 
+BOQ_REVENUE_TERMS = {
+    'currency': 'ZAR',
+    'contractor_fee_cents': 5000,
+    'operator_retains_cents': 2500,
+    'ait_wallet_value_cents': 2500,
+    'tokens': 25,
+    'contractor_payment_recipient': 'operator',
+    'ait_collection': 'prepaid_wallet_deduction',
+}
+
+
 def receipt_key(quote, section):
     return f"boq-section:{quote.id}:{section['id']}"
 
@@ -86,7 +97,7 @@ def sections_page(shop_id, quote_id):
             if not pdf.startswith(b'%PDF-'):
                 abort(503, description='Section PDF generation failed.')
             charge_document(current_user.id, shop.id, quote.debtor_id, receipt_key(quote, section),
-                'boq_section', snapshot=dict(section=section, document=data), pdf=pdf)
+                'boq_section', snapshot=dict(section=section, document=data, commercial_terms=dict(BOQ_REVENUE_TERMS)), pdf=pdf)
             db.session.commit()
         else:
             abort(400)
@@ -100,4 +111,4 @@ def sections_page(shop_id, quote_id):
     used = {identifier for item in sections for identifier in item['items']}
     available = [line for line in quote.items if str(line['source_item_id']) not in used]
     paid = {item['id'] for item in sections if paid_receipt(quote, item)}
-    return render_template('program_mechanic/boq_sections.html', shop=shop, quote=quote, sections=sections, available=available, paid=paid)
+    return render_template('program_mechanic/boq_sections.html', shop=shop, quote=quote, sections=sections, available=available, paid=paid, revenue_terms=BOQ_REVENUE_TERMS)

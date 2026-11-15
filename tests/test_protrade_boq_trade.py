@@ -62,7 +62,10 @@ class BoqTradeTests(unittest.TestCase):
                 self.assertEqual(self.client.post(section_url, data={'action':'generate','section_id':section['id']}).status_code, 302)
             self.assertEqual(wallet.balance, balance - 25)
             self.assertEqual(self.client.get(section_url, query_string={'section_id':section['id'],'download':'1'}).status_code, 200)
-        self.assertEqual(base.ProTradeDocument.query.filter_by(shop_id=shop.id).one().tokens, 25)
+        receipt = base.ProTradeDocument.query.filter_by(shop_id=shop.id).one()
+        self.assertEqual(receipt.tokens, 25)
+        self.assertEqual(receipt.snapshot['commercial_terms'], dict(currency='ZAR', contractor_fee_cents=5000, operator_retains_cents=2500, ait_wallet_value_cents=2500, tokens=25, contractor_payment_recipient='operator', ait_collection='prepaid_wallet_deduction'))
+        self.assertIn('contractor pays you R50.00 directly', self.client.get(section_url).get_data(as_text=True))
         with self.app.test_request_context():
             from flask_login import login_user
             login_user(self.db_session.get(base.models.User, 1))

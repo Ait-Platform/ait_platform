@@ -73,14 +73,20 @@ def sections_page(shop_id, quote_id):
             name = request.form.get('name', '').strip()
             identifiers = request.form.getlist('item_id')
             available = {str(line['source_item_id']) for line in quote.items}
-            used = {identifier for item in sections for identifier in item['items']}
+            if request.form.get('section_id') and section is None:
+                abort(404)
+            other_sections = [item for item in sections if section is None or item['id'] != section['id']]
+            used = {identifier for item in other_sections for identifier in item['items']}
             if not name or len(name) > 120 or not identifiers or len(set(identifiers)) != len(identifiers):
                 abort(400, description='Enter a section name and select its work items.')
-            if any(item['name'].casefold() == name.casefold() for item in sections):
+            if any(item['name'].casefold() == name.casefold() for item in other_sections):
                 abort(409, description='This section name already exists.')
             if not set(identifiers) <= available - used:
                 abort(409, description='Select unassigned items from this BOQ.')
-            sections.append(dict(id=uuid4().hex, name=name, items=identifiers))
+            if section:
+                section.update(name=name, items=identifiers)
+            else:
+                sections.append(dict(id=uuid4().hex, name=name, items=identifiers))
             quote.boq_sections = sections
             db.session.commit()
         elif action == 'generate' and section:
@@ -108,7 +114,8 @@ def sections_page(shop_id, quote_id):
         from app.protrade_output import pdf_bytes
         pdf = pdf_bytes(section_data(shop, quote, section), dict(generated=datetime.now(timezone.utc).isoformat()))
         return send_file(BytesIO(pdf), mimetype='application/pdf', as_attachment=True, download_name='BOQ-section.pdf')
-    used = {identifier for item in sections for identifier in item['items']}
+    editing = section if request.args.get('edit') == '1' else None
+    used = {identifier for item in sections if editing is None or item['id'] != editing['id'] for identifier in item['items']}
     available = [line for line in quote.items if str(line['source_item_id']) not in used]
     paid = {item['id'] for item in sections if paid_receipt(quote, item)}
-    return render_template('program_mechanic/boq_sections.html', shop=shop, quote=quote, sections=sections, available=available, paid=paid, revenue_terms=BOQ_REVENUE_TERMS)
+    return render_template('program_mechanic/boq_sections.html', shop=shop, quote=quote, sections=sections, available=available, paid=paid, revenue_terms=BOQ_REVENUE_TERMS, editing=editing)

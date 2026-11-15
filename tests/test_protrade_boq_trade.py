@@ -64,6 +64,12 @@ class BoqTradeTests(unittest.TestCase):
             self.assertEqual(self.client.get(section_url, query_string={'section_id':section['id'],'download':'1'}).status_code, 200)
         receipt = base.ProTradeDocument.query.filter_by(shop_id=shop.id).one()
         self.assertEqual(receipt.tokens, 25)
+        corrected = {'action':'save','section_id':section['id'],'name':'Building and Repairs','item_id':[str(item.id)]}
+        self.assertEqual(self.client.post(section_url,data=corrected).status_code,302)
+        self.assertEqual(wallet.balance,balance-25)
+        self.assertEqual(quote.boq_sections[0]['id'],section['id'])
+        self.assertEqual(quote.boq_sections[0]['name'],'Building and Repairs')
+        self.assertEqual(receipt.snapshot['section']['name'],'Building Works')
         self.assertEqual(receipt.snapshot['commercial_terms'], dict(currency='ZAR', contractor_fee_cents=5000, operator_retains_cents=2500, ait_wallet_value_cents=2500, tokens=25, contractor_payment_recipient='operator', ait_collection='prepaid_wallet_deduction'))
         self.assertIn('contractor pays you R50.00 directly', self.client.get(section_url).get_data(as_text=True))
         with self.app.test_request_context():

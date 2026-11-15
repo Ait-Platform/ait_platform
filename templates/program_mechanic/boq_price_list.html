@@ -10,7 +10,7 @@
       <div class="flex items-center justify-between gap-4">
         <div>
           <h1 class="text-2xl font-semibold text-slate-900">{{ 'Carpentry BOQ' if shop.trade=='carpentry' else 'Bill of Quantities' }}</h1>
-          <p class="mt-1 text-sm text-slate-600">{{ shop.business_name }} &middot; {{ 'Carpentry Price List' if shop.trade=='carpentry' else 'BOQ Price List' }}</p>
+          <p class="mt-1 text-sm text-slate-700">{{ shop.business_name }} &middot; {{ 'Carpentry Price List' if shop.trade=='carpentry' else 'BOQ Price List' }}</p>
         </div>
         <a href="{{ url_for('mechanic_bp.mechanic_dashboard', shop_id=shop.id) }}" class="rounded-lg bg-slate-100 px-4 py-2 font-semibold text-slate-700">Back</a>
       </div>
@@ -39,7 +39,7 @@
             <datalist id="boq-work-items">
               {% for entry in work_items %}<option value="{{ entry.description }}">{{ entry.code }} &middot; {{ entry.unit }}</option>{% endfor %}
             </datalist>
-            <p class="mt-1 text-xs text-slate-600">Choose a listed item, or type custom work and select its unit. Custom codes are assigned when saved.</p>
+            <p class="mt-1 text-xs text-slate-700">Choose a listed item, or type custom work and select its unit. Custom codes are assigned when saved.</p>
           </div>
           <div>
             <label for="boq-unit" class="mb-1 block text-sm font-semibold">Unit</label>
@@ -72,7 +72,7 @@
               <td class="p-3 font-semibold">{{ item.code }}</td><td class="p-3">{{ item.description }}</td><td class="p-3 whitespace-nowrap">{{ item.unit }}</td><td class="p-3">{{ item.quantity }}</td>
               <td class="p-3">{{ '%.2f'|format(item.material_rate) }}</td><td class="p-3">{{ '%.2f'|format(item.labour_rate) }}</td><td class="p-3 font-semibold">{{ '%.2f'|format(item.total_rate) }}</td><td class="p-3 font-semibold">{{ '{:.2f}'.format(item.total_amount) }}</td>
               <td class="p-3"><a href="{{ url_for('mechanic_bp.catalog_manage', shop_id=shop.id, edit_id=item.id) }}" class="font-semibold text-blue-700 underline" aria-label="Edit {{ item.code }}">Edit</a></td>
-            </tr>{% else %}<tr><td colspan="9" class="p-6 text-center text-slate-600">No BOQ items yet. Add your first item above.</td></tr>{% endfor %}
+            </tr>{% else %}<tr><td colspan="9" class="p-6 text-center text-slate-700">No BOQ items yet. Add your first item above.</td></tr>{% endfor %}
           </tbody>
         </table>
       </div>

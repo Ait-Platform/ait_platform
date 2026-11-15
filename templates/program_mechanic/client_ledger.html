@@ -16,7 +16,7 @@
     <div class="flex items-center justify-between px-6 pb-2">
       <div>
         <h1 class="text-2xl md:text-3xl font-bold text-slate-900">{{ debtor.name }} - Ledger</h1>
-        <p class="mt-1 text-sm text-slate-500">
+        <p class="mt-1 text-sm text-slate-600">
             {% if debtor.email %}<i class="fas fa-envelope mr-1"></i>{{ debtor.email }} &nbsp;|&nbsp; {% endif %}
             {% if debtor.phone %}<i class="fas fa-phone mr-1"></i>{{ debtor.phone }}{% endif %}
         </p>
@@ -33,11 +33,11 @@
       <div>
         <form method="GET" action="{{ url_for('mechanic_bp.client_ledger', debtor_id=debtor.id) }}" class="flex items-end gap-2 bg-slate-50 p-2 rounded-lg border border-slate-200">
             <div>
-                <label for="start_date" class="block text-xs font-bold text-slate-500 mb-1">Start Date</label>
+                <label for="start_date" class="block text-xs font-bold text-slate-600 mb-1">Start Date</label>
                 <input type="date" name="start_date" id="start_date" value="{{ start_date or '' }}" autofocus class="px-3 py-1.5 text-sm border border-slate-300 rounded-md focus:ring-2 focus:ring-indigo-500 outline-none">
             </div>
             <div>
-                <label for="end_date" class="block text-xs font-bold text-slate-500 mb-1">End Date</label>
+                <label for="end_date" class="block text-xs font-bold text-slate-600 mb-1">End Date</label>
                 <input type="date" name="end_date" id="end_date" value="{{ end_date or '' }}" class="px-3 py-1.5 text-sm border border-slate-300 rounded-md focus:ring-2 focus:ring-indigo-500 outline-none">
             </div>
             <button type="submit" class="px-3 py-1.5 bg-slate-800 text-white text-sm font-semibold rounded-md hover:bg-slate-900 transition outline-none focus:ring-2 focus:ring-slate-500">Filter</button>
@@ -64,23 +64,23 @@
         <table class="min-w-full divide-y divide-slate-200">
           <thead class="bg-slate-50">
             <tr>
-                <th scope="col" class="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Date</th>
-                <th scope="col" class="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Ref / Description</th>
-                <th scope="col" class="px-4 py-3 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Debit (Charge)</th>
-                <th scope="col" class="px-4 py-3 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Credit (Payment)</th>
-                <th scope="col" class="px-4 py-3 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Running Balance</th>
+                <th scope="col" class="px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Date</th>
+                <th scope="col" class="px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Ref / Description</th>
+                <th scope="col" class="px-4 py-3 text-right text-xs font-bold text-slate-600 uppercase tracking-wider">Debit (Charge)</th>
+                <th scope="col" class="px-4 py-3 text-right text-xs font-bold text-slate-600 uppercase tracking-wider">Credit (Payment)</th>
+                <th scope="col" class="px-4 py-3 text-right text-xs font-bold text-slate-600 uppercase tracking-wider">Running Balance</th>
             </tr>
           </thead>
           <tbody class="bg-white divide-y divide-slate-100">
             {% if ledgers %}
                 {% for l in ledgers %}
                 <tr class="hover:bg-slate-50 transition">
-                    <td class="px-4 py-3 whitespace-nowrap text-sm text-slate-600 font-medium">
+                    <td class="px-4 py-3 whitespace-nowrap text-sm text-slate-700 font-medium">
                         {{ l.txn_date.strftime('%Y-%m-%d') if l.txn_date else 'N/A' }}
                     </td>
                     <td class="px-4 py-3 text-sm">
                         <div class="font-bold text-slate-900">{{ l.ref or 'N/A' }}</div>
-                        <div class="text-slate-500 text-xs mt-0.5">{{ l.description or '' }}{% if l.payment_method %} &mdash; {{ l.payment_method }}{% endif %}</div>
+                        <div class="text-slate-600 text-xs mt-0.5">{{ l.description or '' }}{% if l.payment_method %} &mdash; {{ l.payment_method }}{% endif %}</div>
                     </td>
                     <td class="px-4 py-3 whitespace-nowrap text-sm text-right font-medium text-slate-900">
                         {% if l.kind == 'debit' %}R {{ ledger_money(l.amount) if ledger_money else "%.2f"|format(l.amount/100) }}{% else %}-{% endif %}
@@ -95,7 +95,7 @@
                 {% endfor %}
             {% else %}
                 <tr>
-                    <td colspan="5" class="px-6 py-8 text-center text-slate-500 text-sm">
+                    <td colspan="5" class="px-6 py-8 text-center text-slate-600 text-sm">
                         No transactions found for this period.
                     </td>
                 </tr>
@@ -126,7 +126,7 @@
     <div class="overflow-x-auto">
       <table class="w-full text-left border-collapse">
         <thead>
-          <tr class="bg-white border-b border-slate-200 text-xs uppercase text-slate-500 tracking-wider">
+          <tr class="bg-white border-b border-slate-200 text-xs uppercase text-slate-600 tracking-wider">
             <th class="px-6 py-3 font-bold">Date</th>
             <th class="px-6 py-3 font-bold">Job #</th>
             <th class="px-6 py-3 font-bold">Vehicle</th>
@@ -139,7 +139,7 @@
           <tr class="hover:bg-slate-50 transition">
             <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-700">{{ j.created_at.strftime('%Y-%m-%d') }}</td>
             <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-indigo-600">JOB-{{ j.job_number }}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">{{ j.vehicle.make }} {{ j.vehicle.model }}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-700">{{ j.vehicle.make }} {{ j.vehicle.model }}</td>
             <td class="px-6 py-4 whitespace-nowrap">
               <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold 
                 {% if j.status == 'Billed' %}bg-green-100 text-green-800
@@ -154,20 +154,20 @@
                 <i class="fas fa-external-link-alt"></i> Open Hub
               </a>
               {% if j.status not in ['Quote', 'Rejected'] %}
-              <a href="{{ url_for('mechanic_bp.download_document', id=j.id) }}" class="text-slate-500 hover:text-slate-800 font-bold mr-3" title="Download Tax Invoice">
+              <a href="{{ url_for('mechanic_bp.download_document', id=j.id) }}" class="text-slate-600 hover:text-slate-800 font-bold mr-3" title="Download Tax Invoice">
                 <i class="fas fa-file-pdf"></i> Tax Invoice
               </a>
               <a href="{{ url_for('mechanic_bp.email_document', id=j.id) }}" class="text-blue-500 hover:text-blue-800 font-bold" title="Email Tax Invoice">
                 <i class="fas fa-paper-plane"></i> Email
               </a>
               {% else %}
-              <span class="text-slate-400 italic text-xs">Waiting for Acceptance</span>
+              <span class="text-slate-600 italic text-xs">Waiting for Acceptance</span>
               {% endif %}
             </td>
           </tr>
           {% else %}
           <tr>
-            <td colspan="5" class="px-6 py-8 text-center text-slate-500 text-sm">No job cards found for this client.</td>
+            <td colspan="5" class="px-6 py-8 text-center text-slate-600 text-sm">No job cards found for this client.</td>
           </tr>
           {% endfor %}
         </tbody>
@@ -187,7 +187,7 @@
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="px-6 pt-6 pb-4 bg-white sm:p-6 sm:pb-4 border-b border-slate-100">
                     <h3 class="text-xl font-bold text-slate-900" id="modal-title">{{ 'Record Payment' if carpentry_account else 'Record Manual Transaction' }}</h3>
-          <p class="mt-2 text-sm text-slate-500">{{ 'Record money received from' if carpentry_account else 'Log a manual payment (credit) or refund (debit) for' }} {{ debtor.name }}.</p>
+          <p class="mt-2 text-sm text-slate-600">{{ 'Record money received from' if carpentry_account else 'Log a manual payment (credit) or refund (debit) for' }} {{ debtor.name }}.</p>
         </div>
         <div class="p-6 space-y-4">
                               <div>

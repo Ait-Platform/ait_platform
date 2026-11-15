@@ -19,15 +19,15 @@
       </div>
 
       <h1 class="text-3xl font-extrabold text-slate-900">Insufficient Tokens: Time to Top Up!</h1>
-      <p class="text-lg text-slate-600 max-w-xl mx-auto">
+      <p class="text-lg text-slate-700 max-w-xl mx-auto">
         You've run out of tokens to perform this action. Let's take a look at the immense value you've generated so far, and how you can easily cover token costs!
       </p>
 
       <!-- Mock Bill Card -->
       <div class="bg-slate-50 border border-slate-200 rounded-xl p-8 max-w-lg mx-auto shadow-sm my-8">
-        <h3 class="text-sm font-bold text-slate-500 uppercase tracking-wider mb-2">30-Day Usage Summary</h3>
+        <h3 class="text-sm font-bold text-slate-600 uppercase tracking-wider mb-2">30-Day Usage Summary</h3>
         <p class="text-5xl font-extrabold text-indigo-600 mb-4">{{ currency_sym }}{{ "%.2f"|format(shop.shadow_spent_cents / 100) }}</p>
-        <p class="text-slate-600 text-sm leading-relaxed">
+        <p class="text-slate-700 text-sm leading-relaxed">
           This is exactly what your usage would have cost under our pay-as-you-go token model. 
         </p>
       </div>
@@ -43,7 +43,7 @@
       <!-- Action Buttons -->
       <div class="pt-6 border-t border-slate-100 space-y-4">
         <h4 class="text-lg font-bold text-slate-900">Ready to continue?</h4>
-        <p class="text-sm text-slate-500 mb-6">Pay your once-off registration fee and top up your wallet to retain your data and keep generating quotes.</p>
+        <p class="text-sm text-slate-600 mb-6">Pay your once-off registration fee and top up your wallet to retain your data and keep generating quotes.</p>
         
         <a href="{{ url_for('auth_bp.register', subject='mechanic', next=url_for('payment_bp.wallet_topup', subject_slug='mechanic')) }}"
            class="inline-block w-full sm:w-auto bg-indigo-600 text-white font-bold text-lg py-3 px-8 rounded-xl shadow-sm hover:bg-indigo-700 transition">

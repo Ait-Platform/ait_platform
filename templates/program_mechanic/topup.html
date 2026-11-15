@@ -33,7 +33,7 @@
       <!-- Top Up Options -->
       <div>
         <h3 class="text-lg font-bold text-slate-900 mb-2">Select a Top-Up Bundle</h3>
-        <p class="text-slate-600 text-sm mb-6">Choose how much credit you want to add to your wallet. Credits are deducted automatically when generating quotes ({{ currency_sym }}5.00) and invoices ({{ currency_sym }}10.00).</p>
+        <p class="text-slate-700 text-sm mb-6">Choose how much credit you want to add to your wallet. Credits are deducted automatically when generating quotes ({{ currency_sym }}5.00) and invoices ({{ currency_sym }}10.00).</p>
 
         <form method="POST" action="{{ url_for('mechanic_bp.process_topup') }}">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -45,7 +45,7 @@
               <div class="absolute inset-0 rounded-xl border-2 border-transparent peer-checked:border-indigo-600 peer-checked:bg-indigo-50/50 pointer-events-none transition"></div>
               <div class="relative z-10">
                 <span class="block text-2xl font-bold text-slate-900 group-hover:text-indigo-600 transition mb-1">{{ currency_sym }}50</span>
-                <span class="block text-xs text-slate-500">10 Quotes or 5 Invoices</span>
+                <span class="block text-xs text-slate-600">10 Quotes or 5 Invoices</span>
               </div>
               <div class="absolute top-3 right-3 text-indigo-600 opacity-0 peer-checked:opacity-100 transition">
                 <i class="fas fa-check-circle"></i>
@@ -58,7 +58,7 @@
               <div class="absolute inset-0 rounded-xl border-2 border-transparent peer-checked:border-indigo-600 peer-checked:bg-indigo-50/50 pointer-events-none transition"></div>
               <div class="relative z-10">
                 <span class="block text-2xl font-bold text-slate-900 group-hover:text-indigo-600 transition mb-1">{{ currency_sym }}100</span>
-                <span class="block text-xs text-slate-500">20 Quotes or 10 Invoices</span>
+                <span class="block text-xs text-slate-600">20 Quotes or 10 Invoices</span>
               </div>
               <div class="absolute top-3 right-3 text-indigo-600 opacity-0 peer-checked:opacity-100 transition">
                 <i class="fas fa-check-circle"></i>
@@ -71,7 +71,7 @@
               <div class="absolute inset-0 rounded-xl border-2 border-transparent peer-checked:border-indigo-600 peer-checked:bg-indigo-50/50 pointer-events-none transition"></div>
               <div class="relative z-10">
                 <span class="block text-2xl font-bold text-slate-900 group-hover:text-indigo-600 transition mb-1">{{ currency_sym }}200</span>
-                <span class="block text-xs text-slate-500">40 Quotes or 20 Invoices</span>
+                <span class="block text-xs text-slate-600">40 Quotes or 20 Invoices</span>
               </div>
               <div class="absolute top-3 right-3 text-indigo-600 opacity-0 peer-checked:opacity-100 transition">
                 <i class="fas fa-check-circle"></i>

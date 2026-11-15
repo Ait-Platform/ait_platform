@@ -48,17 +48,17 @@
               <span class="mb-2 uppercase tracking-wider text-xs">Pending</span>
               <span class="bg-white text-indigo-700 py-1 px-3 rounded-full font-black text-lg">{{ pending|length }}</span>
             </button>
-            <button onclick="switchTab('accepted')" id="tab-btn-accepted" class="flex flex-col items-center justify-center px-4 py-3 rounded-lg text-sm font-bold shadow-sm transition bg-white text-slate-600 border-2 border-slate-200 hover:bg-slate-100 hover:text-slate-800 hover:border-slate-300 text-center w-full">
+            <button onclick="switchTab('accepted')" id="tab-btn-accepted" class="flex flex-col items-center justify-center px-4 py-3 rounded-lg text-sm font-bold shadow-sm transition bg-white text-slate-700 border-2 border-slate-200 hover:bg-slate-100 hover:text-slate-800 hover:border-slate-300 text-center w-full">
               <span class="mb-2 uppercase tracking-wider text-xs">Confirmed</span>
-              <span class="bg-slate-100 text-slate-600 py-1 px-3 rounded-full font-black text-lg group-hover:bg-slate-200">{{ accepted|length }}</span>
+              <span class="bg-slate-100 text-slate-700 py-1 px-3 rounded-full font-black text-lg group-hover:bg-slate-200">{{ accepted|length }}</span>
             </button>
-            <button onclick="switchTab('tracker')" id="tab-btn-tracker" class="flex flex-col items-center justify-center px-4 py-3 rounded-lg text-sm font-bold shadow-sm transition bg-white text-slate-600 border-2 border-slate-200 hover:bg-slate-100 hover:text-slate-800 hover:border-slate-300 text-center w-full group">
-              <span class="mb-2 uppercase tracking-wider text-xs flex items-center gap-2"><i class="fas fa-search text-slate-400 group-hover:text-blue-500 transition"></i> Tracker</span>
-              <span class="bg-slate-100 text-slate-600 py-1 px-3 rounded-full font-black text-lg group-hover:bg-slate-200"><i class="fas fa-car-side"></i></span>
+            <button onclick="switchTab('tracker')" id="tab-btn-tracker" class="flex flex-col items-center justify-center px-4 py-3 rounded-lg text-sm font-bold shadow-sm transition bg-white text-slate-700 border-2 border-slate-200 hover:bg-slate-100 hover:text-slate-800 hover:border-slate-300 text-center w-full group">
+              <span class="mb-2 uppercase tracking-wider text-xs flex items-center gap-2"><i class="fas fa-search text-slate-600 group-hover:text-blue-500 transition"></i> Tracker</span>
+              <span class="bg-slate-100 text-slate-700 py-1 px-3 rounded-full font-black text-lg group-hover:bg-slate-200"><i class="fas fa-car-side"></i></span>
             </button>
-            <a href="{{ url_for('mechanic_bp.client_accounts') }}" id="tab-btn-ledger" class="flex flex-col items-center justify-center px-4 py-3 rounded-lg text-sm font-bold shadow-sm transition bg-white text-slate-600 border-2 border-slate-200 hover:bg-slate-100 hover:text-slate-800 hover:border-slate-300 text-center w-full group">
-              <span class="mb-2 uppercase tracking-wider text-xs flex items-center gap-2"><i class="fas fa-file-invoice-dollar text-slate-400 group-hover:text-emerald-500 transition"></i> Ledger</span>
-              <span class="bg-slate-100 text-slate-600 py-1 px-3 rounded-full font-black text-lg group-hover:bg-slate-200">{{ total_debtors_count }}</span>
+            <a href="{{ url_for('mechanic_bp.client_accounts') }}" id="tab-btn-ledger" class="flex flex-col items-center justify-center px-4 py-3 rounded-lg text-sm font-bold shadow-sm transition bg-white text-slate-700 border-2 border-slate-200 hover:bg-slate-100 hover:text-slate-800 hover:border-slate-300 text-center w-full group">
+              <span class="mb-2 uppercase tracking-wider text-xs flex items-center gap-2"><i class="fas fa-file-invoice-dollar text-slate-600 group-hover:text-emerald-500 transition"></i> Ledger</span>
+              <span class="bg-slate-100 text-slate-700 py-1 px-3 rounded-full font-black text-lg group-hover:bg-slate-200">{{ total_debtors_count }}</span>
             </a>
           </div>
   
@@ -83,20 +83,20 @@
           <table class="min-w-full divide-y divide-slate-200">
             <thead class="bg-slate-50">
               <tr>
-                <th scope="col" class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Job #</th>
-                <th scope="col" class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Date</th>
-                <th scope="col" class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Client & Vehicle</th>
-                <th scope="col" class="px-6 py-3 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Actions</th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Job #</th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Date</th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Client & Vehicle</th>
+                <th scope="col" class="px-6 py-3 text-right text-xs font-bold text-slate-600 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody id="{{ table_id }}" class="bg-white divide-y divide-slate-200">
               {% for job in jobs %}
               <tr class="hover:bg-slate-50 transition {% if loop.index > 3 %}hidden expanded-row{% endif %}">
                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">#{{ job.display_document_number }}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{{ job.created_at.strftime('%Y-%m-%d') }}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">{{ job.created_at.strftime('%Y-%m-%d') }}</td>
                 <td class="px-6 py-4 whitespace-nowrap">
                   <div class="text-sm font-bold text-slate-900">{{ job.vehicle.client.name }}</div>
-                  <div class="text-sm text-slate-500">{{ job.vehicle.registration_number }}</div>
+                  <div class="text-sm text-slate-600">{{ job.vehicle.registration_number }}</div>
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                   <a href="{{ url_for('mechanic_bp.job_card_detail', id=job.id) }}" class="text-indigo-600 hover:text-indigo-900 font-semibold bg-indigo-50 px-3 py-1 rounded-md transition hover:bg-indigo-100 border border-indigo-100">
@@ -130,7 +130,7 @@
               </tr>
               {% else %}
               <tr>
-                <td colspan="4" class="px-6 py-8 text-center text-slate-500 italic">No job cards in this category.</td>
+                <td colspan="4" class="px-6 py-8 text-center text-slate-600 italic">No job cards in this category.</td>
               </tr>
               {% endfor %}
             </tbody>
@@ -148,7 +148,7 @@
         <div id="tab-content-tracker" class="tab-pane hidden mt-8">
           <div class="bg-white border-2 border-slate-200 rounded-xl shadow-sm p-6 max-w-3xl mx-auto">
             <h2 class="text-xl font-bold text-slate-800 mb-2"><i class="fas fa-satellite-dish text-indigo-500 mr-2"></i> Vehicle Repair Tracker</h2>
-            <p class="text-sm text-slate-500 mb-6">Enter a vehicle registration number to instantly view its complete physical and financial timeline on the workshop floor.</p>
+            <p class="text-sm text-slate-600 mb-6">Enter a vehicle registration number to instantly view its complete physical and financial timeline on the workshop floor.</p>
             
             <div class="flex space-x-3 mb-8">
               <input type="text" id="tracker-input" list="vehicles-list" placeholder="Search by Registration or Client..." class="flex-1 rounded-lg border-2 border-slate-300 px-4 py-3 font-bold text-lg uppercase focus:border-indigo-500 focus:ring-indigo-500 shadow-sm" onkeypress="if(event.key === 'Enter') searchTracker()">
@@ -163,14 +163,14 @@
             
             <div id="tracker-loading" class="hidden text-center py-8">
               <i class="fas fa-spinner fa-spin text-3xl text-indigo-500 mb-3"></i>
-              <p class="font-bold text-slate-500">Scanning workshop history...</p>
+              <p class="font-bold text-slate-600">Scanning workshop history...</p>
             </div>
             
             <div id="tracker-results" class="hidden">
               <div class="bg-slate-50 border border-slate-200 rounded-lg p-4 mb-6 flex justify-between items-center">
                 <div>
                   <h3 id="tracker-veh-name" class="font-bold text-lg text-slate-900">Toyota Hilux</h3>
-                  <p id="tracker-client-name" class="text-sm text-slate-600"><i class="fas fa-user mr-1"></i> Graham</p>
+                  <p id="tracker-client-name" class="text-sm text-slate-700"><i class="fas fa-user mr-1"></i> Graham</p>
                 </div>
                 <div class="bg-white border-2 border-slate-300 px-3 py-1 rounded-md shadow-sm font-black text-slate-800 text-lg tracking-wider uppercase" id="tracker-reg-plate">
                   XYZ 123
@@ -183,8 +183,8 @@
             </div>
             
             <div id="tracker-empty" class="hidden text-center py-8 bg-slate-50 rounded-lg border border-slate-200">
-              <i class="fas fa-search-minus text-3xl text-slate-400 mb-3"></i>
-              <p class="font-bold text-slate-600">No history found for that registration number.</p>
+              <i class="fas fa-search-minus text-3xl text-slate-600 mb-3"></i>
+              <p class="font-bold text-slate-700">No history found for that registration number.</p>
             </div>
           </div>
         </div>
@@ -215,10 +215,10 @@ function switchTab(tabId) {
     tabs.forEach(t => {
         const btn = document.getElementById('tab-btn-' + t);
         if(btn) {
-            btn.className = "flex flex-col items-center justify-center px-4 py-3 rounded-lg text-sm font-bold shadow-sm transition bg-white text-slate-600 border-2 border-slate-200 hover:bg-slate-100 hover:text-slate-800 hover:border-slate-300 text-center w-full group";
+            btn.className = "flex flex-col items-center justify-center px-4 py-3 rounded-lg text-sm font-bold shadow-sm transition bg-white text-slate-700 border-2 border-slate-200 hover:bg-slate-100 hover:text-slate-800 hover:border-slate-300 text-center w-full group";
             // Update badge color
             const badge = btn.querySelectorAll('span')[1];
-            if (badge) badge.className = "bg-slate-100 text-slate-600 py-1 px-3 rounded-full font-black text-lg group-hover:bg-slate-200";
+            if (badge) badge.className = "bg-slate-100 text-slate-700 py-1 px-3 rounded-full font-black text-lg group-hover:bg-slate-200";
         }
     });
     
@@ -279,7 +279,7 @@ function toggleTable(tableId, btn) {
                       div.className = "relative pl-6";
                       
                       let badgeColor = "bg-slate-400";
-                      let iconColor = "text-slate-500";
+                      let iconColor = "text-slate-600";
                       
                       if(item.color === 'blue') { badgeColor = "bg-blue-500"; iconColor = "text-blue-700"; }
                       if(item.color === 'emerald') { badgeColor = "bg-emerald-500"; iconColor = "text-emerald-700"; }
@@ -291,9 +291,9 @@ function toggleTable(tableId, btn) {
                         <div class="bg-white border border-slate-200 rounded-lg p-3 shadow-sm hover:shadow-md transition">
                           <div class="flex justify-between items-start mb-1">
                             <h4 class="font-bold text-slate-800"><i class="fas ${item.icon} ${iconColor} mr-2"></i> ${item.event}</h4>
-                            <span class="text-xs font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded">${item.time}</span>
+                            <span class="text-xs font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded">${item.time}</span>
                           </div>
-                          <p class="text-xs text-slate-400 font-medium">${item.date}</p>
+                          <p class="text-xs text-slate-600 font-medium">${item.date}</p>
                         </div>
                       `;
                       tContainer.appendChild(div);

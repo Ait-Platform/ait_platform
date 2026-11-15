@@ -18,12 +18,12 @@
           <h1 class="text-2xl font-semibold text-slate-900">ProTrade Dashboard</h1>
           <div class="flex flex-wrap items-center gap-3 mt-1">
             {% if active_shop %}
-            <p class="text-xs text-slate-500">{{ active_trade_name }} &middot; Active Profile: <strong class="text-slate-700">{{ active_shop.business_name }}</strong></p>
+            <p class="text-xs text-slate-600">{{ active_trade_name }} &middot; Active Profile: <strong class="text-slate-700">{{ active_shop.business_name }}</strong></p>
             {% else %}
             <p class="text-xs text-amber-700 font-medium">Profile Incomplete</p>
             {% endif %}
             <div class="flex items-center gap-1.5">
-              <label for="trade-select-nav" class="text-xs font-semibold text-slate-500">Trade:</label>
+              <label for="trade-select-nav" class="text-xs font-semibold text-slate-600">Trade:</label>
               <select id="trade-select-nav" onchange="window.location.href='{{ url_for('mechanic_bp.mechanic_dashboard') }}?trade=' + this.value" class="text-xs font-medium rounded border border-slate-300 bg-white px-2 py-0.5 text-slate-700 focus:outline-none focus:ring-1 focus:ring-slate-400">
                 {% for t_code, t_name in available_trades %}
                 <option value="{{ t_code }}" {% if current_trade == t_code %}selected{% endif %}>
@@ -147,7 +147,7 @@
           <span>Shop Setup</span>
         </button>
       </div>
-      <p class="mt-1 text-sm text-slate-600">Select a shop to open its Debtor Register. Create quotations for saved debtors within that shop.</p>
+      <p class="mt-1 text-sm text-slate-700">Select a shop to open its Debtor Register. Create quotations for saved debtors within that shop.</p>
 
       <!-- Client Table -->
       <div class="mt-4 overflow-x-auto rounded-lg border border-slate-200">
@@ -171,15 +171,15 @@
                    data-name="{{ row.client.name }}" data-phone="{{ row.client.phone or '' }}" data-email="{{ row.client.email or '' }}" data-address="{{ row.client.address or '' }}"
                    data-save-url="{{ url_for('mechanic_bp.update_client', client_id=row.client.id) }}"{% endif %}>{{ row_name }}</a>
               </td>
-              <td class="p-3 text-slate-600 break-words whitespace-normal">{{ row.contact or '—' }}</td>
-              <td class="p-3 text-slate-600 break-words whitespace-normal">{{ row.service or '—' }}</td>
+              <td class="p-3 text-slate-700 break-words whitespace-normal">{{ row.contact or '—' }}</td>
+              <td class="p-3 text-slate-700 break-words whitespace-normal">{{ row.service or '—' }}</td>
               <td class="p-3 text-right">
                 <a href="{{ url_for('mechanic_bp.shop_debtor_register', shop_id=row.shop.id) }}" class="inline-flex rounded-lg bg-slate-800 px-3 py-2 font-semibold text-white">Debtor Register</a>
               </td>
             </tr>
             {% else %}
             <tr>
-              <td colspan="4" class="p-6 text-center text-slate-600">No clients registered yet. Enter a client name above to begin.</td>
+              <td colspan="4" class="p-6 text-center text-slate-700">No clients registered yet. Enter a client name above to begin.</td>
             </tr>
             {% endfor %}
           </tbody>
@@ -198,7 +198,7 @@
             <label class="block text-sm font-semibold">Name<input name="name" required maxlength="150" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"></label>
             <label class="block text-sm font-semibold">Phone<input name="phone" maxlength="50" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"></label>
             <label class="block text-sm font-semibold">Email<input name="email" type="email" maxlength="150" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"></label>
-            <p class="text-sm text-slate-600">Address: <span id="client-profile-address"></span></p>
+            <p class="text-sm text-slate-700">Address: <span id="client-profile-address"></span></p>
             <div class="flex items-center justify-end gap-3">
               <a id="client-profile-ledger" class="rounded-lg bg-slate-100 px-4 py-2 font-semibold text-slate-700">View Ledger</a>
               <button type="submit" class="rounded-lg bg-slate-800 px-4 py-2 font-semibold text-white">Save Profile</button>
@@ -210,7 +210,7 @@
       <!-- Show More / Show Less with Visible Client Counter -->
       {% if clients|length > 5 %}
       <div class="mt-4 flex items-center justify-between border-t border-slate-100 pt-3">
-        <span id="client-visible-indicator" class="text-xs text-slate-500 font-medium">Showing 5 of {{ clients|length }} clients</span>
+        <span id="client-visible-indicator" class="text-xs text-slate-600 font-medium">Showing 5 of {{ clients|length }} clients</span>
         <button type="button" id="client-toggle-btn" data-expanded="false" onclick="toggleClientRows()" class="inline-flex items-center gap-1.5 rounded-lg bg-blue-100 px-4 py-2 text-sm font-semibold text-slate-800 hover:bg-blue-200 transition">
           <span id="client-toggle-text">Show More (5 of {{ clients|length }}) &darr;</span>
         </button>
@@ -319,9 +319,9 @@
     <div class="px-8 py-5 border-b border-slate-200 bg-slate-50 flex justify-between items-center rounded-t-2xl">
       <div>
         <h3 class="font-extrabold text-slate-800 text-xl">Shop Profile Setup</h3>
-        <p class="text-xs text-slate-500 mt-0.5">Manual Entry for {{ active_trade_name }}</p>
+        <p class="text-xs text-slate-600 mt-0.5">Manual Entry for {{ active_trade_name }}</p>
       </div>
-      <button onclick="document.getElementById('manual-setup-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 text-3xl leading-none">&times;</button>
+      <button onclick="document.getElementById('manual-setup-modal').classList.add('hidden')" class="text-slate-600 hover:text-slate-700 text-3xl leading-none">&times;</button>
     </div>
 
     <form action="{{ url_for('mechanic_bp.onboarding_process') }}" method="POST" enctype="multipart/form-data">
@@ -342,7 +342,7 @@
                 <option value="{{ t_code }}" {% if current_trade == t_code %}selected{% endif %}>{{ t_name }}</option>
                 {% endfor %}
               </select>
-              <p class="text-xs text-slate-500 mt-1">Each operator maintains a separate shop profile for each trade.</p>
+              <p class="text-xs text-slate-600 mt-1">Each operator maintains a separate shop profile for each trade.</p>
             </div>
 
             <div class="sm:col-span-2">
@@ -373,7 +373,7 @@
                 <div>
                   <label class="block text-sm font-bold text-slate-700 mb-1">VAT/Tax Rate (%)</label>
                   <input type="number" step="0.1" min="0" max="100" name="vat_rate" value="{{ active_shop.vat_rate if active_shop else 15.0 }}" class="block w-full rounded-lg border-2 border-indigo-200 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm p-3 transition">
-                  <p class="text-xs text-slate-500 mt-1">Default is 15%. Set to 0 if not registered.</p>
+                  <p class="text-xs text-slate-600 mt-1">Default is 15%. Set to 0 if not registered.</p>
                 </div>
               </div>
             </div>
@@ -385,17 +385,17 @@
                 <img src="{{ url_for('static', filename='uploads/mechanic/' + active_shop.logo_url) }}" alt="Shop Logo" class="h-16 w-auto object-contain rounded border border-slate-200 shadow-sm bg-white p-1">
               </div>
               {% endif %}
-              <input type="file" name="logo_file" accept="image/*" class="block w-full text-base text-slate-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-bold file:bg-indigo-100 file:text-indigo-700 hover:file:bg-indigo-200 transition cursor-pointer border-2 border-dashed border-indigo-200 p-4 rounded-lg">
+              <input type="file" name="logo_file" accept="image/*" class="block w-full text-base text-slate-700 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-bold file:bg-indigo-100 file:text-indigo-700 hover:file:bg-indigo-200 transition cursor-pointer border-2 border-dashed border-indigo-200 p-4 rounded-lg">
               
               <div class="mt-6 border-t border-slate-200 pt-4">
                 <label class="block text-sm font-bold text-slate-700 mb-1">Custom Letterhead Banner (Optional)</label>
-                <p class="text-xs text-slate-500 mb-2">Upload a full-width image to replace the standard invoice header.</p>
+                <p class="text-xs text-slate-600 mb-2">Upload a full-width image to replace the standard invoice header.</p>
                 {% if active_shop and active_shop.letterhead_url %}
                 <div class="mb-3">
                   <img src="{{ url_for('static', filename='uploads/mechanic/' + active_shop.letterhead_url) }}" alt="Shop Letterhead" class="h-16 w-full object-cover rounded border border-slate-200 shadow-sm bg-white">
                 </div>
                 {% endif %}
-                <input type="file" name="letterhead_file" accept="image/*" class="block w-full text-base text-slate-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-bold file:bg-indigo-100 file:text-indigo-700 hover:file:bg-indigo-200 transition cursor-pointer border-2 border-dashed border-indigo-200 p-4 rounded-lg">
+                <input type="file" name="letterhead_file" accept="image/*" class="block w-full text-base text-slate-700 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-bold file:bg-indigo-100 file:text-indigo-700 hover:file:bg-indigo-200 transition cursor-pointer border-2 border-dashed border-indigo-200 p-4 rounded-lg">
               </div>
             </div>
           </div>
@@ -404,14 +404,14 @@
         <!-- Banking Details -->
         <div class="border-t border-slate-200 pt-6 mb-6">
           <label class="block text-sm font-bold text-slate-700 mb-1">Banking Details (For Payments)</label>
-          <p class="text-xs text-slate-500 mb-2">These details will appear on your Invoices and Statements.</p>
+          <p class="text-xs text-slate-600 mb-2">These details will appear on your Invoices and Statements.</p>
           <a href="{{ url_for('mechanic_bp.bank_accounts') }}" class="inline-block px-4 py-2 bg-indigo-50 border border-indigo-200 text-indigo-700 font-bold rounded-lg hover:bg-indigo-100 transition shadow-sm w-full text-center">Manage Bank Accounts</a>
         </div>
         
         <!-- Terms & Conditions -->
         <div class="border-t border-slate-200 pt-6">
           <label class="block text-sm font-bold text-slate-700 mb-1">Terms &amp; Conditions (Optional)</label>
-          <p class="text-xs text-slate-500 mb-2">These will appear at the bottom of your Quotes and Invoices.</p>
+          <p class="text-xs text-slate-600 mb-2">These will appear at the bottom of your Quotes and Invoices.</p>
           <div class="mb-2">
             <select id="tc-template-select" onchange="insertTCTemplate()" class="block w-full rounded-lg border-2 border-indigo-200 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm p-2 transition mb-2 bg-slate-50">
               <option value="">-- Or choose a template to load --</option>

@@ -91,7 +91,7 @@
     document.getElementById('quote-save').disabled = included === 0 || invalidIncluded;
     if (!selected.size && !document.getElementById('quote-empty')) {
       const row = body.insertRow();row.id='quote-empty';
-      const cell = row.insertCell();cell.colSpan=8;cell.className='p-6 text-center text-slate-600';
+      const cell = row.insertCell();cell.colSpan=8;cell.className='p-6 text-center text-slate-700';
       cell.textContent='No items added. Select a work item above.';
     }
     preview();

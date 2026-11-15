@@ -80,22 +80,22 @@ document.addEventListener('DOMContentLoaded', function() {
     <div class="flex items-center justify-between border-b border-slate-100 px-6 pb-4">
       <div>
         <h1 class="text-2xl md:text-3xl font-bold text-slate-900">{{ 'Edit Quote' if edit_card else 'Create Quote' }}{% if edit_card %} &middot; {{ edit_card.display_quote_number }}{% endif %}</h1>
-        <p class="mt-1 text-sm text-slate-500">Shop: {{ shop.business_name }}</p>
+        <p class="mt-1 text-sm text-slate-600">Shop: {{ shop.business_name }}</p>
       </div>
       <a href="{{ url_for('mechanic_bp.debtor_quote',shop_id=shop.id,debtor_id=quotation_debtor_id) if quotation_debtor_id else url_for('mechanic_bp.mechanic_dashboard') }}" class="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition shadow-sm">
         <span>&larr;</span><span>Back</span>
       </a>
     </div>
 
-    {% if quotation_debtor_id %}<div class="px-6 pt-4"><nav class="flex justify-end gap-3"><form method="POST" action="{{ url_for('mechanic_bp.new_debtor_quote',shop_id=shop.id,debtor_id=quotation_debtor_id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="rounded-lg bg-blue-100 px-4 py-2 font-semibold">New Quote</button></form><a href="{{ url_for('mechanic_bp.debtor_quote',shop_id=shop.id,debtor_id=quotation_debtor_id,area='register') }}" class="rounded-lg bg-green-100 px-4 py-2 font-semibold">Register</a></nav><p class="mt-3 text-sm text-slate-600">Selected debtor: <strong>{{ quote_client.name if quote_client else edit_card.vehicle.client.name if edit_card else '' }}</strong></p></div>{% endif %}
-    <p class="px-6 pt-3 text-sm text-slate-600">A successfully saved new quotation costs 10 tokens (R10.00). Editing an existing quotation is free.</p>
+    {% if quotation_debtor_id %}<div class="px-6 pt-4"><nav class="flex justify-end gap-3"><form method="POST" action="{{ url_for('mechanic_bp.new_debtor_quote',shop_id=shop.id,debtor_id=quotation_debtor_id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="rounded-lg bg-blue-100 px-4 py-2 font-semibold">New Quote</button></form><a href="{{ url_for('mechanic_bp.debtor_quote',shop_id=shop.id,debtor_id=quotation_debtor_id,area='register') }}" class="rounded-lg bg-green-100 px-4 py-2 font-semibold">Register</a></nav><p class="mt-3 text-sm text-slate-700">Selected debtor: <strong>{{ quote_client.name if quote_client else edit_card.vehicle.client.name if edit_card else '' }}</strong></p></div>{% endif %}
+    <p class="px-6 pt-3 text-sm text-slate-700">A successfully saved new quotation costs 10 tokens (R10.00). Editing an existing quotation is free.</p>
           <form action="{{ url_for('mechanic_bp.edit_quote', id=edit_card.id, shop_id=shop.id) if edit_card else url_for('mechanic_bp.new_quote') }}" method="POST" enctype="multipart/form-data">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
         <input type="hidden" name="shop_id" value="{{ shop.id }}">
         {% if request.values.get('debtor_id') or (edit_card and edit_card.debtor_id) %}<input type="hidden" name="debtor_id" value="{{ request.values.get('debtor_id') or edit_card.debtor_id }}">{% endif %}
         {% if request.values.get('client_id') %}<input type="hidden" name="client_id" value="{{ request.values.get('client_id') }}">{% endif %}
         {% if request.values.get('register_shop_id') %}<input type="hidden" name="register_shop_id" value="{{ request.values.get('register_shop_id') }}">{% endif %}
-        {% if quote_client %}<p class="px-6 pt-4 text-sm text-slate-600">{{ quote_client.name }} &middot; {{ quote_client.phone or '' }} &middot; {{ quote_client.email or '' }} &middot; {{ quote_client.address or '' }}</p>{% endif %}
+        {% if quote_client %}<p class="px-6 pt-4 text-sm text-slate-700">{{ quote_client.name }} &middot; {{ quote_client.phone or '' }} &middot; {{ quote_client.email or '' }} &middot; {{ quote_client.address or '' }}</p>{% endif %}
         
         <div class="p-6">
           <h3 class="text-lg font-bold text-slate-800 mb-4">Customer & Vehicle Details</h3>
@@ -109,7 +109,7 @@ document.addEventListener('DOMContentLoaded', function() {
               <input type="text" name="vehicle_reg" required class="block" value="{{ edit_card.vehicle.license_plate if edit_card and edit_card.vehicle else '' }}" w-full rounded-md border border-slate-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 sm:text-sm">
             </div>
             <div>
-              <label class="block text-sm font-medium text-slate-700 mb-1">VIN Number <span class="text-xs text-slate-400 font-normal">(Optional)</span></label>
+              <label class="block text-sm font-medium text-slate-700 mb-1">VIN Number <span class="text-xs text-slate-600 font-normal">(Optional)</span></label>
               <input type="text" name="vin_number" class="block" value="{{ edit_card.vehicle.vin if edit_card and edit_card.vehicle else '' }}" w-full rounded-md border border-slate-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 sm:text-sm uppercase" placeholder="17-Digit VIN">
             </div>
             <div class="col-span-full mb-4 hidden" id="vin-preview-container">
@@ -121,29 +121,29 @@ document.addEventListener('DOMContentLoaded', function() {
               </div>
             </div>
             <div>
-              <label class="block text-sm font-medium text-slate-700 mb-1">Upload License Disk / VIN Image <span class="text-xs text-slate-400 font-normal">(Optional)</span></label>
-              <input type="file" id="ajax_disk_upload" accept="image/*" class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer border border-slate-300 rounded-md shadow-sm">
+              <label class="block text-sm font-medium text-slate-700 mb-1">Upload License Disk / VIN Image <span class="text-xs text-slate-600 font-normal">(Optional)</span></label>
+              <input type="file" id="ajax_disk_upload" accept="image/*" class="block w-full text-sm text-slate-600 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer border border-slate-300 rounded-md shadow-sm">
               <input type="hidden" name="uploaded_disk_filename" id="uploaded_disk_filename">
               <p id="upload_status" class="text-xs text-indigo-600 font-semibold mt-1 hidden">Uploading...</p>
             </div>
             <div>
-              <label class="block text-sm font-medium text-slate-700 mb-1">Make <span class="text-xs text-slate-400 font-normal">(Optional)</span></label>
+              <label class="block text-sm font-medium text-slate-700 mb-1">Make <span class="text-xs text-slate-600 font-normal">(Optional)</span></label>
               <input type="text" name="make" class="block" value="{{ edit_card.vehicle.make if edit_card and edit_card.vehicle else '' }}" w-full rounded-md border border-slate-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 sm:text-sm" placeholder="e.g. Toyota">
             </div>
             <div>
-              <label class="block text-sm font-medium text-slate-700 mb-1">Model <span class="text-xs text-slate-400 font-normal">(Optional)</span></label>
+              <label class="block text-sm font-medium text-slate-700 mb-1">Model <span class="text-xs text-slate-600 font-normal">(Optional)</span></label>
               <input type="text" name="model" class="block" value="{{ edit_card.vehicle.model if edit_card and edit_card.vehicle else '' }}" w-full rounded-md border border-slate-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 sm:text-sm" placeholder="e.g. Hilux">
             </div>
             <div>
-              <label class="block text-sm font-medium text-slate-700 mb-1">Year <span class="text-xs text-slate-400 font-normal">(Optional)</span></label>
+              <label class="block text-sm font-medium text-slate-700 mb-1">Year <span class="text-xs text-slate-600 font-normal">(Optional)</span></label>
               <input type="number" name="year" class="block" value="{{ edit_card.vehicle.year if edit_card and edit_card.vehicle else '' }}" w-full rounded-md border border-slate-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 sm:text-sm" placeholder="e.g. 2018">
             </div>
                         <div>
-              <label class="block text-sm font-medium text-slate-700 mb-1">Odometer / Mileage <span class="text-xs text-slate-400 font-normal">(Optional)</span></label>
+              <label class="block text-sm font-medium text-slate-700 mb-1">Odometer / Mileage <span class="text-xs text-slate-600 font-normal">(Optional)</span></label>
               <input type="number" id="mileage_input" name="mileage" class="block w-full rounded-md border border-slate-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 sm:text-sm" value="{{ edit_card.vehicle.mileage if edit_card and edit_card.vehicle else '' }}" placeholder="e.g. 150000">
             </div>
             <div>
-              <label class="block text-sm font-medium text-slate-700 mb-1">Next Service Due <span class="text-xs text-slate-400 font-normal">(Optional)</span></label>
+              <label class="block text-sm font-medium text-slate-700 mb-1">Next Service Due <span class="text-xs text-slate-600 font-normal">(Optional)</span></label>
               <input type="text" id="next_service_due_input" name="next_service_due" class="block w-full rounded-md border border-slate-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 sm:text-sm" value="{{ edit_card.next_service_due if edit_card else '' }}" placeholder="e.g. 165,000 km or Dec 2026">
             </div>
 

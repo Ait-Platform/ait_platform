@@ -17,7 +17,7 @@
     <div class="flex items-center justify-between border-b border-slate-100 px-6 pb-4">
       <div>
         <h1 class="text-2xl md:text-3xl font-bold text-slate-900">Manage Price List</h1>
-        <p class="mt-1 text-sm text-slate-500">Shop: {{ shop.business_name }} &middot; Trade: {{ active_trade_name }}</p>
+        <p class="mt-1 text-sm text-slate-600">Shop: {{ shop.business_name }} &middot; Trade: {{ active_trade_name }}</p>
       </div>
       <a href="{{ url_for('mechanic_bp.mechanic_dashboard', shop_id=shop.id) }}" class="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition shadow-sm">
         <span>&larr;</span><span>Back</span>
@@ -57,10 +57,10 @@
         <table class="min-w-full divide-y divide-slate-200">
           <thead class="bg-slate-50">
             <tr>
-              <th scope="col" class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Item Name</th>
-              <th scope="col" class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Category</th>
-              <th scope="col" class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Price</th>
-              <th scope="col" class="px-6 py-3 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Source</th>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Item Name</th>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Category</th>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Price</th>
+              <th scope="col" class="px-6 py-3 text-right text-xs font-bold text-slate-600 uppercase tracking-wider">Source</th>
               <th scope="col" class="relative px-6 py-3"><span class="sr-only">Actions</span></th>
             </tr>
           </thead>
@@ -68,9 +68,9 @@
             {% for part in catalog_parts %}
             <tr class="hover:bg-slate-50">
               <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">{{ part.part_name }}</td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{{ part.category }}</td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">{{ part.category }}</td>
               <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-slate-900">{{ "%.2f"|format(part.default_price) }}</td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-right text-slate-500">
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-right text-slate-600">
                 {% if part.user_id %}
                   <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Custom</span>
                 {% else %}
@@ -92,7 +92,7 @@
             {% endfor %}
             {% if not catalog_parts %}
             <tr>
-              <td colspan="5" class="px-6 py-8 text-center text-sm text-slate-500">No items in this shop's price list.</td>
+              <td colspan="5" class="px-6 py-8 text-center text-sm text-slate-600">No items in this shop's price list.</td>
             </tr>
             {% endif %}
           </tbody>

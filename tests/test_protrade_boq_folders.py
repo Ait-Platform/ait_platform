@@ -38,6 +38,7 @@ class BoqFolderTests(unittest.TestCase):
                     page.add_init_script("window.showDirectoryPicker=async()=>{const root=await navigator.storage.getDirectory();return root.getDirectoryHandle('BOQ-Base',{create:true});};")
                     page.goto(f'http://localhost/mechanic/folders?shop_id={shop.id}')
                     page.locator('#output-folder-select').click()
+                    page.locator('#output-folder-allow').click()
                     page.wait_for_function("document.getElementById('output-folder-name').textContent==='BOQ-Base'")
                     page.goto('http://localhost'+url)
                     page.locator('[data-section-save]').click()

@@ -6,15 +6,32 @@
   const select=document.getElementById('output-folder-select'),allow=document.getElementById('output-folder-allow');
   const save=document.getElementById('output-save'),email=document.getElementById('output-email');
   const form=document.getElementById('protrade-output-select');
-  function fail(error){message.textContent=error.name==='AbortError'?'Folder selection or saving cancelled.':error.message;}
+  allow.disabled=true;
+  let selected=null;
+  function fail(error){message.textContent='Could not save the folder or document: '+(error.message || error.name)+'. The previous saved folder is unchanged.';}
   if(!window.AITDirectories.supported()){
     select.disabled=true;allow.disabled=true;
     message.textContent='Direct folder saving requires Chrome or Edge on a secure connection. Save Report will download a uniquely named PDF instead.';
-  }else window.AITDirectories.get(scope).then(row=>{if(row)folderName.textContent=row.handle.name;}).catch(fail);
+  }else window.AITDirectories.get(scope).then(row=>{if(row && !selected){selected=row.handle;folderName.textContent=row.handle.name;allow.disabled=false;}}).catch(fail);
   select.addEventListener('click',async()=>{
-    try{const handle=await window.showDirectoryPicker({mode:'readwrite'});await window.AITDirectories.set(scope,handle);folderName.textContent=handle.name;message.textContent='Base ProTrade folder selected. Reports will be organised by shop and document type.';}catch(error){fail(error);}
+    try{
+      const handle=await window.showDirectoryPicker({mode:'readwrite',id:'ait-protrade-base'});
+      selected=handle;folderName.textContent=handle.name;allow.disabled=false;
+      message.textContent='Folder selected. Click Save to remember this folder on this browser.';
+    }catch(error){
+      message.textContent=error.name==='AbortError'?'No new folder was selected. If Windows or the browser blocked this location, choose a dedicated ProTrade subfolder. Your saved folder is unchanged.':error.message;
+    }
   });
-  allow.addEventListener('click',async()=>{try{folderName.textContent=await window.AITDirectories.reauthorise(scope);message.textContent='Folder access granted.';}catch(error){fail(error);}});
+  allow.addEventListener('click',async()=>{
+    if(!selected){message.textContent='Choose a folder using Select Folder, then click Save.';return;}
+    const handle=selected;allow.disabled=true;select.disabled=true;
+    try{
+      // Invoke permission from this explicit user gesture, before storage awaits.
+      if(await handle.requestPermission({mode:'readwrite'})!=='granted')throw new Error('Browser folder permission was not granted');
+      await window.AITDirectories.set(scope,handle);
+      folderName.textContent=handle.name;message.textContent='Folder saved. Documents will appear automatically when available.';
+    }catch(error){fail(error);}finally{allow.disabled=false;select.disabled=false;}
+  });
   let saving=false;
   save?.addEventListener('click',async()=>{
     if(saving || save.disabled)return;

@@ -68,13 +68,20 @@
     });}finally{db.close();}
   }
   function check(scope){if(!scope.user || !scope.property)throw new Error('Select an authorised property first.');}
+  function notify(scope,type){
+    if(String(scope.property)!=='protrade')return;
+    const detail={user:String(scope.user),property:String(scope.property),type};
+    window.dispatchEvent(new CustomEvent('ait:local-documents',{detail}));
+    if(window.BroadcastChannel){const channel=new BroadcastChannel('ait-protrade-documents');channel.postMessage(detail);channel.close();}
+  }
   const api={
     supported:()=>window.isSecureContext && typeof window.showDirectoryPicker==='function' && !!window.indexedDB,
     async get(scope){check(scope);return operation('readonly',store=>store.get(key(scope)));},
     async set(scope,handle){
       check(scope);if(!handle || handle.kind!=='directory')throw new Error('Select a folder.');
       if(!await api.permission(handle))throw new Error('Folder permission was not granted. The previous main folder is unchanged.');
-      return operation('readwrite',store=>store.put({key:key(scope),user:String(scope.user),property:String(scope.property),handle}));
+      const result=await operation('readwrite',store=>store.put({key:key(scope),user:String(scope.user),property:String(scope.property),handle}));
+      notify(scope,'folder');return result;
     },
     async reauthorise(scope){
       const row=await api.get(scope);if(!row)throw new Error('Select a main folder first.');
@@ -88,9 +95,10 @@
     }
   };
 
-  api.list=async(scope,report)=>{
+  api.list=async(scope,report,options={})=>{
     const row=await api.get(scope);if(!row)throw new Error('Select Folder first.');
-    if(!await api.permission(row.handle))throw new Error('Folder permission expired. Click Allow Access and try again.');
+    const permitted=options.prompt===false?await row.handle.queryPermission({mode:'readwrite'})==='granted':await api.permission(row.handle);
+    if(!permitted)throw new Error(String(scope.property)==='protrade'?'Folder access needs confirmation. Click Save for this folder.':'Folder permission expired. Click Allow Access and try again.');
     const entry=reports().find(item=>item.code===report);if(!entry)throw new Error('Select a supported report.');
     const folders=[],current=await resolve(row.handle,entry,scope,false);
     if(current)folders.push(current);
@@ -164,6 +172,7 @@
       const writer=await file.createWritable({mode:'exclusive'});
       try{await writer.write(blob);await writer.close();}
       catch(error){try{await writer.abort();}catch(_){}throw error;}
+      notify(scope,'document');
       return name;
     });
   };

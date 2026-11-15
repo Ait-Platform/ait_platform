@@ -70,16 +70,18 @@ class DashboardSupportTests(unittest.TestCase):
                 folder_url=f'http://localhost/mechanic/folders?shop_id={self.carpentry.id}'
                 page.goto(folder_url)
                 page.locator('#output-folder-select').click()
+                page.locator('#output-folder-allow').click()
                 page.wait_for_function("document.getElementById('output-folder-name').textContent==='ProTrade-Test'")
                 self.assertEqual(page.evaluate("async()=>{const root=(await AITDirectories.get({user:'1',property:'protrade'})).handle;const names=[];for await(const [name] of root.entries())names.push(name);return names;}"),[])
                 page.reload()
                 page.wait_for_function("document.getElementById('output-folder-name').textContent==='ProTrade-Test'")
                 page.locator('#output-folder-allow').click()
-                page.wait_for_function("document.getElementById('output-save-message').textContent==='Folder access granted.'")
+                page.wait_for_function("document.getElementById('output-save-message').textContent.startsWith('Folder saved.')")
                 page.evaluate("window.showDirectoryPicker=async()=>({kind:'directory',name:'Denied',queryPermission:async()=> 'denied',requestPermission:async()=> 'denied'})")
                 page.locator('#output-folder-select').click()
-                page.wait_for_function("document.getElementById('output-save-message').textContent.includes('previous main folder is unchanged')")
-                self.assertEqual(page.locator('#output-folder-name').inner_text(),'ProTrade-Test')
+                page.locator('#output-folder-allow').click()
+                page.wait_for_function("document.getElementById('output-save-message').textContent.includes('previous saved folder is unchanged')")
+                self.assertEqual(page.locator('#output-folder-name').inner_text(),'Denied')
                 self.assertEqual(page.evaluate("async()=>(await AITDirectories.get(JSON.parse(document.getElementById('output-directory-context').textContent))).handle.name"),'ProTrade-Test')
                 with patch.object(reports.output,'pdf_bytes' ,side_effect=lambda data,claim:('%PDF-Shop-'+str(data['issuer']['id'])).encode()):
                     paths=[]
@@ -99,6 +101,8 @@ class DashboardSupportTests(unittest.TestCase):
                     self.assertNotEqual(paths[0],paths[1])
                 self.carpentry.business_name='Renamed Business';self.db_session.commit()
                 page.goto(folder_url)
+                self.assertEqual(page.locator('#document-history-refresh').count(),0)
+                page.wait_for_function("document.getElementById('document-history-message').textContent.startsWith('2 saved PDF')")
                 page.evaluate("""async()=>{
                     const scope=JSON.parse(document.getElementById('output-directory-context').textContent),root=(await AITDirectories.get(scope)).handle;
                     const entry=JSON.parse(document.getElementById('directory-reports').textContent)[0];
@@ -108,7 +112,7 @@ class DashboardSupportTests(unittest.TestCase):
                     await writer.write('%PDF-HISTORICAL');await writer.close();
                     window.open=()=>{window.pdfViewer={location:{href:''},close(){},opener:null};return window.pdfViewer;};
                 }""")
-                page.locator('#document-history-refresh').click()
+                page.evaluate("window.dispatchEvent(new Event('focus'))")
                 page.wait_for_function("document.getElementById('document-history-message').textContent.startsWith('3 saved PDF')")
                 row=page.locator('#document-history-files li').filter(has_text='Original historical quote.pdf')
                 self.assertEqual(row.count(),1)
@@ -122,11 +126,35 @@ class DashboardSupportTests(unittest.TestCase):
                 self.assertTrue(page.evaluate("async()=>!(await AITDirectories.get(JSON.parse(document.getElementById('output-directory-context').textContent)))"))
                 self.assertEqual(page.locator('#output-folder-name').inner_text(),'Not selected on this browser')
                 page.locator('#output-folder-select').click()
+                page.locator('#output-folder-allow').click()
                 page.wait_for_function("document.getElementById('output-folder-name').textContent==='ProTrade-Test'")
-                page.locator('#document-history-refresh').click()
+                page.evaluate("window.dispatchEvent(new Event('focus'))")
                 page.wait_for_function("document.getElementById('document-history-message').textContent.startsWith('No saved PDFs')")
                 self.assertEqual(page.locator('#document-history-files li').count(),0)
                 self.assertEqual(errors,[])
+            finally:browser.close()
+
+    def test_selection_displays_before_storage_and_failed_save_can_retry(self):
+        with sync_playwright() as runtime:
+            browser=runtime.chromium.launch(headless=True)
+            try:
+                page=browser.new_page();page.route('http://localhost/**',self.browser_route)
+                page.add_init_script("window.showDirectoryPicker=async()=>{const root=await navigator.storage.getDirectory();return root.getDirectoryHandle('Chosen Windows Folder',{create:true});};")
+                page.goto(f'http://localhost/mechanic/folders?shop_id={self.carpentry.id}')
+                page.locator('#output-folder-select').click()
+                page.wait_for_function("document.getElementById('output-folder-name').textContent==='Chosen Windows Folder'")
+                self.assertTrue(page.evaluate("async()=>!(await AITDirectories.get({user:'1',property:'protrade'}))"))
+                page.evaluate("()=>{window.originalFolderSet=AITDirectories.set;AITDirectories.set=async()=>{throw new DOMException('Storage transaction failed','AbortError');};}")
+                page.locator('#output-folder-allow').click()
+                page.wait_for_function("document.getElementById('output-save-message').textContent.includes('Storage transaction failed')")
+                self.assertNotIn('cancelled',page.locator('#output-save-message').inner_text())
+                self.assertEqual(page.locator('#output-folder-name').inner_text(),'Chosen Windows Folder')
+                page.evaluate('()=>{AITDirectories.set=window.originalFolderSet;}')
+                page.locator('#output-folder-allow').click()
+                page.wait_for_function("document.getElementById('output-save-message').textContent.startsWith('Folder saved.')")
+                page.reload()
+                page.wait_for_function("document.getElementById('output-folder-name').textContent==='Chosen Windows Folder'")
+                self.assertEqual(page.locator('#output-folder-allow').inner_text(),'Save')
             finally:browser.close()
 
 if __name__=='__main__':unittest.main()

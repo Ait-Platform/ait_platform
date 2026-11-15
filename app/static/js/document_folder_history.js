@@ -1,17 +1,22 @@
 /* Historical files remain local; opening never regenerates or charges for a document. */
 (() => {
-  const refresh=document.getElementById('document-history-refresh');if(!refresh)return;
+  const refresh=document.getElementById('document-history-refresh');
+  if(!document.getElementById('document-history-files'))return;
+  const automatic=!refresh;
   const api=window.AITDirectories;
   const scope=JSON.parse((document.getElementById('output-directory-context') || document.getElementById('directory-context')).textContent);
   const reports=JSON.parse(document.getElementById('directory-reports').textContent);
   const message=document.getElementById('document-history-message'),list=document.getElementById('document-history-files');
-  if(!scope.property){refresh.disabled=true;message.textContent='Select an authorised property first.';return;}
-  if(!api.supported()){refresh.disabled=true;message.textContent='Local file browsing requires Chrome or Edge over HTTPS. Existing PDFs remain in your chosen folder and can be opened and printed there.';return;}
-  refresh.addEventListener('click',async()=>{
-    refresh.disabled=true;list.replaceChildren();
+  if(!scope.property){if(refresh)refresh.disabled=true;message.textContent='Select an authorised property first.';return;}
+  if(!api.supported()){if(refresh)refresh.disabled=true;message.textContent='Local file browsing requires Chrome or Edge over HTTPS. Existing PDFs remain in your chosen folder and can be opened and printed there.';return;}
+  let running=false,again=false;
+  async function update(){
+    if(running){again=true;return;}running=true;
+    if(refresh)refresh.disabled=true;list.replaceChildren();
     try{
+      if(automatic && !await api.get(scope)){message.textContent='Saved PDFs will appear here when a folder is saved.';return;}
       const seen=new Set();
-      for(const report of reports)for(const file of await api.list(scope,report.code)){
+      for(const report of reports)for(const file of await api.list(scope,report.code,{prompt:!automatic})){
         const key=file.folder+'/'+file.name;if(seen.has(key))continue;seen.add(key);
         const row=document.createElement('li');row.className='flex items-center justify-between gap-3 rounded border border-slate-300 p-3';
         const label=document.createElement('span');label.textContent=key;row.append(label);
@@ -30,6 +35,13 @@
         });row.append(view);list.append(row);
       }
       message.textContent=seen.size?seen.size+' saved PDF(s). Files and filenames are unchanged.':'No saved PDFs found in this account’s configured folders.';
-    }catch(error){message.textContent=error.message;}finally{refresh.disabled=false;}
-  });
+    }catch(error){message.textContent=error.message;}finally{if(refresh)refresh.disabled=false;running=false;if(again){again=false;update();}}
+  }
+  refresh?.addEventListener('click',update);
+  if(automatic){
+    const changed=event=>{const value=event.detail || event.data;if(value?.user===String(scope.user) && value.property===String(scope.property))update();};
+    window.addEventListener('ait:local-documents',changed);
+    if(window.BroadcastChannel){const channel=new BroadcastChannel('ait-protrade-documents');channel.onmessage=changed;}
+    window.addEventListener('focus',update);update();
+  }
 })();

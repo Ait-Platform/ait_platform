@@ -14,14 +14,14 @@
     if(busy)return;busy=true;select.disabled=change.disabled=true;
     try{
       const handle=await window.showDirectoryPicker({mode:'readwrite',id:'ait-pm-reports'});
-      await api.set(scope,handle);await view();say('Main folder registered. Source and report subfolders are ready.');
+      await api.set(scope,handle);await view();say('Base folder selected. Source and report subfolders are created only when saving a document.');
     }catch(error){if(error.name!=='AbortError')say(error.message);}
     finally{busy=false;select.disabled=change.disabled=!api.supported();}
   }
   select.onclick=change.onclick=choose;
   document.getElementById('directory-view').onclick=()=>view().catch(error=>say(error.message));
   document.getElementById('directory-close').onclick=()=>{workspace.hidden=true;};
-  reauthorise.onclick=async()=>{if(busy)return;busy=true;reauthorise.disabled=true;try{await api.reauthorise(scope);say('Folder access authorised. Source and report subfolders are ready.');}catch(error){say(error.message);}finally{busy=false;reauthorise.disabled=false;}};
+  reauthorise.onclick=async()=>{if(busy)return;busy=true;reauthorise.disabled=true;try{await api.reauthorise(scope);say('Folder access authorised. Existing files are unchanged; subfolders are created only when saving.');}catch(error){say(error.message);}finally{busy=false;reauthorise.disabled=false;}};
   if(!scope.property || !api.supported()){
     select.disabled=change.disabled=reauthorise.disabled=true;document.getElementById('directory-view').disabled=!scope.property || !window.indexedDB;
     say(!scope.property?'Register a property first.':'Direct folder saving requires Chrome or Edge over HTTPS. Use Download PDF in Utilities Output in this browser.');

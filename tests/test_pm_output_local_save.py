@@ -13,17 +13,17 @@ class OutputLocalSaveTests(unittest.TestCase):
                     const a=AITDirectories,s={user:'7',property:'26',period_end:'2026-10-31'},root=await navigator.storage.getDirectory();
                     const folder=await root.getDirectoryHandle('Exports',{create:true});
                     await a.set(s,folder);
-                    const accounts=await (await folder.getDirectoryHandle('Municipal Accounts')).getDirectoryHandle('Account Register');
+                    const accounts=await (await folder.getDirectoryHandle('Municipal Accounts',{create:true})).getDirectoryHandle('Account Register',{create:true});
                     const existing=await accounts.getFileHandle('311026_Account_Register.pdf',{create:true});
                     const writer=await existing.createWritable();await writer.write('%PDF-existing account report');await writer.close();
                     const codes=['history','municipal_submission','metro_reconciliation','utilities_reconciliation','metsoa_statement','account_register','arrangement_register'];
-                    const metsoa=await (await folder.getDirectoryHandle('METSOA')).getDirectoryHandle('METSOA Statement');
                     window.fetch=async()=>new Response('%PDF-actual existing renderer',{status:200,headers:{'Content-Type':'application/pdf'}});
                     const date=new Date(2026,9,31),names=[];
                     for(const code of codes)names.push(await a.save(s,code,'/existing-pdf',date));
                     names.push(await a.save(s,'metsoa_statement','/existing-pdf',date));
                     names.push(await a.save(s,'metsoa_statement','/existing-pdf',date));
                     const parallel=await Promise.all([a.save(s,'metsoa_statement','/existing-pdf',date),a.save(s,'metsoa_statement','/existing-pdf',date)]);
+                    const metsoa=await (await folder.getDirectoryHandle('METSOA')).getDirectoryHandle('METSOA Statement');
                     const contents=await (await (await metsoa.getFileHandle('311026_METSOA.pdf')).getFile()).text();
                     const errors=[];
                     for(const scope of [{user:'8',property:'26'},{user:'7',property:'28'}]){
@@ -55,7 +55,7 @@ class OutputLocalSaveTests(unittest.TestCase):
                     try{await a.set(s,{kind:'directory',queryPermission:async()=>'denied',requestPermission:async()=>'denied'});}catch(_){denied=true;}
                     const retained=(await a.get(s)).handle.name;
                     await a.set(s,updated);
-                    const readings=await updated.getDirectoryHandle('Meter Readings');
+                    const readings=await updated.getDirectoryHandle('Meter Readings',{create:true});await readings.getDirectoryHandle('Municipal Reading Submission',{create:true});
                     await readings.removeEntry('Municipal Reading Submission');
                     const name=await a.save(s,'municipal_submission','/pdf',day);
                     const target=await readings.getDirectoryHandle('Municipal Reading Submission');

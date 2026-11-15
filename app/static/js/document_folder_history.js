@@ -5,6 +5,7 @@
   const scope=JSON.parse((document.getElementById('output-directory-context') || document.getElementById('directory-context')).textContent);
   const reports=JSON.parse(document.getElementById('directory-reports').textContent);
   const message=document.getElementById('document-history-message'),list=document.getElementById('document-history-files');
+  if(!scope.property){refresh.disabled=true;message.textContent='Select an authorised property first.';return;}
   if(!api.supported()){refresh.disabled=true;message.textContent='Local file browsing requires Chrome or Edge over HTTPS. Existing PDFs remain in your chosen folder and can be opened and printed there.';return;}
   refresh.addEventListener('click',async()=>{
     refresh.disabled=true;list.replaceChildren();

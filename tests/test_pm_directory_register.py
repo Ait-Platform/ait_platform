@@ -36,6 +36,31 @@ def open_browser(runtime,markup=None,init=''):
 
 
 class DirectoryRegisterTests(unittest.TestCase):
+    def test_historical_pm_pdf_view_print_retains_existing_layout_and_filename(self):
+        from playwright.sync_api import sync_playwright
+        with sync_playwright() as runtime:
+            browser,page=open_browser(runtime)
+            try:
+                page.locator('#directory-select').click()
+                page.wait_for_function("document.getElementById('directory-folder').textContent==='Reports'")
+                page.evaluate("""async()=>{
+                    const scope={user:'7',property:'26'},root=(await AITDirectories.get(scope)).handle;
+                    const source=await root.getDirectoryHandle('METSOA',{create:true}),folder=await source.getDirectoryHandle('METSOA Statement',{create:true});
+                    const writer=await(await folder.getFileHandle('Original historical METSOA.pdf',{create:true})).createWritable();
+                    await writer.write('%PDF-original historical PM report');await writer.close();
+                    window.fetch=()=>{throw new Error('Historical viewing must not regenerate a PDF');};
+                    window.open=()=>{window.pdfViewer={location:{href:''},opener:null,close(){}};return pdfViewer;};
+                }""")
+                page.locator('#document-history-refresh').click()
+                page.wait_for_function("document.getElementById('document-history-message').textContent.startsWith('1 saved PDF')")
+                self.assertIn('METSOA/METSOA Statement/Original historical METSOA.pdf',page.locator('#document-history-files').inner_text())
+                page.get_by_role('button',name='View / Print').click()
+                page.wait_for_function("window.pdfViewer.location.href.startsWith('blob:')")
+                self.assertIn('Print control',page.locator('#document-history-message').inner_text())
+                original=page.evaluate("""async()=>{const root=(await AITDirectories.get({user:'7',property:'26'})).handle,source=await root.getDirectoryHandle('METSOA'),folder=await source.getDirectoryHandle('METSOA Statement');return await(await(await folder.getFileHandle('Original historical METSOA.pdf')).getFile()).text();}""")
+                self.assertEqual(original,'%PDF-original historical PM report')
+            finally:browser.close()
+
     def test_main_folder_creates_structure_changes_persists_and_isolates(self):
         from playwright.sync_api import sync_playwright
         with sync_playwright() as runtime:
@@ -44,7 +69,7 @@ class DirectoryRegisterTests(unittest.TestCase):
                 self.assertTrue(page.locator('#directory-workspace').is_hidden())
                 self.assertEqual(page.locator('#directory-report').count(),0)
                 page.locator('#directory-select').click()
-                page.wait_for_function("document.getElementById('directory-message').textContent.includes('subfolders are ready')")
+                page.wait_for_function("document.getElementById('directory-message').textContent.includes('Base folder selected')")
                 self.assertEqual(page.locator('#directory-folder').inner_text(),'Reports')
                 structure=page.evaluate("""async()=>{
                     const row=await AITDirectories.get({user:'7',property:'26'}),names=[];
@@ -52,7 +77,9 @@ class DirectoryRegisterTests(unittest.TestCase):
                         for await(const [report] of handle.entries())names.push(source+'/'+report);
                     }return names.sort();
                 }""")
-                self.assertEqual(structure,sorted(r['source']+'/'+r['title'] for r in REPORTS))
+                self.assertEqual(structure,[])
+                page.locator('#document-history-refresh').click()
+                page.wait_for_function("document.getElementById('document-history-message').textContent.startsWith('No saved PDFs')")
                 page.evaluate("window.showDirectoryPicker=async()=>{const root=await navigator.storage.getDirectory();return root.getDirectoryHandle('Updated',{create:true});};")
                 page.locator('#directory-change').click();page.wait_for_function("document.getElementById('directory-folder').textContent==='Updated'")
                 page.reload();page.locator('#directory-view').click();page.wait_for_function("document.getElementById('directory-folder').textContent==='Updated'")

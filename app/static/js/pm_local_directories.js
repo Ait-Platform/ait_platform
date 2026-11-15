@@ -52,7 +52,6 @@
     if(!entry)throw new Error('Select a supported report.');
     return (await resolve(handle,entry,scope,true)).handle;
   }
-  async function structure(handle){for(const entry of reports())await destination(handle,entry.code);}
   function database(){return new Promise((resolve,reject)=>{
     const request=indexedDB.open('ait-pm-directories',1);
     request.onupgradeneeded=()=>{const store=request.result.createObjectStore('assignments',{keyPath:'key'});store.createIndex('scope',['user','property']);};
@@ -75,13 +74,12 @@
     async set(scope,handle){
       check(scope);if(!handle || handle.kind!=='directory')throw new Error('Select a folder.');
       if(!await api.permission(handle))throw new Error('Folder permission was not granted. The previous main folder is unchanged.');
-      if(String(scope.property)!=='protrade')await structure(handle);
       return operation('readwrite',store=>store.put({key:key(scope),user:String(scope.user),property:String(scope.property),handle}));
     },
     async reauthorise(scope){
       const row=await api.get(scope);if(!row)throw new Error('Select a main folder first.');
       if(!await api.permission(row.handle))throw new Error('Folder permission was not granted.');
-      if(String(scope.property)!=='protrade')await structure(row.handle);return row.handle.name;
+      return row.handle.name;
     },
     async permission(handle){
       const options={mode:'readwrite'};

@@ -6,7 +6,7 @@ from app.models.auth import AitTokenWallet, AitTokenTransaction
 from app.models.mechanic import ProTradeDocument
 
 
-DOCUMENT_TOKENS = {'quote': 10, 'invoice': 10, 'soa': 10, 'boq_section': 25}
+DOCUMENT_KINDS = {'quote', 'invoice', 'soa', 'boq_section'}
 
 
 class InsufficientTokens(HTTPException):
@@ -15,8 +15,7 @@ class InsufficientTokens(HTTPException):
 
 
 def charge_document(user_id, shop_id, debtor_id, key, kind, snapshot=None, pdf=None):
-    tokens = DOCUMENT_TOKENS.get(kind)
-    if tokens is None:
+    if kind not in DOCUMENT_KINDS:
         abort(400)
     # Serialize charges for this wallet across workers, including duplicate requests.
     with db.session.no_autoflush:
@@ -26,6 +25,8 @@ def charge_document(user_id, shop_id, debtor_id, key, kind, snapshot=None, pdf=N
             if (existing.shop_id, existing.debtor_id, existing.kind) != (shop_id, debtor_id, kind):
                 abort(409)
             return existing
+        from app.protrade_pricing import token_cost
+        tokens = token_cost(kind, lock=True)
         if not wallet or wallet.balance < tokens:
             db.session.rollback()
             raise InsufficientTokens(description=f'This generation costs {tokens} tokens. Please top up your wallet.')
@@ -36,6 +37,9 @@ def charge_document(user_id, shop_id, debtor_id, key, kind, snapshot=None, pdf=N
     )
     db.session.add(transaction)
     db.session.flush()
+    if kind == 'boq_section':
+        from app.protrade_pricing import commercial_terms
+        snapshot = dict(snapshot or {}, commercial_terms=commercial_terms())
     document = ProTradeDocument(
         user_id=user_id, shop_id=shop_id, debtor_id=debtor_id, document_key=key,
         kind=kind, token_transaction_id=transaction.id, tokens=tokens, snapshot=snapshot, pdf=pdf,

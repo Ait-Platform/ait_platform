@@ -71,7 +71,7 @@
         <input type="hidden" name="quote_id" value="{{ draft.id if draft else '' }}" {% if not draft %}disabled{% endif %}>
         {% if customer %}<input type="hidden" name="client_id" value="{{ customer.id }}">{% endif %}
         {% if shop.trade=='boq' and (saved_quote or draft) %}<div class="mt-4 flex justify-end"><a class="rounded-lg bg-slate-800 px-4 py-2 font-semibold text-white" href="{{ url_for('mechanic_bp.boq_sections',shop_id=shop.id,quote_id=(saved_quote or draft).id) }}">BOQ Sections</a></div>{% endif %}
-      <h2 class="mt-6 text-lg font-semibold">Quotation Items</h2><p class="mt-2 text-sm text-slate-700">A successfully saved new quotation costs 10 tokens (R10.00). Editing an existing quotation is free.</p>
+      <h2 class="mt-6 text-lg font-semibold">Quotation Items</h2><p class="mt-2 text-sm text-slate-700">{% if shop is defined and shop.trade=='boq' %}Draft BOQs are free. Each section costs {{ protrade_prices.tokens.boq_section }} tokens on first generation. A complete BOQ adds no quotation charge.{% else %}A successfully saved new quotation costs {{ protrade_prices.tokens.quote }} tokens. Editing an existing quotation is free.{% endif %}</p>
         {% if error %}<p role="alert" class="mt-3 text-sm font-semibold text-red-700">{{ error }}</p>{% endif %}
         <div class="mt-3 overflow-x-auto rounded-lg border border-slate-200">
           <table id="quote-boq-items" class="w-full text-left text-sm"><thead class="bg-slate-50"><tr>

@@ -52,6 +52,9 @@ def global_tariffs():
         if tariff_id:
             new_cost = request.form.get('base_token_cost', type=int)
             tariff = TokenTariff.query.get(tariff_id)
+            if tariff and tariff.program_slug == 'protrade':
+                flash('Use audited ProTrade pricing approval to change these tariffs.', 'info')
+                return redirect(url_for('mechanic_bp.protrade_pricing'))
             if tariff and new_cost is not None and new_cost >= 0:
                 tariff.base_token_cost = new_cost
                 db.session.commit()

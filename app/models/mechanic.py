@@ -252,8 +252,19 @@ class ProTradeDocument(db.Model):
     pdf=db.Column(db.LargeBinary)
     created_at=db.Column(db.DateTime,nullable=False,default=datetime.utcnow)
     __table_args__=(db.UniqueConstraint('user_id','document_key',name='uq_protrade_document_key'),
-        db.CheckConstraint("(tokens=10 AND kind IN ('quote','invoice','soa')) OR (tokens=25 AND kind='boq_section')",name='ck_protrade_document_charge'),
+        db.CheckConstraint("tokens > 0 AND kind IN ('quote','invoice','soa','boq_section')",name='ck_protrade_document_charge'),
         db.CheckConstraint("kind<>'soa' OR (shop_id IS NOT NULL AND debtor_id IS NOT NULL AND snapshot IS NOT NULL AND pdf IS NOT NULL)",name='ck_protrade_soa_snapshot'))
+
+
+class ProTradePricingRevision(db.Model):
+    """Approved settings and immutable audit snapshots; token tariffs stay universal."""
+    __tablename__ = 'protrade_pricing_revision'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    values = db.Column(db.JSON, nullable=False)
+    reason = db.Column(db.String(400), nullable=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    transaction_id = db.Column(db.BigInteger, nullable=False, server_default=db.text('txid_current()'))
 
 
 class ProTradeBoqPreparation(db.Model):

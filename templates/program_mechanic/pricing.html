@@ -1,0 +1,20 @@
+{% extends 'layout.html' %}
+{% block title %}ProTrade Pricing{% endblock %}
+{% block flashes %}{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-5xl px-4 py-8"><div class="overflow-hidden rounded-xl bg-white shadow"><div class="h-2 bg-slate-700"></div><div class="p-6">
+{% include 'partials/flash_messages.html' %}
+<div class="flex items-center justify-between"><h1 class="text-2xl font-semibold">ProTrade Pricing</h1><a class="rounded border border-slate-300 px-4 py-2" href="{{ url_for('admin_bp.index') }}">Back</a></div>
+<p class="mt-4 text-slate-700">Approval changes future generations only. Historical receipts, token deductions and Paystack purchases remain unchanged. Suggested customer prices do not create debtor charges.</p>
+{% if error %}<p role="alert" class="mt-4 text-red-700">{{ error }}</p>{% endif %}
+<form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="revision" value="{{ revision }}">
+<div class="mt-4 flex justify-end"><button class="rounded bg-slate-800 px-4 py-2 text-white">Approve new prices</button></div>
+<h2 class="mt-4 text-lg font-semibold">AIT token charges</h2><div class="mt-3 grid gap-3 sm:grid-cols-2">{% for key,label in labels.items() %}<label>{{ label }} (tokens)<input {% if loop.first %}autofocus{% endif %} required type="number" min="1" max="1000000" step="1" name="tokens_{{ key }}" value="{{ prices.tokens[key] }}" class="block w-full rounded border border-slate-300 p-2"></label>{% endfor %}</div>
+<h2 class="mt-6 text-lg font-semibold">Suggested customer prices (R)</h2><div class="mt-3 grid gap-3 sm:grid-cols-2">{% for key,label in suggestions.items() %}<label>{{ label }}<input required type="number" min="0" max="1000000" step="0.01" name="suggested_{{ key }}" value="{{ '%.2f'|format(prices.suggested[key]/100) }}" class="block w-full rounded border border-slate-300 p-2"></label>{% endfor %}</div>
+<h2 class="mt-6 text-lg font-semibold">BOQ commercial approval (R per section)</h2><p class="mt-2 text-slate-700">Contractor fee must equal Happiness's earnings plus the AIT deduction at R1 per token. Changing any BOQ amount requires approval of the complete arrangement.</p>
+<div class="mt-3 grid gap-3 sm:grid-cols-2">{% for key,label in [('contractor_fee_cents','Contractor pays operator'),('operator_retains_cents','Operator retains')] %}<label>{{ label }}<input required type="number" min="0" max="1000000" step="0.01" name="{{ key }}" value="{{ '%.2f'|format(prices.boq[key]/100) }}" class="block w-full rounded border border-slate-300 p-2"></label>{% endfor %}</div>
+<label class="mt-3 block"><input type="checkbox" name="approve_boq_terms" value="yes"> I explicitly approve all changed BOQ commercial amounts together.</label>
+<label class="mt-4 block">Approval reason<input required minlength="4" maxlength="400" name="reason" class="block w-full rounded border border-slate-300 p-2"></label></form>
+<h2 class="mt-6 text-lg font-semibold">Recent approval history (UTC)</h2><div class="mt-3 overflow-auto"><table class="w-full text-left text-sm"><thead><tr><th class="p-2">Revision / approved by</th><th class="p-2">Date</th><th class="p-2">Reason</th><th class="p-2">Approved snapshot</th></tr></thead><tbody>{% for row in history %}<tr><td class="border-t p-2">{{ row.id }} / {{ row.user_id or 'Approved baseline' }}</td><td class="border-t p-2">{{ row.created_at }}</td><td class="border-t p-2">{{ row.reason }}</td><td class="border-t p-2"><pre class="whitespace-pre-wrap">{{ row.values|tojson }}</pre></td></tr>{% endfor %}</tbody></table></div>
+</div></div></div>
+{% endblock %}

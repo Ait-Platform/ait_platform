@@ -126,11 +126,12 @@ class BoqMigrationCompatibilityTests(unittest.TestCase):
                     transaction.rollback()
         self.assertEqual(self.definitions(),functions)
 
-    def test_combined_alembic_012_to_016_upgrade_preserves_real_011_012_data(self):
+    def test_combined_alembic_012_to_017_upgrade_preserves_real_011_012_data(self):
         self.fixtures()
         functions = self.definitions()
         self.conn.exec_driver_sql('DROP TABLE IF EXISTS protrade_work_activity')
         self.conn.exec_driver_sql('DROP TABLE protrade_boq_preparation')
+        self.conn.exec_driver_sql('DROP TABLE protrade_pricing_revision')
         self.conn.exec_driver_sql('DROP TABLE protrade_document')
         self.conn.exec_driver_sql('ALTER TABLE protrade_boq_quotes DROP COLUMN boq_sections')
         self.conn.exec_driver_sql('CREATE TEMP TABLE "user"(id integer PRIMARY KEY)')
@@ -145,8 +146,8 @@ class BoqMigrationCompatibilityTests(unittest.TestCase):
         config = Config(str(base.ROOT/'migrations/alembic.ini'))
         config.set_main_option('script_location',str(base.ROOT/'migrations'))
         config.attributes['connection'] = self.conn
-        command.upgrade(config,'protrade_boq_time_016')
-        self.assertEqual(self.conn.exec_driver_sql('SELECT version_num FROM alembic_version').scalar_one(),'protrade_boq_time_016')
+        command.upgrade(config,'protrade_pricing_017')
+        self.assertEqual(self.conn.exec_driver_sql('SELECT version_num FROM alembic_version').scalar_one(),'protrade_pricing_017')
         self.assertEqual(self.definitions(),functions)
         for table, records in before.items():
             selected = ','.join(self.conn.dialect.identifier_preparer.quote(name) for name in columns[table])
@@ -154,8 +155,9 @@ class BoqMigrationCompatibilityTests(unittest.TestCase):
         self.assertEqual(self.conn.exec_driver_sql('SELECT count(*) FROM protrade_document').scalar_one(),0)
         self.assertEqual(self.conn.exec_driver_sql('SELECT count(*) FROM protrade_work_activity').scalar_one(),0)
         self.assertEqual(self.conn.exec_driver_sql('SELECT count(*) FROM protrade_boq_preparation').scalar_one(),0)
+        self.assertEqual(self.conn.exec_driver_sql('SELECT count(*) FROM protrade_pricing_revision').scalar_one(),1)
         # A second targeted upgrade is a no-op after the successful revision update.
-        command.upgrade(config,'protrade_boq_time_016')
+        command.upgrade(config,'protrade_pricing_017')
         self.assertEqual(self.definitions(),functions)
 
 

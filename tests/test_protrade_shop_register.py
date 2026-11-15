@@ -77,6 +77,12 @@ exec(compile(ast.Module(body=[ledger_node],type_ignores=[]),'production_debtor_l
 DebtorLedger=catalog_globals['DebtorLedger']
 catalog_db.LargeBinary=sa.LargeBinary
 catalog_db.func=sa.func
+catalog_db.BigInteger=sa.BigInteger
+for class_name, source in (('TokenTariff','app/models/billing.py'), ('ProTradePricingRevision','app/models/mechanic.py')):
+    node=next(node for node in ast.parse((ROOT/source).read_text(encoding='utf-8')).body if isinstance(node,ast.ClassDef) and node.name==class_name)
+    exec(compile(ast.Module(body=[node],type_ignores=[]),'production_pricing_model','exec'),catalog_globals)
+TokenTariff=catalog_globals['TokenTariff']
+ProTradePricingRevision=catalog_globals['ProTradePricingRevision']
 original_fk=catalog_db.ForeignKey
 catalog_db.ForeignKey=lambda target,**kw: original_fk('ait_token_wallets.id' if target=='ait_token_wallet.id' else target,**kw)
 transaction_node=next(node for node in ast.parse((ROOT/'app/models/auth.py').read_text(encoding='utf-8')).body if isinstance(node,ast.ClassDef) and node.name=='AitTokenTransaction')
@@ -184,6 +190,9 @@ class ShopRegisterTests(unittest.TestCase):
                 ProTradeBoqPreparation=ProTradeBoqPreparation).items():
             setattr(timing, name, value)
         timing.register_routes(bp)
+        import app.protrade_pricing as pricing
+        pricing.db=self.ns['db'];pricing.TokenTariff=TokenTariff;pricing.ProTradePricingRevision=ProTradePricingRevision
+        pricing.register_routes(bp)
         code = ast.fix_missing_locations(ProductionImports().visit(ast.Module(body=nodes, type_ignores=[])))
         exec(compile(code, 'production_shop_routes', 'exec'), self.ns)
         self.app.register_blueprint(bp)
@@ -192,6 +201,7 @@ class ShopRegisterTests(unittest.TestCase):
         template += (ROOT / 'templates/program_mechanic/quote_form.html').read_text(encoding='utf-8')
         template += (ROOT / 'templates/program_mechanic/quote_invoice_register.html').read_text(encoding='utf-8')
         template += (ROOT / 'templates/program_mechanic/shop_debtors.html').read_text(encoding='utf-8')
+        template += (ROOT / 'templates/program_mechanic/pricing.html').read_text(encoding='utf-8')
         endpoints = set(re.findall(r"url_for\('([^']+)'", template)) | {'mechanic_bp.view_client', 'mechanic_bp.job_card_detail', 'mechanic_bp.mock_bill'}
         for endpoint in endpoints:
             if endpoint not in self.app.view_functions:

@@ -344,7 +344,7 @@ def create_app(test_config=None, *, operator_mode=False):
                     INSERT INTO site_hit (path, user_id, is_auth, user_agent)
                     VALUES (:path, :uid, :authd, :ua)
                 """),
-                {"path": request.path, "uid": uid, "authd": authd, "ua": ua},
+                {"path": request.url_rule.rule if request.blueprint == 'franchisee_bp' and request.url_rule else request.path, "uid": uid, "authd": authd, "ua": ua},
             )
             db.session.commit()
         except Exception:
@@ -594,7 +594,7 @@ def create_app(test_config=None, *, operator_mode=False):
             ip_hash = sha256(ip.encode("utf-8")).hexdigest()[:16] if ip else ""
             ua = (request.user_agent.string or "")[:250]
             uid = getattr(current_user, "id", None)
-            path = (request.path or "")[:250]
+            path = (request.url_rule.rule if request.blueprint == 'franchisee_bp' and request.url_rule else request.path or "")[:250]
             db.session.add(VisitLog(path=path, user_id=uid, ip_hash=ip_hash, ua=ua))
             db.session.commit()
         except Exception:
@@ -663,6 +663,8 @@ def create_app(test_config=None, *, operator_mode=False):
     app.register_blueprint(loss_bp)
     app.register_blueprint(billing_bp)
     app.register_blueprint(admin_bp)
+    from app.franchisees import franchisee_bp
+    app.register_blueprint(franchisee_bp)
     app.register_blueprint(paystack_bp, url_prefix="/payments/paystack")
     app.register_blueprint(budget_bp)
     app.register_blueprint(payment_bp)

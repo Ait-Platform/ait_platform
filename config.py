@@ -128,6 +128,8 @@ class Config:
 
     # ------------ Core / Security ------------
     SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret")
+    FRANCHISEE_PII_KEY = os.getenv("FRANCHISEE_PII_KEY")
+    FRANCHISEE_PUBLIC_ORIGIN = os.getenv("FRANCHISEE_PUBLIC_ORIGIN")
     MAINTENANCE_MODE = int(os.getenv("MAINTENANCE_MODE", "0"))
     MAX_CONTENT_LENGTH = 50 * 1024 * 1024  # 50 MB limit for all uploads
 

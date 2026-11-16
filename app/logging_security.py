@@ -25,6 +25,14 @@ def redact_url_values(message):
 
 class RequestSecretFilter(logging.Filter):
     def filter(self, record):
+        if has_request_context() and (request.blueprint == 'franchisee_bp' or
+                request.path.startswith(('/franchisees/', '/admin/franchisees'))):
+            # Reuse this logger boundary: never format private form data, invite
+            # tokens, redirect values or exception messages into request logs.
+            record.msg = 'Franchisee request method=%s route=%s endpoint=%s (private contents omitted)'
+            record.args = (request.method, request.url_rule.rule if request.url_rule else '/franchisees/[private]', request.endpoint)
+            record.exc_info = record.exc_text = record.stack_info = None
+            return True
         values = set()
 
         def collect(mapping, depth=0):

@@ -14,6 +14,9 @@ ROOT = Path(__file__).resolve().parents[1]
 spec = importlib.util.spec_from_file_location("logging_security", ROOT / "app/logging_security.py")
 security = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(security)
+helper_spec = importlib.util.spec_from_file_location('trace_request_helper', ROOT / 'app/utils/request_logging.py')
+helper = importlib.util.module_from_spec(helper_spec)
+helper_spec.loader.exec_module(helper)
 NONCE = "distinctive-HOME-nonce-72814"
 SECRET = "distinctive-form-secret-98271"
 
@@ -35,7 +38,7 @@ class HomeLoggingSecurityTests(unittest.TestCase):
                  and node.name in {"_trace_in", "_trace_out"}]
         self.assertEqual(len(hooks), 2)
         exec(compile(ast.Module(body=hooks, type_ignores=[]), "<production-traces>", "exec"),
-             dict(app=self.app, request=request, g=g, uuid=uuid))
+             dict(app=self.app, request=request, g=g, uuid=uuid, redacted_fields=helper.redacted_fields))
 
     def tearDown(self):
         self.handler.close()

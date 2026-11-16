@@ -1,5 +1,6 @@
 # app/models/__init__.py
 from .auth import User, ApprovedAdmin, UserEnrollment, AuthPaymentLog, AitTokenWallet, AitTokenTransaction
+from .franchisee import FranchiseeRegistration
 from .billing import (
     BilProperty, BilTenant, BilMeter,
     BilMeterReading, BilTariff, BilFixedItem, BilMeterFixedCharge,

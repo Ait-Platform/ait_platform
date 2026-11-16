@@ -1,0 +1,4 @@
+{% extends 'layout.html' %}
+{% block title %}Registration submitted{% endblock %}{% block flashes %}{% endblock %}
+{% block content %}{% include 'franchisees/_style.html' %}
+<div class="franchisee-tile mx-auto rounded-xl bg-white shadow"><div class="franchisee-strip"></div><div class="franchisee-body"><div class="franchisee-header"><h1>Registration submitted</h1><a class="franchisee-button" href="/">Back to AIT</a></div>{% include 'partials/flash_messages.html' %}<p>Thank you. AIT Admin will review your registration. Submission does not grant programme access or change commercial arrangements. Your invitation has been used and cannot submit another registration.</p></div></div>{% endblock %}

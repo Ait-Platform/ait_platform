@@ -72,7 +72,13 @@
     if(String(scope.property)!=='protrade')return;
     const detail={user:String(scope.user),property:String(scope.property),type};
     window.dispatchEvent(new CustomEvent('ait:local-documents',{detail}));
-    if(window.BroadcastChannel){const channel=new BroadcastChannel('ait-protrade-documents');channel.postMessage(detail);channel.close();}
+    // The folder/file is already committed. Optional cross-tab messaging must
+    // never report a completed Save as a failed write. This tab's event remains.
+    if(window.BroadcastChannel){
+      let channel;
+      try{channel=new BroadcastChannel('ait-protrade-documents');channel.postMessage(detail);}
+      catch(_){}finally{try{channel?.close();}catch(_){}}
+    }
   }
   const api={
     folderError(error,stage){

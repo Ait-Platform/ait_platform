@@ -40,6 +40,8 @@ class DashboardSupportTests(unittest.TestCase):
                 self.assertEqual(tree.xpath('//a[text()="Back to Dashboard"]/@href'),[f'/mechanic/dashboard?shop_id={shop.id}'])
                 self.assertNotIn('Foreign Shop',tree.text_content())
         folders=html.fromstring(self.client.get(f'/mechanic/folders?shop_id={self.carpentry.id}').data)
+        self.assertFalse(folders.xpath('//a[normalize-space()="Open Output"]'))
+        self.assertTrue(folders.xpath('//nav[@aria-label="ProTrade"]//a[normalize-space()="Output"]'))
         context=json.loads(folders.get_element_by_id('output-directory-context').text)
         self.assertEqual(context,dict(user='1',property='protrade'))
         paths=json.loads(folders.get_element_by_id('directory-reports').text)
@@ -155,6 +157,47 @@ class DashboardSupportTests(unittest.TestCase):
                 page.reload()
                 page.wait_for_function("document.getElementById('output-folder-name').textContent==='Chosen Windows Folder'")
                 self.assertEqual(page.locator('#output-folder-allow').inner_text(),'Save')
+            finally:browser.close()
+
+    def test_selection_does_not_require_write_permission_and_only_one_picker_opens(self):
+        with sync_playwright() as runtime:
+            browser=runtime.chromium.launch(headless=True)
+            try:
+                page=browser.new_page();page.route('http://localhost/**',self.browser_route)
+                page.add_init_script("""window.pickerCalls=0;window.pickerMode=null;
+                    window.showDirectoryPicker=async options=>{
+                        pickerCalls++;pickerMode=options.mode;
+                        if(options.mode!=='read')throw new DOMException('Write permission was not approved during selection','AbortError');
+                        await new Promise(resolve=>{window.completePicker=resolve;});
+                        const root=await navigator.storage.getDirectory();
+                        return root.getDirectoryHandle('Chosen ProTrade Folder',{create:true});
+                    };""")
+                page.goto(f'http://localhost/mechanic/folders?shop_id={self.carpentry.id}')
+                page.evaluate("()=>{const button=document.getElementById('output-folder-select');button.click();button.click();}")
+                self.assertEqual(page.evaluate('pickerCalls'),1)
+                self.assertEqual(page.evaluate('pickerMode'),'read')
+                self.assertTrue(page.locator('#output-folder-select').is_disabled())
+                self.assertTrue(page.locator('#output-folder-allow').is_disabled())
+                page.evaluate('()=>window.completePicker()')
+                page.wait_for_function("document.getElementById('output-folder-name').textContent==='Chosen ProTrade Folder'")
+                self.assertTrue(page.evaluate("async()=>!(await AITDirectories.get({user:'1',property:'protrade'}))"))
+                page.locator('#output-folder-allow').click()
+                page.wait_for_function("document.getElementById('output-save-message').textContent.startsWith('Folder saved.')")
+                page.reload()
+                page.wait_for_function("document.getElementById('output-folder-name').textContent==='Chosen ProTrade Folder'")
+            finally:browser.close()
+
+    def test_picker_error_preserves_the_actual_browser_reason(self):
+        with sync_playwright() as runtime:
+            browser=runtime.chromium.launch(headless=True)
+            try:
+                page=browser.new_page();page.route('http://localhost/**',self.browser_route)
+                page.add_init_script("window.showDirectoryPicker=async()=>{throw new DOMException('Directory access denied by browser','AbortError');};")
+                page.goto(f'http://localhost/mechanic/folders?shop_id={self.carpentry.id}')
+                page.locator('#output-folder-select').click()
+                page.wait_for_function("document.getElementById('output-save-message').textContent.includes('Directory access denied by browser')")
+                self.assertFalse(page.locator('#output-folder-select').is_disabled())
+                self.assertTrue(page.locator('#output-folder-allow').is_disabled())
             finally:browser.close()
 
 if __name__=='__main__':unittest.main()

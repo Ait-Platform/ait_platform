@@ -6,7 +6,6 @@
 {% include 'partials/flash_messages.html' %}
 <div class="flex items-center justify-between gap-4"><div><h1 class="text-2xl font-semibold">ProTrade Folders</h1><p class="mt-1 text-sm text-slate-700">One base folder for your ProTrade reports.</p></div><a href="{{ url_for('mechanic_bp.mechanic_dashboard',shop_id=shop.id if shop else none) }}" class="rounded-lg bg-slate-100 px-4 py-2 font-semibold">Back to Dashboard</a></div>
 {% include 'program_mechanic/menu.html' %}
-<div class="mt-4 flex justify-end"><a href="{{ url_for('mechanic_bp.protrade_output',shop_id=shop.id if shop else none) }}" class="rounded-lg bg-blue-100 px-4 py-2 font-semibold">Open Output</a></div>
 <p class="mt-4 text-slate-700">Select one base ProTrade folder. Saving a document creates only its required user / business / document-type folders. Quotes and invoices use Quotes &amp; Invoices, BOQ documents use BOQ, and statements use SOA. Selecting or authorising the base folder creates no unused folders. Existing files are kept; repeated saves receive a different filename.</p>
 {% include 'program_mechanic/output_folder_controls.html' %}
 <p class="mt-4 text-sm text-slate-700">Your selection stays in this browser for your AIT account. Your browser may ask you to allow folder access again. Select the folder and click Save when permission needs renewing. On another computer or browser, select the folder there. Download PDF remains available in Output if direct folder saving is unavailable.</p>
@@ -15,7 +14,7 @@
 <script id="output-directory-context" type="application/json">{{ dict(user=current_user.id|string,property='protrade')|tojson }}</script>
 <script id="directory-reports" type="application/json">{{ directory_reports|tojson }}</script>
 <script src="{{ url_for('static',filename='js/pm_local_directories.js',v='20261115-lazy-owned-folders') }}" defer></script>
-<script src="{{ url_for('static',filename='js/protrade_output.js',v='20261115-folder-save') }}" defer></script>
+<script src="{{ url_for('static',filename='js/protrade_output.js',v='20261116-read-picker') }}" defer></script>
 {% with automatic_history=true %}{% include 'partials/local_document_history.html' %}{% endwith %}
 </div></div></div>
 {% endblock %}

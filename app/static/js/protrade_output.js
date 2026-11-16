@@ -7,20 +7,24 @@
   const save=document.getElementById('output-save'),email=document.getElementById('output-email');
   const form=document.getElementById('protrade-output-select');
   allow.disabled=true;
-  let selected=null;
+  let selected=null,choosing=false;
   function fail(error){message.textContent='Could not save the folder or document: '+(error.message || error.name)+'. The previous saved folder is unchanged.';}
   if(!window.AITDirectories.supported()){
     select.disabled=true;allow.disabled=true;
     message.textContent='Direct folder saving requires Chrome or Edge on a secure connection. Save Report will download a uniquely named PDF instead.';
-  }else window.AITDirectories.get(scope).then(row=>{if(row && !selected){selected=row.handle;folderName.textContent=row.handle.name;allow.disabled=false;}}).catch(fail);
+  }else window.AITDirectories.get(scope).then(row=>{if(row && !selected){selected=row.handle;folderName.textContent=row.handle.name;allow.disabled=choosing;}}).catch(fail);
   select.addEventListener('click',async()=>{
+    if(choosing)return;
+    choosing=true;select.disabled=true;allow.disabled=true;
     try{
-      const handle=await window.showDirectoryPicker({mode:'readwrite',id:'ait-protrade-base'});
+      // Selection needs read access only. Ask for write access on the separate
+      // Save gesture so a refused write prompt cannot discard the chosen name.
+      const handle=await window.showDirectoryPicker({mode:'read',id:'ait-protrade-base'});
       selected=handle;folderName.textContent=handle.name;allow.disabled=false;
       message.textContent='Folder selected. Click Save to remember this folder on this browser.';
     }catch(error){
-      message.textContent=error.name==='AbortError'?'No new folder was selected. If Windows or the browser blocked this location, choose a dedicated ProTrade subfolder. Your saved folder is unchanged.':error.message;
-    }
+      message.textContent='The browser did not return a folder. Confirm its folder-access prompt or choose an ordinary ProTrade subfolder. '+(error.name || 'Error')+': '+(error.message || 'Folder selection was not completed')+'. Your saved folder is unchanged.';
+    }finally{choosing=false;select.disabled=false;allow.disabled=!selected;}
   });
   allow.addEventListener('click',async()=>{
     if(!selected){message.textContent='Choose a folder using Select Folder, then click Save.';return;}

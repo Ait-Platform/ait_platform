@@ -13,8 +13,8 @@
 <ul class="mt-3 space-y-2 text-sm text-slate-700">{% for report in directory_reports %}<li>{{ report.path|join(' / ') }}</li>{% else %}<li>Create a shop on the dashboard to organise its reports.</li>{% endfor %}</ul>
 <script id="output-directory-context" type="application/json">{{ dict(user=current_user.id|string,property='protrade')|tojson }}</script>
 <script id="directory-reports" type="application/json">{{ directory_reports|tojson }}</script>
-<script src="{{ url_for('static',filename='js/pm_local_directories.js',v='20261115-lazy-owned-folders') }}" defer></script>
-<script src="{{ url_for('static',filename='js/protrade_output.js',v='20261116-read-picker') }}" defer></script>
+<script src="{{ url_for('static',filename='js/pm_local_directories.js',v='20261116-staged-folder-save') }}" defer></script>
+<script src="{{ url_for('static',filename='js/protrade_output.js',v='20261116-staged-folder-save') }}" defer></script>
 {% with automatic_history=true %}{% include 'partials/local_document_history.html' %}{% endwith %}
 </div></div></div>
 {% endblock %}

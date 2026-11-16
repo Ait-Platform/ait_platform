@@ -3,27 +3,40 @@
   if(!document.getElementById('directory-register'))return;
   const scope=JSON.parse(document.getElementById('directory-context').textContent),api=window.AITDirectories;
   const workspace=document.getElementById('directory-workspace'),folder=document.getElementById('directory-folder'),message=document.getElementById('directory-message');
-  const select=document.getElementById('directory-select'),change=document.getElementById('directory-change'),reauthorise=document.getElementById('directory-reauthorise');
-  let busy=false;
+  const select=document.getElementById('directory-select'),change=document.getElementById('directory-change'),reauthorise=document.getElementById('directory-reauthorise'),save=document.getElementById('directory-save');
+  let busy=false,selected=null;
   function say(text){message.textContent=text;}
-  async function view(){
-    const row=await api.get(scope);workspace.hidden=false;folder.textContent=row?row.handle.name:'No folder selected';
-    change.disabled=!api.supported();reauthorise.disabled=!row || !api.supported();
+  function controls(){
+    select.disabled=change.disabled=busy || !scope.property || !api.supported();
+    save.disabled=reauthorise.disabled=busy || !selected || !api.supported();
   }
+  function view(){workspace.hidden=false;folder.textContent=selected?selected.name:'No folder selected';controls();}
   async function choose(){
-    if(busy)return;busy=true;select.disabled=change.disabled=true;
+    if(busy)return;busy=true;controls();
     try{
-      const handle=await window.showDirectoryPicker({mode:'readwrite',id:'ait-pm-reports'});
-      await api.set(scope,handle);await view();say('Base folder selected. Source and report subfolders are created only when saving a document.');
-    }catch(error){if(error.name!=='AbortError')say(error.message);}
-    finally{busy=false;select.disabled=change.disabled=!api.supported();}
+      const handle=await window.showDirectoryPicker({mode:'read',id:'ait-pm-reports'});
+      selected=handle;view();say('Folder selected. Click Save to remember this folder on this browser.');
+    }catch(error){say(api.folderError(error,'picker'));}
+    finally{busy=false;controls();}
+  }
+  async function persist(){
+    if(busy || !selected)return;
+    busy=true;controls();let stage='permission';
+    try{
+      // Request permission directly from Save, before any IndexedDB awaits.
+      if(await selected.requestPermission({mode:'readwrite'})!=='granted')throw new DOMException('Browser folder permission was not granted','NotAllowedError');
+      stage='storage';await api.set(scope,selected);
+      view();say('Folder saved. Folder access authorised. Existing files are unchanged; subfolders are created only when saving.');
+    }catch(error){say(api.folderError(error,stage));}
+    finally{busy=false;controls();}
   }
   select.onclick=change.onclick=choose;
-  document.getElementById('directory-view').onclick=()=>view().catch(error=>say(error.message));
+  save.onclick=reauthorise.onclick=persist;
+  document.getElementById('directory-view').onclick=view;
   document.getElementById('directory-close').onclick=()=>{workspace.hidden=true;};
-  reauthorise.onclick=async()=>{if(busy)return;busy=true;reauthorise.disabled=true;try{await api.reauthorise(scope);say('Folder access authorised. Existing files are unchanged; subfolders are created only when saving.');}catch(error){say(error.message);}finally{busy=false;reauthorise.disabled=false;}};
+  controls();
   if(!scope.property || !api.supported()){
-    select.disabled=change.disabled=reauthorise.disabled=true;document.getElementById('directory-view').disabled=!scope.property || !window.indexedDB;
+    document.getElementById('directory-view').disabled=!scope.property || !window.indexedDB;
     say(!scope.property?'Register a property first.':'Direct folder saving requires Chrome or Edge over HTTPS. Use Download PDF in Utilities Output in this browser.');
-  }
+  }else api.get(scope).then(row=>{if(row && !selected){selected=row.handle;view();}}).catch(error=>say(api.folderError(error,'restore')));
 })();

@@ -64,7 +64,8 @@ class OutputPDFFailureTests(unittest.TestCase):
                 page.locator('#output-save').click();page.wait_for_function("document.getElementById('output-save-message').textContent.includes('HTTP 503')")
                 self.assertIn('PDF renderer failed',page.locator('#output-save-message').inner_text())
                 self.assertTrue(page.locator('#output-preview').is_visible());self.assertTrue(page.locator('#output-download').is_visible())
-                files=page.evaluate("""async()=>{const root=await navigator.storage.getDirectory(),folder=await (await root.getDirectoryHandle('METSOA')).getDirectoryHandle('METSOA Statement');const names=[];for await(const [name] of folder.entries())names.push(name);return names;}""")
+                # Failed PDF generation must not create even an empty destination.
+                files=page.evaluate("async()=>Array.fromAsync((await navigator.storage.getDirectory()).keys())")
                 self.assertEqual(files,[])
             finally:browser.close()
 

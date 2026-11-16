@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><title>AIT native folder picker comparison</title>
+<style>body{font:18px system-ui;max-width:850px;margin:3em auto;padding:1em}button{padding:1em;margin:1em 1em 1em 0}pre{white-space:pre-wrap;background:#eee;padding:1em}</style>
+<h1>Native folder picker comparison</h1>
+<p>This diagnostic does not save files, create folders, store handles or contact AIT.
+Choose the same existing folder for each test and handle any browser permission prompt yourself.</p>
+<p>The first button uses the exact picker options from PM commit <code>92b6a3ef</code>.
+The second uses the current read-only selection options. Neither calls IndexedDB.</p>
+<button id="earlier">Earlier PM picker</button><button id="current">Current read-only picker</button>
+<pre id="result" role="status">Ready.</pre>
+<script>
+const result=document.getElementById('result');
+for(const [id,options] of [['earlier',{mode:'readwrite',id:'ait-pm-reports'}],['current',{mode:'read',id:'ait-protrade-base'}]]){
+  document.getElementById(id).onclick=async()=>{
+    document.querySelectorAll('button').forEach(button=>button.disabled=true);
+    result.textContent=id+': waiting for the native picker. No storage operation has run.';
+    try{
+      const handle=await window.showDirectoryPicker(options);
+      result.textContent=id+': SUCCESS. The browser returned directory '+handle.name+'. No handle was stored and no file was changed.';
+    }catch(error){result.textContent=id+': FAILED before storage. '+error.name+': '+error.message;}
+    finally{document.querySelectorAll('button').forEach(button=>button.disabled=false);}
+  };
+}
+</script></html>

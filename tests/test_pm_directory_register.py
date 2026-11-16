@@ -42,6 +42,7 @@ class DirectoryRegisterTests(unittest.TestCase):
             browser,page=open_browser(runtime)
             try:
                 page.locator('#directory-select').click()
+                page.locator('#directory-save').click()
                 page.wait_for_function("document.getElementById('directory-folder').textContent==='Reports'")
                 page.evaluate("""async()=>{
                     const scope={user:'7',property:'26'},root=(await AITDirectories.get(scope)).handle;
@@ -69,7 +70,8 @@ class DirectoryRegisterTests(unittest.TestCase):
                 self.assertTrue(page.locator('#directory-workspace').is_hidden())
                 self.assertEqual(page.locator('#directory-report').count(),0)
                 page.locator('#directory-select').click()
-                page.wait_for_function("document.getElementById('directory-message').textContent.includes('Base folder selected')")
+                page.locator('#directory-save').click()
+                page.wait_for_function("document.getElementById('directory-message').textContent.includes('Folder saved')")
                 self.assertEqual(page.locator('#directory-folder').inner_text(),'Reports')
                 structure=page.evaluate("""async()=>{
                     const row=await AITDirectories.get({user:'7',property:'26'}),names=[];
@@ -81,7 +83,7 @@ class DirectoryRegisterTests(unittest.TestCase):
                 page.locator('#document-history-refresh').click()
                 page.wait_for_function("document.getElementById('document-history-message').textContent.startsWith('No saved PDFs')")
                 page.evaluate("window.showDirectoryPicker=async()=>{const root=await navigator.storage.getDirectory();return root.getDirectoryHandle('Updated',{create:true});};")
-                page.locator('#directory-change').click();page.wait_for_function("document.getElementById('directory-folder').textContent==='Updated'")
+                page.locator('#directory-change').click();page.locator('#directory-save').click();page.wait_for_function("document.getElementById('directory-folder').textContent==='Updated'")
                 page.reload();page.locator('#directory-view').click();page.wait_for_function("document.getElementById('directory-folder').textContent==='Updated'")
                 page.locator('#directory-reauthorise').click();page.wait_for_function("document.getElementById('directory-message').textContent.includes('access authorised')")
                 result=page.evaluate("""async()=>{

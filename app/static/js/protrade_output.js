@@ -12,7 +12,7 @@
   if(!window.AITDirectories.supported()){
     select.disabled=true;allow.disabled=true;
     message.textContent='Direct folder saving requires Chrome or Edge on a secure connection. Save Report will download a uniquely named PDF instead.';
-  }else window.AITDirectories.get(scope).then(row=>{if(row && !selected){selected=row.handle;folderName.textContent=row.handle.name;allow.disabled=choosing;}}).catch(fail);
+  }else window.AITDirectories.get(scope).then(row=>{if(row && !selected){selected=row.handle;folderName.textContent=row.handle.name;allow.disabled=choosing;}}).catch(error=>{message.textContent=window.AITDirectories.folderError(error,'restore');});
   select.addEventListener('click',async()=>{
     if(choosing)return;
     choosing=true;select.disabled=true;allow.disabled=true;
@@ -23,18 +23,18 @@
       selected=handle;folderName.textContent=handle.name;allow.disabled=false;
       message.textContent='Folder selected. Click Save to remember this folder on this browser.';
     }catch(error){
-      message.textContent='The browser did not return a folder. Confirm its folder-access prompt or choose an ordinary ProTrade subfolder. '+(error.name || 'Error')+': '+(error.message || 'Folder selection was not completed')+'. Your saved folder is unchanged.';
+      message.textContent=window.AITDirectories.folderError(error,'picker');
     }finally{choosing=false;select.disabled=false;allow.disabled=!selected;}
   });
   allow.addEventListener('click',async()=>{
     if(!selected){message.textContent='Choose a folder using Select Folder, then click Save.';return;}
-    const handle=selected;allow.disabled=true;select.disabled=true;
+    const handle=selected;allow.disabled=true;select.disabled=true;let stage='permission';
     try{
       // Invoke permission from this explicit user gesture, before storage awaits.
       if(await handle.requestPermission({mode:'readwrite'})!=='granted')throw new Error('Browser folder permission was not granted');
-      await window.AITDirectories.set(scope,handle);
+      stage='storage';await window.AITDirectories.set(scope,handle);
       folderName.textContent=handle.name;message.textContent='Folder saved. Documents will appear automatically when available.';
-    }catch(error){fail(error);}finally{allow.disabled=false;select.disabled=false;}
+    }catch(error){message.textContent=window.AITDirectories.folderError(error,stage);}finally{allow.disabled=false;select.disabled=false;}
   });
   let saving=false;
   save?.addEventListener('click',async()=>{

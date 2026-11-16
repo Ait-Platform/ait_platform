@@ -2,6 +2,10 @@
 
 Read and follow [AGENT.md](AGENT.md) for the established repository, application, database and UI rules. The convention below supplements those instructions; it does not authorise production migrations or financial changes.
 
+## ProTrade release exception
+
+ProTrade uses ordinary PDF downloads and application-backed document selection. Do not reintroduce local folder controls, permissions or browser file history into ProTrade. Keep the shared local-folder APIs and Property Management behavior unchanged. Existing local PDFs remain on the user?s device.
+
 ## Reusable browser folder convention
 
 - The user chooses a base folder using **Select Folder** and grants browser access. PM and ProTrade display the selected name, then use **Save** to request/confirm access and persist the handle; its saved-document list refreshes automatically without background permission prompts. Property Management retains **Allow Access** to renew permission for its displayed handle and its established View Folder controls. Do not create document directories during selection, permission renewal, navigation or historical-file listing.

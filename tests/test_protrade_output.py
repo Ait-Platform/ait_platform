@@ -1,3 +1,4 @@
+from pathlib import Path
 """Stage 3I Output: actual adapters/routes on temporary PostgreSQL; no live mail."""
 import importlib.util
 import sys
@@ -216,95 +217,33 @@ class ProTradeOutputTests(unittest.TestCase):
             response=self.client.get(url.path+('?' + url.query if url.query else ''))
             route.fulfill(status=response.status_code,content_type=response.content_type,body=response.data)
 
-    def test_browser_folder_structure_collision_safety_print_and_confirmation(self):
+    def test_browser_normal_download_print_and_confirmation_without_folder_api(self):
         from playwright.sync_api import sync_playwright
         from urllib.parse import urlencode
-        environment=r"""
-        (()=>{
-          function directory(name){
-            const node={kind:'directory',name,children:new Map(),files:new Map()};
-            node.queryPermission=async()=> 'granted';node.requestPermission=async()=> 'granted';
-            node.getDirectoryHandle=async(name,options={})=>{
-              if(!node.children.has(name)){if(!options.create)throw new DOMException('Missing','NotFoundError');node.children.set(name,directory(name));}
-              return node.children.get(name);
-            };
-            node.getFileHandle=async(name,options={})=>{
-              if(!node.files.has(name)){if(!options.create)throw new DOMException('Missing','NotFoundError');node.files.set(name,'');}
-              return {kind:'file',name,getFile:async()=>new Blob([node.files.get(name)]),createWritable:async(options)=>{
-                if(options.mode!=='exclusive')throw new Error('Must use exclusive writer');
-                let content='';return {write:async blob=>{content=typeof blob==='string'?blob:await blob.text();},close:async()=>{if(window.failWrites && name.endsWith('.pdf'))throw new Error('Simulated disk write failure');node.files.set(name,content);},abort:async()=>{}};
-              }};
-            };
-            node.entries=async function*(){for(const entry of node.children)yield entry;for(const name of node.files.keys())yield [name,await node.getFileHandle(name)];};
-            return node;
-          }
-          window.folderRoot=directory('AIT-ProTrade');window.assignments=new Map();
-          const store={createIndex(){}};
-          const database={createObjectStore:()=>store,close(){},transaction(){
-            const tx={objectStore:()=>({get(key){const req={};setTimeout(()=>{req.result=assignments.get(key);req.onsuccess?.();tx.oncomplete?.();},0);return req;},put(value){const req={};setTimeout(()=>{assignments.set(value.key,value);req.result=value.key;req.onsuccess?.();tx.oncomplete?.();},0);return req;}})};return tx;
-          }};
-          Object.defineProperty(window,'indexedDB',{value:{open(){const req={};setTimeout(()=>{req.result=database;req.onupgradeneeded?.();req.onsuccess?.();},0);return req;}}});
-          window.showDirectoryPicker=async()=>folderRoot;
-          window.print=()=>{window.didPrint=true;};
-        })();
-        """
-        with sync_playwright() as playwright:
-            browser=playwright.chromium.launch(headless=True)
+        with sync_playwright() as runtime:
+            browser=runtime.chromium.launch(headless=True)
             try:
-                page=browser.new_page();page.add_init_script(environment)
+                page=browser.new_page(accept_downloads=True)
+                page.add_init_script("window.showDirectoryPicker=()=>{throw Error('Folder picker must not be called');};window.print=()=>{window.didPrint=true;};")
                 page.route('http://localhost/**',self.browser_route)
-                with patch.object(output,'pdf_bytes',side_effect=lambda data,claim: ('%PDF-Shop-'+str(data['issuer']['id'])).encode()):
+                with patch.object(output,'pdf_bytes',return_value=b'%PDF-release-download'):
                     page.goto('http://localhost/mechanic/output?'+urlencode(dict(shop_id=self.carpentry.id,selection=f'quote:boq-{self.quote.id}',preview='1')))
+                    self.assertEqual(page.get_by_role('heading',name='ProTrade Output',exact=True).inner_text(),'ProTrade Output')
+                    self.assertEqual(page.locator('#output-folder-select, #output-folder-allow, #document-history-files').count(),0)
+                    self.assertEqual(page.get_by_text('Shop Setup',exact=True).count(),0)
                     page.locator('#output-email').click()
                     self.assertTrue(page.locator('#output-email-form').is_visible())
                     self.assertFalse(page.locator('[name=confirm_email]').is_checked())
                     page.locator('#output-print').click();self.assertTrue(page.evaluate('window.didPrint'))
-                    page.locator('#output-folder-select').click()
-                    page.locator('#output-folder-allow').click()
-                    page.wait_for_function("document.getElementById('output-folder-name').textContent==='AIT-ProTrade'")
-                    prefix=page.evaluate("async()=>{const scope=JSON.parse(document.getElementById('output-directory-context').textContent),entry=JSON.parse(document.getElementById('directory-reports').textContent).find(item=>item.code==='quote');const user=await folderRoot.getDirectoryHandle(entry.path[0],{create:true});user.files.set('.ait-folder-owner.json',JSON.stringify({program:entry.owner.program,user:entry.owner.user,kind:'user',id:entry.owner.user}));const folder=await user.getDirectoryHandle(entry.path[1],{create:true});folder.files.set('.ait-folder-owner.json',JSON.stringify({program:entry.owner.program,user:entry.owner.user,kind:'client',id:entry.owner.client}));const type=await folder.getDirectoryHandle(entry.path[2],{create:true});const d=scope.period_end;const prefix=d.slice(8,10)+d.slice(5,7)+d.slice(2,4)+'_Quotations';type.files.set(prefix+'.pdf','ORIGINAL');return prefix;}")
-                    page.locator('#output-save').click()
-                    page.wait_for_function("document.getElementById('output-save-message').textContent.startsWith('Saved ')")
-                    result=page.evaluate("async()=>{const scope=JSON.parse(document.getElementById('output-directory-context').textContent);const second=await AITDirectories.save(scope,'quote',scope.pdf_url);const entry=JSON.parse(document.getElementById('directory-reports').textContent).find(item=>item.code==='quote'),folder=await(await(await folderRoot.getDirectoryHandle(entry.path[0])).getDirectoryHandle(entry.path[1])).getDirectoryHandle(entry.path[2]);return {files:Array.from(folder.files.entries()),second,assignments:Array.from(window.assignments.values()).map(row=>({user:row.user,property:row.property}))};}")
-                    files=dict(result['files']);self.assertEqual(files[prefix+'.pdf'],'ORIGINAL')
-                    self.assertEqual(files[prefix+'(1).pdf'],f'%PDF-Shop-{self.carpentry.id}')
-                    self.assertEqual(result['second'],prefix+'(2).pdf')
-                    self.assertEqual(result['assignments'],[dict(user='1',property='protrade')])
-                    other=self.preview(f'quote:boq-{self.other_quote.id}',self.second)
-                    tree=html.fromstring(other.data)
-                    reports=tree.get_element_by_id('directory-reports').text
-                    other_url=tree.get_element_by_id('output-download').get('href')
-                    page.evaluate("reports=>document.getElementById('directory-reports').textContent=reports",reports)
-                    page.evaluate("async url=>{const scope=JSON.parse(document.getElementById('output-directory-context').textContent);await AITDirectories.save(scope,'quote',url);}",other_url)
-                    sources=page.evaluate('Array.from(Array.from(folderRoot.children.values())[0].children.keys())')
-                    self.assertEqual(len(sources),2)
-                    page.evaluate('window.failWrites=true')
-                    page.locator('#output-save').click()
-                    page.wait_for_function("document.getElementById('output-save-message').textContent.includes('Simulated disk write failure')")
-                    self.assertNotIn('Saved ',page.locator('#output-save-message').inner_text())
-                    self.assertIn(self.carpentry.business_name,sources)
-                    self.assertTrue(any(f'(protrade-{self.second.id})' in source for source in sources))
-                self.assertEqual(base.ProTradeOutputEmail.query.count(),0)
-            finally:browser.close()
-
-    def test_browser_download_fallback_uses_distinct_filenames(self):
-        from playwright.sync_api import sync_playwright
-        from urllib.parse import urlencode
-        with sync_playwright() as playwright:
-            browser=playwright.chromium.launch(headless=True)
-            try:
-                page=browser.new_page(accept_downloads=True)
-                page.add_init_script("Object.defineProperty(window,'showDirectoryPicker',{value:undefined});")
-                page.route('http://localhost/**',self.browser_route)
-                with patch.object(output,'pdf_bytes',return_value=b'%PDF-test'):
-                    page.goto('http://localhost/mechanic/output?'+urlencode(dict(shop_id=self.carpentry.id,selection=f'quote:boq-{self.quote.id}',preview='1')))
-                    self.assertTrue(page.locator('#output-folder-select').is_disabled())
-                    names=[]
-                    for _ in range(2):
-                        with page.expect_download() as download:
-                            page.locator('#output-save').click()
-                        names.append(download.value.suggested_filename)
-                    self.assertNotEqual(names[0],names[1]);self.assertTrue(all(name.endswith('.pdf') for name in names))
+                    with page.expect_download() as downloaded:page.locator('#output-download').click()
+                    self.assertTrue(downloaded.value.suggested_filename.endswith('.pdf'))
+                    self.assertEqual(Path(downloaded.value.path()).read_bytes(),b'%PDF-release-download')
+                    page.locator('#output-shop').select_option(str(self.second.id))
+                    page.wait_for_url('**/mechanic/output?shop_id='+str(self.second.id))
+                    self.assertIn('CAR-Q-OTHER',page.locator('#output-selection').inner_text())
+                    self.assertNotIn('CAR-Q-OUR',page.locator('#output-selection').inner_text())
+                    self.assertNotIn('CAR-Q-FOREIGN',page.content())
+                    self.assertEqual(page.locator('#output-download').count(),0)
             finally:browser.close()
 
     def test_output_does_not_change_documents_ledgers_prices_or_debtors(self):

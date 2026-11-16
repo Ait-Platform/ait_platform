@@ -322,15 +322,14 @@ def output_page():
             error,status=exc.description,exc.code
             if claim is None:
                 data=None;token=''
-    directory_reports=folder_reports([shop],short_codes=True) if shop else []
     pdf_url=url_for('mechanic_bp.protrade_output',shop_id=shop.id,selection=selected,recipient_id=recipient_id,format='pdf',preview_token=token) if data else ''
     return render_template('program_mechanic/output.html',shop=shop,shops=shops,choices=public_choices,labels=LABELS,selection=selected,
                            debtors=debtors,recipient_id=recipient_id,report_data=data,preview_token=token,generated=claim['generated'] if claim else '',
-                           pdf_url=pdf_url,directory_reports=directory_reports,error=error),status
+                           pdf_url=pdf_url,error=error),status
 
 
 def support_page(page):
-    """Read-only dashboard pages; folder handles remain in the existing browser store."""
+    """Read-only help; retired folder bookmarks retain ownership checks."""
     if page not in ('folders','help'):
         abort(404)
     shops=MechShop.query.filter_by(user_id=current_user.id).order_by(MechShop.business_name,MechShop.id).all()
@@ -343,6 +342,8 @@ def support_page(page):
         if shop is None:abort(404)
     # Unique manager codes let the shared API create every shop's folders.
     # Output continues using its existing report codes and exactly the same paths.
+    if page=='folders':
+        return redirect(url_for('mechanic_bp.protrade_output',shop_id=shop.id if shop else None))
     directory_reports=folder_reports(shops)
     return render_template('program_mechanic/'+page+'.html',shop=shop,shops=shops,
                            directory_reports=directory_reports,protrade_menu_active=page)

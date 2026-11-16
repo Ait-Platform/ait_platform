@@ -13,8 +13,7 @@ PT = '''<html><body><span id="output-folder-name">Not selected on this browser</
 
 class FolderSelectionStagesTests(unittest.TestCase):
     def variants(self):
-        return [('PM', None, '#directory-select', '#directory-save', '#directory-folder', '#directory-message', '26'),
-                ('PT', PT, '#output-folder-select', '#output-folder-allow', '#output-folder-name', '#output-save-message', 'protrade')]
+        return [('PM', None, '#directory-select', '#directory-save', '#directory-folder', '#directory-message', '26')]
 
     def test_selection_save_refresh_and_existing_assignment_isolation(self):
         with sync_playwright() as runtime:
@@ -129,26 +128,3 @@ class FolderSelectionStagesTests(unittest.TestCase):
                         self.assertIn('Local storage unavailable',page.locator(message).inner_text())
                     finally:browser.close()
 
-    def test_optional_tab_notification_cannot_turn_committed_save_into_failure(self):
-        with sync_playwright() as runtime:
-            for failure in ['constructor','postMessage','close']:
-                with self.subTest(failure=failure):
-                    browser,page=open_browser(runtime,PT)
-                    try:
-                        page.locator('#output-folder-select').click()
-                        page.evaluate("""failure=>{
-                            window.folderEvents=0;window.addEventListener('ait:local-documents',()=>window.folderEvents++);
-                            window.BroadcastChannel=class{
-                                constructor(){if(failure==='constructor')throw new DOMException('Tab messaging unavailable','SecurityError');}
-                                postMessage(){if(failure==='postMessage')throw new DOMException('Tab messaging unavailable','InvalidStateError');}
-                                close(){if(failure==='close')throw new Error('Tab messaging cleanup unavailable');}
-                            };
-                        }""",failure)
-                        page.locator('#output-folder-allow').click()
-                        page.wait_for_function("/Folder saved|Browser storage could not save/.test(document.getElementById('output-save-message').textContent)")
-                        self.assertEqual(page.evaluate("async()=>(await AITDirectories.get({user:'7',property:'protrade'})).handle.name"),'Reports')
-                        self.assertTrue(page.locator('#output-save-message').inner_text().startswith('Folder saved.'))
-                        self.assertEqual(page.evaluate('folderEvents'),1)
-                        page.reload()
-                        page.wait_for_function("document.getElementById('output-folder-name').textContent==='Reports'")
-                    finally:browser.close()

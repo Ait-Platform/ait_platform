@@ -157,10 +157,10 @@ class MemorySafeMigrationTests(unittest.TestCase):
         self.assertFalse(helper.verify(dict(settings,FRANCHISEE_PII_KEY='invalid'))['FRANCHISEE_PII_KEY_valid'])
         self.assertNotIn(settings['FRANCHISEE_PII_KEY'],json.dumps(helper.verify(settings)))
 
-    def test_documented_predeploy_command_on_temporary_fixture(self):
+    def run_predeploy_script(self):
         document=(ROOT/'docs/render_memory_franchisee_migration.md').read_text(encoding='utf-8')
         block=document.split('<!-- MIGRATION_COMMAND -->',1)[1].split('<!-- END_MIGRATION_COMMAND -->',1)[0]
-        code=block.split("<<'PY'\n",1)[1].split('\nPY',1)[0]
+        self.assertEqual(block.strip(), "```sh\npython scripts/verify_franchisee_environment.py && python scripts/apply_franchisee_migration.py\n```")
         self.conn.rollback()
         @contextmanager
         def begin():
@@ -169,10 +169,26 @@ class MemorySafeMigrationTests(unittest.TestCase):
         output=io.StringIO()
         with patch.dict(os.environ,{'DATABASE_URL':dotenv_values(ROOT/'.env')['DATABASE_URL']}), \
              patch('sqlalchemy.create_engine',return_value=engine),redirect_stdout(output):
-            exec(compile(code,'<documented-alembic-procedure>','exec'),{})
-        self.assertIn('COMMITTED',output.getvalue())
+            runpy.run_path(str(ROOT/'scripts/apply_franchisee_migration.py'),run_name='__main__')
+        return output.getvalue()
+
+    def test_documented_predeploy_command_on_temporary_fixture(self):
+        self.assertIn('COMMITTED',self.run_predeploy_script())
         self.assertEqual(self.heads(),(self.initial-{PARENT})|{TARGET})
         self.assertEqual(self.persistence('ait_franchisee_registration'),'t')
+        self.assertIn('COMMITTED',self.run_predeploy_script())
+        self.assertEqual(self.heads(),(self.initial-{PARENT})|{TARGET})
+
+    def test_predeploy_script_failure_rolls_back_without_exposing_error_details(self):
+        from contextlib import redirect_stderr
+        error=io.StringIO()
+        with patch('alembic.command.upgrade',side_effect=RuntimeError('sensitive-details')), redirect_stderr(error), self.assertRaises(SystemExit) as result:
+            self.run_predeploy_script()
+        self.assertEqual(result.exception.code,1)
+        self.assertIn('FAILED during Alembic upgrade: RuntimeError',error.getvalue())
+        self.assertNotIn('sensitive-details',error.getvalue())
+        self.assertEqual(self.heads(),self.initial)
+        self.assertIsNone(self.persistence('ait_franchisee_registration'))
 
 
 if __name__=='__main__':unittest.main()

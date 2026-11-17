@@ -68,68 +68,13 @@ Both booleans must be true. If either fails, stop and report the setting name; d
 
 ## Exact approved pre-deploy command
 
-This uses standard Alembic `Config`/`command.upgrade` and the existing SQLAlchemy URL. It is not a replacement DDL/version runner. Only Alembic records the revision. The **outer transaction includes DDL and revision updates**, with bounded connection/lock/statement waits. Order: **`protrade_trade_codes_019` → `ait_franchisee_001`**. Every other current head must remain unchanged.
+This uses standard Alembic `Config`/`command.upgrade` and the existing SQLAlchemy URL. It is not a replacement DDL/version runner. Only Alembic records the revision. The **outer transaction includes DDL and revision updates**, with bounded connection/lock/statement waits. Order: **`protrade_trade_codes_019` → `ait_franchisee_001`**. Every other current head must remain unchanged. The procedure is stored in `scripts/apply_franchisee_migration.py` so Render can use a single-line command without heredoc parsing.
 
 **Do not execute before explicit production migration approval.**
 
 <!-- MIGRATION_COMMAND -->
 ```sh
-python scripts/verify_franchisee_environment.py && python - <<'PY'
-import os
-import sys
-from alembic import command
-from alembic.config import Config
-from alembic.script import ScriptDirectory
-from sqlalchemy import create_engine, text
-from sqlalchemy.engine import make_url
-from sqlalchemy.pool import NullPool
-
-PARENT = 'protrade_trade_codes_019'
-TARGET = 'ait_franchisee_001'
-engine = None
-stage = 'configuration'
-try:
-    url = make_url(os.environ['DATABASE_URL'].replace('postgres://', 'postgresql://', 1))
-    if url.get_backend_name() != 'postgresql':
-        raise RuntimeError('PostgreSQL required')
-    config = Config('migrations/alembic.ini')
-    config.attributes.update(skip_app_metadata=True, franchisee_registration_approved=True)
-    if ScriptDirectory.from_config(config).get_revision(TARGET).down_revision != PARENT:
-        raise RuntimeError('Unexpected migration dependency')
-    engine = create_engine(url, poolclass=NullPool, connect_args={'connect_timeout': 10})
-    stage = 'database connection'
-    with engine.begin() as connection:
-        connection.exec_driver_sql("SET LOCAL lock_timeout = '5s'")
-        connection.exec_driver_sql("SET LOCAL statement_timeout = '60s'")
-        connection.exec_driver_sql("SET LOCAL idle_in_transaction_session_timeout = '90s'")
-        before = set(connection.execute(text('SELECT version_num FROM alembic_version')).scalars())
-        objects = connection.execute(text("SELECT to_regclass('ait_franchisee_registration') IS NOT NULL, to_regclass('ait_franchisee_number_seq') IS NOT NULL")).one()
-        if TARGET in before:
-            if not all(objects):
-                raise RuntimeError('Recorded revision and schema disagree')
-            expected = before
-        else:
-            if PARENT not in before or any(objects):
-                raise RuntimeError('Parent is not current or unrecorded franchisee objects exist; stop for review')
-            expected = (before - {PARENT}) | {TARGET}
-        print('Revision heads before:', sorted(before), flush=True)
-        config.attributes['connection'] = connection
-        stage = 'Alembic upgrade'
-        command.upgrade(config, TARGET)
-        after = set(connection.execute(text('SELECT version_num FROM alembic_version')).scalars())
-        objects = connection.execute(text("SELECT to_regclass('ait_franchisee_registration') IS NOT NULL, to_regclass('ait_franchisee_number_seq') IS NOT NULL")).one()
-        if after != expected or not all(objects):
-            raise RuntimeError('Post-upgrade revision/schema check failed')
-        stage = 'commit'
-    print('COMMITTED. Revision heads after:', sorted(after), flush=True)
-except Exception as error:
-    code = getattr(getattr(error, 'orig', None), 'pgcode', None) or 'n/a'
-    print('FAILED during %s: %s; SQLSTATE=%s. Verify database state before retry.' % (stage, type(error).__name__, code), file=sys.stderr)
-    raise SystemExit(1)
-finally:
-    if engine is not None:
-        engine.dispose()
-PY
+python scripts/verify_franchisee_environment.py && python scripts/apply_franchisee_migration.py
 ```
 <!-- END_MIGRATION_COMMAND -->
 

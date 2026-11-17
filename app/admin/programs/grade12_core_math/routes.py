@@ -7,7 +7,6 @@ import re
 import uuid
 
 from flask import current_app, jsonify, render_template, request
-from google import genai
 
 from app.models.adv_math import AdvMathQuestion
 from app.admin import admin_bp
@@ -103,6 +102,7 @@ def adv_math_ai_scan_paper():
         )
         if not target_pdf:
             return jsonify({"success": False, "error": "PDF not found"}), 404
+        from google import genai
         genai.configure(api_key=current_app.config.get("GEMINI_API_KEY", os.environ.get("GEMINI_API_KEY")))
         model = genai.GenerativeModel("gemini-2.0-flash")
         with open(target_pdf, "rb") as f:

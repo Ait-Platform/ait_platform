@@ -5,15 +5,19 @@ from alembic import context
 from sqlalchemy import engine_from_config, pool
 from sqlalchemy.engine import make_url
 
-# Load model metadata only. Never execute application startup maintenance.
 import os
-from app.extensions import db
-import app.models  # noqa: F401 -- registers mapped tables, not the app factory
 
 config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
-target_metadata = db.metadata
+# Operational upgrades use the declarations in the revision scripts. They do
+# not need ORM metadata. Keep normal autogeneration behavior unchanged, while
+# allowing explicit operational contexts to avoid importing the app package.
+target_metadata = None
+if not config.attributes.get('skip_app_metadata', False):
+    from app.extensions import db
+    import app.models  # noqa: F401
+    target_metadata = db.metadata
 # A supplied connection is used by isolated tests and programmatic migrations.
 if config.attributes.get("connection") is None:
     db_url = os.environ.get("DATABASE_URL") or config.get_main_option("sqlalchemy.url")

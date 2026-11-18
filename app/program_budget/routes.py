@@ -2,6 +2,9 @@
 import csv
 from decimal import Decimal
 import io
+import secrets
+import time
+from collections import OrderedDict
 from datetime import date, datetime, timedelta
 from flask import Blueprint, redirect, render_template, request, jsonify, abort, url_for, flash
 from flask_login import login_required, current_user
@@ -10,6 +13,53 @@ from app.extensions import db, csrf
 from app.program_budget.services import budget_summary
 from app.models.budget import BudAccount, BudLedger
 from types import SimpleNamespace
+
+# In-memory stores for submission idempotency
+import threading
+_SUBMISSION_LOCK = threading.Lock()
+_IN_FLIGHT_SUBMISSIONS = set()
+_PROCESSED_SUBMISSIONS = OrderedDict()
+_PROCESSED_RECENT_POSTS = OrderedDict()
+
+def _prune_idempotency_cache():
+    while _PROCESSED_SUBMISSIONS and len(_PROCESSED_SUBMISSIONS) > 1000:
+        _PROCESSED_SUBMISSIONS.popitem(last=False)
+    while _PROCESSED_RECENT_POSTS and len(_PROCESSED_RECENT_POSTS) > 1000:
+        _PROCESSED_RECENT_POSTS.popitem(last=False)
+
+def _is_submission_processed(user_id: int, submission_id: str) -> bool:
+    _prune_idempotency_cache()
+    return (user_id, submission_id) in _PROCESSED_SUBMISSIONS
+
+def _mark_submission_processed(user_id: int, submission_id: str):
+    _prune_idempotency_cache()
+    _PROCESSED_SUBMISSIONS[(user_id, submission_id)] = time.time()
+
+def _is_recent_duplicate(user_id: int, account_id: int, txn_date: str, cents: int, window_seconds: float = 10.0) -> bool:
+    _prune_idempotency_cache()
+    key = (user_id, account_id, str(txn_date), cents)
+    now = time.time()
+    if key in _PROCESSED_RECENT_POSTS:
+        if now - _PROCESSED_RECENT_POSTS[key] < window_seconds:
+            return True
+    try:
+        row = db.session.execute(text("""
+            SELECT id FROM bud_ledger
+             WHERE user_id = :uid AND account_id = :aid AND txn_date = :d AND amount_cents = :c
+               AND created_at >= (NOW() - INTERVAL '10 seconds')
+             ORDER BY id DESC LIMIT 1
+        """), {"uid": user_id, "aid": account_id, "d": txn_date, "c": cents}).scalar()
+        if row is not None:
+            _PROCESSED_RECENT_POSTS[key] = now
+            return True
+    except Exception:
+        pass
+    return False
+
+def _record_recent_submission(user_id: int, account_id: int, txn_date: str, cents: int):
+    _prune_idempotency_cache()
+    key = (user_id, account_id, str(txn_date), cents)
+    _PROCESSED_RECENT_POSTS[key] = time.time()
 
 from . import budget_bp
 
@@ -188,6 +238,7 @@ def ledger():
         paid_total_cents=int(paid_total_cents),
         account_id=account_id,     # keep if you want
         back_url=back_url,
+        submission_id=secrets.token_hex(16),
     )
 
 @budget_bp.route("/ledger/<int:ledger_id>/edit", methods=["GET", "POST"])
@@ -269,14 +320,22 @@ def ledger_edit(ledger_id: int):
 @login_required
 def ledger_add():
     from app.models.auth import AitTokenWallet, AitTokenTransaction
+    from app.models.billing import TokenTariff
     
     account_id = (request.form.get("account_id") or "").strip()
     txn_date = (request.form.get("txn_date") or "").strip()
     amount = (request.form.get("amount") or "").strip()
+    submission_id = (request.form.get("submission_id") or request.headers.get("X-Submission-Id") or request.headers.get("Idempotency-Key") or "").strip()
+
+    next_url = url_for(
+        "budget_bp.ledger",
+        account_id=account_id if account_id.isdigit() else None,
+        next=_safe_next(request.args.get("next")) or url_for("budget_bp.dashboard")
+    )
 
     if not (account_id.isdigit() and txn_date and amount):
         flash("Please choose an account, date, and amount.", "warning")
-        return redirect(url_for("budget_bp.ledger"))
+        return redirect(next_url)
 
     _require_owned_account(account_id)
 
@@ -284,59 +343,94 @@ def ledger_add():
         cents = int(round(float(amount.replace(",", "")) * 100))
     except Exception:
         flash("Invalid amount.", "warning")
-        return redirect(url_for("budget_bp.ledger"))
-        
-    # --- WALLET TOKEN CHECK ---
-    from app.models.billing import TokenTariff
-    wallet = AitTokenWallet.query.filter_by(user_id=current_user.id).first()
-    
-    tariff = TokenTariff.query.filter_by(program_slug='budget', action_name='ledger_entry').first()
-    if not tariff:
-        tariff = TokenTariff(program_slug='budget', action_name='ledger_entry', base_token_cost=2)
-        db.session.add(tariff)
-        db.session.commit()
-        
-    token_cost = tariff.base_token_cost
-    
-    if not wallet or wallet.balance < token_cost:
-        flash(f"You need at least {token_cost} tokens in your wallet to capture an entry.", "error")
-        return redirect(url_for("payment_bp.wallet_topup", subject_slug="budget"))
+        return redirect(next_url)
 
-    # 🔹 Always show a consistent meaning in the ledger table
-    description = "Paid"
+    # 1. Advisory transaction lock to serialize submissions per user (prevents double-click races)
+    try:
+        db.session.execute(
+            text("SELECT pg_advisory_xact_lock(hashtextextended(:k, 0))"),
+            {"k": f"budget-ledger-add:{current_user.id}"}
+        )
+    except Exception:
+        pass
+
+    # 2. Server-side idempotency check (under lock to protect against concurrent double-clicks)
+    is_duplicate = False
+    in_flight_key = (current_user.id, submission_id) if submission_id else (current_user.id, int(account_id), str(txn_date), int(cents))
+
+    with _SUBMISSION_LOCK:
+        if in_flight_key in _IN_FLIGHT_SUBMISSIONS:
+            is_duplicate = True
+        elif submission_id and _is_submission_processed(current_user.id, submission_id):
+            is_duplicate = True
+        elif not submission_id and _is_recent_duplicate(current_user.id, int(account_id), txn_date, int(cents)):
+            is_duplicate = True
+        else:
+            _IN_FLIGHT_SUBMISSIONS.add(in_flight_key)
+
+    if is_duplicate:
+        flash("Entry already recorded.", "info")
+        return redirect(next_url)
 
     try:
-        db.session.execute(text("""
-            INSERT INTO bud_ledger (user_id, account_id, txn_date, description, amount_cents)
-            VALUES (:uid, :aid, :d, :desc, :c)
-        """), {
-            "uid": current_user.id,
-            "aid": int(account_id),
-            "d": txn_date,
-            "desc": description,
-            "c": int(cents),
-        })
-        
-        # Deduct tokens
-        wallet.balance -= token_cost
-        txn = AitTokenTransaction(
-            wallet_id=wallet.id,
-            amount=-token_cost,
-            description=f"Captured Cashbook Entry (Account ID {account_id})"
-        )
-        db.session.add(txn)
-        
-        db.session.commit()
-        flash(f"Payment added. {token_cost} tokens deducted.", "success")
-    except Exception:
-        db.session.rollback()
-        flash("Could not add entry.", "warning")
+        # 3. Atomic wallet check and deduction
+        with db.session.no_autoflush:
+            wallet = AitTokenWallet.query.filter_by(user_id=current_user.id).populate_existing().with_for_update().first()
+            
+            token_cost = 2
+            try:
+                tariff = TokenTariff.query.filter_by(program_slug='budget', action_name='ledger_entry').first()
+                if not tariff:
+                    tariff = TokenTariff(program_slug='budget', action_name='ledger_entry', base_token_cost=2)
+                    db.session.add(tariff)
+                    db.session.commit()
+                if tariff and tariff.base_token_cost is not None:
+                    token_cost = tariff.base_token_cost
+            except Exception:
+                token_cost = 2
 
-    return redirect(url_for(
-    "budget_bp.ledger",
-    account_id=account_id,
-    next=_safe_next(request.args.get("next")) or url_for("budget_bp.dashboard")
-    ))
+            if not wallet or wallet.balance < token_cost:
+                flash(f"You need at least {token_cost} tokens in your wallet to capture an entry.", "error")
+                return redirect(url_for("payment_bp.wallet_topup", subject_slug="budget"))
+
+            description = "Paid"
+
+            try:
+                db.session.execute(text("""
+                    INSERT INTO bud_ledger (user_id, account_id, txn_date, description, amount_cents)
+                    VALUES (:uid, :aid, :d, :desc, :c)
+                """), {
+                    "uid": current_user.id,
+                    "aid": int(account_id),
+                    "d": txn_date,
+                    "desc": description,
+                    "c": int(cents),
+                })
+                
+                # Deduct tokens atomically in the same transaction
+                wallet.balance -= token_cost
+                txn = AitTokenTransaction(
+                    wallet_id=wallet.id,
+                    amount=-token_cost,
+                    description=f"Captured Cashbook Entry (Account ID {account_id})"
+                )
+                db.session.add(txn)
+                
+                db.session.commit()
+
+                if submission_id:
+                    _mark_submission_processed(current_user.id, submission_id)
+                _record_recent_submission(current_user.id, int(account_id), txn_date, int(cents))
+
+                flash(f"Payment added. {token_cost} tokens deducted.", "success")
+            except Exception:
+                db.session.rollback()
+                flash("Could not add entry.", "warning")
+    finally:
+        with _SUBMISSION_LOCK:
+            _IN_FLIGHT_SUBMISSIONS.discard(in_flight_key)
+
+    return redirect(next_url)
 
 @budget_bp.route("/ledger/account/update", methods=["POST"])
 @login_required

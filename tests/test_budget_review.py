@@ -345,12 +345,56 @@ class BudgetReview(unittest.TestCase):
         response = self.client.post('/register', data={'subject': 'budget', 'email': 'invalid-email', 'password': 'safe-password', 'full_name': 'Invalid Email', 'next': '/budget/dashboard'})
         self.assertEqual(response.status_code, 400)
 
-    @unittest.expectedFailure
     def test_repeated_cashbook_post_has_submission_idempotency(self):
         aid = self.account('Repeated submission test')
         self.add(aid, '10.00')
         self.add(aid, '10.00')
         self.assertEqual(self.session.execute(sa.text('SELECT count(*) FROM bud_ledger WHERE account_id=:a'), {'a': aid}).scalar(), 1)
+        self.assertEqual(self.session.query(self.Wallet).filter_by(user_id=self.user_id).one().balance, 98)
+
+    def test_legitimate_separate_transactions_with_identical_amounts_permitted(self):
+        aid = self.account('Separate transactions test')
+        # Two submissions with distinct submission identifiers
+        r1 = self.client.post('/budget/ledger/add', data={'account_id': str(aid), 'txn_date': '2026-11-10', 'amount': '15.00', 'submission_id': 'tx-token-1'})
+        r2 = self.client.post('/budget/ledger/add', data={'account_id': str(aid), 'txn_date': '2026-11-10', 'amount': '15.00', 'submission_id': 'tx-token-2'})
+        self.assertEqual(r1.status_code, 302)
+        self.assertEqual(r2.status_code, 302)
+        self.assertEqual(self.session.execute(sa.text('SELECT count(*) FROM bud_ledger WHERE account_id=:a'), {'a': aid}).scalar(), 2)
+        # Repeated submission with the SAME identifier is blocked
+        r3 = self.client.post('/budget/ledger/add', data={'account_id': str(aid), 'txn_date': '2026-11-10', 'amount': '15.00', 'submission_id': 'tx-token-1'})
+        self.assertEqual(r3.status_code, 302)
+        self.assertEqual(self.session.execute(sa.text('SELECT count(*) FROM bud_ledger WHERE account_id=:a'), {'a': aid}).scalar(), 2)
+        self.assertEqual(self.session.query(self.Wallet).filter_by(user_id=self.user_id).one().balance, 96)
+
+    def test_insufficient_tokens_blocks_transaction(self):
+        aid = self.account('Token check account')
+        # Set wallet balance to 1 (less than tariff cost of 2)
+        self.session.execute(sa.text("UPDATE ait_token_wallet SET balance=1 WHERE user_id=:u"), {'u': self.user_id})
+        self.session.commit()
+        response = self.client.post('/budget/ledger/add', data={'account_id': str(aid), 'txn_date': '2026-11-10', 'amount': '50.00'})
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('wallet_topup', response.location)
+        self.assertEqual(self.session.execute(sa.text('SELECT count(*) FROM bud_ledger WHERE account_id=:a'), {'a': aid}).scalar(), 0)
+        self.assertEqual(self.session.query(self.Wallet).filter_by(user_id=self.user_id).one().balance, 1)
+
+    def test_concurrent_cashbook_posts_are_serialized_and_deduplicated(self):
+        import concurrent.futures
+        aid = self.account('Concurrent post test')
+        def submit():
+            with self.app.test_client() as c:
+                with c.session_transaction() as s:
+                    s['_user_id'] = str(self.user_id)
+                    s['_fresh'] = True
+                return c.post('/budget/ledger/add', data={'account_id': str(aid), 'txn_date': '2026-11-10', 'amount': '25.00', 'submission_id': 'conc-token-1'})
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+            futures = [executor.submit(submit), executor.submit(submit)]
+            results = [f.result() for f in futures]
+
+        for r in results:
+            self.assertEqual(r.status_code, 302)
+        self.assertEqual(self.session.execute(sa.text('SELECT count(*) FROM bud_ledger WHERE account_id=:a'), {'a': aid}).scalar(), 1)
+        self.assertEqual(self.session.query(self.Wallet).filter_by(user_id=self.user_id).one().balance, 98)
 
     def test_cross_user_account_cannot_receive_entries_edits_or_snapshots(self):
         own = self.account('Own account')

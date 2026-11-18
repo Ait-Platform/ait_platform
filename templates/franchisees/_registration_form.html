@@ -1,9 +1,14 @@
+{% set values = request.form if request.method == 'POST' else {} %}
+{% set errors = errors|default({}) %}
+{% macro field_error(field) %}
+  {% if errors.get(field) %}<span id="franchisee-{{ field }}-error" class="franchisee-error" role="alert" style="display:block;margin-top:4px;padding:6px;font-weight:400">{{ errors[field] }}</span>{% endif %}
+{% endmacro %}
 <form method="post" action="{{ registration_action|default(request.path) }}" autocomplete="off"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-<label>Full name and surname<input autofocus name="full_name" value="{{ registration_name|default('') }}" required maxlength="160" autocomplete="name"></label>
-<label>SA ID number<input name="sa_id" inputmode="numeric" pattern="[0-9]{13}" minlength="13" maxlength="13" required></label>
-<label>Cellphone number<input type="tel" name="cellphone" required maxlength="20" autocomplete="tel"></label>
-<label>Email address<input type="email" name="email" value="{{ registration_email|default('') }}" {% if registration_email is defined %}readonly{% endif %} required maxlength="254" autocomplete="email"></label>
-<label>Residential address<textarea name="address" required minlength="5" maxlength="1000" rows="3" autocomplete="street-address"></textarea></label>
-<label>Current occupation (optional)<input name="occupation" maxlength="160"></label>
+<label>Full name<input autofocus name="full_name" value="{{ values.get('full_name', registration_name|default('')) }}" required maxlength="160" autocomplete="name" aria-invalid="{{ 'true' if errors.get('full_name') else 'false' }}" {% if errors.get('full_name') %}aria-describedby="franchisee-full_name-error"{% endif %}>{{ field_error('full_name') }}</label>
+<label>SA ID number<input name="sa_id" value="{{ values.get('sa_id', '') }}" inputmode="numeric" pattern="[0-9]{13}" minlength="13" maxlength="13" required aria-invalid="{{ 'true' if errors.get('sa_id') else 'false' }}" {% if errors.get('sa_id') %}aria-describedby="franchisee-sa_id-error"{% endif %}>{{ field_error('sa_id') }}</label>
+<label>Cellphone number<input type="tel" name="cellphone" value="{{ values.get('cellphone', '') }}" required maxlength="20" autocomplete="tel" aria-invalid="{{ 'true' if errors.get('cellphone') else 'false' }}" {% if errors.get('cellphone') %}aria-describedby="franchisee-cellphone-error"{% endif %}>{{ field_error('cellphone') }}</label>
+<label>Email address<input type="email" name="email" value="{{ values.get('email', registration_email|default('')) }}" {% if registration_email is defined and not errors.get('email') %}readonly{% endif %} required maxlength="254" autocomplete="email" aria-invalid="{{ 'true' if errors.get('email') else 'false' }}" {% if errors.get('email') %}aria-describedby="franchisee-email-error"{% endif %}>{{ field_error('email') }}</label>
+<label>Residential address<textarea name="address" required minlength="5" maxlength="1000" rows="3" autocomplete="street-address" aria-invalid="{{ 'true' if errors.get('address') else 'false' }}" {% if errors.get('address') %}aria-describedby="franchisee-address-error"{% endif %}>{{ values.get('address', '') }}</textarea>{{ field_error('address') }}</label>
+<label>Current occupation (optional)<input name="occupation" value="{{ values.get('occupation', '') }}" maxlength="160" aria-invalid="{{ 'true' if errors.get('occupation') else 'false' }}" {% if errors.get('occupation') %}aria-describedby="franchisee-occupation-error"{% endif %}>{{ field_error('occupation') }}</label>
 <p>{% if registration_self_service|default(false) %}A unique franchisee number is assigned when you complete registration.{% else %}The registration date is recorded automatically. A unique franchisee number is assigned only after Admin approval.{% endif %}</p>
 <div class="franchisee-actions"><button class="franchisee-button" type="submit">Submit registration</button></div></form>

@@ -280,9 +280,9 @@ class FranchiseeTests(unittest.TestCase):
         self.assertEqual(response.status_code,400)
         self.assertIn('Reload Register',response.text)
         self.app.config['WTF_CSRF_TIME_LIMIT']=3600
-        response=self.client.post(url,base_url=origin,data=self.fields(csrf_token=token,full_name='One'),headers={'Referer':origin+'/'})
+        response=self.client.post(url,base_url=origin,data=self.fields(csrf_token=token,full_name=' '),headers={'Referer':origin+'/'})
         self.assertEqual(response.status_code,400)
-        self.assertIn('Enter your full name and surname',response.text)
+        self.assertIn('Enter your full name',response.text)
         self.assertIn('role="alert"',response.text)
         response=self.client.post(url,base_url=origin,data=data,headers={'Referer':origin+'/'})
         self.assertEqual(response.status_code,302)
@@ -350,6 +350,99 @@ class FranchiseeTests(unittest.TestCase):
         self.assertEqual(row.history[:-1],history)
         self.assertEqual(self.client.post('/franchisees/opportunities',data={'action':'activate'}).status_code,409)
 
+    def test_committed_registration_survives_fresh_session_and_dashboard_reload(self):
+        self.login(2)
+        commits=[]
+        def committed(connection):commits.append(True)
+        sa.event.listen(self.conn,'commit',committed)
+        try:
+            response=self.client.post('/franchisees/opportunities?area=register',data=self.fields())
+        finally:
+            sa.event.remove(self.conn,'commit',committed)
+        self.assertEqual(response.status_code,302)
+        self.assertTrue(commits)
+        self.session.remove()
+        with sa.orm.Session(bind=self.conn) as reader:
+            saved=reader.execute(sa.text('SELECT user_id,status,franchisee_number,identity_ciphertext,address_ciphertext FROM ait_franchisee_registration')).one()
+            self.assertEqual((saved.user_id,saved.status,saved.franchisee_number),(2,'Approved','FR-0001'))
+            encryption=Fernet(self.app.config['FRANCHISEE_PII_KEY'].encode())
+            self.assertEqual(encryption.decrypt(saved.identity_ciphertext.encode()).decode(),valid_id())
+            self.assertEqual(encryption.decrypt(saved.address_ciphertext.encode()).decode(),'12 Synthetic Test Street')
+        fresh=self.app.test_client()
+        with fresh.session_transaction() as values:
+            values['_user_id']='2';values['_fresh']=True
+        dashboard=fresh.get('/franchisees/opportunities')
+        self.assertIn('My Profile',dashboard.text)
+        profile=fresh.get('/franchisees/opportunities?area=register')
+        self.assertEqual(profile.status_code,200)
+        self.assertIn('FR-0001',profile.text)
+        for value in ['Happiness Example','0821234567','happiness@example.org','Contractor','12 Synthetic Test Street',valid_id()]:
+            self.assertIn(value,profile.text)
+        for area in ['clients','earnings','protrade']:
+            response=fresh.get('/franchisees/opportunities?area='+area)
+            self.assertEqual(response.status_code,200)
+            self.assertNotIn('Complete Register to activate',response.text)
+        self.assertEqual(self.Registration.query.count(),1)
+
+    def test_failed_commit_never_announces_success_and_rolls_back(self):
+        self.login(2)
+        failure=sa.exc.OperationalError('COMMIT',{},Exception('private database details'))
+        with patch.object(self.session,'commit',side_effect=failure):
+            response=self.client.post('/franchisees/opportunities?area=register',data=self.fields())
+        self.assertEqual(response.status_code,503)
+        self.assertIn('Registration could not be confirmed',response.text)
+        self.assertNotIn('Your franchisee account is active',response.text)
+        self.assertNotIn('private database details',response.text)
+        self.assertEqual(self.Registration.query.count(),0)
+
+    def test_validation_retains_values_and_marks_only_incorrect_fields(self):
+        self.login(2)
+        entered=self.fields(full_name=' ',cellphone='082 123 4567',address='12 Test Street & Flat <3>\nSecond line',occupation='Builder & carpenter')
+        response=self.client.post('/franchisees/opportunities?area=register',data=entered)
+        self.assertEqual(response.status_code,400)
+        self.assertNotIn('Location',response.headers)
+        page=html.fromstring(response.text)
+        for name,value in entered.items():
+            element=page.xpath('//*[@name="'+name+'"]')[0]
+            self.assertEqual(element.text if element.tag=='textarea' else element.get('value'),value)
+        self.assertEqual(page.xpath('//*[@aria-invalid="true"]/@name'),['full_name'])
+        error=page.xpath('//*[@id="franchisee-full_name-error"]')[0]
+        self.assertIn('Enter your full name',error.text_content())
+        self.assertEqual(error.getparent().tag,'label')
+        self.assertEqual(self.Registration.query.count(),0)
+        with self.client.session_transaction() as values:
+            for private in [valid_id(),entered['address'],entered['cellphone']]:
+                self.assertNotIn(private,json.dumps(dict(values)))
+        entered['full_name']='Bill'
+        self.assertEqual(self.client.post('/franchisees/opportunities?area=register',data=entered).status_code,302)
+        self.session.remove()
+        profile=self.client.get('/franchisees/opportunities?area=register')
+        self.assertIn('FR-0001',profile.text)
+        self.assertIn('My Profile',profile.text)
+        text=html.fromstring(profile.text).text_content()
+        for value in ['Bill','0821234567',entered['address'],entered['occupation']]:
+            self.assertIn(value,text)
+        self.login(1)
+        row=self.Registration.query.one()
+        detail=self.client.get(f'/admin/franchisees/{row.id}')
+        self.assertIn('Bill',detail.text)
+        self.assertIn(entered['address'],html.fromstring(detail.text).text_content())
+
+    def test_names_follow_existing_ait_required_value_pattern(self):
+        self.login(2)
+        for name in ['Bill',"Jean-Luc O?Neill",'??','  Nandi   Dlamini  ']:
+            with self.subTest(name=name):
+                response=self.client.post('/franchisees/opportunities?area=register',data=self.fields(full_name=name,cellphone='invalid'))
+                self.assertEqual(response.status_code,400)
+                page=html.fromstring(response.text)
+                self.assertEqual(page.xpath('//*[@aria-invalid="true"]/@name'),['cellphone'])
+                self.assertEqual(page.xpath('//input[@name="full_name"]/@value'),[name])
+        response=self.client.post('/franchisees/opportunities?area=register',data=self.fields(full_name='x'*161,sa_id='bad',cellphone='bad',address='x',occupation='x'*161))
+        self.assertEqual(response.status_code,400)
+        page=html.fromstring(response.text)
+        self.assertEqual(set(page.xpath('//*[@aria-invalid="true"]/@name')),{'full_name','sa_id','cellphone','address','occupation'})
+        self.assertEqual(self.Registration.query.count(),0)
+
     def test_bridge_link_is_visible_for_ordinary_users_and_admins(self):
         for endpoint in ['admin_bp.global_settings','admin_bp.programs_index','admin_bp.security_dashboard']:
             self.app.add_url_rule('/test/'+endpoint,endpoint=endpoint,view_func=lambda:'Existing admin destination')
@@ -399,11 +492,20 @@ class FranchiseeTests(unittest.TestCase):
                     self.assertFalse(page.locator('#working-area').is_visible())
                     menu.get_by_role('link',name='Register',exact=True).click()
                     self.assertTrue(page.locator('#working-area').is_visible())
-                    for field,value in self.fields(email='other@example.org',full_name='Other Example',sa_id=valid_id('800102500908')).items():
+                    entered=self.fields(email='other@example.org',full_name='Bill',sa_id=valid_id('800102500908'))
+                    for field,value in entered.items():
                         if field!='email':page.locator('[name='+field+']').fill(value)
+                    page.locator('[name=cellphone]').fill('invalid')
+                    page.get_by_role('button',name='Submit registration',exact=True).click()
+                    page.locator('#franchisee-cellphone-error').wait_for()
+                    for field,value in entered.items():
+                        expected='invalid' if field=='cellphone' else value
+                        self.assertEqual(page.locator('[name='+field+']').input_value(),expected)
+                    page.screenshot(path=str(ROOT/'tmp/franchisee-validation.png'),full_page=True)
+                    page.locator('[name=cellphone]').fill(entered['cellphone'])
                     page.get_by_role('button',name='Submit registration',exact=True).click()
                     page.wait_for_url('**/franchisees/opportunities?area=register')
-                    self.assertEqual(referrers,[origin+'/'])
+                    self.assertEqual(referrers,[origin+'/',origin+'/'])
                     self.assertIn('My Profile',page.locator('main').inner_text())
                     self.assertNotIn('Admin approval',page.locator('main').inner_text())
                     page.get_by_role('link',name='Close',exact=True).click()

@@ -14,7 +14,7 @@ from flask_login import current_user
 from flask_mail import Message
 from flask_wtf.csrf import CSRFError
 from sqlalchemy import func, or_, text
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from app.extensions import db, mail
 from app.models.auth import User
@@ -22,6 +22,12 @@ from app.models.franchisee import FranchiseeRegistration as Registration
 from app.utils.roles import is_admin
 
 franchisee_bp = Blueprint('franchisee_bp', __name__)
+
+
+class RegistrationValidationError(ValueError):
+    def __init__(self, errors):
+        super().__init__('Please correct the highlighted fields.')
+        self.errors = errors
 
 
 @franchisee_bp.context_processor
@@ -128,7 +134,7 @@ def opportunities():
     if area not in {'', 'register', 'clients', 'earnings', 'protrade'}:
         abort(400)
     registration = current_registration()
-    error, status = None, 200
+    error, status, errors = None, 200, {}
     if request.method == 'POST':
         area = 'register'
         # Serialize self-registration for this account, including double submissions.
@@ -159,18 +165,30 @@ def opportunities():
                 return dashboard_response(registration, area, 'Use Complete Registration to activate your saved details.', 409)
         except ValueError as exc:
             db.session.rollback()
-            error, status = str(exc), 400
+            error, status, errors = str(exc), 400, getattr(exc, 'errors', {})
         except IntegrityError:
             db.session.rollback()
             error, status = 'A registration already exists for these details.', 409
+        except SQLAlchemyError:
+            db.session.rollback()
+            return dashboard_response(None, area,
+                                      'Registration could not be confirmed. Reload the dashboard before trying again.', 503)
         else:
             flash('Registration complete. Your franchisee account is active.', 'success')
             return redirect(url_for('franchisee_bp.opportunities', area='register'))
         registration = current_registration()
-    return dashboard_response(registration, area, error, status)
+    return dashboard_response(registration, area, error, status, errors)
 
 
-def dashboard_response(registration, area, error=None, status=200):
+def dashboard_response(registration, area, error=None, status=200, errors=None):
+    identity, address = None, None
+    if area == 'register' and registration and registration.identity_ciphertext:
+        try:
+            encryption = cipher()
+            identity = encryption.decrypt(registration.identity_ciphertext.encode()).decode()
+            address = encryption.decrypt(registration.address_ciphertext.encode()).decode()
+        except InvalidToken:
+            error, status = 'Your registration is saved, but its private details could not be read. Contact AIT Admin.', 503
     shops, earnings = [], []
     if registration and registration.is_active and area in {'clients', 'earnings'}:
         from app.models.mechanic import MechShop, ProTradeDocument
@@ -185,7 +203,8 @@ def dashboard_response(registration, area, error=None, status=200):
                 ProTradeDocument.user_id == current_user.id, MechShop.user_id == current_user.id,
                 ProTradeDocument.kind == 'boq_section').order_by(ProTradeDocument.created_at.desc(), ProTradeDocument.id.desc()).all()
     return render_template('franchisees/opportunities.html', registration=registration, area=area,
-                           shops=shops, earnings=earnings, error=error), status
+                           shops=shops, earnings=earnings, error=error, errors=errors or {}, identity=identity, address=address,
+                           registration_unavailable=registration is None and status == 503), status
 
 
 @franchisee_bp.route('/admin/franchisees', methods=['GET', 'POST'])
@@ -295,15 +314,26 @@ def save_registration(row, activate=False):
     phone = re.sub(r'[\s()-]', '', request.form.get('cellphone') or '')
     address = (request.form.get('address') or '').strip()
     occupation = (request.form.get('occupation') or '').strip()
-    if len(name.split()) < 2 or len(name) > 160:
-        raise ValueError('Enter your full name and surname (up to 160 characters).')
+    errors = {}
+    if not name or len(name) > 160:
+        errors['full_name'] = 'Enter your full name (up to 160 characters).'
     if not re.fullmatch(r'(?:0[0-9]{9}|\+27[0-9]{9})', phone):
-        raise ValueError('Enter a valid SA cellphone number, starting with 0 or +27.')
-    if not 5 <= len(address) <= 1000 or len(occupation) > 160:
-        raise ValueError('Enter a residential address (5–1000 characters) and an optional occupation (up to 160 characters).')
-    if normal_email(request.form.get('email')) != row.email:
-        raise ValueError('Use the email address for this registration account.')
-    identity = identity_number(request.form.get('sa_id'))
+        errors['cellphone'] = 'Enter a valid SA cellphone number, starting with 0 or +27.'
+    if not 5 <= len(address) <= 1000:
+        errors['address'] = 'Enter a residential address (5?1000 characters).'
+    if len(occupation) > 160:
+        errors['occupation'] = 'Use up to 160 characters for your occupation.'
+    try:
+        if normal_email(request.form.get('email')) != row.email:
+            errors['email'] = 'Use the email address for this registration account.'
+    except ValueError as exc:
+        errors['email'] = str(exc)
+    try:
+        identity = identity_number(request.form.get('sa_id'))
+    except ValueError as exc:
+        errors['sa_id'] = str(exc)
+    if errors:
+        raise RegistrationValidationError(errors)
     # HMAC, rather than a dictionary-attackable plain hash, identifies duplicates.
     user_id = linked_user(row.email)  # Resolve before mutations can trigger autoflush.
     key = current_app.config['FRANCHISEE_PII_KEY']
@@ -328,7 +358,7 @@ def register(token):
         try:
             save_registration(row)
         except ValueError as error:
-            return render_template('franchisees/register.html', error=str(error)), 400
+            return render_template('franchisees/register.html', error=str(error), errors=getattr(error, 'errors', {})), 400
         except IntegrityError:
             db.session.rollback()
             return render_template('franchisees/register.html', error='A registration already exists for these details. Contact AIT Admin.'), 409

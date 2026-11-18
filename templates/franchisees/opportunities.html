@@ -24,9 +24,11 @@
       </div>
       {% if error %}<p class="franchisee-error" role="alert">{{ error }}</p>{% endif %}
       {% if area=='register' %}
-        {% if registration and registration.status != 'Invited' %}
+        {% if registration_unavailable %}
+          <p><a class="franchisee-button" href="{{ url_for('franchisee_bp.opportunities', area='register') }}">Reload dashboard</a></p>
+        {% elif registration and registration.status != 'Invited' %}
           <p>Status: <strong>{{ 'Suspended' if registration.is_suspended else 'Active' if registration.is_active else registration.status }}</strong>{% if registration.franchisee_number %} &middot; {{ registration.franchisee_number }}{% endif %}</p>
-          <dl><dt>Name</dt><dd>{{ registration.full_name }}</dd><dt>Email</dt><dd>{{ registration.email }}</dd><dt>Cellphone</dt><dd>{{ registration.cellphone }}</dd><dt>Occupation</dt><dd>{{ registration.occupation or 'Not supplied' }}</dd></dl>
+          <dl><dt>Name</dt><dd>{{ registration.full_name }}</dd><dt>Email</dt><dd>{{ registration.email }}</dd><dt>Cellphone</dt><dd>{{ registration.cellphone }}</dd><dt>Occupation</dt><dd>{{ registration.occupation or 'Not supplied' }}</dd>{% if identity is not none %}<dt>SA ID number</dt><dd>{{ identity }}</dd><dt>Residential address</dt><dd>{{ address }}</dd>{% endif %}</dl>
           {% if registration.status=='Submitted' %}
             <p>Your details are saved. Complete registration to activate your franchisee account.</p>
             <form method="post" action="{{ url_for('franchisee_bp.opportunities', area='register') }}">

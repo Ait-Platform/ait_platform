@@ -340,7 +340,6 @@ class BudgetReview(unittest.TestCase):
         self.assertEqual(response.location, '/budget/dashboard')
         self.assertEqual(self.client.get(response.location).status_code, 200)
 
-    @unittest.expectedFailure
     def test_shared_registration_rejects_invalid_email_server_side(self):
         self.login(None)
         response = self.client.post('/register', data={'subject': 'budget', 'email': 'invalid-email', 'password': 'safe-password', 'full_name': 'Invalid Email', 'next': '/budget/dashboard'})

@@ -268,7 +268,20 @@ def register():
             subject=subject,
             next_url=next_url,
             values=values,
-        )
+        ), 400
+
+    try:
+        from email_validator import validate_email, EmailNotValidError
+        email_norm = validate_email(email_in, check_deliverability=False).normalized.lower()
+    except (EmailNotValidError, Exception):
+        flash("Please provide a valid email address.", "danger")
+        return render_template(
+            "auth/register.html",
+            role=role,
+            subject=subject,
+            next_url=next_url,
+            values=values,
+        ), 400
 
     if len(password) < 8:
         flash("Password must be at least 8 characters long.", "danger")

@@ -30,3 +30,14 @@ class FranchiseeRegistration(db.Model):
         db.CheckConstraint("(status='Approved') = (franchisee_number IS NOT NULL)", name='ck_franchisee_approved_number'),
         db.CheckConstraint("status='Invited' OR (full_name IS NOT NULL AND cellphone IS NOT NULL AND identity_ciphertext IS NOT NULL AND address_ciphertext IS NOT NULL AND identity_digest IS NOT NULL AND submitted_at IS NOT NULL AND invitation_digest IS NULL)", name='ck_franchisee_submitted'),
     )
+
+    @property
+    def is_suspended(self):
+        for event in reversed(self.history or []):
+            if event.get('action') in {'suspended', 'reinstated'}:
+                return event['action'] == 'suspended'
+        return False
+
+    @property
+    def is_active(self):
+        return self.status == 'Approved' and not self.is_suspended

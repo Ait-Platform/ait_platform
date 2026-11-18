@@ -179,7 +179,7 @@ class FranchiseeTests(unittest.TestCase):
         self.assertEqual(self.client.post('/admin/franchisees/'+str(row.id),data={'action':'approve'}).status_code,409)
         self.assertEqual(self.session.execute(sa.text('SELECT * FROM "user" ORDER BY id')).all(),before)
 
-    def test_opportunities_navigation_is_scoped_and_preserves_approval(self):
+    def test_opportunities_navigation_is_scoped_and_activates_automatically(self):
         for path in ['/franchisees/opportunities','/franchisees/opportunities/register']:
             self.login(None)
             self.assertEqual(self.client.get(path).status_code,401)
@@ -199,12 +199,9 @@ class FranchiseeTests(unittest.TestCase):
         self.assertNotIn(token,response.text)
         self.assertEqual(self.client.post('/franchisees/opportunities',data=self.fields()).status_code,302)
         self.assertEqual(self.client.get('/franchisees/register/'+token).status_code,400)
-        self.assertIn('awaiting AIT Admin approval',self.client.get('/franchisees/opportunities?area=register').text)
-        self.assertNotIn('Open ProTrade',self.client.get('/franchisees/opportunities?area=protrade').text)
-        self.login(1)
-        row=self.Registration.query.one()
-        self.assertEqual(self.client.post(f'/admin/franchisees/{row.id}',data={'action':'approve'}).status_code,302)
-        self.login(2)
+        profile=self.client.get('/franchisees/opportunities?area=register')
+        self.assertIn('My Profile',profile.text)
+        self.assertNotIn('awaiting AIT Admin approval',profile.text)
         self.assertIn('Open ProTrade',self.client.get('/franchisees/opportunities?area=protrade').text)
         self.login(3)
         response=self.client.get('/franchisees/opportunities?area=register')
@@ -221,8 +218,10 @@ class FranchiseeTests(unittest.TestCase):
         self.assertEqual(self.client.post('/franchisees/opportunities',data=self.fields(email='other@example.org')).status_code,400)
         self.assertEqual(self.client.post('/franchisees/opportunities',data=self.fields()).status_code,302)
         row=self.Registration.query.one()
-        self.assertEqual((row.user_id,row.created_by,row.status),(2,2,'Submitted'))
-        self.assertIsNone(row.franchisee_number)
+        self.assertEqual((row.user_id,row.created_by,row.status),(2,2,'Approved'))
+        self.assertEqual(row.franchisee_number,'FR-0001')
+        self.assertIsNone(row.reviewed_by)
+        self.assertTrue(row.is_active)
         self.assertNotIn(valid_id(),row.identity_ciphertext)
         self.assertEqual(row.history[-1]['actor_id'],2)
         self.assertEqual(self.client.post('/franchisees/opportunities',data=self.fields()).status_code,409)
@@ -261,6 +260,96 @@ class FranchiseeTests(unittest.TestCase):
             self.assertNotIn(private,response.text)
         self.assertEqual(before,self.session.execute(sa.text('SELECT id,snapshot::text FROM protrade_document ORDER BY id')).all())
 
+    def test_https_csrf_and_validation_errors_stay_inside_dashboard(self):
+        self.login(2)
+        self.app.config['WTF_CSRF_ENABLED']=True
+        url='/franchisees/opportunities?area=register'
+        origin='https://localhost'
+        page=self.client.get(url,base_url=origin)
+        self.assertEqual(page.headers['Referrer-Policy'],'strict-origin')
+        token=html.fromstring(page.text).xpath('//input[@name="csrf_token"]/@value')[0]
+        data=self.fields(csrf_token=token)
+        for fields,headers in [(self.fields(),{'Referer':origin+'/'}),(data,{}),(data,{'Referer':'https://other.example/'})]:
+            response=self.client.post(url,base_url=origin,data=fields,headers=headers)
+            self.assertEqual(response.status_code,400)
+            self.assertIn('Franchisee Dashboard',response.text)
+            self.assertIn('Your form security check failed',response.text)
+            self.assertEqual(self.Registration.query.count(),0)
+        self.app.config['WTF_CSRF_TIME_LIMIT']=-1
+        response=self.client.post(url,base_url=origin,data=data,headers={'Referer':origin+'/'})
+        self.assertEqual(response.status_code,400)
+        self.assertIn('Reload Register',response.text)
+        self.app.config['WTF_CSRF_TIME_LIMIT']=3600
+        response=self.client.post(url,base_url=origin,data=self.fields(csrf_token=token,full_name='One'),headers={'Referer':origin+'/'})
+        self.assertEqual(response.status_code,400)
+        self.assertIn('Enter your full name and surname',response.text)
+        self.assertIn('role="alert"',response.text)
+        response=self.client.post(url,base_url=origin,data=data,headers={'Referer':origin+'/'})
+        self.assertEqual(response.status_code,302)
+        row=self.Registration.query.one()
+        self.assertTrue(row.is_active)
+        self.assertEqual(row.franchisee_number,'FR-0001')
+
+    def test_unique_numbers_admin_visibility_and_audited_suspension(self):
+        before=self.session.execute(sa.text('SELECT * FROM "user" ORDER BY id')).all()
+        for uid,email,identity in [(2,'happiness@example.org',valid_id()),(3,'other@example.org',valid_id('800102500908'))]:
+            self.login(uid)
+            response=self.client.post('/franchisees/opportunities',data=self.fields(email=email,sa_id=identity,user_id='1',status='Submitted',franchisee_number='FR-FAKE'))
+            self.assertEqual(response.status_code,302)
+        rows=self.Registration.query.order_by(self.Registration.id).all()
+        self.assertEqual([row.franchisee_number for row in rows],['FR-0001','FR-0002'])
+        identifier=rows[0].id
+        original_history=list(rows[0].history)
+        self.login(1)
+        listing=self.client.get('/admin/franchisees')
+        self.assertIn('FR-0001',listing.text)
+        self.assertIn('FR-0002',listing.text)
+        self.assertIn('Suspend franchisee',self.client.get(f'/admin/franchisees/{identifier}').text)
+        self.assertEqual(self.client.post(f'/admin/franchisees/{identifier}',data={'action':'suspend'}).status_code,302)
+        row=self.Registration.query.get(identifier)
+        self.assertTrue(row.is_suspended)
+        self.assertFalse(row.is_active)
+        self.assertEqual(row.franchisee_number,'FR-0001')
+        self.assertEqual(row.history[:-1],original_history)
+        self.assertEqual(row.history[-1]['actor_id'],1)
+        self.assertEqual(self.client.post(f'/admin/franchisees/{identifier}',data={'action':'suspend'}).status_code,409)
+        self.login(2)
+        for area in ['register','clients','earnings','protrade']:
+            response=self.client.get('/franchisees/opportunities?area='+area)
+            self.assertIn('suspended by AIT Admin',response.text)
+            self.assertNotIn('Open ProTrade',response.text)
+        self.assertEqual(self.client.post('/franchisees/opportunities',data=self.fields()).status_code,409)
+        self.assertEqual(self.client.post(f'/admin/franchisees/{identifier}',data={'action':'reinstate'}).status_code,403)
+        self.login(1)
+        self.assertEqual(self.client.post(f'/admin/franchisees/{identifier}',data={'action':'reinstate'}).status_code,302)
+        row=self.Registration.query.get(identifier)
+        self.assertTrue(row.is_active)
+        self.assertEqual(row.franchisee_number,'FR-0001')
+        self.assertEqual(row.history[-1]['action'],'reinstated')
+        self.login(2)
+        self.assertIn('Open ProTrade',self.client.get('/franchisees/opportunities?area=protrade').text)
+        self.assertEqual(before,self.session.execute(sa.text('SELECT * FROM "user" ORDER BY id')).all())
+
+    def test_previously_submitted_registration_can_activate_without_reentry(self):
+        token=self.invite()
+        self.assertEqual(self.submit(token).status_code,302)
+        row=self.Registration.query.one()
+        identity,address,history=row.identity_ciphertext,row.address_ciphertext,list(row.history)
+        row.user_id=None  # A legacy submission made before its AIT account was linked.
+        self.session.commit()
+        self.login(2)
+        page=self.client.get('/franchisees/opportunities?area=register')
+        self.assertIn('Complete Registration',page.text)
+        self.assertNotIn('awaiting AIT Admin approval',page.text)
+        self.assertEqual(self.client.post('/franchisees/opportunities',data={'action':'activate'}).status_code,302)
+        row=self.Registration.query.one()
+        self.assertTrue(row.is_active)
+        self.assertEqual(row.franchisee_number,'FR-0001')
+        self.assertEqual(row.user_id,2)
+        self.assertEqual((row.identity_ciphertext,row.address_ciphertext),(identity,address))
+        self.assertEqual(row.history[:-1],history)
+        self.assertEqual(self.client.post('/franchisees/opportunities',data={'action':'activate'}).status_code,409)
+
     def test_bridge_link_is_visible_for_ordinary_users_and_admins(self):
         for endpoint in ['admin_bp.global_settings','admin_bp.programs_index','admin_bp.security_dashboard']:
             self.app.add_url_rule('/test/'+endpoint,endpoint=endpoint,view_func=lambda:'Existing admin destination')
@@ -287,15 +376,18 @@ class FranchiseeTests(unittest.TestCase):
         self.session.rollback()
         self.app.jinja_loader=FileSystemLoader(ROOT/'templates')
         self.app.jinja_env.cache.clear()
-        server=make_server('127.0.0.1',0,self.app,request_handler=QuietHandler)
-        origin=f'http://127.0.0.1:{server.server_port}'
+        self.app.config['WTF_CSRF_ENABLED']=True
+        server=make_server('127.0.0.1',0,self.app,request_handler=QuietHandler,ssl_context='adhoc')
+        origin=f'https://127.0.0.1:{server.server_port}'
         thread=threading.Thread(target=server.serve_forever,daemon=True);thread.start()
         try:
             with sync_playwright() as runtime:
                 browser=runtime.chromium.launch(headless=True)
                 try:
-                    page=browser.new_page(viewport={'width':1280,'height':900})
-                    page.route('https://**/*',lambda route:route.abort())
+                    page=browser.new_page(viewport={'width':1280,'height':900},ignore_https_errors=True)
+                    referrers=[]
+                    page.on('request',lambda req:referrers.append(req.headers.get('referer')) if req.method=='POST' and '/franchisees/opportunities' in req.url else None)
+                    page.route('https://**/*',lambda route:route.continue_() if route.request.url.startswith(origin+'/') else route.abort())
                     def login(uid):
                         cookie=self.app.session_interface.get_signing_serializer(self.app).dumps({'_user_id':str(uid),'_fresh':True})
                         page.context.add_cookies([{'name':self.app.config['SESSION_COOKIE_NAME'],'value':cookie,'url':origin}])
@@ -311,7 +403,9 @@ class FranchiseeTests(unittest.TestCase):
                         if field!='email':page.locator('[name='+field+']').fill(value)
                     page.get_by_role('button',name='Submit registration',exact=True).click()
                     page.wait_for_url('**/franchisees/opportunities?area=register')
-                    self.assertIn('awaiting AIT Admin approval',page.locator('main').inner_text())
+                    self.assertEqual(referrers,[origin+'/'])
+                    self.assertIn('My Profile',page.locator('main').inner_text())
+                    self.assertNotIn('Admin approval',page.locator('main').inner_text())
                     page.get_by_role('link',name='Close',exact=True).click()
                     self.assertFalse(page.locator('#working-area').is_visible())
                     artifact=ROOT/'tmp/franchisee-dashboard.png'

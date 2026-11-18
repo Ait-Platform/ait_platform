@@ -5,5 +5,5 @@
 <label>Email address<input type="email" name="email" value="{{ registration_email|default('') }}" {% if registration_email is defined %}readonly{% endif %} required maxlength="254" autocomplete="email"></label>
 <label>Residential address<textarea name="address" required minlength="5" maxlength="1000" rows="3" autocomplete="street-address"></textarea></label>
 <label>Current occupation (optional)<input name="occupation" maxlength="160"></label>
-<p>The registration date is recorded automatically. A unique franchisee number is assigned only after Admin approval.</p>
+<p>{% if registration_self_service|default(false) %}A unique franchisee number is assigned when you complete registration.{% else %}The registration date is recorded automatically. A unique franchisee number is assigned only after Admin approval.{% endif %}</p>
 <div class="franchisee-actions"><button class="franchisee-button" type="submit">Submit registration</button></div></form>

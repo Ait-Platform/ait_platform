@@ -12,6 +12,7 @@ from email_validator import validate_email, EmailNotValidError
 from flask import Blueprint, abort, current_app, flash, redirect, render_template, request, url_for
 from flask_login import current_user
 from flask_mail import Message
+from flask_wtf.csrf import CSRFError
 from sqlalchemy import func, or_, text
 from sqlalchemy.exc import IntegrityError
 
@@ -85,11 +86,35 @@ def guard():
 @franchisee_bp.after_request
 def private_response(response):
     response.headers['Cache-Control'] = 'no-store, private'
-    response.headers['Referrer-Policy'] = 'no-referrer'
+    # Flask-WTF's strict HTTPS CSRF check needs the origin; private paths stay omitted.
+    response.headers['Referrer-Policy'] = 'strict-origin'
     response.headers['X-Robots-Tag'] = 'noindex, nofollow'
     # Sensitive forms must not run third-party scripts from the global layout.
     response.headers['Content-Security-Policy'] = "default-src 'self'; script-src 'none'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; form-action 'self'; frame-ancestors 'none'; base-uri 'none'"
     return response
+
+
+def current_registration():
+    row = Registration.query.filter_by(user_id=current_user.id).first()
+    if row:
+        return row
+    try:
+        email = normal_email(current_user.email)
+    except ValueError:
+        return None
+    if linked_user(email) != current_user.id:
+        abort(409, description='The account link needs Admin review.')
+    # Invitations submitted before this AIT account existed retain their original identity.
+    return Registration.query.filter_by(user_id=None, email=email).first()
+
+
+@franchisee_bp.errorhandler(CSRFError)
+def registration_csrf_error(error):
+    if request.endpoint == 'franchisee_bp.opportunities' and current_user.is_authenticated:
+        registration = current_registration()
+        return dashboard_response(registration, 'register',
+                                  'Your form security check failed. Reload Register and submit again.', 400)
+    return error.get_response()
 
 
 @franchisee_bp.route('/franchisees/opportunities/register', endpoint='registration_start')
@@ -102,13 +127,16 @@ def opportunities():
     area = request.args.get('area', '')
     if area not in {'', 'register', 'clients', 'earnings', 'protrade'}:
         abort(400)
-    registration = Registration.query.filter_by(user_id=current_user.id).first()
+    registration = current_registration()
     error, status = None, 200
     if request.method == 'POST':
         area = 'register'
         # Serialize self-registration for this account, including double submissions.
         User.query.filter_by(id=current_user.id).with_for_update().one()
-        email = normal_email(current_user.email)
+        try:
+            email = normal_email(current_user.email)
+        except ValueError:
+            return dashboard_response(registration, area, 'Your AIT account needs a valid email address.', 400)
         if linked_user(email) != current_user.id:
             abort(409, description='The account link needs Admin review.')
         matches = Registration.query.filter(or_(Registration.user_id == current_user.id,
@@ -118,10 +146,17 @@ def opportunities():
         registration = matches[0] if matches else Registration(
             email=email, user_id=current_user.id, status='Invited', created_at=now(),
             created_by=current_user.id, history=[])
-        if registration.status != 'Invited':
-            abort(409, description='This registration has already been submitted or reviewed.')
+        if registration.status not in {'Invited', 'Submitted'}:
+            return dashboard_response(registration, area, 'This registration has already been completed or reviewed.', 409)
         try:
-            save_registration(registration)
+            if registration.status == 'Submitted' and request.form.get('action') == 'activate':
+                registration.user_id = current_user.id
+                activate_registration(registration, current_user.id, automatic=True)
+                db.session.commit()
+            elif registration.status == 'Invited':
+                save_registration(registration, activate=True)
+            else:
+                return dashboard_response(registration, area, 'Use Complete Registration to activate your saved details.', 409)
         except ValueError as exc:
             db.session.rollback()
             error, status = str(exc), 400
@@ -129,11 +164,15 @@ def opportunities():
             db.session.rollback()
             error, status = 'A registration already exists for these details.', 409
         else:
-            flash('Registration submitted for AIT Admin approval.', 'success')
+            flash('Registration complete. Your franchisee account is active.', 'success')
             return redirect(url_for('franchisee_bp.opportunities', area='register'))
-        registration = Registration.query.filter_by(user_id=current_user.id).first()
+        registration = current_registration()
+    return dashboard_response(registration, area, error, status)
+
+
+def dashboard_response(registration, area, error=None, status=200):
     shops, earnings = [], []
-    if registration and registration.status == 'Approved' and area in {'clients', 'earnings'}:
+    if registration and registration.is_active and area in {'clients', 'earnings'}:
         from app.models.mechanic import MechShop, ProTradeDocument
         if area == 'clients':
             shops = MechShop.query.filter_by(user_id=current_user.id).order_by(MechShop.business_name, MechShop.id).all()
@@ -240,7 +279,17 @@ def identity_number(raw):
     return value
 
 
-def save_registration(row):
+def activate_registration(row, actor, automatic=False):
+    if not row.franchisee_number:
+        with db.session.no_autoflush:
+            number = db.session.execute(text("SELECT nextval('ait_franchisee_number_seq')")).scalar_one()
+        row.franchisee_number = f'FR-{number:04d}'
+    row.status, row.reviewed_at = 'Approved', now()
+    row.reviewed_by = None if automatic else actor
+    audit(row, 'automatically_activated' if automatic else 'approved', actor)
+
+
+def save_registration(row, activate=False):
     encryption = cipher()
     name = ' '.join((request.form.get('full_name') or '').split())
     phone = re.sub(r'[\s()-]', '', request.form.get('cellphone') or '')
@@ -266,6 +315,8 @@ def save_registration(row):
     row.status, row.submitted_at, row.invitation_digest = 'Submitted', now(), None
     audit(row, 'submitted', current_user.id if current_user.is_authenticated else None)
     db.session.add(row)
+    if activate:
+        activate_registration(row, current_user.id, automatic=True)
     db.session.commit()
 
 
@@ -303,14 +354,18 @@ def review(identifier):
             abort(503, description='Private registration details cannot be read. Contact AIT Admin.')
     if request.method == 'POST':
         action = request.form.get('action')
-        if row.status != 'Submitted' or action not in ('approve', 'reject'):
-            abort(409, description='Only a submitted registration can be approved or rejected once.')
-        if action == 'approve':
-            number = db.session.execute(text("SELECT nextval('ait_franchisee_number_seq')")).scalar_one()
-            row.franchisee_number = f'FR-{number:04d}'
-        row.status = 'Approved' if action == 'approve' else 'Rejected'
-        row.reviewed_at, row.reviewed_by = now(), current_user.id
-        audit(row, row.status.lower(), current_user.id)
+        if row.status == 'Approved' and action in {'suspend', 'reinstate'}:
+            if (action == 'suspend') == row.is_suspended:
+                abort(409, description='This registration is already in the requested state.')
+            audit(row, 'suspended' if action == 'suspend' else 'reinstated', current_user.id)
+        elif row.status == 'Submitted' and action in {'approve', 'reject'}:
+            if action == 'approve':
+                activate_registration(row, current_user.id)
+            else:
+                row.status, row.reviewed_at, row.reviewed_by = 'Rejected', now(), current_user.id
+                audit(row, 'rejected', current_user.id)
+        else:
+            abort(409, description='This action is not available for the registration status.')
         db.session.commit()
         return redirect(url_for('franchisee_bp.review', identifier=row.id))
     return render_template('franchisees/review.html', row=row, identity=identity, address=address)

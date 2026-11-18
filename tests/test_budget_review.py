@@ -551,10 +551,24 @@ class BudgetReview(unittest.TestCase):
         self.assertNotIn('88.00', report.text)
         self.assertNotIn('Hidden other account', self.client.get('/budget/snapshots').text)
 
-    @unittest.expectedFailure
     def test_legacy_csv_import_contract_matches_current_ledger_model(self):
         data = {'file': (io.BytesIO(b'ext_ref,txn_date,amount,balance\nreview-1,2026-11-01,12.00,12.00\n'), 'review.csv')}
-        self.assertEqual(self.client.post('/budget/import-statement', data=data).status_code, 302)
+        resp = self.client.post('/budget/import-statement', data=data)
+        self.assertEqual(resp.status_code, 302)
+        # Verify imported entry exists in bud_ledger
+        count = self.session.execute(sa.text("SELECT count(*) FROM bud_ledger WHERE user_id=:u AND source='external'"), {'u': self.user_id}).scalar()
+        self.assertEqual(count, 1)
+        # Repeated import must prevent duplicate entries
+        data2 = {'file': (io.BytesIO(b'ext_ref,txn_date,amount,balance\nreview-1,2026-11-01,12.00,12.00\n'), 'review.csv')}
+        self.assertEqual(self.client.post('/budget/import-statement', data=data2).status_code, 302)
+        count_after = self.session.execute(sa.text("SELECT count(*) FROM bud_ledger WHERE user_id=:u AND source='external'"), {'u': self.user_id}).scalar()
+        self.assertEqual(count_after, 1)
+        # Verify imported entry appears in cashbook
+        ledger_page = self.client.get('/budget/ledger')
+        self.assertIn('12.00', ledger_page.text)
+        # Invalid PDF guard
+        pdf_data = {'file': (io.BytesIO(b'%PDF-1.4 dummy pdf'), 'statement.pdf')}
+        self.assertEqual(self.client.post('/budget/import-statement', data=pdf_data).status_code, 302)
 
     @unittest.expectedFailure
     def test_legacy_external_summary_contract_matches_current_ledger_model(self):

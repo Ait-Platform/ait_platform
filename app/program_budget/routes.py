@@ -68,69 +68,153 @@ from . import budget_bp
 @login_required
 def import_statement():
     f = request.files.get("file")
-    if not f:
-        abort(400, "missing file")
+    if not f or not f.filename:
+        flash("Please upload a CSV file.", "warning")
+        return redirect(url_for("budget_bp.import_page")), 302
 
     raw_bytes = f.read()
 
     # quick file-type guard
     if raw_bytes[:4] == b"%PDF":
-        abort(400, "Please upload a CSV file (not PDF).")
+        flash("Please upload a CSV file (not PDF).", "warning")
+        return redirect(url_for("budget_bp.import_page")), 302
 
     # decode + strip UTF-8 BOM if present
     raw = raw_bytes.decode("utf-8-sig", errors="replace")
 
     rdr = csv.DictReader(io.StringIO(raw))
 
-    fieldnames = [(c or "").strip() for c in (rdr.fieldnames or [])]
-    required = {"ext_ref", "txn_date", "amount", "balance"}
-    if not required.issubset(set(fieldnames)):
-        abort(400, f"CSV must have columns: ext_ref, txn_date, amount, balance (got: {fieldnames})")
+    fieldnames = [(c or "").strip().lower() for c in (rdr.fieldnames or [])]
+    required = {"ext_ref", "txn_date", "amount"}
+    alt_required = {"date", "amount"}
+    if not required.issubset(set(fieldnames)) and not alt_required.issubset(set(fieldnames)):
+        flash(f"CSV must contain headings: ext_ref, txn_date, amount, balance (got: {', '.join(fieldnames)})", "danger")
+        return redirect(url_for("budget_bp.import_page")), 302
 
-
-
+    # Resolve target account
+    target_account_id = (request.form.get("account_id") or "").strip()
+    if target_account_id and target_account_id.isdigit():
+        _require_owned_account(int(target_account_id))
+        target_aid = int(target_account_id)
+    else:
+        # Find existing default asset / bank account for this user
+        acc_row = db.session.execute(text("""
+            SELECT id FROM bud_account 
+             WHERE user_id = :uid AND (lower(name) = 'bank' OR kind = 'asset')
+             ORDER BY id ASC LIMIT 1
+        """), {"uid": current_user.id}).first()
+        if acc_row:
+            target_aid = acc_row[0]
+        else:
+            acc_row = db.session.execute(text("""
+                SELECT id FROM bud_account WHERE user_id = :uid ORDER BY id ASC LIMIT 1
+            """), {"uid": current_user.id}).first()
+            if acc_row:
+                target_aid = acc_row[0]
+            else:
+                new_acc = db.session.execute(text("""
+                    INSERT INTO bud_account (user_id, name, kind, code)
+                    VALUES (:uid, 'Bank', 'asset', 'bank')
+                    RETURNING id
+                """), {"uid": current_user.id}).fetchone()
+                target_aid = new_acc[0]
+                db.session.commit()
 
     rows = []
     for r in rdr:
-        ext_ref = (r.get("ext_ref") or "").strip()
-        if not ext_ref:
+        r_norm = {k.strip().lower(): (v or "").strip() for k, v in r.items() if k}
+        ext_ref = r_norm.get("ext_ref") or r_norm.get("ref") or r_norm.get("id") or ""
+        date_str = r_norm.get("txn_date") or r_norm.get("date") or ""
+        amt_str = r_norm.get("amount") or ""
+        bal_str = r_norm.get("balance") or ""
+        desc_str = r_norm.get("description") or r_norm.get("desc") or ""
+
+        if not (date_str and amt_str):
             continue
+
+        try:
+            parsed_date = _parse_date(date_str)
+            cents = _to_cents(amt_str)
+        except Exception:
+            continue
+
+        bal_cents = None
+        if bal_str:
+            try:
+                bal_cents = _to_cents(bal_str)
+            except Exception:
+                bal_cents = None
+
+        formatted_desc = f"[{ext_ref}] {desc_str}".strip() if ext_ref else (desc_str or "External Import")
+
         rows.append({
             "ext_ref": ext_ref,
-            "txn_date": _parse_date(r.get("txn_date")),
-            "description": (r.get("description") or "").strip() or None,
-            "amount_cents": _to_cents(r.get("amount")),
-            "balance_cents": _to_cents(r.get("balance")),
+            "txn_date": parsed_date,
+            "description": formatted_desc,
+            "amount_cents": cents,
+            "balance_cents": bal_cents,
         })
 
     # deterministic ordering
     rows.sort(key=lambda x: (x["txn_date"], x["ext_ref"]))
 
     inserted = 0
-    updated = 0
+    skipped = 0
 
     for r in rows:
-        existing = BudLedger.query.filter_by(source="external", ext_ref=r["ext_ref"]).first()
+        existing = db.session.execute(text("""
+            SELECT id FROM bud_ledger
+             WHERE user_id = :uid AND account_id = :aid AND txn_date = :d AND amount_cents = :c
+               AND source = 'external' AND (description = :desc OR description LIKE :ref_prefix)
+             LIMIT 1
+        """), {
+            "uid": current_user.id,
+            "aid": target_aid,
+            "d": r["txn_date"],
+            "c": r["amount_cents"],
+            "desc": r["description"],
+            "ref_prefix": f"[{r['ext_ref']}]%" if r["ext_ref"] else f"%{r['description']}%",
+        }).first()
+
         if existing:
-            existing.txn_date = r["txn_date"]
-            existing.description = r["description"]
-            existing.amount_cents = r["amount_cents"]
-            existing.balance_cents = r["balance_cents"]
-            updated += 1
-        else:
-            db.session.add(BudLedger(
-                source="external",
-                ext_ref=r["ext_ref"],
-                txn_date=r["txn_date"],
-                description=r["description"],
-                amount_cents=r["amount_cents"],
-                balance_cents=r["balance_cents"],
-            ))
-            inserted += 1
+            skipped += 1
+            continue
+
+        db.session.execute(text("""
+            INSERT INTO bud_ledger (user_id, account_id, txn_date, description, amount_cents, source)
+            VALUES (:uid, :aid, :d, :desc, :c, 'external')
+        """), {
+            "uid": current_user.id,
+            "aid": target_aid,
+            "d": r["txn_date"],
+            "desc": r["description"],
+            "c": r["amount_cents"],
+        })
+        inserted += 1
+
+        if r["balance_cents"] is not None:
+            db.session.execute(text("""
+                UPDATE bud_account
+                   SET balance_cents = :bal, as_at = :d
+                 WHERE id = :aid AND user_id = :uid
+            """), {"bal": r["balance_cents"], "d": r["txn_date"], "aid": target_aid, "uid": current_user.id})
+
+            db.session.execute(text("""
+                DELETE FROM bud_snapshot
+                 WHERE user_id = :uid AND account_id = :aid AND as_at = :d
+            """), {"uid": current_user.id, "aid": target_aid, "d": r["txn_date"]})
+            db.session.execute(text("""
+                INSERT INTO bud_snapshot (user_id, account_id, as_at, balance_cents, arrears_cents, due_cents)
+                VALUES (:uid, :aid, :d, :bal, 0, 0)
+            """), {"uid": current_user.id, "aid": target_aid, "d": r["txn_date"], "bal": r["balance_cents"]})
 
     db.session.commit()
-    #return jsonify({"ok": True, "inserted": inserted, "updated": updated})
-    return redirect(url_for("budget_bp.import_page"))
+    if inserted > 0:
+        flash(f"Successfully imported {inserted} transaction(s). {skipped} duplicate(s) skipped.", "success")
+    else:
+        flash(f"No new transactions imported. {skipped} duplicate(s) skipped.", "info")
+
+    return redirect(url_for("budget_bp.ledger", account_id=target_aid))
 
 @csrf.exempt
 @budget_bp.get("/summary")
@@ -142,8 +226,13 @@ def summary():
 @budget_bp.get("/import")
 @login_required
 def import_page():
-    #return render_template("program_budget/import.html")
-    return redirect(url_for("budget_bp.ledger"))
+    accounts = db.session.execute(text("""
+        SELECT id, name, kind
+          FROM bud_account
+         WHERE user_id = :uid AND is_active = 1 AND COALESCE(is_hidden, false) = false
+         ORDER BY kind, name
+    """), {"uid": current_user.id}).mappings().all()
+    return render_template("program_budget/import.html", accounts=accounts)
 
 @budget_bp.get("/about")
 def about():

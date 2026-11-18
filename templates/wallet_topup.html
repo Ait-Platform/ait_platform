@@ -8,7 +8,7 @@
     <!-- Main Tile -->
     <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden relative">
         <!-- Color Strip matching welcome page -->
-        <div class="absolute top-0 left-0 right-0 h-2 bg-indigo-600"></div>
+        <div class="absolute top-0 left-0 right-0 h-2 {% if subject_slug == 'budget' %}bg-amber-500{% else %}bg-indigo-600{% endif %}"></div>
 
         <div class="p-6 md:p-8 pt-10">
             <!-- Flash inside the tile -->
@@ -25,6 +25,8 @@
                     {% set back_url = url_for('mechanic_bp.mechanic_dashboard') %}
                 {% elif subject_slug == 'cultural_fire' %}
                     {% set back_url = url_for('cultural_bp.wallet_dashboard') %}
+                {% elif subject_slug == 'budget' %}
+                    {% set back_url = url_for('budget_bp.wallet_dashboard') %}
                 {% endif %}
                 
                 <a href="{{ back_url }}" class="text-sm font-medium text-slate-500 hover:text-slate-700 transition">
@@ -49,6 +51,7 @@
                         <p class="text-xs mt-2 italic text-slate-500">The exact token cost varies depending on the document type and is configured by your platform administrator.</p>
                     </div>
 
+                    {% if subject_slug == 'mechanic' %}
                     <div class="bg-indigo-600 p-4 rounded shadow-sm text-sm text-white text-left mt-4">
                         <p class="font-bold mb-2"><i class="fas fa-lightbulb text-yellow-300 mr-2"></i> Why use ProTrade?</p>
                         <ul class="list-disc pl-5 space-y-1 text-indigo-100">
@@ -58,6 +61,16 @@
                             <li><strong class="text-white">Debt Collection:</strong> Bridges seamlessly to Debtors for slow-paying customers.</li>
                         </ul>
                     </div>
+                    {% elif subject_slug == 'budget' %}
+                    <div class="bg-amber-600 p-4 rounded shadow-sm text-sm text-white text-left mt-4">
+                        <p class="font-bold mb-2"><i class="fas fa-wallet text-amber-200 mr-2"></i> BudgetCash Prepaid Tokens</p>
+                        <ul class="list-disc pl-5 space-y-1 text-amber-100">
+                            <li><strong class="text-white">Pay-As-You-Go:</strong> Tokens are deducted only when capturing cashbook entries.</li>
+                            <li><strong class="text-white">Free Accounts & Reports:</strong> Generating reports, statements, and creating accounts are always free.</li>
+                            <li><strong class="text-white">Instant Credit:</strong> Purchased tokens are immediately available in your BudgetCash wallet.</li>
+                        </ul>
+                    </div>
+                    {% endif %}
                 </div>
 
                 <!-- Topup Form -->

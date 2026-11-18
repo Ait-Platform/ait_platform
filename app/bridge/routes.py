@@ -103,6 +103,17 @@ def bridge_dashboard():
                 "subject_id": subj.id
             })
 
+            # Retrieve dynamic token balance for BudgetCash status
+            budget_status_message = None
+            if subj.slug == 'budget':
+                try:
+                    from app.models.auth import AitTokenWallet
+                    b_wallet = AitTokenWallet.query.filter_by(user_id=user.id).first()
+                    b_balance = b_wallet.balance if b_wallet else 0
+                except Exception:
+                    b_balance = getattr(getattr(user, 'wallet', None), 'balance', 0)
+                budget_status_message = f"BudgetCash — Active | Wallet: {b_balance} tokens"
+
             # Branch by program_type + commercial_mode
 
             match (subj.program_type, subj.commercial_mode):
@@ -150,7 +161,7 @@ def bridge_dashboard():
                         "slug": subj.slug,
                         "name": subj.name,
                         "access_level": "enrolled",
-                        "message": "Your trial/subscription program is active.",
+                        "message": budget_status_message if budget_status_message else "Your trial/subscription program is active.",
                         "href": url_for("modes_bp.modes_checkpoint_route", subject_slug=subj.slug)
                     })
 
@@ -202,6 +213,9 @@ def bridge_dashboard():
                         "name": subj.name,
                         "href": url_for("payment_bp.pricing_base", subject=subj.slug)
                     })
+
+            if budget_status_message and tiles and tiles[-1].get("slug") == "budget" and tiles[-1].get("access_level") == "enrolled":
+                tiles[-1]["message"] = budget_status_message
 
         if not crm_added:
             from app.models.practice_crm import CrmPracticeUser

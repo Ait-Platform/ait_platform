@@ -30,7 +30,7 @@
         
         <!-- Wallet & Transfer Tile Block -->
         <div class="flex flex-col gap-2">
-            <a href="{{ url_for('budget_bp.price_page') }}" class="block text-left w-full rounded-xl border-2 p-5 shadow-sm transition hover:shadow-md bg-teal-50 border-teal-200 hover:border-teal-400 group flex-1">
+            <a href="{{ url_for('budget_bp.wallet_dashboard') }}" class="block text-left w-full rounded-xl border-2 p-5 shadow-sm transition hover:shadow-md bg-teal-50 border-teal-200 hover:border-teal-400 group flex-1">
                 <div class="font-bold text-slate-900 group-hover:text-teal-700 text-lg">Wallet</div>
                 <div class="mt-1 text-base font-bold text-teal-600 mb-1">{{ wallet.balance if wallet else 0 }} Tokens</div>
                 <div class="text-sm text-slate-700">Topup & Manage</div>

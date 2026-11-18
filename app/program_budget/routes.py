@@ -251,6 +251,21 @@ def dashboard():
     wallet = AitTokenWallet.query.filter_by(user_id=current_user.id).first()
     return render_template("program_budget/dashboard.html", wallet=wallet)
 
+@budget_bp.route("/wallet", methods=["GET"])
+@budget_bp.route("/wallet/dashboard", methods=["GET"])
+@login_required
+def wallet_dashboard():
+    from app.models.auth import AitTokenWallet, AitTokenTransaction
+    wallet = AitTokenWallet.query.filter_by(user_id=current_user.id).first()
+    transactions = []
+    if wallet:
+        transactions = (
+            AitTokenTransaction.query.filter_by(wallet_id=wallet.id)
+            .order_by(AitTokenTransaction.created_at.desc(), AitTokenTransaction.id.desc())
+            .all()
+        )
+    return render_template("program_budget/wallet.html", wallet=wallet, transactions=transactions)
+
 @budget_bp.get("/next")
 @login_required
 def next_step():

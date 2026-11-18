@@ -7,13 +7,5 @@
 <p>Submit your details for AIT Admin review. Registration does not establish a legal franchise agreement or change programme permissions, earnings or fees.</p>
 <p>Your SA ID number and address are stored encrypted and are available only to authorised AIT Admin for registration review. Do not submit ID scans or banking details. <a href="/privacy-policy">Privacy policy</a></p>
 {% if error %}<p class="franchisee-error" role="alert">{{ error }}</p>{% endif %}
-<form method="post" autocomplete="off"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-<label>Full name and surname<input autofocus name="full_name" required maxlength="160" autocomplete="name"></label>
-<label>SA ID number<input name="sa_id" inputmode="numeric" pattern="[0-9]{13}" minlength="13" maxlength="13" required></label>
-<label>Cellphone number<input type="tel" name="cellphone" required maxlength="20" autocomplete="tel"></label>
-<label>Email address<input type="email" name="email" required maxlength="254" autocomplete="email"></label>
-<label>Residential address<textarea name="address" required minlength="5" maxlength="1000" rows="3" autocomplete="street-address"></textarea></label>
-<label>Current occupation (optional)<input name="occupation" maxlength="160"></label>
-<p>The registration date is recorded automatically. A unique franchisee number is assigned only after Admin approval.</p>
-<div class="franchisee-actions"><button class="franchisee-button" type="submit">Submit registration</button></div></form>
+{% include 'franchisees/_registration_form.html' %}
 </div></div>{% endblock %}

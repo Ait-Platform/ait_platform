@@ -12,7 +12,7 @@ from email_validator import validate_email, EmailNotValidError
 from flask import Blueprint, abort, current_app, flash, redirect, render_template, request, url_for
 from flask_login import current_user
 from flask_mail import Message
-from sqlalchemy import func, text
+from sqlalchemy import func, or_, text
 from sqlalchemy.exc import IntegrityError
 
 from app.extensions import db, mail
@@ -92,12 +92,61 @@ def private_response(response):
     return response
 
 
-@franchisee_bp.route('/franchisees/opportunities', defaults={'registration_start': False})
-@franchisee_bp.route('/franchisees/opportunities/register', endpoint='registration_start', defaults={'registration_start': True})
-def opportunities(registration_start):
+@franchisee_bp.route('/franchisees/opportunities/register', endpoint='registration_start')
+def registration_start():
+    return redirect(url_for('franchisee_bp.opportunities', area='register'))
+
+
+@franchisee_bp.route('/franchisees/opportunities', methods=['GET', 'POST'])
+def opportunities():
+    area = request.args.get('area', '')
+    if area not in {'', 'register', 'clients', 'earnings', 'protrade'}:
+        abort(400)
     registration = Registration.query.filter_by(user_id=current_user.id).first()
-    return render_template('franchisees/opportunities.html', registration=registration,
-                           registration_start=registration_start)
+    error, status = None, 200
+    if request.method == 'POST':
+        area = 'register'
+        # Serialize self-registration for this account, including double submissions.
+        User.query.filter_by(id=current_user.id).with_for_update().one()
+        email = normal_email(current_user.email)
+        if linked_user(email) != current_user.id:
+            abort(409, description='The account link needs Admin review.')
+        matches = Registration.query.filter(or_(Registration.user_id == current_user.id,
+                                                Registration.email == email)).with_for_update().all()
+        if len(matches) > 1 or (matches and matches[0].user_id not in (None, current_user.id)):
+            abort(409, description='The account link needs Admin review.')
+        registration = matches[0] if matches else Registration(
+            email=email, user_id=current_user.id, status='Invited', created_at=now(),
+            created_by=current_user.id, history=[])
+        if registration.status != 'Invited':
+            abort(409, description='This registration has already been submitted or reviewed.')
+        try:
+            save_registration(registration)
+        except ValueError as exc:
+            db.session.rollback()
+            error, status = str(exc), 400
+        except IntegrityError:
+            db.session.rollback()
+            error, status = 'A registration already exists for these details.', 409
+        else:
+            flash('Registration submitted for AIT Admin approval.', 'success')
+            return redirect(url_for('franchisee_bp.opportunities', area='register'))
+        registration = Registration.query.filter_by(user_id=current_user.id).first()
+    shops, earnings = [], []
+    if registration and registration.status == 'Approved' and area in {'clients', 'earnings'}:
+        from app.models.mechanic import MechShop, ProTradeDocument
+        if area == 'clients':
+            shops = MechShop.query.filter_by(user_id=current_user.id).order_by(MechShop.business_name, MechShop.id).all()
+        elif area == 'earnings':
+            # Read only the historical terms, never load PDF bytes or apply today's prices.
+            earnings = db.session.query(
+                ProTradeDocument.document_key, ProTradeDocument.created_at, MechShop.business_name,
+                ProTradeDocument.snapshot['commercial_terms']['operator_retains_cents'].as_integer().label('earnings_cents')
+            ).join(MechShop, MechShop.id == ProTradeDocument.shop_id).filter(
+                ProTradeDocument.user_id == current_user.id, MechShop.user_id == current_user.id,
+                ProTradeDocument.kind == 'boq_section').order_by(ProTradeDocument.created_at.desc(), ProTradeDocument.id.desc()).all()
+    return render_template('franchisees/opportunities.html', registration=registration, area=area,
+                           shops=shops, earnings=earnings, error=error), status
 
 
 @franchisee_bp.route('/admin/franchisees', methods=['GET', 'POST'])
@@ -191,39 +240,44 @@ def identity_number(raw):
     return value
 
 
+def save_registration(row):
+    encryption = cipher()
+    name = ' '.join((request.form.get('full_name') or '').split())
+    phone = re.sub(r'[\s()-]', '', request.form.get('cellphone') or '')
+    address = (request.form.get('address') or '').strip()
+    occupation = (request.form.get('occupation') or '').strip()
+    if len(name.split()) < 2 or len(name) > 160:
+        raise ValueError('Enter your full name and surname (up to 160 characters).')
+    if not re.fullmatch(r'(?:0[0-9]{9}|\+27[0-9]{9})', phone):
+        raise ValueError('Enter a valid SA cellphone number, starting with 0 or +27.')
+    if not 5 <= len(address) <= 1000 or len(occupation) > 160:
+        raise ValueError('Enter a residential address (5–1000 characters) and an optional occupation (up to 160 characters).')
+    if normal_email(request.form.get('email')) != row.email:
+        raise ValueError('Use the email address for this registration account.')
+    identity = identity_number(request.form.get('sa_id'))
+    # HMAC, rather than a dictionary-attackable plain hash, identifies duplicates.
+    user_id = linked_user(row.email)  # Resolve before mutations can trigger autoflush.
+    key = current_app.config['FRANCHISEE_PII_KEY']
+    row.identity_digest = hmac.new(base64.urlsafe_b64decode(key), b'franchisee-identity-v1:' + identity.encode(), hashlib.sha256).hexdigest()
+    row.identity_ciphertext = encryption.encrypt(identity.encode()).decode()
+    row.address_ciphertext = encryption.encrypt(address.encode()).decode()
+    row.full_name, row.cellphone, row.occupation = name, phone, occupation or None
+    row.user_id = user_id
+    row.status, row.submitted_at, row.invitation_digest = 'Submitted', now(), None
+    audit(row, 'submitted', current_user.id if current_user.is_authenticated else None)
+    db.session.add(row)
+    db.session.commit()
+
+
 @franchisee_bp.route('/franchisees/register/<token>', methods=['GET', 'POST'])
 def register(token):
     row = invitation(token)
-    encryption = cipher()
+    cipher()
     if request.method == 'POST':
         try:
-            name = ' '.join((request.form.get('full_name') or '').split())
-            phone = re.sub(r'[\s()-]', '', request.form.get('cellphone') or '')
-            address = (request.form.get('address') or '').strip()
-            occupation = (request.form.get('occupation') or '').strip()
-            if len(name.split()) < 2 or len(name) > 160:
-                raise ValueError('Enter your full name and surname (up to 160 characters).')
-            if not re.fullmatch(r'(?:0[0-9]{9}|\+27[0-9]{9})', phone):
-                raise ValueError('Enter a valid SA cellphone number, starting with 0 or +27.')
-            if not 5 <= len(address) <= 1000 or len(occupation) > 160:
-                raise ValueError('Enter a residential address (5–1000 characters) and an optional occupation (up to 160 characters).')
-            if normal_email(request.form.get('email')) != row.email:
-                raise ValueError('Use the email address that received this invitation.')
-            identity = identity_number(request.form.get('sa_id'))
+            save_registration(row)
         except ValueError as error:
             return render_template('franchisees/register.html', error=str(error)), 400
-        # HMAC, rather than a dictionary-attackable plain hash, identifies duplicates.
-        user_id = linked_user(row.email)  # Resolve before mutations can trigger autoflush.
-        key = current_app.config['FRANCHISEE_PII_KEY']
-        row.identity_digest = hmac.new(base64.urlsafe_b64decode(key), b'franchisee-identity-v1:' + identity.encode(), hashlib.sha256).hexdigest()
-        row.identity_ciphertext = encryption.encrypt(identity.encode()).decode()
-        row.address_ciphertext = encryption.encrypt(address.encode()).decode()
-        row.full_name, row.cellphone, row.occupation = name, phone, occupation or None
-        row.user_id = user_id
-        row.status, row.submitted_at, row.invitation_digest = 'Submitted', now(), None
-        audit(row, 'submitted', current_user.id if current_user.is_authenticated else None)
-        try:
-            db.session.commit()
         except IntegrityError:
             db.session.rollback()
             return render_template('franchisees/register.html', error='A registration already exists for these details. Contact AIT Admin.'), 409

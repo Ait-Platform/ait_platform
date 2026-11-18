@@ -220,7 +220,8 @@ def import_statement():
 @budget_bp.get("/summary")
 @login_required
 def summary():
-    data = budget_summary(current_user.id)
+    period = (request.args.get("period") or "").strip() or None
+    data = budget_summary(current_user.id, period=period)
     return jsonify({"ok": True, **data})
 
 @budget_bp.get("/import")

@@ -570,12 +570,24 @@ class BudgetReview(unittest.TestCase):
         pdf_data = {'file': (io.BytesIO(b'%PDF-1.4 dummy pdf'), 'statement.pdf')}
         self.assertEqual(self.client.post('/budget/import-statement', data=pdf_data).status_code, 302)
 
-    @unittest.expectedFailure
     def test_legacy_external_summary_contract_matches_current_ledger_model(self):
         aid = self.account('External bank', 'asset')
         self.session.execute(sa.text("INSERT INTO bud_ledger(user_id,account_id,txn_date,amount_cents,source) VALUES (:u,:a,'2026-11-01',1200,'external')"), {'u': self.user_id, 'a': aid})
         self.session.commit()
-        self.assertEqual(self.client.get('/budget/summary').status_code, 200)
+        resp = self.client.get('/budget/summary')
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(resp.json['ok'])
+        self.assertEqual(resp.json['current_balance_cents'], 1200)
+        self.assertEqual(resp.json['income_total_cents'], 1200)
+        # Test with period parameter
+        resp_p = self.client.get('/budget/summary?period=2026-11')
+        self.assertEqual(resp_p.status_code, 200)
+        self.assertEqual(resp_p.json['current_balance_cents'], 1200)
+        # Out-of-period query (opening balance should reflect prior November transaction)
+        resp_other = self.client.get('/budget/summary?period=2026-12')
+        self.assertEqual(resp_other.status_code, 200)
+        self.assertEqual(resp_other.json['opening_balance_cents'], 1200)
+        self.assertEqual(resp_other.json['income_total_cents'], 0)
 
     def test_invalid_group_report_period_does_not_crash(self):
         for period in ['abcd-ef', '2026-13', '2026-00']:

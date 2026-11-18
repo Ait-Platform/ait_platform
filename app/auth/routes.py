@@ -601,17 +601,18 @@ def register_decision():
     # ---------- END FREE SPECIAL CASE ----------
 
     # ---------- WALLET TOKEN SUBJECTS (NO REGISTRATION FEE, USES WALLET BALANCE) ----------
-    if subject in ("cultural_fire", "culturalfire", "debtors", "mechanic", "cptd", "sace_endorsement", "sace_hub", "sace"):
+    if subject in ("cultural_fire", "culturalfire", "debtors", "mechanic", "cptd", "sace_endorsement", "sace_hub", "sace", "budget"):
         mark_loss_enrollment_free(enrollment_id)
         session.pop("reg_ctx", None)
         session.pop("just_paid_subject_id", None)
         
-        # We assume the 100 token trial bonus was added during user creation.
+        # We assume the token welcome/trial bonus was added during user creation.
         if subject in ("cultural_fire", "culturalfire"):
             return redirect(url_for("cultural_bp.cultural_fire_router"))
         elif subject == "debtors":
             return redirect(url_for("debtors_bp.debtors_router"))
-
+        elif subject == "budget":
+            return redirect(url_for("budget_bp.dashboard"))
         elif subject == "mechanic":
             return redirect(url_for("mechanic_bp.mechanic_dashboard"))
         elif subject == "cptd":

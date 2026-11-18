@@ -63,10 +63,98 @@ def _record_recent_submission(user_id: int, account_id: int, txn_date: str, cent
 
 from . import budget_bp
 
+# Pending CSV imports awaiting user confirmation before token deduction
+_PENDING_IMPORTS = {}
+_PENDING_IMPORTS_LOCK = threading.Lock()
+
+def _prune_pending_imports():
+    now = time.time()
+    with _PENDING_IMPORTS_LOCK:
+        expired = [k for k, v in list(_PENDING_IMPORTS.items()) if now - v.get("created_at", 0) > 1800]
+        for k in expired:
+            _PENDING_IMPORTS.pop(k, None)
+
 
 @budget_bp.post("/import-statement")
 @login_required
 def import_statement():
+    from app.models.auth import AitTokenWallet, AitTokenTransaction
+    _prune_pending_imports()
+
+    action = (request.form.get("action") or "").strip().lower()
+
+    # User confirmed the staged CSV import
+    if action == "confirm":
+        import_id = (request.form.get("import_id") or "").strip()
+        with _PENDING_IMPORTS_LOCK:
+            pending = _PENDING_IMPORTS.pop((current_user.id, import_id), None)
+
+        if not pending:
+            flash("Import session expired or already processed.", "warning")
+            return redirect(url_for("budget_bp.import_page")), 302
+
+        target_aid = pending["account_id"]
+        rows = pending["rows"]
+        tokens_required = pending["tokens_required"]
+
+        with db.session.no_autoflush:
+            wallet = AitTokenWallet.query.filter_by(user_id=current_user.id).populate_existing().with_for_update().first()
+            if not wallet or wallet.balance < tokens_required:
+                db.session.rollback()
+                flash("Insufficient tokens. Purchase more tokens to continue.", "error")
+                return redirect(url_for("payment_bp.wallet_topup", subject_slug="budget")), 302
+
+            inserted = 0
+            try:
+                for r in rows:
+                    db.session.execute(text("""
+                        INSERT INTO bud_ledger (user_id, account_id, txn_date, description, amount_cents, source)
+                        VALUES (:uid, :aid, :d, :desc, :c, 'external')
+                    """), {
+                        "uid": current_user.id,
+                        "aid": target_aid,
+                        "d": r["txn_date"],
+                        "desc": r["description"],
+                        "c": r["amount_cents"],
+                    })
+                    inserted += 1
+
+                    if r.get("balance_cents") is not None:
+                        db.session.execute(text("""
+                            UPDATE bud_account
+                               SET balance_cents = :bal, as_at = :d
+                             WHERE id = :aid AND user_id = :uid
+                        """), {"bal": r["balance_cents"], "d": r["txn_date"], "aid": target_aid, "uid": current_user.id})
+
+                        db.session.execute(text("""
+                            DELETE FROM bud_snapshot
+                             WHERE user_id = :uid AND account_id = :aid AND as_at = :d
+                        """), {"uid": current_user.id, "aid": target_aid, "d": r["txn_date"]})
+                        db.session.execute(text("""
+                            INSERT INTO bud_snapshot (user_id, account_id, as_at, balance_cents, arrears_cents, due_cents)
+                            VALUES (:uid, :aid, :d, :bal, 0, 0)
+                        """), {"uid": current_user.id, "aid": target_aid, "d": r["txn_date"], "bal": r["balance_cents"]})
+
+                if inserted > 0:
+                    wallet.balance -= inserted
+                    tx = AitTokenTransaction(
+                        wallet_id=wallet.id,
+                        amount=-inserted,
+                        description=f"CSV Statement Import ({inserted} transaction{'s' if inserted != 1 else ''})"
+                    )
+                    db.session.add(tx)
+
+                db.session.commit()
+                if inserted > 0:
+                    flash(f"Successfully imported {inserted} transaction(s). {inserted} token{'s' if inserted != 1 else ''} deducted.", "success")
+                else:
+                    flash("No new transactions imported.", "info")
+                return redirect(url_for("budget_bp.ledger", account_id=target_aid))
+            except Exception:
+                db.session.rollback()
+                flash("Could not complete CSV import. No tokens were deducted.", "warning")
+                return redirect(url_for("budget_bp.import_page")), 302
+
     f = request.files.get("file")
     if not f or not f.filename:
         flash("Please upload a CSV file.", "warning")
@@ -93,24 +181,30 @@ def import_statement():
 
     # Resolve target account
     target_account_id = (request.form.get("account_id") or "").strip()
+    target_acc_name = "Default Account"
     if target_account_id and target_account_id.isdigit():
         _require_owned_account(int(target_account_id))
         target_aid = int(target_account_id)
+        acc_rec = db.session.execute(text("SELECT name FROM bud_account WHERE id=:aid AND user_id=:uid"), {"aid": target_aid, "uid": current_user.id}).first()
+        if acc_rec:
+            target_acc_name = acc_rec[0]
     else:
         # Find existing default asset / bank account for this user
         acc_row = db.session.execute(text("""
-            SELECT id FROM bud_account 
+            SELECT id, name FROM bud_account 
              WHERE user_id = :uid AND (lower(name) = 'bank' OR kind = 'asset')
              ORDER BY id ASC LIMIT 1
         """), {"uid": current_user.id}).first()
         if acc_row:
             target_aid = acc_row[0]
+            target_acc_name = acc_row[1]
         else:
             acc_row = db.session.execute(text("""
-                SELECT id FROM bud_account WHERE user_id = :uid ORDER BY id ASC LIMIT 1
+                SELECT id, name FROM bud_account WHERE user_id = :uid ORDER BY id ASC LIMIT 1
             """), {"uid": current_user.id}).first()
             if acc_row:
                 target_aid = acc_row[0]
+                target_acc_name = acc_row[1]
             else:
                 new_acc = db.session.execute(text("""
                     INSERT INTO bud_account (user_id, name, kind, code)
@@ -118,9 +212,13 @@ def import_statement():
                     RETURNING id
                 """), {"uid": current_user.id}).fetchone()
                 target_aid = new_acc[0]
+                target_acc_name = "Bank"
                 db.session.commit()
 
     rows = []
+    duplicate_count = 0
+    invalid_count = 0
+
     for r in rdr:
         r_norm = {k.strip().lower(): (v or "").strip() for k, v in r.items() if k}
         ext_ref = r_norm.get("ext_ref") or r_norm.get("ref") or r_norm.get("id") or ""
@@ -130,12 +228,14 @@ def import_statement():
         desc_str = r_norm.get("description") or r_norm.get("desc") or ""
 
         if not (date_str and amt_str):
+            invalid_count += 1
             continue
 
         try:
             parsed_date = _parse_date(date_str)
             cents = _to_cents(amt_str)
         except Exception:
+            invalid_count += 1
             continue
 
         bal_cents = None
@@ -147,6 +247,25 @@ def import_statement():
 
         formatted_desc = f"[{ext_ref}] {desc_str}".strip() if ext_ref else (desc_str or "External Import")
 
+        # Deduplication check against existing records
+        existing = db.session.execute(text("""
+            SELECT id FROM bud_ledger
+             WHERE user_id = :uid AND account_id = :aid AND txn_date = :d AND amount_cents = :c
+               AND source = 'external' AND (description = :desc OR description LIKE :ref_prefix)
+             LIMIT 1
+        """), {
+            "uid": current_user.id,
+            "aid": target_aid,
+            "d": parsed_date,
+            "c": cents,
+            "desc": formatted_desc,
+            "ref_prefix": f"[{ext_ref}]%" if ext_ref else f"%{formatted_desc}%",
+        }).first()
+
+        if existing:
+            duplicate_count += 1
+            continue
+
         rows.append({
             "ext_ref": ext_ref,
             "txn_date": parsed_date,
@@ -157,64 +276,101 @@ def import_statement():
 
     # deterministic ordering
     rows.sort(key=lambda x: (x["txn_date"], x["ext_ref"]))
+    valid_count = len(rows)
+    excluded_count = duplicate_count + invalid_count
+    tokens_required = valid_count
 
-    inserted = 0
-    skipped = 0
+    wallet = AitTokenWallet.query.filter_by(user_id=current_user.id).first()
+    wallet_balance = wallet.balance if wallet else 0
 
-    for r in rows:
-        existing = db.session.execute(text("""
-            SELECT id FROM bud_ledger
-             WHERE user_id = :uid AND account_id = :aid AND txn_date = :d AND amount_cents = :c
-               AND source = 'external' AND (description = :desc OR description LIKE :ref_prefix)
-             LIMIT 1
-        """), {
-            "uid": current_user.id,
-            "aid": target_aid,
-            "d": r["txn_date"],
-            "c": r["amount_cents"],
-            "desc": r["description"],
-            "ref_prefix": f"[{r['ext_ref']}]%" if r["ext_ref"] else f"%{r['description']}%",
-        }).first()
+    # Direct confirmation flag (for headless tests or direct form submissions)
+    if request.form.get("confirm") == "1":
+        if tokens_required > 0:
+            wallet_lock = AitTokenWallet.query.filter_by(user_id=current_user.id).populate_existing().with_for_update().first()
+            if not wallet_lock or wallet_lock.balance < tokens_required:
+                db.session.rollback()
+                flash("Insufficient tokens. Purchase more tokens to continue.", "error")
+                return redirect(url_for("payment_bp.wallet_topup", subject_slug="budget")), 302
 
-        if existing:
-            skipped += 1
-            continue
+            inserted = 0
+            for r in rows:
+                db.session.execute(text("""
+                    INSERT INTO bud_ledger (user_id, account_id, txn_date, description, amount_cents, source)
+                    VALUES (:uid, :aid, :d, :desc, :c, 'external')
+                """), {
+                    "uid": current_user.id,
+                    "aid": target_aid,
+                    "d": r["txn_date"],
+                    "desc": r["description"],
+                    "c": r["amount_cents"],
+                })
+                inserted += 1
 
-        db.session.execute(text("""
-            INSERT INTO bud_ledger (user_id, account_id, txn_date, description, amount_cents, source)
-            VALUES (:uid, :aid, :d, :desc, :c, 'external')
-        """), {
-            "uid": current_user.id,
-            "aid": target_aid,
-            "d": r["txn_date"],
-            "desc": r["description"],
-            "c": r["amount_cents"],
-        })
-        inserted += 1
+                if r.get("balance_cents") is not None:
+                    db.session.execute(text("""
+                        UPDATE bud_account
+                           SET balance_cents = :bal, as_at = :d
+                         WHERE id = :aid AND user_id = :uid
+                    """), {"bal": r["balance_cents"], "d": r["txn_date"], "aid": target_aid, "uid": current_user.id})
 
-        if r["balance_cents"] is not None:
-            db.session.execute(text("""
-                UPDATE bud_account
-                   SET balance_cents = :bal, as_at = :d
-                 WHERE id = :aid AND user_id = :uid
-            """), {"bal": r["balance_cents"], "d": r["txn_date"], "aid": target_aid, "uid": current_user.id})
+                    db.session.execute(text("""
+                        DELETE FROM bud_snapshot
+                         WHERE user_id = :uid AND account_id = :aid AND as_at = :d
+                    """), {"uid": current_user.id, "aid": target_aid, "d": r["txn_date"]})
+                    db.session.execute(text("""
+                        INSERT INTO bud_snapshot (user_id, account_id, as_at, balance_cents, arrears_cents, due_cents)
+                        VALUES (:uid, :aid, :d, :bal, 0, 0)
+                    """), {"uid": current_user.id, "aid": target_aid, "d": r["txn_date"], "bal": r["balance_cents"]})
 
-            db.session.execute(text("""
-                DELETE FROM bud_snapshot
-                 WHERE user_id = :uid AND account_id = :aid AND as_at = :d
-            """), {"uid": current_user.id, "aid": target_aid, "d": r["txn_date"]})
-            db.session.execute(text("""
-                INSERT INTO bud_snapshot (user_id, account_id, as_at, balance_cents, arrears_cents, due_cents)
-                VALUES (:uid, :aid, :d, :bal, 0, 0)
-            """), {"uid": current_user.id, "aid": target_aid, "d": r["txn_date"], "bal": r["balance_cents"]})
+            wallet_lock.balance -= inserted
+            tx = AitTokenTransaction(
+                wallet_id=wallet_lock.id,
+                amount=-inserted,
+                description=f"CSV Statement Import ({inserted} transaction{'s' if inserted != 1 else ''})"
+            )
+            db.session.add(tx)
+            db.session.commit()
+            flash(f"Successfully imported {inserted} transaction(s). {inserted} token{'s' if inserted != 1 else ''} deducted.", "success")
+        else:
+            flash(f"No new transactions imported. {duplicate_count} duplicate(s) skipped.", "info")
+        return redirect(url_for("budget_bp.ledger", account_id=target_aid)), 302
 
-    db.session.commit()
-    if inserted > 0:
-        flash(f"Successfully imported {inserted} transaction(s). {skipped} duplicate(s) skipped.", "success")
-    else:
-        flash(f"No new transactions imported. {skipped} duplicate(s) skipped.", "info")
+    # Standard UI flow: Display confirmation preview screen
+    import_id = secrets.token_hex(16)
+    with _PENDING_IMPORTS_LOCK:
+        _PENDING_IMPORTS[(current_user.id, import_id)] = {
+            "account_id": target_aid,
+            "account_name": target_acc_name,
+            "rows": rows,
+            "valid_count": valid_count,
+            "duplicate_count": duplicate_count,
+            "invalid_count": invalid_count,
+            "tokens_required": tokens_required,
+            "created_at": time.time(),
+        }
 
-    return redirect(url_for("budget_bp.ledger", account_id=target_aid))
+    accounts = db.session.execute(text("""
+        SELECT id, name, kind
+          FROM bud_account
+         WHERE user_id = :uid AND is_active = 1 AND COALESCE(is_hidden, false) = false
+         ORDER BY kind, name
+    """), {"uid": current_user.id}).mappings().all()
+
+    return render_template(
+        "program_budget/import.html",
+        accounts=accounts,
+        preview=True,
+        import_id=import_id,
+        target_account_id=target_aid,
+        target_account_name=target_acc_name,
+        valid_count=valid_count,
+        duplicate_count=duplicate_count,
+        invalid_count=invalid_count,
+        excluded_count=excluded_count,
+        tokens_required=tokens_required,
+        wallet_balance=wallet_balance,
+        insufficient_tokens=(wallet_balance < tokens_required),
+    )
 
 @csrf.exempt
 @budget_bp.get("/summary")
@@ -264,7 +420,18 @@ def wallet_dashboard():
             .order_by(AitTokenTransaction.created_at.desc(), AitTokenTransaction.id.desc())
             .all()
         )
-    return render_template("program_budget/wallet.html", wallet=wallet, transactions=transactions)
+    complimentary_tokens = sum(t.amount for t in transactions if t.amount > 0 and any(w in (t.description or "").lower() for w in ("welcome", "trial", "bonus", "registration")))
+    purchased_tokens = sum(t.amount for t in transactions if t.amount > 0 and any(w in (t.description or "").lower() for w in ("top-up", "topup", "paystack", "purchase")))
+    consumed_tokens = abs(sum(t.amount for t in transactions if t.amount < 0))
+
+    return render_template(
+        "program_budget/wallet.html",
+        wallet=wallet,
+        transactions=transactions,
+        complimentary_tokens=complimentary_tokens,
+        purchased_tokens=purchased_tokens,
+        consumed_tokens=consumed_tokens,
+    )
 
 @budget_bp.get("/next")
 @login_required
@@ -482,20 +649,23 @@ def ledger_add():
         with db.session.no_autoflush:
             wallet = AitTokenWallet.query.filter_by(user_id=current_user.id).populate_existing().with_for_update().first()
             
-            token_cost = 2
+            token_cost = 1
             try:
                 tariff = TokenTariff.query.filter_by(program_slug='budget', action_name='ledger_entry').first()
                 if not tariff:
-                    tariff = TokenTariff(program_slug='budget', action_name='ledger_entry', base_token_cost=2)
+                    tariff = TokenTariff(program_slug='budget', action_name='ledger_entry', base_token_cost=1)
                     db.session.add(tariff)
+                    db.session.commit()
+                elif tariff.base_token_cost != 1:
+                    tariff.base_token_cost = 1
                     db.session.commit()
                 if tariff and tariff.base_token_cost is not None:
                     token_cost = tariff.base_token_cost
             except Exception:
-                token_cost = 2
+                token_cost = 1
 
             if not wallet or wallet.balance < token_cost:
-                flash(f"You need at least {token_cost} tokens in your wallet to capture an entry.", "error")
+                flash("Insufficient tokens. Purchase more tokens to continue.", "error")
                 return redirect(url_for("payment_bp.wallet_topup", subject_slug="budget"))
 
             description = "Paid"
@@ -527,7 +697,7 @@ def ledger_add():
                     _mark_submission_processed(current_user.id, submission_id)
                 _record_recent_submission(current_user.id, int(account_id), txn_date, int(cents))
 
-                flash(f"Payment added. {token_cost} tokens deducted.", "success")
+                flash(f"Payment added. {token_cost} token{'s' if token_cost != 1 else ''} deducted.", "success")
             except Exception:
                 db.session.rollback()
                 flash("Could not add entry.", "warning")
@@ -1156,11 +1326,9 @@ def budget_entitlement_guard():
     if not current_user.is_authenticated:
         return
 
-    # Allow access to the billing page itself
-    if request.endpoint in ("budget_bp.billing", "budget_bp.price_page", "budget_bp.about"):
+    # Allow access to wallet, billing, price, about
+    if request.endpoint in ("budget_bp.billing", "budget_bp.price_page", "budget_bp.about", "budget_bp.wallet_dashboard"):
         return
-
-    now = datetime.utcnow()
 
     ent = db.session.execute(text("""
         SELECT ue.status, ue.trial_end, ue.expires_at
@@ -1176,33 +1344,17 @@ def budget_entitlement_guard():
         return redirect(url_for("auth_bp.bridge_dashboard"))
 
     active = False
-    if ent["status"] in ("paid", "enrolled", "started"):
+    if ent["status"] in ("paid", "enrolled", "started", "active"):
         active = True
-    elif ent["status"] == "active":
-        if (ent["trial_end"] and ent["trial_end"] >= now) or (ent["expires_at"] and ent["expires_at"] >= now):
-            active = True
-        elif not ent["trial_end"] and not ent["expires_at"]:
-            active = True # edge case: active but no expiry set
 
     if not active:
-        flash("Your trial for BudgetCash has expired. Please subscribe to continue.", "warning")
-        return redirect(url_for("budget_bp.billing"))
+        flash("You are not enrolled in BudgetCash.", "warning")
+        return redirect(url_for("auth_bp.bridge_dashboard"))
 
 @budget_bp.route("/billing")
 @login_required
 def billing():
-    ent = db.session.execute(text("""
-        SELECT ue.zar_amount_cents
-          FROM user_enrollment ue
-          JOIN auth_subject s ON s.id = ue.subject_id
-         WHERE ue.user_id = :uid AND s.slug = 'budget'
-         ORDER BY ue.id DESC LIMIT 1
-    """), {"uid": current_user.id}).mappings().first()
-
-    if ent and ent["zar_amount_cents"] and int(ent["zar_amount_cents"]) > 0:
-        return redirect(url_for("paystack_bp.paystack_start", email=current_user.email, subject='budget'))
-
-    return redirect(url_for("budget_bp.price_page"))
+    return redirect(url_for("budget_bp.wallet_dashboard"))
 
 def _parse_date(s: str) -> date:
     s = (s or "").strip()

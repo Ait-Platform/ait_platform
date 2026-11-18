@@ -150,6 +150,8 @@
                   </ul>
                 </div>
 
+              {% elif s.slug == 'budget' %}
+                <p>Manage your cashbook, financial accounts and reports.</p>
               {% else %}
                 <p>{% if is_admin %}Manage content, settings, and reports for {{ s.name }}.{% else %}Continue your learning in {{ s.name }}.{% endif %}</p>
               {% endif %}

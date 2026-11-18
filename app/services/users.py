@@ -45,16 +45,19 @@ def _ensure_or_create_user_from_session(ctx: dict) -> int:
         {"e": email},
     ).scalar())
 
-    # Create AitTokenWallet with 100 tokens for new users (Registration Trial Bonus)
+    # Create AitTokenWallet with welcome tokens for new users:
+    # 50 tokens for BudgetCash (Welcome Bonus), 100 tokens for other subjects (Registration Trial Bonus).
     # Exclude SACE Endorsement and UIP users from receiving tokens/wallets
     subject = (ctx.get("subject") or "").strip().lower()
     if not subject.startswith("sace") and subject != "uip":
+        tokens = 50 if subject == "budget" else 100
+        desc = "BudgetCash Welcome Bonus" if subject == "budget" else "Registration Trial Bonus"
         db.session.execute(
             sa_text("""
                 INSERT INTO ait_token_wallet (user_id, balance, created_at)
-                VALUES (:user_id, 100, CURRENT_TIMESTAMP)
+                VALUES (:user_id, :tokens, CURRENT_TIMESTAMP)
             """),
-            {"user_id": new_id}
+            {"user_id": new_id, "tokens": tokens}
         )
         db.session.flush()
 
@@ -66,9 +69,9 @@ def _ensure_or_create_user_from_session(ctx: dict) -> int:
         db.session.execute(
             sa_text("""
                 INSERT INTO ait_token_transaction (wallet_id, amount, description, created_at)
-                VALUES (:wallet_id, 100, 'Registration Trial Bonus', CURRENT_TIMESTAMP)
+                VALUES (:wallet_id, :tokens, :desc, CURRENT_TIMESTAMP)
             """),
-            {"wallet_id": wallet_id}
+            {"wallet_id": wallet_id, "tokens": tokens, "desc": desc}
         )
         db.session.flush()
 

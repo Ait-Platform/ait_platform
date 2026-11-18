@@ -49,57 +49,75 @@
       <!-- Flash Messages rendered inside the tile -->
       {% include "partials/flash_messages.html" %}
 
-      <!-- Summary Stat Cards -->
-      {% set purchases = [] %}
-      {% set deductions = [] %}
-      {% if transactions %}
-        {% for t in transactions %}
-          {% if t.amount > 0 %}
-            {% set _ = purchases.append(t) %}
-          {% else %}
-            {% set _ = deductions.append(t) %}
-          {% endif %}
-        {% endfor %}
+      {% if not wallet or wallet.balance < 1 %}
+      <!-- Insufficient Tokens Banner -->
+      <div class="bg-rose-50 border border-rose-200 text-rose-800 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm">
+        <div class="flex items-center gap-3">
+          <i class="fas fa-exclamation-circle text-rose-600 text-xl"></i>
+          <div>
+            <p class="font-bold text-rose-900">Insufficient tokens. Purchase more tokens to continue.</p>
+            <p class="text-xs text-rose-700 mt-0.5">Your token balance is empty. Top up via Paystack to capture cashbook transactions or import statements.</p>
+          </div>
+        </div>
+        <a href="{{ url_for('payment_bp.wallet_topup', subject_slug='budget') }}"
+           class="inline-flex items-center gap-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 text-xs font-bold shadow-sm transition whitespace-nowrap">
+          <i class="fas fa-shopping-cart"></i> Buy Tokens Now
+        </a>
+      </div>
       {% endif %}
 
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <!-- Balance Card -->
-        <div class="bg-gradient-to-br from-amber-50 to-orange-50 rounded-xl p-5 border border-amber-200/80 shadow-sm">
+      <!-- Summary Stat Cards -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        <!-- Available Tokens Card -->
+        <div class="bg-gradient-to-br from-amber-50 to-orange-50 rounded-xl p-5 border border-amber-200 shadow-sm">
           <div class="flex items-center justify-between">
-            <span class="text-xs font-bold uppercase tracking-wider text-amber-800">Available Balance</span>
+            <span class="text-xs font-bold uppercase tracking-wider text-amber-800">Available Tokens</span>
             <i class="fas fa-coins text-amber-500 text-lg"></i>
           </div>
           <div class="mt-3 flex items-baseline gap-2">
-            <span class="text-4xl font-black text-slate-900">{{ wallet.balance if wallet else 0 }}</span>
-            <span class="text-base font-semibold text-amber-700">Tokens</span>
+            <span class="text-3xl font-black text-slate-900">{{ wallet.balance if wallet else 0 }}</span>
+            <span class="text-sm font-semibold text-amber-700">Tokens</span>
           </div>
-          <p class="mt-2 text-xs text-slate-600">Prepaid balance for cashbook entries (2 tokens per transaction).</p>
+          <p class="mt-2 text-xs text-slate-600">Available for cashbook capture & CSV import (1 token per entry).</p>
         </div>
 
-        <!-- Purchases Card -->
+        <!-- Complimentary Tokens Card -->
         <div class="bg-slate-50 rounded-xl p-5 border border-slate-200 shadow-sm">
           <div class="flex items-center justify-between">
-            <span class="text-xs font-bold uppercase tracking-wider text-emerald-800">Total Top-Ups / Credits</span>
+            <span class="text-xs font-bold uppercase tracking-wider text-teal-800">Complimentary Tokens</span>
+            <i class="fas fa-gift text-teal-500 text-lg"></i>
+          </div>
+          <div class="mt-3 flex items-baseline gap-2">
+            <span class="text-3xl font-black text-slate-900">{{ complimentary_tokens|default(0) }}</span>
+            <span class="text-xs text-slate-500">tokens</span>
+          </div>
+          <p class="mt-2 text-xs text-slate-600">Complimentary 50-token welcome bonus granted upon registration.</p>
+        </div>
+
+        <!-- Purchased Tokens Card -->
+        <div class="bg-slate-50 rounded-xl p-5 border border-slate-200 shadow-sm">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold uppercase tracking-wider text-emerald-800">Purchased Tokens</span>
             <i class="fas fa-arrow-down text-emerald-500 text-lg"></i>
           </div>
           <div class="mt-3 flex items-baseline gap-2">
-            <span class="text-3xl font-black text-slate-900">{{ purchases|length }}</span>
-            <span class="text-xs text-slate-500">credit events</span>
+            <span class="text-3xl font-black text-slate-900">{{ purchased_tokens|default(0) }}</span>
+            <span class="text-xs text-slate-500">tokens</span>
           </div>
-          <p class="mt-2 text-xs text-slate-600">Tokens acquired through Paystack top-up bundles or registration.</p>
+          <p class="mt-2 text-xs text-slate-600">Tokens purchased via secure Paystack top-up bundles (R50 = 50 tokens).</p>
         </div>
 
-        <!-- Deductions Card -->
+        <!-- Tokens Consumed Card -->
         <div class="bg-slate-50 rounded-xl p-5 border border-slate-200 shadow-sm">
           <div class="flex items-center justify-between">
-            <span class="text-xs font-bold uppercase tracking-wider text-rose-800">Total Deductions</span>
+            <span class="text-xs font-bold uppercase tracking-wider text-rose-800">Tokens Consumed</span>
             <i class="fas fa-arrow-up text-rose-500 text-lg"></i>
           </div>
           <div class="mt-3 flex items-baseline gap-2">
-            <span class="text-3xl font-black text-slate-900">{{ deductions|length }}</span>
-            <span class="text-xs text-slate-500">usage events</span>
+            <span class="text-3xl font-black text-slate-900">{{ consumed_tokens|default(0) }}</span>
+            <span class="text-xs text-slate-500">tokens</span>
           </div>
-          <p class="mt-2 text-xs text-slate-600">Deducted transparently when saving financial cashbook entries.</p>
+          <p class="mt-2 text-xs text-slate-600">Tokens deducted for saving cashbook entries and CSV imports.</p>
         </div>
       </div>
 

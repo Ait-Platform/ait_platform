@@ -12,48 +12,156 @@
       <!-- Row 1: Title & Action/Back Buttons -->
       <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 pb-4 border-b border-gray-100 gap-4">
         <div>
-            <h1 class="text-2xl md:text-3xl font-bold text-gray-800 flex items-center">Import external statement</h1>
-            <p class="mt-1 text-slate-600">CSV columns: ext_ref, txn_date, amount, balance, description</p>
+          <h1 class="text-2xl md:text-3xl font-bold text-gray-800 flex items-center">
+            {% if preview %}Confirm Statement Import{% else %}Import external statement{% endif %}
+          </h1>
+          <p class="mt-1 text-slate-600">
+            {% if preview %}Review the transaction breakdown and token cost before importing.{% else %}CSV columns: ext_ref, txn_date, amount, balance, description{% endif %}
+          </p>
         </div>
         <div class="flex items-center gap-3">
+          {% if not preview %}
             <a href="{{ url_for('budget_bp.summary') }}" class="text-sm text-sky-600 hover:underline">View summary</a>
             <a href="{{ url_for('budget_bp.report_statement') }}" class="text-sm text-sky-700 hover:underline">Financial statement</a>
-            <a href="{{ url_for('budget_bp.ledger') }}" class="rounded border border-slate-300 px-3 py-1.5 hover:bg-slate-50 text-sm">← Back to Cashbook</a>
+          {% endif %}
+          <a href="{{ url_for('budget_bp.ledger') }}" class="rounded border border-slate-300 px-3 py-1.5 hover:bg-slate-50 text-sm">← Back to Cashbook</a>
         </div>
       </div>
 
-  <form class="mt-6 space-y-4"
-        method="post"
-        enctype="multipart/form-data"
-        action="{{ url_for('budget_bp.import_statement') }}">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  {% if preview %}
+    <!-- Staged Import Confirmation Preview -->
+    <div class="space-y-6">
+      <div class="bg-slate-50 border border-slate-200 rounded-xl p-6">
+        <h2 class="text-lg font-bold text-slate-800 mb-1 flex items-center gap-2">
+          <i class="fas fa-file-invoice text-amber-500"></i> Import Statement Preview
+        </h2>
+        <p class="text-sm text-slate-600 mb-6">Target Account: <strong class="text-slate-900">{{ target_account_name }}</strong></p>
 
-    {% if accounts %}
-    <div>
-      <label class="block text-xs font-medium text-slate-600 mb-1">Target Account</label>
-      <select name="account_id" class="w-full rounded border border-2 border-slate-400 focus:border-sky-500 px-3 py-2 text-sm">
-        <option value="">Default (Bank / Asset account)</option>
-        {% for a in accounts %}
-          <option value="{{ a.id }}">{{ a.name }} ({{ a.kind }})</option>
-        {% endfor %}
-      </select>
+        <!-- Metric Grid -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <div class="bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
+            <div class="text-xs font-bold uppercase tracking-wider text-emerald-700">Valid New Transactions</div>
+            <div class="text-2xl font-black text-slate-800 mt-1">{{ valid_count }}</div>
+            <p class="text-xs text-slate-500 mt-1">Ready to be saved to cashbook</p>
+          </div>
+
+          <div class="bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
+            <div class="text-xs font-bold uppercase tracking-wider text-slate-500">Excluded Rows</div>
+            <div class="text-2xl font-black text-slate-800 mt-1">{{ excluded_count }}</div>
+            <p class="text-xs text-slate-500 mt-1">{{ duplicate_count }} duplicate(s), {{ invalid_count }} invalid</p>
+          </div>
+
+          <div class="bg-white p-4 rounded-lg border border-amber-200 shadow-sm bg-amber-50/40">
+            <div class="text-xs font-bold uppercase tracking-wider text-amber-800">Tokens Required</div>
+            <div class="text-2xl font-black text-amber-900 mt-1">{{ tokens_required }}</div>
+            <p class="text-xs text-amber-700 mt-1">1 token per valid transaction</p>
+          </div>
+
+          <div class="bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
+            <div class="text-xs font-bold uppercase tracking-wider text-sky-700">Available Balance</div>
+            <div class="text-2xl font-black text-slate-800 mt-1">{{ wallet_balance }}</div>
+            <p class="text-xs text-slate-500 mt-1">Prepaid wallet tokens</p>
+          </div>
+        </div>
+
+        {% if insufficient_tokens %}
+          <!-- Insufficient Tokens Warning -->
+          <div class="bg-rose-50 border border-rose-200 text-rose-800 rounded-xl p-5 mb-6">
+            <div class="flex items-start gap-3">
+              <i class="fas fa-exclamation-triangle text-rose-600 text-xl mt-0.5"></i>
+              <div>
+                <h3 class="font-bold text-base text-rose-900">Insufficient tokens. Purchase more tokens to continue.</h3>
+                <p class="text-sm mt-1 text-rose-700">
+                  This import requires <strong>{{ tokens_required }}</strong> tokens, but your wallet currently has <strong>{{ wallet_balance }}</strong> tokens.
+                </p>
+                <div class="mt-4 flex flex-wrap items-center gap-3">
+                  <a href="{{ url_for('payment_bp.wallet_topup', subject_slug='budget') }}"
+                     class="rounded-lg bg-amber-600 hover:bg-amber-700 text-white px-5 py-2 text-sm font-bold shadow-sm transition">
+                    Buy Tokens via Paystack
+                  </a>
+                  <a href="{{ url_for('budget_bp.import_page') }}"
+                     class="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition">
+                    Cancel & Upload Another File
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+        {% elif valid_count == 0 %}
+          <div class="bg-slate-100 border border-slate-200 rounded-xl p-5 mb-6 text-slate-700">
+            <p class="font-semibold">No new valid transactions found in this statement.</p>
+            <p class="text-sm text-slate-500 mt-1">All entries in the uploaded file were either already imported duplicates or could not be parsed.</p>
+            <div class="mt-4">
+              <a href="{{ url_for('budget_bp.import_page') }}" class="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition">
+                Upload a Different File
+              </a>
+            </div>
+          </div>
+        {% else %}
+          <div class="bg-amber-50/60 border border-amber-200 rounded-lg p-4 text-xs text-amber-900 mb-6">
+            <p class="font-bold"><i class="fas fa-shield-alt mr-1"></i> Transparent Token Charging Guarantee</p>
+            <p class="mt-1">Only the <strong>{{ valid_count }}</strong> valid new transaction(s) will be imported and charged 1 token each. Duplicates and invalid rows are completely free of charge. If the import fails for any reason, no tokens are deducted.</p>
+          </div>
+
+          <!-- Confirmation Action Form -->
+          <form method="post" action="{{ url_for('budget_bp.import_statement') }}" class="flex flex-col sm:flex-row items-center justify-end gap-3 pt-4 border-t border-slate-200">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="confirm">
+            <input type="hidden" name="import_id" value="{{ import_id }}">
+
+            <a href="{{ url_for('budget_bp.import_page') }}"
+               class="w-full sm:w-auto text-center rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition">
+              Cancel
+            </a>
+            <button type="submit" autofocus
+                    class="w-full sm:w-auto rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2.5 text-sm font-bold shadow-sm transition">
+              Confirm & Import ({{ tokens_required }} Token{{ 's' if tokens_required != 1 else '' }})
+            </button>
+          </form>
+        {% endif %}
+      </div>
     </div>
-    {% endif %}
-
-    <div>
-      <label class="block text-xs font-medium text-slate-600 mb-1">CSV File</label>
-      <input type="file" name="file" accept=".csv" required
-             class="block w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0
-                    file:text-sm file:font-medium file:bg-slate-900 file:text-white hover:file:bg-slate-800">
+  {% else %}
+    <!-- Standard CSV Upload Form -->
+    <div class="mb-6 p-4 rounded-xl bg-amber-50/70 border border-amber-200 text-xs text-amber-900">
+      <p class="font-bold mb-1"><i class="fas fa-info-circle mr-1"></i> Pay-As-You-Go Import Pricing</p>
+      <p>CSV statement imports charge <strong>1 token per successfully imported transaction</strong>. You will be presented with a breakdown of valid transactions and duplicate exclusions to review and confirm before any tokens are deducted.</p>
     </div>
 
-    <button class="w-full rounded-lg bg-sky-600 text-white py-2.5 text-sm font-medium hover:bg-sky-700">
-      Import statement
-    </button>
-  </form>
+    <form class="space-y-4"
+          method="post"
+          enctype="multipart/form-data"
+          action="{{ url_for('budget_bp.import_statement') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+      {% if accounts %}
+      <div>
+        <label class="block text-xs font-medium text-slate-600 mb-1">Target Account</label>
+        <select name="account_id" class="w-full rounded border border-2 border-slate-400 focus:border-sky-500 px-3 py-2 text-sm">
+          <option value="">Default (Bank / Asset account)</option>
+          {% for a in accounts %}
+            <option value="{{ a.id }}">{{ a.name }} ({{ a.kind }})</option>
+          {% endfor %}
+        </select>
+      </div>
+      {% endif %}
+
+      <div>
+        <label class="block text-xs font-medium text-slate-600 mb-1">CSV File</label>
+        <input type="file" name="file" accept=".csv" required autofocus
+               class="block w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0
+                      file:text-sm file:font-medium file:bg-slate-900 file:text-white hover:file:bg-slate-800 border border-slate-300 rounded-lg p-2">
+      </div>
+
+      <button class="w-full rounded-lg bg-sky-600 text-white py-2.5 text-sm font-medium hover:bg-sky-700 shadow-sm transition">
+        Preview Statement Import
+      </button>
+    </form>
+  {% endif %}
     </div>
   </div>
 </div>
 {% endblock %}
+
 
 

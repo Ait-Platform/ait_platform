@@ -378,6 +378,10 @@ class BudgetBridgeAndWalletTests(unittest.TestCase):
         self.assertIn("BudgetCash Wallet", content)
         self.assertIn("100", content)  # Balance is 100 tokens
         self.assertIn("Tokens", content)
+        self.assertIn("Available Tokens", content)
+        self.assertIn("Complimentary Tokens", content)
+        self.assertIn("Purchased Tokens", content)
+        self.assertIn("Tokens Consumed", content)
 
         # Check transaction history
         self.assertIn("Paystack Top-Up (Budget)", content)
@@ -393,6 +397,20 @@ class BudgetBridgeAndWalletTests(unittest.TestCase):
 
         # Check Back to Dashboard link
         self.assertIn("/budget/dashboard", content)
+
+    def test_budget_wallet_view_displays_insufficient_tokens_banner_when_empty(self):
+        """BudgetCash wallet displays 'Insufficient tokens. Purchase more tokens to continue.' when balance < 1."""
+        self.conn.execute(sa.text("UPDATE ait_token_wallet SET balance = 0 WHERE user_id = :uid"), {'uid': self.user_id})
+        self.conn.commit()
+
+        with self.client.session_transaction() as sess:
+            sess['_user_id'] = str(self.user_id)
+
+        res = self.client.get('/budget/wallet')
+        self.assertEqual(res.status_code, 200)
+        content = res.get_data(as_text=True)
+        self.assertIn("Insufficient tokens. Purchase more tokens to continue.", content)
+        self.assertIn("/wallet/topup/budget", content)
 
     def test_paystack_topup_50_tokens_fulfillment_and_idempotency(self):
         """Test R50 Paystack payment fulfilling 50 tokens to BudgetCash wallet exactly once."""

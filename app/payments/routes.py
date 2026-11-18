@@ -193,39 +193,42 @@ def wallet_topup(subject_slug):
         flash(f"Invalid module: {subject_slug}", "error")
         return redirect("/")
         
+    bundle_tokens = 50 if subject_slug == "budget" else 100
+    base_unit_cents = 5000 if subject_slug == "budget" else 10000
+
     currency = "ZAR"
     currency_symbol = "R"
-    price_cents = 10000
-    zar_price_cents = 10000
+    price_cents = base_unit_cents
+    zar_price_cents = base_unit_cents
     
     enrollment = UserEnrollment.query.filter_by(user_id=current_user.id, subject_id=auth_subject.id).first()
     if enrollment:
         country_code = enrollment.country_code or session.get("country_code", "")
-        # Rule: 100 Tokens = 100 Local Currency units (10000 cents)
+        # Rule: tokens = bundle_tokens, 1 token = 1 Local Currency unit
         if enrollment.local_currency and enrollment.local_amount_cents:
             currency = enrollment.local_currency
-            price_cents = 10000
+            price_cents = base_unit_cents
             if currency == "ZAR":
-                zar_price_cents = 10000
+                zar_price_cents = base_unit_cents
             elif enrollment.zar_amount_cents:
                 exchange_rate = enrollment.zar_amount_cents / enrollment.local_amount_cents
                 zar_price_cents = int(price_cents * exchange_rate)
             else:
-                zar_price_cents = 10000
+                zar_price_cents = base_unit_cents
         else:
             # Fall back to live quote if enrollment price is missing
             from app.enrollment.logic import get_quote_for_subject_country
             quote = get_quote_for_subject_country(auth_subject.id, country_code)
             if quote:
                 currency = quote.local_currency or "ZAR"
-                price_cents = 10000
+                price_cents = base_unit_cents
                 if currency == "ZAR":
-                    zar_price_cents = 10000
+                    zar_price_cents = base_unit_cents
                 elif quote.local_amount_cents and quote.zar_amount_cents:
                     exchange_rate = quote.zar_amount_cents / quote.local_amount_cents
                     zar_price_cents = int(price_cents * exchange_rate)
                 else:
-                    zar_price_cents = 10000
+                    zar_price_cents = base_unit_cents
             
     if currency == "USD": currency_symbol = "$"
     elif currency == "GBP": currency_symbol = "£"
@@ -237,12 +240,12 @@ def wallet_topup(subject_slug):
     elif currency != "ZAR": currency_symbol = ""
     
     wallet_quotes = dict(session.get('wallet_quotes', {}))
-    wallet_quotes[subject_slug] = dict(user_id=current_user.id, tokens=100,
+    wallet_quotes[subject_slug] = dict(user_id=current_user.id, tokens=bundle_tokens,
         amount_cents=zar_price_cents, currency='ZAR')
     session['wallet_quotes'] = wallet_quotes
     price_display = f"{price_cents / 100:.2f}"
             
-    return render_template("wallet_topup.html", wallet=wallet, currency=currency, currency_symbol=currency_symbol, price_display=price_display, price_cents=price_cents, zar_price_cents=zar_price_cents, subject_slug=subject_slug)
+    return render_template("wallet_topup.html", wallet=wallet, currency=currency, currency_symbol=currency_symbol, price_display=price_display, price_cents=price_cents, zar_price_cents=zar_price_cents, subject_slug=subject_slug, tokens=bundle_tokens)
 
 @payment_bp.route("/wallet/checkout", methods=["POST"])
 def wallet_checkout():

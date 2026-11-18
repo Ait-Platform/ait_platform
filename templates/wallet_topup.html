@@ -76,7 +76,9 @@
                 <!-- Topup Form -->
                 <div class="bg-indigo-50 rounded-lg p-6 border border-indigo-100">
                     <div class="text-center mb-4">
-                        <div class="text-indigo-700 font-bold mb-1">Standard Bundle (100 Tokens)</div>
+                        <div class="text-indigo-700 font-bold mb-1">
+                            {% if subject_slug == 'budget' %}BudgetCash Top-Up ({{ tokens|default(50) }} Tokens){% else %}Standard Bundle ({{ tokens|default(100) }} Tokens){% endif %}
+                        </div>
                         <div class="text-3xl font-black text-indigo-900">
                             {{ currency_symbol }}{{ price_display }} <span class="text-sm font-medium text-indigo-600 ml-1">{{ currency }}</span>
                         </div>
@@ -89,7 +91,7 @@
                     
                     <form action="{{ url_for('payment_bp.wallet_checkout') }}" method="POST">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                        <input type="hidden" name="tokens" value="100">
+                        <input type="hidden" name="tokens" value="{{ tokens|default(100) }}">
                         <input type="hidden" name="price_cents" value="{{ price_cents }}">
                         <input type="hidden" name="zar_price_cents" value="{{ zar_price_cents }}">
                         <input type="hidden" name="currency" value="{{ currency }}">

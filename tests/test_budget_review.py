@@ -254,7 +254,7 @@ class BudgetReview(unittest.TestCase):
         for uid in [self.user_id, self.other_id]:
             self.enrollments._ensure_enrollment_row(uid, 'budget')
             sessions.execute(sa.text("UPDATE user_enrollment SET status='paid' WHERE user_id=:uid"), {'uid': uid})
-        sessions.add(Tariff(program_slug='budget', action_name='ledger_entry', base_token_cost=2))
+        sessions.add(Tariff(program_slug='budget', action_name='ledger_entry', base_token_cost=1))
         sessions.commit()
         self.login(self.user_id)
 
@@ -299,7 +299,7 @@ class BudgetReview(unittest.TestCase):
         self.assertEqual(report.status_code, 200)
         for amount in ['1234.56', '200.01', '1034.55']:
             self.assertIn(amount, report.text)
-        self.assertEqual(self.session.query(self.Wallet).filter_by(user_id=self.user_id).one().balance, 96)
+        self.assertEqual(self.session.query(self.Wallet).filter_by(user_id=self.user_id).one().balance, 48)
         self.session.remove()
         self.login(None)
         self.assertEqual(self.client.get('/budget/ledger').status_code, 302)
@@ -315,7 +315,7 @@ class BudgetReview(unittest.TestCase):
         self.assertEqual(self.enrollments._ensure_enrollment_row(uid, 'budget'), eid)
         self.session.remove()
         self.assertTrue(check_password_hash(self.session.get(self.User, uid).password_hash, 'safe-password'))
-        self.assertEqual(self.session.query(self.Wallet).filter_by(user_id=uid).one().balance, 100)
+        self.assertEqual(self.session.query(self.Wallet).filter_by(user_id=uid).one().balance, 50)
         self.login(uid)
         self.assertEqual(self.client.get('/budget/dashboard').status_code, 302)
         self.session.execute(sa.text("UPDATE user_enrollment SET status='paid' WHERE id=:e"), {'e': eid})
@@ -350,7 +350,7 @@ class BudgetReview(unittest.TestCase):
         self.add(aid, '10.00')
         self.add(aid, '10.00')
         self.assertEqual(self.session.execute(sa.text('SELECT count(*) FROM bud_ledger WHERE account_id=:a'), {'a': aid}).scalar(), 1)
-        self.assertEqual(self.session.query(self.Wallet).filter_by(user_id=self.user_id).one().balance, 98)
+        self.assertEqual(self.session.query(self.Wallet).filter_by(user_id=self.user_id).one().balance, 49)
 
     def test_legitimate_separate_transactions_with_identical_amounts_permitted(self):
         aid = self.account('Separate transactions test')
@@ -364,18 +364,18 @@ class BudgetReview(unittest.TestCase):
         r3 = self.client.post('/budget/ledger/add', data={'account_id': str(aid), 'txn_date': '2026-11-10', 'amount': '15.00', 'submission_id': 'tx-token-1'})
         self.assertEqual(r3.status_code, 302)
         self.assertEqual(self.session.execute(sa.text('SELECT count(*) FROM bud_ledger WHERE account_id=:a'), {'a': aid}).scalar(), 2)
-        self.assertEqual(self.session.query(self.Wallet).filter_by(user_id=self.user_id).one().balance, 96)
+        self.assertEqual(self.session.query(self.Wallet).filter_by(user_id=self.user_id).one().balance, 48)
 
     def test_insufficient_tokens_blocks_transaction(self):
         aid = self.account('Token check account')
-        # Set wallet balance to 1 (less than tariff cost of 2)
-        self.session.execute(sa.text("UPDATE ait_token_wallet SET balance=1 WHERE user_id=:u"), {'u': self.user_id})
+        # Set wallet balance to 0 (less than tariff cost of 1)
+        self.session.execute(sa.text("UPDATE ait_token_wallet SET balance=0 WHERE user_id=:u"), {'u': self.user_id})
         self.session.commit()
         response = self.client.post('/budget/ledger/add', data={'account_id': str(aid), 'txn_date': '2026-11-10', 'amount': '50.00'})
         self.assertEqual(response.status_code, 302)
         self.assertIn('wallet_topup', response.location)
         self.assertEqual(self.session.execute(sa.text('SELECT count(*) FROM bud_ledger WHERE account_id=:a'), {'a': aid}).scalar(), 0)
-        self.assertEqual(self.session.query(self.Wallet).filter_by(user_id=self.user_id).one().balance, 1)
+        self.assertEqual(self.session.query(self.Wallet).filter_by(user_id=self.user_id).one().balance, 0)
 
     def test_concurrent_cashbook_posts_are_serialized_and_deduplicated(self):
         import concurrent.futures
@@ -394,7 +394,7 @@ class BudgetReview(unittest.TestCase):
         for r in results:
             self.assertEqual(r.status_code, 302)
         self.assertEqual(self.session.execute(sa.text('SELECT count(*) FROM bud_ledger WHERE account_id=:a'), {'a': aid}).scalar(), 1)
-        self.assertEqual(self.session.query(self.Wallet).filter_by(user_id=self.user_id).one().balance, 98)
+        self.assertEqual(self.session.query(self.Wallet).filter_by(user_id=self.user_id).one().balance, 49)
 
     def test_cross_user_account_cannot_receive_entries_edits_or_snapshots(self):
         own = self.account('Own account')
@@ -440,9 +440,9 @@ class BudgetReview(unittest.TestCase):
         foreign = self.account('Private user two', owner=self.other_id)
         for path in ['/budget/ledger', f'/budget/accounts/{foreign}', f'/budget/accounts/{foreign}/edit', '/budget/accounts/list', '/budget/snapshots', '/budget/reports/statement', '/budget/reports/by-group']:
             self.assertNotIn('Private user two', self.client.get(path).text)
-        self.session.execute(sa.text("UPDATE user_enrollment SET status='active',trial_end=:expired WHERE user_id=:u"), {'expired': datetime.utcnow() - timedelta(days=1), 'u': self.user_id})
+        self.session.execute(sa.text("UPDATE user_enrollment SET status='inactive' WHERE user_id=:u"), {'u': self.user_id})
         self.session.commit()
-        self.assertEqual(self.client.get('/budget/dashboard').location, '/budget/billing')
+        self.assertEqual(self.client.get('/budget/dashboard').location, '/bridge')
 
     def test_invalid_snapshot_numbers_are_rejected_clearly(self):
         aid = self.account('Invalid snapshot test', 'asset')
@@ -552,20 +552,35 @@ class BudgetReview(unittest.TestCase):
         self.assertNotIn('Hidden other account', self.client.get('/budget/snapshots').text)
 
     def test_legacy_csv_import_contract_matches_current_ledger_model(self):
-        data = {'file': (io.BytesIO(b'ext_ref,txn_date,amount,balance\nreview-1,2026-11-01,12.00,12.00\n'), 'review.csv')}
+        # 1. Preview screen display (before confirmation)
+        data_preview = {'file': (io.BytesIO(b'ext_ref,txn_date,amount,balance\nreview-1,2026-11-01,12.00,12.00\n'), 'review.csv')}
+        preview_resp = self.client.post('/budget/import-statement', data=data_preview)
+        self.assertEqual(preview_resp.status_code, 200)
+        self.assertIn('Confirm Statement Import', preview_resp.text)
+        self.assertIn('Tokens Required', preview_resp.text)
+
+        # 2. Confirmed import with token deduction
+        initial_balance = self.session.query(self.Wallet).filter_by(user_id=self.user_id).one().balance
+        data = {'file': (io.BytesIO(b'ext_ref,txn_date,amount,balance\nreview-1,2026-11-01,12.00,12.00\n'), 'review.csv'), 'confirm': '1'}
         resp = self.client.post('/budget/import-statement', data=data)
         self.assertEqual(resp.status_code, 302)
-        # Verify imported entry exists in bud_ledger
+
+        # Verify imported entry exists in bud_ledger and exactly 1 token was deducted
         count = self.session.execute(sa.text("SELECT count(*) FROM bud_ledger WHERE user_id=:u AND source='external'"), {'u': self.user_id}).scalar()
         self.assertEqual(count, 1)
-        # Repeated import must prevent duplicate entries
-        data2 = {'file': (io.BytesIO(b'ext_ref,txn_date,amount,balance\nreview-1,2026-11-01,12.00,12.00\n'), 'review.csv')}
+        self.assertEqual(self.session.query(self.Wallet).filter_by(user_id=self.user_id).one().balance, initial_balance - 1)
+
+        # Repeated import must prevent duplicate entries and not deduct any extra tokens
+        data2 = {'file': (io.BytesIO(b'ext_ref,txn_date,amount,balance\nreview-1,2026-11-01,12.00,12.00\n'), 'review.csv'), 'confirm': '1'}
         self.assertEqual(self.client.post('/budget/import-statement', data=data2).status_code, 302)
         count_after = self.session.execute(sa.text("SELECT count(*) FROM bud_ledger WHERE user_id=:u AND source='external'"), {'u': self.user_id}).scalar()
         self.assertEqual(count_after, 1)
+        self.assertEqual(self.session.query(self.Wallet).filter_by(user_id=self.user_id).one().balance, initial_balance - 1)
+
         # Verify imported entry appears in cashbook
         ledger_page = self.client.get('/budget/ledger')
         self.assertIn('12.00', ledger_page.text)
+
         # Invalid PDF guard
         pdf_data = {'file': (io.BytesIO(b'%PDF-1.4 dummy pdf'), 'statement.pdf')}
         self.assertEqual(self.client.post('/budget/import-statement', data=pdf_data).status_code, 302)

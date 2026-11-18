@@ -1,0 +1,26 @@
+{# Private franchisee pages use local CSS because their CSP disables script-based styling. #}
+{% include 'franchisees/_style.html' %}
+<style>
+  body { margin: 0; background: #f1f5f9; color: #1e293b; font-family: Arial, sans-serif; line-height: 1.5; }
+  #app-main { max-width: 1100px; margin: 0 auto; padding: 24px 16px; }
+  #bug-modal { display: none; }
+  .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; }
+  .sr-only:focus { position: static; width: auto; height: auto; clip: auto; }
+  .franchisee-tile { margin: 8px auto; }
+  .franchisee-tile h1 { margin: 0; font-size: 24px; }
+  .franchisee-header { flex-wrap: wrap; padding-bottom: 16px; border-bottom: 1px solid #e2e8f0; }
+  .franchisee-tile svg { width: 16px; height: 16px; }
+  .franchisee-tile input[type="hidden"] { display: none; }
+  .franchisee-button { font-size: 14px; padding: 6px 12px; }
+  .franchisee-button:hover { background: #cbd5e1; }
+  .franchisee-tile table { font-size: 14px; line-height: 1.4; }
+  .franchisee-tile th { background: #f8fafc; font-weight: 600; }
+  .franchisee-tile td, .franchisee-tile th { padding: 8px 10px; vertical-align: top; }
+  .franchisee-tile td:first-child { overflow-wrap: anywhere; }
+  .franchisee-row-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+  .franchisee-row-actions form { margin: 0; }
+  .franchisee-invite { display: flex; align-items: end; flex-wrap: wrap; gap: 12px; }
+  .franchisee-invite label { flex: 1; min-width: 180px; max-width: 500px; margin: 0; }
+  .franchisee-invite .franchisee-actions { margin: 0; }
+  @media (max-width: 600px) { .franchisee-body { padding: 16px; } }
+</style>

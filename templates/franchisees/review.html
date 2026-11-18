@@ -1,4 +1,6 @@
 {% extends 'layout.html' %}
+{% set hide_navbar = true %}
+{% block head %}{% include 'franchisees/_admin_style.html' %}{% endblock %}
 {% block title %}Review franchisee registration{% endblock %}{% block flashes %}{% endblock %}
 {% block content %}{% include 'franchisees/_style.html' %}
 <div class="franchisee-tile mx-auto rounded-xl bg-white shadow"><div class="franchisee-strip"></div><div class="franchisee-body">

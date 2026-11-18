@@ -21,7 +21,7 @@ from alembic.script import ScriptDirectory
 from alembic.runtime.environment import EnvironmentContext
 from cryptography.fernet import Fernet
 from dotenv import dotenv_values
-from flask import Flask
+from flask import Flask, render_template
 from flask_login import LoginManager, UserMixin
 from flask_mail import Mail
 from flask_sqlalchemy.query import Query
@@ -103,6 +103,9 @@ class FranchiseeTests(unittest.TestCase):
         manager=LoginManager(app);manager.user_loader(lambda uid:sessions.get(User,int(uid)))
         app.jinja_loader=ChoiceLoader([DictLoader({'layout.html':'<html><body>{% block content %}{% endblock %}</body></html>'}),FileSystemLoader(ROOT/'templates')])
         app.add_url_rule('/admin/',endpoint='admin_bp.index',view_func=lambda:'Admin Hub')
+        app.add_url_rule('/bridge',endpoint='bridge_bp.bridge',view_func=lambda:'AIT Bridge')
+        app.add_url_rule('/mechanic/',endpoint='mechanic_bp.mechanic_dashboard',view_func=lambda:'Existing ProTrade entry')
+        app.add_url_rule('/contact',endpoint='public_bp.contact',view_func=lambda:'Contact AIT Admin')
         app.register_blueprint(self.flow.franchisee_bp)
         @app.teardown_request
         def end(error):
@@ -155,6 +158,111 @@ class FranchiseeTests(unittest.TestCase):
         self.assertEqual(row.user_id,2);self.assertIsNotNone(row.submitted_at)
         self.assertEqual(self.client.post('/admin/franchisees/'+str(row.id),data={'action':'approve'}).status_code,409)
         self.assertEqual(self.session.execute(sa.text('SELECT * FROM "user" ORDER BY id')).all(),before)
+
+    def test_opportunities_navigation_is_scoped_and_preserves_approval(self):
+        for path in ['/franchisees/opportunities','/franchisees/opportunities/register']:
+            self.login(None)
+            self.assertEqual(self.client.get(path).status_code,401)
+        for uid in [1,2,3]:
+            self.login(uid)
+            response=self.client.get('/franchisees/opportunities')
+            self.assertEqual(response.status_code,200)
+            self.assertIn('Register as Franchisee',response.text)
+            self.assertIn('/franchisees/opportunities/register',response.text)
+        self.assertEqual(self.Registration.query.count(),0)
+        token=self.invite()
+        self.login(2)
+        response=self.client.get('/franchisees/opportunities/register')
+        self.assertIn('invitation from AIT Admin',response.text)
+        self.assertNotIn(token,response.text)
+        self.assertEqual(self.submit(token).status_code,302)
+        self.login(2)
+        response=self.client.get('/franchisees/opportunities')
+        self.assertIn('awaiting AIT Admin approval',response.text)
+        self.assertNotIn('Open ProTrade',response.text)
+        self.login(1)
+        row=self.Registration.query.one()
+        self.assertEqual(self.client.post(f'/admin/franchisees/{row.id}',data={'action':'approve'}).status_code,302)
+        self.login(2)
+        response=self.client.get('/franchisees/opportunities')
+        self.assertIn('Open ProTrade',response.text)
+        self.assertNotIn('Register as Franchisee',response.text)
+        self.login(3)
+        response=self.client.get('/franchisees/opportunities')
+        self.assertIn('Register as Franchisee',response.text)
+        self.assertNotIn('Open ProTrade',response.text)
+        self.assertNotIn('Happiness',response.text)
+        self.assertEqual(self.Registration.query.count(),1)
+
+    def test_bridge_link_is_visible_for_ordinary_users_and_admins(self):
+        for endpoint in ['admin_bp.global_settings','admin_bp.programs_index','admin_bp.security_dashboard']:
+            self.app.add_url_rule('/test/'+endpoint,endpoint=endpoint,view_func=lambda:'Existing admin destination')
+        for admin in [False,True]:
+            with self.app.test_request_context('/bridge'):
+                markup=render_template('auth/bridge_dashboard.html',user=self.User(id=99,name='Example'),
+                                       subjects=[],platform_admin_bridge=admin)
+            page=html.fromstring(markup)
+            links=page.xpath('//a[normalize-space(.)="AIT Franchise Opportunities"]')
+            self.assertEqual(len(links),1)
+            self.assertEqual(links[0].get('href'),'/franchisees/opportunities')
+
+    def test_browser_opportunities_and_compact_admin_register(self):
+        import threading
+        from playwright.sync_api import sync_playwright
+        from werkzeug.serving import make_server, WSGIRequestHandler
+        class QuietHandler(WSGIRequestHandler):
+            def log_request(self,*args,**kwargs):pass
+        token=self.invite()
+        self.assertEqual(self.submit(token).status_code,302)
+        self.login(1)
+        row_id=self.Registration.query.one().id
+        self.assertEqual(self.client.post(f'/admin/franchisees/{row_id}',data={'action':'approve'}).status_code,302)
+        self.session.rollback()
+        self.app.jinja_loader=FileSystemLoader(ROOT/'templates')
+        self.app.jinja_env.cache.clear()
+        server=make_server('127.0.0.1',0,self.app,request_handler=QuietHandler)
+        origin=f'http://127.0.0.1:{server.server_port}'
+        thread=threading.Thread(target=server.serve_forever,daemon=True);thread.start()
+        try:
+            with sync_playwright() as runtime:
+                browser=runtime.chromium.launch(headless=True)
+                try:
+                    page=browser.new_page(viewport={'width':1280,'height':900})
+                    page.route('https://**/*',lambda route:route.abort())
+                    def login(uid):
+                        cookie=self.app.session_interface.get_signing_serializer(self.app).dumps({'_user_id':str(uid),'_fresh':True})
+                        page.context.add_cookies([{'name':self.app.config['SESSION_COOKIE_NAME'],'value':cookie,'url':origin}])
+                    login(3)
+                    page.goto(origin+'/franchisees/opportunities')
+                    page.get_by_role('link',name='Register as Franchisee',exact=True).click()
+                    self.assertIn('invitation from AIT Admin',page.locator('main').inner_text())
+                    page.get_by_role('link',name='Contact AIT Admin',exact=True).click()
+                    self.assertIn('Contact AIT Admin',page.content())
+                    login(2)
+                    page.goto(origin+'/franchisees/opportunities')
+                    page.get_by_role('link',name='Open ProTrade',exact=True).click()
+                    self.assertIn('Existing ProTrade entry',page.content())
+                    login(1)
+                    page.goto(origin+'/admin/franchisees')
+                    self.assertEqual(page.locator('tbody tr').count(),1)
+                    self.assertEqual(page.locator('h1').inner_text(),'Franchisee Register')
+                    self.assertFalse(page.locator('#bug-modal').is_visible())
+                    self.assertEqual(page.locator('table').evaluate('(table) => getComputedStyle(table).fontSize'),'14px')
+                    self.assertLess(page.locator('tbody tr').bounding_box()['height'],150)
+                    artifact=ROOT/'tmp/franchisee-register-compact.png'
+                    artifact.parent.mkdir(exist_ok=True)
+                    page.screenshot(path=str(artifact),full_page=True)
+                    page.get_by_role('link',name='View Details',exact=True).click()
+                    self.assertIn('Happiness Example',page.locator('main').inner_text())
+                    page.get_by_role('link',name='Back to Franchisee Register',exact=True).click()
+                    page.set_viewport_size({'width':375,'height':850})
+                    self.assertTrue(page.get_by_role('link',name='View Details',exact=True).is_visible())
+                    self.assertTrue(page.evaluate('document.documentElement.scrollWidth <= window.innerWidth'))
+                    page.get_by_role('link',name='Back to Admin Hub',exact=True).click()
+                    self.assertIn('Admin Hub',page.content())
+                finally:browser.close()
+        finally:
+            server.shutdown();thread.join(timeout=5);server.server_close()
 
     def test_required_fields_and_identity_validation(self):
         token=self.invite()

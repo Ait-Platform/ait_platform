@@ -69,7 +69,10 @@ def audit(row, action, actor=None):
 
 @franchisee_bp.before_request
 def guard():
-    if request.endpoint not in {'franchisee_bp.register', 'franchisee_bp.submitted'}:
+    if request.endpoint in {'franchisee_bp.opportunities', 'franchisee_bp.registration_start'}:
+        if not current_user.is_authenticated:
+            abort(401)
+    elif request.endpoint not in {'franchisee_bp.register', 'franchisee_bp.submitted'}:
         if not current_user.is_authenticated:
             abort(401)
         if not is_admin(current_user):
@@ -87,6 +90,14 @@ def private_response(response):
     # Sensitive forms must not run third-party scripts from the global layout.
     response.headers['Content-Security-Policy'] = "default-src 'self'; script-src 'none'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; form-action 'self'; frame-ancestors 'none'; base-uri 'none'"
     return response
+
+
+@franchisee_bp.route('/franchisees/opportunities', defaults={'registration_start': False})
+@franchisee_bp.route('/franchisees/opportunities/register', endpoint='registration_start', defaults={'registration_start': True})
+def opportunities(registration_start):
+    registration = Registration.query.filter_by(user_id=current_user.id).first()
+    return render_template('franchisees/opportunities.html', registration=registration,
+                           registration_start=registration_start)
 
 
 @franchisee_bp.route('/admin/franchisees', methods=['GET', 'POST'])

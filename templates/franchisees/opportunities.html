@@ -1,0 +1,28 @@
+{% extends 'layout.html' %}
+{% set hide_navbar = true %}
+{% block title %}AIT Franchise Opportunities{% endblock %}
+{% block flashes %}{% endblock %}
+{% block head %}{% include 'franchisees/_admin_style.html' %}{% endblock %}
+{% block content %}
+<div class="franchisee-tile"><div class="franchisee-strip"></div><div class="franchisee-body">
+  <div class="franchisee-header">
+    <h1>AIT Franchise Opportunities</h1>
+    <a class="franchisee-button" href="{{ url_for('bridge_bp.bridge') }}">Back to AIT Bridge</a>
+  </div>
+  {% include 'partials/flash_messages.html' %}
+  <p>Start your own service business using AIT's professional business tools. Find customers, provide services and earn income.</p>
+  <h2>Available Programme: ProTrade</h2>
+  {% if registration and registration.status == 'Approved' %}
+    <div class="franchisee-actions"><a class="franchisee-button" href="{{ url_for('mechanic_bp.mechanic_dashboard') }}">Open ProTrade</a></div>
+  {% elif registration and registration.status == 'Submitted' %}
+    <p>Your registration is awaiting AIT Admin approval.</p>
+  {% elif registration_start %}
+    <h2>Register as Franchisee</h2>
+    <p>Registration requires an invitation from AIT Admin. Open the registration link in your invitation email to complete the existing secure form.</p>
+    <p>If you need an invitation or your link has expired, contact AIT Admin to request an invitation or resend.</p>
+    <div class="franchisee-actions"><a class="franchisee-button" href="{{ url_for('public_bp.contact') }}">Contact AIT Admin</a></div>
+  {% else %}
+    <div class="franchisee-actions"><a class="franchisee-button" href="{{ url_for('franchisee_bp.registration_start') }}">Register as Franchisee</a></div>
+  {% endif %}
+</div></div>
+{% endblock %}

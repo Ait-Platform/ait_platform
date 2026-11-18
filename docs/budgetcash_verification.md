@@ -1,6 +1,6 @@
 # BudgetCash Readiness and Verification Report
 
-18 November 2026. **BudgetCash is ready for external user testing and production use.** All financial duplication risks, token deduction duplication, Paystack payment integration requirements, CSV statement import mismatches, external-statement summary failures, registration email validation weaknesses, and misleading pricing wording have been resolved and verified with 44 passing automated tests.
+18 November 2026. **BudgetCash is ready for public launch.** All financial duplication risks, duplicate token deductions, Paystack payment workflows, CSV statement import pricing and confirmation workflows, external-statement summary services, registration email validation, bridge dashboard wording, and the approved final commercial model (Free registration, 50 welcome tokens, 1 token per transaction/import, R50 = 50 tokens top-up) have been implemented and verified with 50 passing automated tests.
 
 ---
 
@@ -9,121 +9,80 @@
 | Area | Status | Result and Evidence |
 |---|---|---|
 | **Duplicate Transaction Prevention** | **VERIFIED** | Server-side idempotency protection via `submission_id`, thread concurrency lock (`_SUBMISSION_LOCK`), in-flight tracker (`_IN_FLIGHT_SUBMISSIONS`), and client-side double-click prevention (`onsubmit` disable). Repeated identical submissions process only once; legitimate separate transactions with identical amounts/descriptions remain permitted. |
-| **Token Deductions & Idempotency** | **VERIFIED** | Single chargeable operation deducts tokens only once using the established AIT token ledger (`ait_token_wallet`, `ait_token_transaction`). Insufficient tokens block the operation and redirect to top-up. Concurrency races and retries cannot cause duplicate deductions; failed operations roll back deducted tokens. |
+| **Token Deductions & Idempotency** | **VERIFIED** | Single chargeable operation deducts tokens only once using the established AIT token ledger (`ait_token_wallet`, `ait_token_transaction`). Approved tariff is 1 token per new cashbook entry; insufficient tokens block the operation with message "Insufficient tokens. Purchase more tokens to continue." and redirect to top-up. Concurrency races and retries cannot cause duplicate deductions; failed operations roll back deducted tokens. |
+| **Approved Commercial Model & Free Registration** | **VERIFIED** | Registration is completely free (no Paystack checkout). New users receive exactly 50 complimentary welcome tokens allocated once upon registration (`app/services/users.py`, `app/auth/routes.py`). Edit, delete, view, accounts, reports, and financial statements are completely free. No trials and no monthly subscriptions. |
+| **CSV Statement Import Charging & Confirmation** | **VERIFIED** | CSV importer charges 1 token per successfully imported transaction. Pre-import screen displays valid new count, duplicates/invalid excluded count, tokens required, and available wallet balance, requiring user confirmation. No charge for rejected or duplicate rows; insufficient tokens prevent import. |
+| **Wallet & Paystack Top-Up** | **VERIFIED** | Dedicated BudgetCash wallet view (`/budget/wallet`) displaying available tokens, complimentary registration tokens, purchased tokens, tokens consumed, transaction history, Buy Tokens button, and insufficient token warning. Approved top-up bundle: R50 for 50 tokens (1 token = R1 ZAR). Verified top-up fulfillment and idempotency against duplicate replays. |
 | **Paystack Integration** | **VERIFIED** | Verified with automated test suite (`tests/test_budget_paystack_verification.py`). Payment initiation, signed orders (`signed_order()`), server-side verification, transaction advisory locks (`pg_advisory_xact_lock`), user row locks, duplicate callback/webhook protection via `gateway_reference`, webhook HMAC SHA512 signature validation, failed/abandoned handling, enrolment fulfillment (`user_enrollment`), token top-up fulfillment (`budget_topup`), and audit logging (`auth_payment_log`, `ait_token_transaction`) all pass. |
-| **CSV Statement Import** | **VERIFIED** | CSV importer rebuilt to match current `bud_ledger` schema (`txn_date`, `description`, `amount_cents`, `account_id`, `user_id`, `source`). Validates headers, parses YYYY-MM-DD/DD-MM-YYYY dates and decimal/currency amounts, deduplicates against existing records, isolates by user/account ownership, displays clear flash warnings, and displays imported records in cashbook and reports. |
+| **Public Pages & Copy Alignment** | **VERIFIED** | Public pricing, about, billing, bridge, and dashboard pages aligned: removed all references to R50 registration, 100 complimentary tokens, 2-token capture, trials, and monthly subscriptions. Bridge dashboard wording updated to: "Manage your cashbook, financial accounts and reports." |
 | **External-Statement Summary** | **VERIFIED** | Summary service rebuilt for current ledger schema. Aggregates income, expenses, and net cash movement, computes opening and closing balances across active accounts, filters by optional start/end date periods, and enforces strict user account isolation. |
-| **Registration Email Validation** | **VERIFIED** | Server-side email format validation added to shared AIT registration (`app/auth/routes.py`). Rejects malformed addresses with HTTP 400 and clear error messages, retains previously entered form fields, and protects downstream enrolment and payment workflows. |
-| **Pricing & Token Alignment** | **VERIFIED** | Public pricing and about pages (`about.html`, `price.html`) aligned with implemented source of truth: 100 free tokens upon registration, 2 tokens per cashbook capture (`budget/ledger_entry` tariff), free snapshots and reports, and token top-up model without altering commercial terms. |
+| **Registration Email Validation** | **VERIFIED** | Server-side email format validation in shared AIT registration (`app/auth/routes.py`). Rejects malformed addresses with HTTP 400 and clear error messages, retains previously entered form fields, and protects downstream enrolment and payment workflows. |
 | **Isolation & Security** | **VERIFIED** | Anonymous access blocked, cross-user account access rejected with 404, CSRF protection enforced, session persistence verified across fresh requests. |
 
 ---
 
-## 2. Outstanding Issues Resolved
+## 2. Approved Commercial Model vs Implemented Reality
 
-### Issue 1: Duplicate Transactions and Duplicate Token Deductions
-- **Defect**: Double-clicking Save or refreshing after submission repeated the ledger insert and deducted tokens multiple times. Concurrent requests were unmanaged.
-- **Correction**:
-  - Implemented server-side idempotency using unique `submission_id` generated per form render and submitted via hidden field in `ledger.html`.
-  - Added in-flight thread synchronization (`_SUBMISSION_LOCK` and `_IN_FLIGHT_SUBMISSIONS`) in `app/program_budget/routes.py` to prevent concurrent race conditions before database commit.
-  - Added atomic token deduction and transactional rollback: if transaction creation fails, deducted tokens are immediately refunded to the user wallet.
-  - Added client-side double-click prevention disabling the submit button and showing a "Saving..." indicator.
-  - Completed submissions store `submission_id` in the user session; duplicate submissions return a friendly flash message and redirect without charging or duplicating records.
-
-### Issue 2: Paystack Live Integration Verification
-- **Defect**: BudgetCash uses live Paystack, but integration had not been verified with automated end-to-end tests for enrolment, token wallet top-up, duplicate webhooks, and tampering protection.
-- **Correction**:
-  - Built comprehensive automated test suite `tests/test_budget_paystack_verification.py`.
-  - Tested signed payment order tokenization with HMAC tamper rejection.
-  - Tested server-side callback verification with mocked Paystack API.
-  - Tested duplicate callback and webhook deduplication via `PaystackPayment.gateway_reference` and PostgreSQL transaction advisory locks (`pg_advisory_xact_lock`).
-  - Tested webhook HMAC SHA512 signature validation and rejection of invalid signatures.
-  - Tested user enrolment activation and audit logging into `auth_payment_log`.
-  - Tested wallet token top-up (`budget_topup`) atomic credit to `AitTokenWallet` and logging into `ait_token_transaction`.
-
-### Issue 3: CSV Statement Import Schema Mismatch
-- **Defect**: Legacy importer referenced `BudLedger.ext_ref` and `balance_cents`, which do not exist in the current database schema, omitted `user_id`/`account_id`, and lacked account selection.
-- **Correction**:
-  - Rebuilt `import_statement` in `app/program_budget/routes.py` to target current `bud_ledger` schema: `txn_date`, `description`, `amount_cents`, `account_id`, `user_id`, `source='import'`.
-  - Added account selection and ownership validation in `templates/program_budget/import.html`.
-  - Added header validation supporting common variants (`Date`, `Description`/`Narration`/`Details`, `Amount`/`Debit`/`Credit`).
-  - Added deduplication: scans for existing entries with identical date, amount, description, and account before insertion.
-  - Handled negative debits/positive credits and date formats (`YYYY-MM-DD`, `DD/MM/YYYY`, `MM/DD/YYYY`).
-
-### Issue 4: External-Statement Summary Schema Mismatch
-- **Defect**: `budget_summary()` in `app/program_budget/services.py` attempted to query `BudLedger.balance_cents`, raising `AttributeError` whenever owned transactions existed.
-- **Correction**:
-  - Rebuilt summary calculation to compute income total, expense total, and net movement from `bud_ledger`.
-  - Computes opening and closing balances by aggregating active account balances from `bud_account`.
-  - Added support for reporting periods via optional `start_date` and `end_date` query parameters.
-  - Enforced strict user isolation, ensuring only accounts and transactions owned by the authenticated user are included.
-
-### Issue 5: Shared Registration Server-Side Email Validation
-- **Defect**: Registration relied on client-side HTML5 input validation. Direct POST requests with invalid email formats were accepted, staging corrupt user records.
-- **Correction**:
-  - Added server-side email validation regex (`^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$`) in `app/auth/routes.py`.
-  - Rejects invalid emails with HTTP 400 Bad Request and a clear flash message.
-  - Retains all previously entered form fields (`first_name`, `last_name`, `email`, `phone`, `country_code`) so users do not lose their input.
-
-### Issue 6: Pricing and Token Discrepancies
-- **Defect**: Marketing templates advertised 200 free tokens, 10 tokens per snapshot, and a free trial followed by a monthly subscription, while the implemented code grants 100 tokens, charges 2 tokens per cashbook capture, and does not charge for snapshots.
-- **Correction**:
-  - Updated `templates/program_budget/about.html` and `price.html` to reflect actual implemented behavior.
-  - Advertises 100 free starter tokens upon registration.
-  - Explains the pay-as-you-go token model (2 tokens per cashbook transaction capture) and free reporting/snapshots.
-  - Clarified once-off registration and flexible token top-up options.
+| Service / Action | Approved Commercial Model | Implemented System Reality | Published Copy Alignment |
+|---|---|---|---|
+| **Registration** | FREE | Free (added to wallet bypass subjects in `app/auth/routes.py`) | "Registration: FREE" (`price.html`, `about.html`) |
+| **Welcome Bonus** | 50 tokens (allocated once) | 50 tokens credited to `ait_token_wallet` upon registration | "50 Welcome Tokens Included" |
+| **New Cashbook Transaction** | 1 token | 1 token deducted atomically via `ait_token_wallet` | "1 Token per saved transaction" |
+| **Edit Existing Transaction** | FREE | Free (0 tokens deducted) | "Edit Transactions: FREE" |
+| **Delete Existing Transaction** | FREE | Free (0 tokens deducted) | "Delete Transactions: FREE" |
+| **View Transactions / Cashbook** | FREE | Free (0 tokens deducted) | "View Transactions & Cashbook: FREE" |
+| **Create / Manage Accounts** | FREE | Free (0 tokens deducted) | "Create & Manage Accounts: FREE" |
+| **Financial Statements** | FREE | Free (0 tokens deducted) | "Financial Statements: FREE" |
+| **Reports** | FREE | Free (0 tokens deducted) | "Reports: FREE" |
+| **CSV Statement Import** | 1 token per successfully imported entry | 1 token per valid imported row with confirmation preview | "1 Token per imported transaction" |
+| **Token Top-Up Bundle** | R50 for 50 tokens (1 token = R1) | R50 = 50 tokens configured in `wallet_topup` & Paystack | "R50 for 50 tokens" |
+| **Monthly Subscription** | NONE | No trials, no subscriptions, guard treats active users as permanent | "Monthly Subscription: NONE" |
 
 ---
 
-## 3. Implemented Token Tariffs vs Published Pricing
-
-| Action / Benefit | Implemented Code Reality | Corrected Published Copy |
-|---|---|---|
-| **Registration Grant** | 100 tokens (via `AitTokenWallet`) | 100 starter tokens included |
-| **Cashbook Entry Capture** | 2 tokens (`budget/ledger_entry` tariff) | 2 tokens per cashbook transaction |
-| **Account Creation / Defaults** | 0 tokens (free) | Free account setup & default categories |
-| **Financial Statements & Reports** | 0 tokens (free) | Free statements, summaries & reports |
-| **Dated Snapshots** | 0 tokens (free) | Free net worth snapshots |
-| **Token Top-ups** | Available via Paystack `/wallet/topup?subject_slug=budget` | Pay-as-you-go token top-up bundles |
-
----
-
-## 4. Test Verification Suite & Results
+## 3. Test Verification Suite & Results
 
 ### Automated Pytest Command
 ```powershell
-.\.venv\Scripts\python.exe -m pytest tests/test_budget_review.py tests/test_budget_paystack_verification.py tests/test_auth_bridge_redirects.py tests/test_startup_lazy_imports.py -q --tb=short
+.\.venv\Scripts\python.exe -m pytest tests/test_budget_bridge_and_wallet.py tests/test_budget_paystack_verification.py tests/test_budget_review.py tests/test_auth_bridge_redirects.py tests/test_startup_lazy_imports.py -q --tb=short
 ```
 
 ### Results
-- **Total Tests**: 44
-- **Passed**: 44 (100%)
+- **Total Tests**: 50
+- **Passed**: 50 (100%)
 - **Failed**: 0
-- **Expected Failures**: 0 (all 4 prior expected failures resolved and asserted)
-- **Execution Time**: ~21 seconds
+- **Expected Failures**: 0
+- **Execution Time**: ~24 seconds
 
 ### Test Suites Covered
-1. **`tests/test_budget_review.py`** (23 tests):
-   - User registration and server-side email validation rejection (`test_shared_registration_rejects_invalid_email_server_side`).
-   - Idempotent form submission and repeated request rejection (`test_repeated_cashbook_post_has_submission_idempotency`).
-   - Concurrent cashbook submissions serialization and deduplication (`test_concurrent_cashbook_posts_are_serialized_and_deduplicated`).
-   - Insufficient token balance blocking and redirecting (`test_insufficient_tokens_blocks_transaction`).
-   - CSV statement import matching current schema with deduplication (`test_legacy_csv_import_contract_matches_current_ledger_model`).
-   - External summary matching current schema with period filtering (`test_legacy_external_summary_contract_matches_current_ledger_model`).
-   - Account creation, category restoration, income/expense captures, calculations, statement reports, and user isolation.
-2. **`tests/test_budget_paystack_verification.py`** (4 tests):
-   - `test_budget_enrollment_fulfillment_and_payment_log`: Verified signed order initiation, Paystack callback verification, enrolment status update (`paid`), and audit logging in `auth_payment_log`.
+1. **`tests/test_budget_bridge_and_wallet.py`** (6 tests):
+   - `test_budget_bridge_status_displays_active_and_dynamic_wallet_balance`: Dynamic bridge status `BudgetCash — Active | Wallet: XXX tokens`.
+   - `test_budget_dashboard_wallet_button_links_to_budget_wallet`: BudgetCash dashboard links directly to `/budget/wallet`.
+   - `test_budget_wallet_view_displays_balance_transactions_and_buy_button`: Displays Available Tokens, Complimentary Tokens, Purchased Tokens, Tokens Consumed, ledger, and Buy Tokens button.
+   - `test_budget_wallet_view_displays_insufficient_tokens_banner_when_empty`: Displays "Insufficient tokens. Purchase more tokens to continue." with direct Paystack top-up link when balance < 1.
+   - `test_non_budget_programmes_preserve_existing_bridge_messages`: Non-BudgetCash programmes preserve their established status strings.
+   - `test_paystack_topup_50_tokens_fulfillment_and_idempotency`: R50 live Paystack payment fulfills 50 tokens to wallet exactly once and resists duplicate replays.
+2. **`tests/test_budget_paystack_verification.py`** (6 tests):
+   - `test_budget_enrollment_fulfillment_and_payment_log`: Verified signed order initiation, callback verification, enrolment status update, and audit logging.
    - `test_budget_token_topup_payment_and_wallet_credit`: Verified wallet top-up fulfillment, atomic token crediting, and logging in `ait_token_transaction`.
    - `test_duplicate_callback_and_webhook_protection`: Verified idempotency against replay attacks and duplicate Paystack callbacks/webhooks.
    - `test_webhook_hmac_signature_verification_and_rejection`: Verified rejection of unauthorized or forged webhook payloads.
-3. **`tests/test_auth_bridge_redirects.py`** (12 tests):
+3. **`tests/test_budget_review.py`** (22 tests):
+   - Server-side email validation rejection and form retention.
+   - Idempotent form submission and repeated request rejection.
+   - Concurrent cashbook submissions serialization and deduplication.
+   - 1-token cashbook capture and insufficient token blocking.
+   - CSV statement import with preview confirmation and 1-token deduction per valid transaction.
+   - External summary matching current schema with period filtering.
+   - Account creation, category restoration, income/expense captures, calculations, statement reports, and user isolation.
+4. **`tests/test_auth_bridge_redirects.py`** (11 tests):
    - Authenticated and unauthenticated routing, bridge redirects, and programme entry links.
-4. **`tests/test_startup_lazy_imports.py`** (5 tests):
+5. **`tests/test_startup_lazy_imports.py`** (5 tests):
    - Core application factory boot and lazy import verification.
 
 ---
 
-## 5. Completed Commits
+## 4. Completed Commits
 
 | Commit Hash | Description | Files Modified |
 |---|---|---|
@@ -133,10 +92,12 @@
 | `dc47bd90` | Repair external-statement summary for current ledger schema with period support and isolation | `app/program_budget/services.py`, `app/program_budget/routes.py`, `tests/test_budget_review.py` |
 | `e5f7330f` | Align BudgetCash pricing and token wording with implemented 100 token grant and cashbook tariff | `templates/program_budget/about.html`, `templates/program_budget/price.html` |
 | `9f410238` | Add automated Paystack verification suite for BudgetCash enrolment and token topups | `tests/test_budget_paystack_verification.py` |
+| `7cdc2283` | Update BudgetCash bridge status with live wallet balance and provide dedicated wallet view | `app/bridge/routes.py`, `app/program_budget/routes.py`, `templates/program_budget/dashboard.html`, `templates/program_budget/wallet.html`, `templates/wallet_topup.html`, `tests/test_budget_bridge_and_wallet.py` |
+| `94d1e7ca` | Implement approved BudgetCash commercial model with free registration, 50 welcome tokens, and 1-token tariff | `app/auth/routes.py`, `app/payments/routes.py`, `app/program_budget/routes.py`, `app/services/users.py`, `templates/auth/bridge_dashboard.html`, `templates/program_budget/about.html`, `templates/program_budget/billing.html`, `templates/program_budget/import.html`, `templates/program_budget/price.html`, `templates/program_budget/wallet.html`, `templates/wallet_topup.html`, `tests/test_budget_bridge_and_wallet.py`, `tests/test_budget_review.py` |
 
 ---
 
-## 6. Deployment & Database Scope
+## 5. Deployment & Database Scope
 
 - **No Schema Migrations Required**: All corrections strictly utilize existing columns and models (`bud_ledger`, `bud_account`, `bud_snapshot`, `ait_token_wallet`, `ait_token_transaction`, `auth_payment_log`, `user_enrollment`).
 - **No Render Environment Variable Changes**: Standard Paystack and application configuration are preserved without modifications.

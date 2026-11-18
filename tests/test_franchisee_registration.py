@@ -443,7 +443,7 @@ class FranchiseeTests(unittest.TestCase):
         self.assertEqual(set(page.xpath('//*[@aria-invalid="true"]/@name')),{'full_name','sa_id','cellphone','address','occupation'})
         self.assertEqual(self.Registration.query.count(),0)
 
-    def test_bridge_link_is_visible_for_ordinary_users_and_admins(self):
+    def test_bridge_franchisee_entry_is_paused_for_ordinary_users_and_admins(self):
         for endpoint in ['admin_bp.global_settings','admin_bp.programs_index','admin_bp.security_dashboard']:
             self.app.add_url_rule('/test/'+endpoint,endpoint=endpoint,view_func=lambda:'Existing admin destination')
         for admin in [False,True]:
@@ -452,8 +452,7 @@ class FranchiseeTests(unittest.TestCase):
                                        subjects=[],platform_admin_bridge=admin)
             page=html.fromstring(markup)
             links=page.xpath('//a[normalize-space(.)="AIT Franchise Opportunities"]')
-            self.assertEqual(len(links),1)
-            self.assertEqual(links[0].get('href'),'/franchisees/opportunities')
+            self.assertEqual(len(links),0)
 
     def test_browser_opportunities_and_compact_admin_register(self):
         import threading

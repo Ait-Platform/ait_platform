@@ -1,10 +1,10 @@
 from app.models.budget import BudLedger
 from app.extensions import db
 
-def budget_summary() -> dict:
-    q = BudLedger.query.filter_by(source="external").order_by(BudLedger.id.asc())
+def budget_summary(user_id: int) -> dict:
+    q = BudLedger.query.filter_by(user_id=user_id, source="external").order_by(BudLedger.id.asc())
     first = q.first()
-    last = BudLedger.query.filter_by(source="external").order_by(BudLedger.id.desc()).first()
+    last = BudLedger.query.filter_by(user_id=user_id, source="external").order_by(BudLedger.id.desc()).first()
 
 
 

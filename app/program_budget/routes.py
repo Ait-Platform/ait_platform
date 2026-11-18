@@ -84,8 +84,9 @@ def import_statement():
 
 @csrf.exempt
 @budget_bp.get("/summary")
+@login_required
 def summary():
-    data = budget_summary()
+    data = budget_summary(current_user.id)
     return jsonify({"ok": True, **data})
 
 @budget_bp.get("/import")
@@ -114,6 +115,14 @@ def dashboard():
 @login_required
 def next_step():
     return redirect(url_for("budget_bp.import_page"))
+
+def _require_owned_account(account_id):
+    account = db.session.execute(text(
+        "SELECT id FROM bud_account WHERE id=:aid AND user_id=:uid"
+    ), {"aid": int(account_id), "uid": current_user.id}).scalar()
+    if account is None:
+        abort(404)
+
 
 @budget_bp.route("/ledger", methods=["GET"])
 @login_required
@@ -164,7 +173,7 @@ def ledger():
             a.name AS account_name,
             l.amount_cents
         FROM bud_ledger l
-        JOIN bud_account a ON a.id = l.account_id
+        JOIN bud_account a ON a.id = l.account_id AND a.user_id = :uid
         WHERE l.user_id = :uid
         ORDER BY l.txn_date DESC, l.id DESC
         LIMIT 200
@@ -214,6 +223,8 @@ def ledger_edit(ledger_id: int):
         if not (account_id.isdigit() and txn_date and amount):
             flash("Please choose an account, date, and amount.", "warning")
             return redirect(next_url)
+
+        _require_owned_account(account_id)
 
         try:
             cents = int(round(float(amount.replace(",", "")) * 100))
@@ -266,6 +277,8 @@ def ledger_add():
     if not (account_id.isdigit() and txn_date and amount):
         flash("Please choose an account, date, and amount.", "warning")
         return redirect(url_for("budget_bp.ledger"))
+
+    _require_owned_account(account_id)
 
     try:
         cents = int(round(float(amount.replace(",", "")) * 100))
@@ -348,6 +361,8 @@ def ledger_account_update():
     if not account_id.isdigit():
         flash("Invalid account.", "warning")
         return redirect(next_url)
+
+    _require_owned_account(account_id)
 
     try:
 
@@ -499,7 +514,7 @@ def report_statement():
     income_rows = db.session.execute(text("""
         SELECT a.name, COALESCE(SUM(l.amount_cents), 0) AS cents
           FROM bud_account a
-          LEFT JOIN bud_ledger l ON a.id = l.account_id 
+          LEFT JOIN bud_ledger l ON a.id = l.account_id AND l.user_id = :uid
                                 AND l.txn_date BETWEEN :s AND :e
          WHERE a.user_id = :uid
            AND a.kind = 'income'
@@ -516,7 +531,7 @@ def report_statement():
     expense_rows = db.session.execute(text("""
         SELECT a.name, COALESCE(SUM(l.amount_cents), 0) AS cents
           FROM bud_account a
-          LEFT JOIN bud_ledger l ON a.id = l.account_id 
+          LEFT JOIN bud_ledger l ON a.id = l.account_id AND l.user_id = :uid
                                 AND l.txn_date BETWEEN :s AND :e
          WHERE a.user_id = :uid
            AND a.kind IN ('expense', 'liability')
@@ -540,13 +555,13 @@ def report_statement():
     
     # -------- NET WORTH --------
     accounts = db.session.execute(text("""
-        SELECT id, kind FROM bud_account
+        SELECT id, name, kind FROM bud_account
          WHERE user_id = :uid AND is_active = 1 AND COALESCE(is_hidden,false) = false
     """), {"uid": current_user.id}).mappings().all()
 
     snapshots = db.session.execute(text("""
         SELECT account_id, balance_cents FROM bud_snapshot
-         WHERE user_id = :uid ORDER BY as_at DESC
+         WHERE user_id = :uid ORDER BY as_at DESC, id DESC
     """), {"uid": current_user.id}).mappings().all()
     
     latest_balances = {}
@@ -830,13 +845,14 @@ def account_meta_update(account_id: int):
 def report_by_group():
     # period = YYYY-MM
     period = (request.args.get("period") or "").strip()
-    if len(period) != 7 or period[4] != "-":
-        today = date.today()
-        period = f"{today.year:04d}-{today.month:02d}"
+    try:
+        month = datetime.strptime(period + "-01", "%Y-%m-%d").date()
+    except ValueError:
+        month = date.today().replace(day=1)
+    period = month.strftime("%Y-%m")
 
     # month range [start, next_month)
-    y = int(period[:4])
-    m = int(period[5:7])
+    y, m = month.year, month.month
     start = f"{y:04d}-{m:02d}-01"
     if m == 12:
         end = f"{y+1:04d}-01-01"
@@ -1184,9 +1200,13 @@ def snapshots():
             flash("Invalid account selected.", "warning")
             return redirect(url_for("budget_bp.snapshots", next=next_url))
 
-        arr_cents = _to_cents(arr_str) if arr_str else 0
-        due_cents = _to_cents(due_str) if due_str else 0
-        bal_cents = _to_cents(bal_str) if bal_str else 0
+        try:
+            arr_cents = _to_cents(arr_str) if arr_str else 0
+            due_cents = _to_cents(due_str) if due_str else 0
+            bal_cents = _to_cents(bal_str) if bal_str else 0
+        except ValueError:
+            flash("Enter valid numeric amounts for arrears, due and balance.", "warning")
+            return redirect(url_for("budget_bp.snapshots", next=next_url))
 
         # Delete existing snapshot for this exact date
         db.session.execute(text("""
@@ -1224,7 +1244,7 @@ def snapshots():
         SELECT s.id, s.as_at, s.arrears_cents, s.due_cents, s.balance_cents,
                a.name as account_name
           FROM bud_snapshot s
-          JOIN bud_account a ON a.id = s.account_id
+          JOIN bud_account a ON a.id = s.account_id AND a.user_id = :uid
          WHERE s.user_id = :uid
          ORDER BY s.as_at DESC, a.name
     """), {"uid": current_user.id}).mappings().all()
@@ -1246,7 +1266,7 @@ def snapshot_edit(snapshot_id):
         SELECT s.id, s.as_at, s.arrears_cents, s.due_cents, s.balance_cents,
                a.name as account_name
           FROM bud_snapshot s
-          JOIN bud_account a ON a.id = s.account_id
+          JOIN bud_account a ON a.id = s.account_id AND a.user_id = :uid
          WHERE s.id = :sid AND s.user_id = :uid
     """), {"sid": snapshot_id, "uid": current_user.id}).mappings().first()
 
@@ -1259,9 +1279,13 @@ def snapshot_edit(snapshot_id):
         due_str = (request.form.get("due") or "").strip()
         bal_str = (request.form.get("balance") or "").strip()
 
-        arr_cents = _to_cents(arr_str) if arr_str else 0
-        due_cents = _to_cents(due_str) if due_str else 0
-        bal_cents = _to_cents(bal_str) if bal_str else 0
+        try:
+            arr_cents = _to_cents(arr_str) if arr_str else 0
+            due_cents = _to_cents(due_str) if due_str else 0
+            bal_cents = _to_cents(bal_str) if bal_str else 0
+        except ValueError:
+            flash("Enter valid numeric amounts for arrears, due and balance.", "warning")
+            return redirect(url_for("budget_bp.snapshot_edit", snapshot_id=snapshot_id, next=next_url))
 
         db.session.execute(text("""
             UPDATE bud_snapshot

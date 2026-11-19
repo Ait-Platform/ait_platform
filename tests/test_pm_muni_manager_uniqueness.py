@@ -41,7 +41,7 @@ class ManagerUniquenessTests(fixture.MunicipalAccountsTests):
         self.session.commit()
         self.conn.commit()
 
-    def migrate(self, approved=True, fail_drop=False):
+    def migrate(self, approved=True, fail_drop=False, verify_locks=False):
         self.session.commit()
         self.conn.commit()
         config = Config()
@@ -55,6 +55,24 @@ class ManagerUniquenessTests(fixture.MunicipalAccountsTests):
                         self.migration.upgrade()
                 else:
                     self.migration.upgrade()
+                if verify_locks:
+                    locks = self.conn.execute(text("""
+                        SELECT c.relname,l.mode FROM pg_locks l
+                        JOIN pg_class c ON c.oid=l.relation
+                        WHERE l.pid=pg_backend_pid() AND l.granted
+                          AND c.relnamespace=current_schema()::regnamespace
+                          AND c.relname IN ('bil_property','bil_meter','bil_muni_account')
+                    """)).all()
+                    for table in ('bil_property','bil_meter'):
+                        self.assertIn((table,'ShareRowExclusiveLock'),locks)
+                        self.assertNotIn((table,'AccessExclusiveLock'),locks)
+                    self.assertIn(('bil_muni_account','AccessExclusiveLock'),locks)
+
+    def test_manager_scope_migration_uses_narrow_ownership_locks(self):
+        self.legacy_constraint()
+        before = self.snapshot()
+        self.migrate(verify_locks=True)
+        self.assertEqual(before,self.snapshot())
 
     def test_manager_scope_legacy_collision_is_409_and_keeps_values(self):
         self.unassigned_account()

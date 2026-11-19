@@ -13,10 +13,11 @@ correctly hides account 1, but PostgreSQL's global
 `bil_muni_account_account_number_key UNIQUE(account_number)` rejects an independent
 INSERT. The old catch-all constraint handler returned 503.
 
-No production connection was used locally. Dependent production history has **not**
-been verified. Run `scripts/inspect_pm_municipal_history.sql` read-only in the
-authenticated Render PostgreSQL session and review all returned FK count queries
-before migration approval. Number-only history matches cannot establish ownership.
+No production connection was used locally. The subsequent production inspection
+reported zero rows in all eight FK dependencies and both number-only history checks
+for account 1. These findings were supplied by the operator. Keep the read-only
+`scripts/inspect_pm_municipal_history.sql` results with deployment approval.
+Number-only history matches cannot establish ownership.
 Do not claim, transfer, delete or edit account 1.
 
 ## Application and migration behavior
@@ -51,9 +52,38 @@ the triggers serialize municipal identity changes using a transaction advisory l
 They require READ COMMITTED (PostgreSQL/SQLAlchemy's normal default) and reject
 REPEATABLE READ / SERIALIZABLE identity changes rather than risk stale snapshots.
 This serializes account identity and ownership edits; it does not lock ordinary
-read-only reporting. The migration takes ACCESS EXCLUSIVE locks on the three
-ownership tables, with a five-second lock timeout and 60-second statement timeout.
+read-only reporting. The migration takes SHARE ROW EXCLUSIVE locks on property and
+meter tables (allowing ordinary reads, preventing ownership writes and supporting
+CREATE TRIGGER). Only the account table takes ACCESS EXCLUSIVE, required to drop
+its old unique constraint. It is acquired before preflight to avoid a late upgrade.
+The five-second lock timeout and 60-second statement timeout remain unchanged.
 Schedule a quiet period. A timeout or failure rolls back the entire migration.
+
+### Lock-timeout review
+
+The first production attempt timed out on the original three-table ACCESS EXCLUSIVE
+lock. That proves lock contention, not the identity or state of a blocking session.
+Ordinary open read transactions could block that original request. The revised
+locks avoid this on property/meter tables, but active writers still block them and
+any account-table reader/writer transaction can block the necessary account lock.
+This is not a fully online migration and does not guarantee a successful busy-time retry.
+
+Run `scripts/inspect_pm_municipal_locks.sql` in authenticated PostgreSQL for current
+holders/waiters, blocker PIDs and transaction ages. The script performs only reads,
+does not print user query text, and never cancels or terminates sessions. After a
+timeout, the vanished wait cannot be reconstructed from current activity alone.
+Review any idle-in-transaction holders with their owning application/operator.
+Let them finish or explicitly commit/roll back their work; do not kill sessions
+automatically. Do not hold a diagnostic transaction open across the retry.
+
+Before a separately approved retry, confirm the failed transaction has rolled back:
+the PM head must still be `pm_mar_payment_reference_001`, and the legacy global
+constraint must still exist. Deploy the revised migration, take the normal backup,
+and arrange a short quiet/maintenance window for affected PM requests, allowing
+in-flight transactions to drain. Run the existing one-line command below only after
+approval. If contention persists, stop and inspect blockers; do not increase the
+timeout blindly or split the replacement and constraint drop across transactions.
+No account/history records, financial calculations or Render settings are changed.
 
 ## Deployment procedure — approval required, not executed
 
@@ -102,7 +132,7 @@ It exercises the actual migration DDL, success/rollback, normalized conflicts,
 separate managers, legacy preservation, lookup, edits and cross-manager rejection.
 No production migration or production financial record has been changed.
 
-Verification results: nine new focused cases pass. The expanded municipal suite
+Original verification results: nine new focused cases pass. The expanded municipal suite
 has 50 passes and five failures: three opening-reading/schema-readiness assertions
 and two submenu assertions expecting the old menu without Output. Re-running these
 five with the unchanged HEAD `save` and `page` functions reproduces all five failures.
@@ -110,3 +140,11 @@ They are outside this correction and remain unchanged. Alembic's 16-head graph
 resolves the new revision and its declared parent. The optional JavaScript lookup
 test could not run because Node.js is unavailable in this environment; no JavaScript
 or templates were changed.
+
+Lock correction verification: all ten focused migration/uniqueness tests pass,
+including a PostgreSQL `pg_locks` assertion that property/meter tables hold
+ShareRowExclusiveLock without AccessExclusiveLock, and that the account table
+holds AccessExclusiveLock. Existing atomic DDL rollback, duplicate conflict,
+legacy-account preservation and isolation tests still pass. These session-temporary
+fixtures verify actual lock modes, not live production contention or a multi-session
+load test. No second production migration attempt was made.

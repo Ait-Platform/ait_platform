@@ -30,7 +30,12 @@ def upgrade():
         raise RuntimeError('Expected legacy account-number constraint is missing; review before migration')
     op.execute("SET LOCAL lock_timeout = '5s'")
     op.execute("SET LOCAL statement_timeout = '60s'")
-    op.execute(f'LOCK TABLE {quoted}.bil_property, {quoted}.bil_meter, {quoted}.bil_muni_account IN ACCESS EXCLUSIVE MODE')
+    # Freeze ownership writes while allowing ordinary property/meter readers.
+    # CREATE TRIGGER needs SHARE ROW EXCLUSIVE on these two tables anyway.
+    op.execute(f'LOCK TABLE {quoted}.bil_property, {quoted}.bil_meter IN SHARE ROW EXCLUSIVE MODE')
+    # DROP CONSTRAINT requires ACCESS EXCLUSIVE on the account table. Acquire
+    # it now, before preflight, instead of risking a late lock upgrade.
+    op.execute(f'LOCK TABLE {quoted}.bil_muni_account IN ACCESS EXCLUSIVE MODE')
     # Ownership is always derived; no manager column or ownership registry is added.
     op.execute(f"""
         CREATE FUNCTION {quoted}.pm_muni_manager_scope(integer, integer, integer)

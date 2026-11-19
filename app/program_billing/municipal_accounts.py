@@ -143,6 +143,8 @@ def save(property_id,form):
     # Resolve by registered identity on the server; Save is the association intent.
     candidates=db.session.execute(text('SELECT a.id,a.property_id FROM bil_muni_account a WHERE lower(btrim(a.account_number))=lower(:n) AND '+account_visibility()+' ORDER BY a.id'),dict(n=data['account_number'],p=property_id)).mappings().all()
     if len(candidates)>1:abort(409,description='Multiple existing accounts use this number; resolve duplicate records before saving.')
+    if candidates and candidates[0]['property_id'] is not None and not account_id and not form.get('version'):
+        abort(409,description='This municipal account number already exists for your property manager records. Open the saved account to edit it.')
     if candidates and candidates[0]['property_id'] is None:
         candidate=candidates[0]
         if account_id and account_id!=candidate['id']:abort(409,description='Account identity does not match the entered account number.')
@@ -269,11 +271,16 @@ def page(property_id):
         except HTTPException as exc:
             db.session.rollback();error=exc.description;status=exc.code
         except IntegrityError as exc:
-            db.session.rollback();current_app.logger.exception('Municipal account database constraint blocked saving')
-            diagnostic=getattr(exc.orig,'diag',None)
-            fields=[getattr(diagnostic,k,None) for k in ('table_name','column_name','constraint_name')]
-            detail=' / '.join(str(value) for value in fields if value) or 'unspecified database constraint'
-            error='Database constraint blocked saving: '+detail+'. No changes were committed.';status=503
+            db.session.rollback()
+            constraint=getattr(getattr(exc.orig,'diag',None),'constraint_name',None)
+            if getattr(exc.orig,'pgcode',None)=='23505' and constraint in ('bil_muni_account_account_number_key','uq_pm_muni_manager_account'):
+                error=('This account number conflicts with the legacy global database rule. The approved manager-scoped municipal account migration is required before this independent account can be saved.'
+                       if constraint=='bil_muni_account_account_number_key' else
+                       'This municipal account number already exists for your property manager records. Open the saved account to edit it.')
+                status=409
+            else:
+                current_app.logger.exception('Municipal account database constraint blocked saving')
+                error='The account could not be saved. No changes were committed.';status=503
         except Exception:
             db.session.rollback();current_app.logger.exception('Independent municipal account save failed')
             error='The account could not be saved because of a database constraint or storage error. No changes were committed; check the server log for the exact constraint.';status=503

@@ -29,7 +29,7 @@
         </p>
 
         <p class="leading-relaxed text-slate-700">
-          Import external statements, easily reconcile transactions, and automatically compute accurate balances, arrears, and amounts due. Built for flexibility, it offers a seamless way to keep track of your cashflow month after month.
+          Easily record and reconcile transactions, and automatically compute accurate balances, arrears, and amounts due. Built for flexibility, it offers a seamless way to keep track of your cashflow month after month.
         </p>
 
         <div class="rounded-xl border border-amber-200 bg-amber-50/80 p-5 shadow-sm text-slate-800">
@@ -40,7 +40,7 @@
             <div>
               <h2 class="text-base font-bold text-slate-900">{{ welcome_tokens|default(50) }} Welcome Tokens Included</h2>
               <p class="mt-1 text-sm text-slate-700 leading-relaxed">
-                Register for free without upfront payment and get started immediately with <strong>{{ welcome_tokens|default(50) }} complimentary welcome tokens</strong>. BudgetCash operates on a transparent pay-as-you-go token model (<strong>{{ txn_cost|default(1) }} token</strong> per saved new cashbook transaction or imported CSV transaction) with free account creation, free financial statements, free reports, and no recurring monthly subscriptions.
+                Register for free without upfront payment and get started immediately with <strong>{{ welcome_tokens|default(50) }} complimentary welcome tokens</strong>. BudgetCash operates on a transparent pay-as-you-go token model (<strong>{{ txn_cost|default(1) }} token</strong> per saved new cashbook transaction) with free account creation, free financial statements, free reports, and no recurring monthly subscriptions.
               </p>
             </div>
           </div>
@@ -55,6 +55,7 @@
               <li>View transactions and cashbook anytime</li>
               <li>Edit or delete existing transactions</li>
               <li>Generate monthly financial statements & reports</li>
+              <li>Central Output facility for preview, print, PDF and email</li>
               <li>No monthly subscription fees</li>
             </ul>
           </div>
@@ -62,7 +63,12 @@
             <h3 class="font-bold text-slate-900 text-base mb-2">Pay-As-You-Go Tariffs</h3>
             <ul class="list-disc pl-5 text-sm text-slate-700 space-y-1">
               <li><strong>{{ txn_cost|default(1) }} Token:</strong> per successfully saved new transaction</li>
-              <li><strong>{{ txn_cost|default(1) }} Token:</strong> per successfully imported CSV row</li>
+              <li>Tokens are deducted only upon successful completion</li>
+              <li>Viewing, reports, accounts and exports are free</li>
+              <li>Top up tokens securely in your Wallet when needed</li>
+            </ul>
+          </div>
+        </div>
               <li>Tokens are deducted only upon successful completion</li>
               <li>Top up tokens securely in your Wallet when needed</li>
             </ul>

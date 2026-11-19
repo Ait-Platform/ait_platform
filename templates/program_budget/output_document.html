@@ -1,0 +1,280 @@
+{# templates/program_budget/output_document.html #}
+<div id="budget-output-document" class="p-6 md:p-8 bg-white border border-slate-200 rounded-xl shadow-sm">
+  <!-- Document Header -->
+  <div class="doc-header">
+    <div class="flex items-center justify-between">
+      <div>
+        <h1 class="doc-title">{{ report_title }}</h1>
+        <div class="doc-subtitle">BudgetCash Financial Management</div>
+      </div>
+      <div class="text-right text-xs text-slate-500 font-medium">
+        <div>AIT Platform</div>
+        <div>Official Record</div>
+      </div>
+    </div>
+
+    <!-- Metadata Grid -->
+    <div class="meta-grid">
+      <div class="meta-item">
+        <strong>Report Type</strong>
+        <span>
+          {% if report_type == 'statement' %}Financial Statement
+          {% elif report_type == 'by_group' %}Reports by Groups
+          {% elif report_type == 'snapshots' %}Snapshot History
+          {% else %}{{ report_type|capitalize }}
+          {% endif %}
+        </span>
+      </div>
+      <div class="meta-item">
+        <strong>Financial Account</strong>
+        <span>{{ selected_account_name }}</span>
+      </div>
+      <div class="meta-item">
+        <strong>Period Covered</strong>
+        <span>{{ period_display }}</span>
+      </div>
+      <div class="meta-item">
+        <strong>Prepared For</strong>
+        <span>{{ user_name }}</span>
+      </div>
+      <div class="meta-item">
+        <strong>Generated Date</strong>
+        <span>{{ generated_at }}</span>
+      </div>
+    </div>
+  </div>
+
+  {# 1. FINANCIAL STATEMENT REPORT #}
+  {% if report_type == 'statement' %}
+    <div class="statement-columns">
+      <!-- Income Column -->
+      <div class="print-avoid-break">
+        <h2 class="section-title">Income</h2>
+        {% if report.income_rows and report.income_rows|length %}
+          <table class="report-table">
+            <thead>
+              <tr>
+                <th>Account</th>
+                <th class="num">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for r in report.income_rows %}
+                <tr>
+                  <td>{{ r.name }}</td>
+                  <td class="num">{{ r.formatted }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+            <tfoot>
+              <tr class="total-row">
+                <td>Total Income</td>
+                <td class="num">{{ report.formatted_income_total }}</td>
+              </tr>
+            </tfoot>
+          </table>
+        {% else %}
+          <p class="text-sm text-slate-500 my-4 italic">No income entries recorded for this period.</p>
+          <div class="report-table">
+            <div class="total-row p-2 flex justify-between border-t border-slate-300 font-semibold text-sm">
+              <span>Total Income</span>
+              <span class="num">{{ report.formatted_income_total }}</span>
+            </div>
+          </div>
+        {% endif %}
+      </div>
+
+      <!-- Expenses Column -->
+      <div class="print-avoid-break">
+        <h2 class="section-title">Expenses & Liabilities</h2>
+        {% if report.expense_rows and report.expense_rows|length %}
+          <table class="report-table">
+            <thead>
+              <tr>
+                <th>Account</th>
+                <th class="num">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for r in report.expense_rows %}
+                <tr>
+                  <td>{{ r.name }}</td>
+                  <td class="num">{{ r.formatted }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+            <tfoot>
+              <tr class="total-row">
+                <td>Total Expenses</td>
+                <td class="num">{{ report.formatted_expense_total }}</td>
+              </tr>
+            </tfoot>
+          </table>
+        {% else %}
+          <p class="text-sm text-slate-500 my-4 italic">No expense entries recorded for this period.</p>
+          <div class="report-table">
+            <div class="total-row p-2 flex justify-between border-t border-slate-300 font-semibold text-sm">
+              <span>Total Expenses</span>
+              <span class="num">{{ report.formatted_expense_total }}</span>
+            </div>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Net Cash Movement -->
+    <div class="net-movement-box print-avoid-break">
+      <span>Net Cash Movement</span>
+      <span class="num text-slate-900 font-bold">{{ report.formatted_net_cents }}</span>
+    </div>
+
+    <!-- Balance Sheet / Net Worth Section -->
+    <div class="net-worth-box print-avoid-break">
+      <div class="net-worth-header">
+        <div>
+          <h2 class="text-base font-bold text-sky-950 m-0">Current Net Worth</h2>
+          <div class="text-xs text-sky-700 mt-0.5">Calculated from latest Asset and Liability snapshots as at {{ date_to }}</div>
+        </div>
+        <div class="text-lg font-bold text-sky-950 num">{{ report.formatted_net_worth }}</div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3 text-sm">
+        <div>
+          <div class="flex justify-between font-bold text-slate-900 border-b border-sky-200 pb-1">
+            <span>Total Assets</span>
+            <span class="num">{{ report.formatted_asset_total }}</span>
+          </div>
+          {% if report.asset_rows %}
+            <div class="divide-y divide-sky-100">
+              {% for a in report.asset_rows %}
+                <div class="flex justify-between text-xs text-slate-700 py-1.5 pl-2 border-l-2 border-sky-300">
+                  <span>{{ a.name }}</span>
+                  <span class="num">{{ a.formatted }}</span>
+                </div>
+              {% endfor %}
+            </div>
+          {% else %}
+            <div class="text-xs text-slate-500 italic py-2 pl-2">No active assets recorded</div>
+          {% endif %}
+        </div>
+
+        <div>
+          <div class="flex justify-between font-bold text-slate-900 border-b border-sky-200 pb-1">
+            <span>Total Liabilities</span>
+            <span class="num">{{ report.formatted_liability_total }}</span>
+          </div>
+          {% if report.liability_rows %}
+            <div class="divide-y divide-sky-100">
+              {% for l in report.liability_rows %}
+                <div class="flex justify-between text-xs text-slate-700 py-1.5 pl-2 border-l-2 border-amber-300">
+                  <span>{{ l.name }}</span>
+                  <span class="num">{{ l.formatted }}</span>
+                </div>
+              {% endfor %}
+            </div>
+          {% else %}
+            <div class="text-xs text-slate-500 italic py-2 pl-2">No active liabilities recorded</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+  {# 2. REPORTS BY GROUPS #}
+  {% elif report_type == 'by_group' %}
+    <h2 class="section-title">Accounts Group Activity & Balances</h2>
+    {% if report.rows and report.rows|length %}
+      <div class="overflow-x-auto">
+        <table class="report-table">
+          <thead>
+            <tr>
+              <th>Account</th>
+              <th>Group</th>
+              <th>Type</th>
+              <th class="num">Paid (Period)</th>
+              <th class="num">Arrears</th>
+              <th class="num">Balance</th>
+              <th class="num">Due</th>
+              <th>Snapshot Date</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in report.rows %}
+              <tr>
+                <td class="font-semibold text-slate-900">{{ item.name }}</td>
+                <td><span class="inline-block px-2 py-0.5 rounded text-xs bg-slate-100 text-slate-700 font-medium">{{ item.group_label }}</span></td>
+                <td class="text-xs uppercase text-slate-600">{{ item.kind }}</td>
+                <td class="num">{{ item.formatted_paid }}</td>
+                <td class="num">{{ item.formatted_arrears }}</td>
+                <td class="num">{{ item.formatted_balance }}</td>
+                <td class="num">{{ item.formatted_due }}</td>
+                <td class="text-xs text-slate-600">{{ item.snapshot_date }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+          <tfoot>
+            <tr class="total-row">
+              <td colspan="3">Totals</td>
+              <td class="num">{{ report.formatted_total_paid }}</td>
+              <td class="num">{{ report.formatted_total_arrears }}</td>
+              <td class="num">{{ report.formatted_total_balance }}</td>
+              <td class="num">{{ report.formatted_total_due }}</td>
+              <td></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    {% else %}
+      <p class="text-sm text-slate-500 my-6 italic">No account activity or balances found for this selection.</p>
+    {% endif %}
+
+  {# 3. SNAPSHOT HISTORY #}
+  {% elif report_type == 'snapshots' %}
+    <h2 class="section-title">Chronological Snapshot History</h2>
+    {% if report.rows and report.rows|length %}
+      <div class="overflow-x-auto">
+        <table class="report-table">
+          <thead>
+            <tr>
+              <th>Date (As at)</th>
+              <th>Account</th>
+              <th>Type</th>
+              <th>Group</th>
+              <th class="num">Arrears</th>
+              <th class="num">Balance</th>
+              <th class="num">Due</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for s in report.rows %}
+              <tr>
+                <td class="font-medium text-slate-900">{{ s.date_display }}</td>
+                <td class="font-semibold text-slate-900">{{ s.account_name }}</td>
+                <td class="text-xs uppercase text-slate-600">{{ s.account_kind }}</td>
+                <td><span class="inline-block px-2 py-0.5 rounded text-xs bg-slate-100 text-slate-700 font-medium">{{ s.group_label }}</span></td>
+                <td class="num">{{ s.formatted_arrears }}</td>
+                <td class="num">{{ s.formatted_balance }}</td>
+                <td class="num">{{ s.formatted_due }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+          <tfoot>
+            <tr class="total-row">
+              <td colspan="4">Totals</td>
+              <td class="num">{{ report.formatted_total_arrears }}</td>
+              <td class="num">{{ report.formatted_total_balance }}</td>
+              <td class="num">{{ report.formatted_total_due }}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    {% else %}
+      <p class="text-sm text-slate-500 my-6 italic">No snapshot records found within the selected period.</p>
+    {% endif %}
+  {% endif %}
+
+  <!-- Document Footer -->
+  <div class="doc-footer">
+    <div>BudgetCash Financial Management · Secure Financial Records</div>
+    <div>Page 1 of 1</div>
+  </div>
+</div>

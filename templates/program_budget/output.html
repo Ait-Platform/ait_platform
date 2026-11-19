@@ -1,0 +1,193 @@
+{% extends "layout.html" %}
+{% block title %}BudgetCash Output{% endblock %}
+{% block flashes %}{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50 flex flex-col items-center py-10 px-4">
+  <div class="w-full max-w-6xl bg-white rounded-xl shadow-lg overflow-hidden flex flex-col">
+    <!-- Top amber strip matching BudgetCash theme -->
+    <div class="h-2 bg-amber-500 print:hidden"></div>
+
+    <div class="p-6 md:p-8">
+      <!-- Flash Messages rendered INSIDE the tile -->
+      {% include "partials/flash_messages.html" %}
+
+      <!-- Row 1: Title on left, Back button on right -->
+      <div class="output-controls flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 pb-4 border-b border-gray-100 gap-4">
+        <div>
+          <h1 class="text-2xl md:text-3xl font-bold text-slate-900 flex items-center">BudgetCash Output</h1>
+          <p class="mt-1 text-sm text-slate-600">Preview, print, save PDF and email financial statements and reports.</p>
+        </div>
+        <div class="flex items-center gap-3">
+          <a href="{{ url_for('budget_bp.dashboard') }}"
+             class="rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 shadow-sm transition">
+            ← Back to BudgetCash
+          </a>
+        </div>
+      </div>
+
+      <!-- Row 2: Action Buttons (Right-aligned) -->
+      <div class="output-controls flex flex-wrap items-center justify-end gap-2 mb-6">
+        <button type="submit" form="budget-output-form" name="preview" value="1"
+                class="rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-semibold px-4 py-2 text-sm shadow-sm transition">
+          Preview
+        </button>
+
+        <button id="output-print" type="button"
+                {% if not previewed %}disabled class="rounded-lg bg-slate-100 text-slate-400 font-semibold px-4 py-2 text-sm cursor-not-allowed"
+                {% else %}onclick="window.print()" class="rounded-lg bg-slate-700 hover:bg-slate-800 text-white font-semibold px-4 py-2 text-sm shadow-sm transition"
+                {% endif %}>
+          Print
+        </button>
+
+        {% if previewed %}
+          <a id="output-download"
+             href="{{ url_for('budget_bp.output', format='pdf', download='1', preview_token=preview_token, report_type=report_type, account_id=account_id, date_from=date_from, date_to=date_to) }}"
+             class="rounded-lg bg-sky-600 hover:bg-sky-700 text-white font-semibold px-4 py-2 text-sm shadow-sm transition inline-flex items-center">
+            Save PDF
+          </a>
+        {% else %}
+          <button id="output-download" type="button" disabled
+                  class="rounded-lg bg-slate-100 text-slate-400 font-semibold px-4 py-2 text-sm cursor-not-allowed">
+            Save PDF
+          </button>
+        {% endif %}
+
+        <button id="output-email" type="button"
+                {% if not previewed %}disabled class="rounded-lg bg-slate-100 text-slate-400 font-semibold px-4 py-2 text-sm cursor-not-allowed"
+                {% else %}onclick="toggleEmailForm()" class="rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-4 py-2 text-sm shadow-sm transition"
+                {% endif %}>
+          Email
+        </button>
+      </div>
+
+      <!-- Selection Controls Form -->
+      <form id="budget-output-form" method="GET" action="{{ url_for('budget_bp.output') }}"
+            class="output-controls rounded-xl border border-slate-200 bg-slate-50 p-5 mb-6">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+          <!-- Report Selection -->
+          <div>
+            <label for="output-report-type" class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+              Report Type
+            </label>
+            <select id="output-report-type" name="report_type" autofocus
+                    class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-amber-500 focus:ring-1 focus:ring-amber-500">
+              <option value="statement" {% if report_type == 'statement' %}selected{% endif %}>Financial Statement</option>
+              <option value="by_group" {% if report_type == 'by_group' %}selected{% endif %}>Reports by Groups</option>
+              <option value="snapshots" {% if report_type == 'snapshots' %}selected{% endif %}>Snapshot History</option>
+            </select>
+          </div>
+
+          <!-- Account Selection -->
+          <div>
+            <label for="output-account-id" class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+              Financial Account
+            </label>
+            <select id="output-account-id" name="account_id"
+                    class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-amber-500 focus:ring-1 focus:ring-amber-500">
+              <option value="">All Accounts</option>
+              {% for acc in accounts %}
+                <option value="{{ acc.id }}" {% if account_id|string == acc.id|string %}selected{% endif %}>
+                  {{ acc.name }} ({{ acc.kind|capitalize }})
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <!-- Date From -->
+          <div>
+            <label for="output-date-from" class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+              Date From
+            </label>
+            <input id="output-date-from" name="date_from" type="date" value="{{ date_from }}" required
+                   class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-amber-500 focus:ring-1 focus:ring-amber-500">
+          </div>
+
+          <!-- Date To -->
+          <div>
+            <label for="output-date-to" class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+              Date To
+            </label>
+            <input id="output-date-to" name="date_to" type="date" value="{{ date_to }}" required
+                   class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-amber-500 focus:ring-1 focus:ring-amber-500">
+          </div>
+        </div>
+      </form>
+
+      <!-- Collapsible Email Form -->
+      <form id="output-email-form" method="POST" action="{{ url_for('budget_bp.output') }}" hidden
+            class="output-controls rounded-xl border border-emerald-200 bg-emerald-50/70 p-5 mb-6 shadow-sm">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="action" value="email">
+        <input type="hidden" name="preview" value="1">
+        <input type="hidden" name="preview_token" value="{{ preview_token }}">
+        <input type="hidden" name="report_type" value="{{ report_type }}">
+        <input type="hidden" name="account_id" value="{{ account_id }}">
+        <input type="hidden" name="date_from" value="{{ date_from }}">
+        <input type="hidden" name="date_to" value="{{ date_to }}">
+
+        <div class="flex flex-col sm:flex-row items-start sm:items-end gap-3">
+          <div class="flex-1 w-full">
+            <label for="output-email-to" class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+              Recipient Email Address
+            </label>
+            <input id="output-email-to" name="email_to" type="email" value="{{ email_to }}" required
+                   class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500">
+            <p class="text-xs text-slate-500 mt-1">The previewed report will be attached as a PDF.</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <button type="submit"
+                    class="rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-5 py-2 text-sm shadow-sm transition">
+              Send PDF
+            </button>
+            <button type="button" onclick="toggleEmailForm(false)"
+                    class="rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-semibold px-4 py-2 text-sm transition">
+              Cancel
+            </button>
+          </div>
+        </div>
+      </form>
+
+      <!-- Document Display Area -->
+      {% if previewed %}
+        <div id="output-preview" class="overflow-x-auto">
+          {% include "program_budget/output_document.html" %}
+        </div>
+      {% else %}
+        <div class="output-controls mt-6 p-10 border-2 border-dashed border-slate-200 rounded-xl text-center text-slate-500">
+          <div class="mx-auto w-12 h-12 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center mb-3">
+            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+          </div>
+          <p class="text-base font-semibold text-slate-800">Select report criteria and click Preview</p>
+          <p class="text-xs text-slate-500 mt-1 max-w-md mx-auto">
+            Choose your report type, optional account filter, and date range above. After previewing, you can print, download as PDF, or email the report.
+          </p>
+        </div>
+      {% endif %}
+
+    </div>
+  </div>
+</div>
+
+<style>
+  {% include 'program_budget/output_styles.html' %}
+</style>
+
+<script>
+  function toggleEmailForm(forceState) {
+    const form = document.getElementById('output-email-form');
+    if (!form) return;
+    if (typeof forceState === 'boolean') {
+      form.hidden = !forceState;
+    } else {
+      form.hidden = !form.hidden;
+    }
+    if (!form.hidden) {
+      const input = document.getElementById('output-email-to');
+      if (input) input.focus();
+    }
+  }
+</script>
+{% endblock %}

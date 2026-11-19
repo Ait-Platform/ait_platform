@@ -196,6 +196,7 @@ class BudgetReview(unittest.TestCase):
         csrf = CSRFProtect(app)
         replacements['app.extensions'].db = fake
         replacements['app.extensions'].csrf = csrf
+        replacements['app.extensions'].mail = SimpleNamespace(send=lambda msg: None)
         replacements['app.models.auth'].User = User
         replacements['app.models.auth'].AuthSubject = Subject
         replacements['app.models.auth'].AitTokenWallet = Wallet
@@ -552,6 +553,7 @@ class BudgetReview(unittest.TestCase):
         self.assertNotIn('Hidden other account', self.client.get('/budget/snapshots').text)
 
     def test_legacy_csv_import_contract_matches_current_ledger_model(self):
+        self.app.config['ENABLE_BUDGET_STATEMENT_IMPORT'] = True
         # 1. Preview screen display (before confirmation)
         data_preview = {'file': (io.BytesIO(b'ext_ref,txn_date,amount,balance\nreview-1,2026-11-01,12.00,12.00\n'), 'review.csv')}
         preview_resp = self.client.post('/budget/import-statement', data=data_preview)
@@ -609,23 +611,24 @@ class BudgetReview(unittest.TestCase):
             self.assertEqual(self.client.get('/budget/reports/by-group?period=' + period).status_code, 200)
 
     def test_cashbook_menu_button_order_on_ledger(self):
-        """Cashbook menu must display buttons in sequence: New Account, Manage Accounts, Import Statement, Financial Statement, Snapshot History, Manage Groups, Help Guide."""
+        """Cashbook menu must display buttons in sequence: New Account, Manage Accounts, Financial Statement, Snapshot History, Manage Groups, Help Guide (Import Statement removed)."""
         self.login(self.user_id)
         res = self.client.get('/budget/ledger')
         self.assertEqual(res.status_code, 200)
         content = res.get_data(as_text=True)
 
+        self.assertNotIn("Import Statement", content)
+
         idx_new = content.index("New Account")
         idx_manage = content.index("Manage Accounts")
-        idx_import = content.index("Import Statement")
         idx_stmt = content.index("Financial Statement")
         idx_snapshot = content.index("Snapshot History")
         idx_groups = content.index("Manage Groups")
         idx_help = content.index("Help Guide")
 
         self.assertTrue(
-            idx_new < idx_manage < idx_import < idx_stmt < idx_snapshot < idx_groups < idx_help,
-            f"Cashbook buttons out of sequence: new={idx_new}, manage={idx_manage}, import={idx_import}, stmt={idx_stmt}, snap={idx_snapshot}, groups={idx_groups}, help={idx_help}"
+            idx_new < idx_manage < idx_stmt < idx_snapshot < idx_groups < idx_help,
+            f"Cashbook buttons out of sequence: new={idx_new}, manage={idx_manage}, stmt={idx_stmt}, snap={idx_snapshot}, groups={idx_groups}, help={idx_help}"
         )
 
 if __name__ == '__main__':

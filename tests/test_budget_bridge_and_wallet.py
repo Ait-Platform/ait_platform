@@ -473,6 +473,8 @@ class BudgetBridgeAndWalletTests(unittest.TestCase):
 
         # Multi-programme prompt should NOT be shown
         self.assertNotIn("Choose a subject/program to continue.", content)
+        # Wallet button removed from single card on Bridge (only Open BudgetCash retained)
+        self.assertNotIn('href="/budget/wallet"', content)
 
     def test_multi_program_bridge_preserves_grid_and_distinct_tiles(self):
         """Multi-programme enrolled user preserves multi-programme Bridge tiles and Open buttons."""
@@ -547,10 +549,12 @@ class BudgetBridgeAndWalletTests(unittest.TestCase):
         self.assertIn("Create a financial account", content)
         self.assertIn("Open Cashbook", content)
         self.assertIn("Capture income and expenses", content)
-        self.assertIn("Import an existing statement if required", content)
-        self.assertIn("Generate financial statements and reports", content)
+        self.assertIn("Preview and export with Central Output", content)
+        self.assertNotIn("Import an existing statement if required", content)
+        self.assertIn("Track Net Worth and Snapshot Balances", content)
         self.assertIn("Monitor available tokens in Wallet", content)
         self.assertIn("1 token", content)
+        self.assertIn("Print Help Guide", content)
 
     def test_budget_about_and_price_cleanup(self):
         """About and Pricing pages display dynamic values and have no premature Paystack promo block."""

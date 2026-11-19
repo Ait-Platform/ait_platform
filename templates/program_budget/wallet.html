@@ -56,7 +56,7 @@
           <i class="fas fa-exclamation-circle text-rose-600 text-xl"></i>
           <div>
             <p class="font-bold text-rose-900">Insufficient tokens. Purchase more tokens to continue.</p>
-            <p class="text-xs text-rose-700 mt-0.5">Your token balance is empty. Top up via Paystack to capture cashbook transactions or import statements.</p>
+            <p class="text-xs text-rose-700 mt-0.5">Your token balance is empty. Top up via Paystack to capture cashbook transactions.</p>
           </div>
         </div>
         <a href="{{ url_for('payment_bp.wallet_topup', subject_slug='budget') }}"
@@ -78,7 +78,7 @@
             <span class="text-3xl font-black text-slate-900">{{ wallet.balance if wallet else 0 }}</span>
             <span class="text-sm font-semibold text-amber-700">Tokens</span>
           </div>
-          <p class="mt-2 text-xs text-slate-600">Available for cashbook capture & CSV import (1 token per entry).</p>
+          <p class="mt-2 text-xs text-slate-600">Available for cashbook transaction capture (1 token per entry).</p>
         </div>
 
         <!-- Complimentary Tokens Card -->
@@ -117,7 +117,7 @@
             <span class="text-3xl font-black text-slate-900">{{ consumed_tokens|default(0) }}</span>
             <span class="text-xs text-slate-500">tokens</span>
           </div>
-          <p class="mt-2 text-xs text-slate-600">Tokens deducted for saving cashbook entries and CSV imports.</p>
+          <p class="mt-2 text-xs text-slate-600">Tokens deducted for saving new cashbook entries.</p>
         </div>
       </div>
 

@@ -3,29 +3,32 @@
 
 {% block content %}
 <div class="min-h-screen bg-gray-50 flex flex-col items-center py-10 px-4">
-  <div class="w-full max-w-5xl bg-white rounded-xl shadow-lg overflow-hidden flex flex-col">
-    <div class="h-3 bg-amber-500"></div>
+  <div id="help-guide-content" class="w-full max-w-5xl bg-white rounded-xl shadow-lg overflow-hidden flex flex-col">
+    <div class="h-3 bg-amber-500 print:hidden"></div>
     <div class="p-8">
-
 
       <!-- Row 1: Title & Action/Back Buttons -->
       <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 pb-4 border-b border-gray-100 gap-4">
         <div>
-            <h1 class="text-2xl md:text-3xl font-bold text-slate-900 flex items-center">Help Guide</h1>
-            <p class="mt-1 text-slate-700 font-medium">Setup and how to use BudgetCash</p>
+          <h1 class="text-2xl md:text-3xl font-bold text-slate-900 flex items-center">Help Guide</h1>
+          <p class="mt-1 text-slate-700 font-medium">Setup and how to use BudgetCash</p>
         </div>
-        <div class="flex items-center gap-3">
-            <a href="{{ url_for('budget_bp.dashboard') }}"
-               class="rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 shadow-sm transition">
-              ← Back to dashboard
-            </a>
+        <div class="flex items-center gap-3 print:hidden">
+          <button type="button" onclick="window.print()"
+                  class="rounded-lg bg-amber-500 hover:bg-amber-600 text-white px-3.5 py-2 text-sm font-semibold shadow-sm transition">
+            Print Help Guide
+          </button>
+          <a href="{{ url_for('budget_bp.dashboard') }}"
+             class="rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 shadow-sm transition">
+            ← Back to dashboard
+          </a>
         </div>
       </div>
 
   <div class="mt-6 space-y-6">
 
     <!-- Getting Started with BudgetCash (6-step sequence) -->
-    <div class="rounded-xl border-2 border-amber-300 bg-amber-50/70 p-6 shadow-sm">
+    <div class="rounded-xl border-2 border-amber-300 bg-amber-50/70 p-6 shadow-sm print-avoid-break">
       <div class="flex items-center gap-2 mb-2">
         <span class="w-3 h-3 rounded-full bg-amber-500"></span>
         <h2 class="text-lg font-bold text-slate-900">Getting Started with BudgetCash</h2>
@@ -58,15 +61,15 @@
         <li class="flex items-start gap-3">
           <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-600 text-xs font-bold text-white">4</span>
           <div>
-            <strong class="text-slate-900">Import an existing statement if required:</strong>
-            <span class="text-slate-700"> Upload your bank statement via CSV to import multiple transactions in bulk (<span class="font-bold text-amber-800">{{ txn_cost|default(1) }} token</span> per successfully imported row).</span>
+            <strong class="text-slate-900">Preview and export with Central Output:</strong>
+            <span class="text-slate-700"> Use the Output facility on the dashboard to preview, print, download PDF, or email your Financial Statement, Reports by Groups, and Snapshot History.</span>
           </div>
         </li>
         <li class="flex items-start gap-3">
           <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-600 text-xs font-bold text-white">5</span>
           <div>
-            <strong class="text-slate-900">Generate financial statements and reports:</strong>
-            <span class="text-slate-700"> View monthly financial summaries, reports by group, and net worth balance sheets at no extra charge.</span>
+            <strong class="text-slate-900">Track Net Worth and Snapshot Balances:</strong>
+            <span class="text-slate-700"> Record statement balances as snapshots to automatically generate balance sheets and monitor arrears, dues, and balances over time.</span>
           </div>
         </li>
         <li class="flex items-start gap-3">
@@ -79,7 +82,7 @@
       </ol>
     </div>
 
-    <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+    <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm print-avoid-break">
       <div class="font-bold text-slate-900 text-base">1) Manage your Chart of Accounts (COA)</div>
       <p class="text-sm text-slate-700 mt-2 leading-relaxed">
         Your <b>Chart of Accounts (COA)</b> is the master list of names you will use everywhere to log transactions and snapshots. To get you started, we automatically provide a comprehensive 18-account COA:
@@ -123,7 +126,7 @@
       </p>
     </div>
 
-    <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+    <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm print-avoid-break">
       <div class="font-bold text-slate-900 text-base">2) Add groups for reporting (optional)</div>
       <p class="text-sm text-slate-700 mt-2 leading-relaxed">
         Groups let you report totals like Retail, Cards, Utilities, School.
@@ -134,7 +137,7 @@
       </ul>
     </div>
 
-    <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+    <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm print-avoid-break">
       <div class="font-bold text-slate-900 text-base">3) Build your Snapshot History</div>
       <p class="text-sm text-slate-700 mt-2 leading-relaxed">
         Whenever you receive a statement (like a credit card statement), you should record its balances.
@@ -156,7 +159,7 @@
       </p>
     </div>
 
-    <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+    <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm print-avoid-break">
       <div class="font-bold text-slate-900 text-base">4) Record payments and income (Cashbook)</div>
       <p class="text-sm text-slate-700 mt-2 leading-relaxed">
         Cashbook entries are the real movements. They feed reports and “Paid to date”.
@@ -167,8 +170,23 @@
       </ul>
     </div>
 
-    <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-      <div class="font-bold text-slate-900 text-base">5) Fix mistakes (edit account type/name/group)</div>
+    <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm print-avoid-break">
+      <div class="font-bold text-slate-900 text-base">5) Central Output: Preview, Print, Save PDF & Email</div>
+      <p class="text-sm text-slate-700 mt-2 leading-relaxed">
+        BudgetCash provides a central <b>Output</b> facility accessible directly from the Dashboard. It brings together all your reporting needs in one unified workspace:
+      </p>
+      <ul class="mt-3 list-disc pl-5 text-sm text-slate-800 space-y-1.5">
+        <li><b>Financial Statement:</b> Itemised income vs expenses, net cash movement, and a snapshot-based Balance Sheet with Current Net Worth.</li>
+        <li><b>Reports by Groups:</b> Aggregated payments, arrears, balances, and due amounts categorized by account group labels.</li>
+        <li><b>Snapshot History:</b> Chronological historical records of statement balances across your accounts.</li>
+      </ul>
+      <p class="text-sm text-slate-700 mt-3 leading-relaxed">
+        Each report allows filtering by individual account or all accounts across any custom date range. Once previewed, you can use <b>Print</b> for clean A4 printing, <b>Save PDF</b> for download, or <b>Email</b> to send the report as a PDF attachment.
+      </p>
+    </div>
+
+    <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm print-avoid-break">
+      <div class="font-bold text-slate-900 text-base">6) Fix mistakes (edit account type/name/group)</div>
       <p class="text-sm text-slate-700 mt-2 leading-relaxed">
         If you created an account with the wrong type:
       </p>
@@ -183,4 +201,37 @@
     </div>
   </div>
 </div>
+
+<style>
+  @media print {
+    body * {
+      visibility: hidden;
+    }
+    #help-guide-content,
+    #help-guide-content * {
+      visibility: visible;
+    }
+    #help-guide-content {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 100% !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      border: none !important;
+      box-shadow: none !important;
+    }
+    .print\:hidden {
+      display: none !important;
+    }
+    .print-avoid-break {
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+  }
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+</style>
 {% endblock %}

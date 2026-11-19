@@ -30,10 +30,6 @@
            class="rounded-lg bg-sky-600 text-white px-4 py-2 font-medium hover:bg-sky-700 shadow-sm transition-colors">
            Manage Accounts
         </a>
-        <a href="{{ url_for('budget_bp.import_page') }}"
-           class="rounded-lg bg-teal-600 text-white px-4 py-2 font-medium hover:bg-teal-700 shadow-sm transition-colors">
-           Import Statement
-        </a>
         <a href="{{ url_for('budget_bp.report_statement', next=request.full_path) }}"
            class="rounded-lg bg-emerald-600 text-white px-4 py-2 font-medium hover:bg-emerald-700 shadow-sm transition-colors">
            Financial Statement

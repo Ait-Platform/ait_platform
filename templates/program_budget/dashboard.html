@@ -85,6 +85,14 @@
           <div class="mt-1 text-sm text-slate-600">Totals by selected group type.</div>
         </a>
 
+        <!-- Output -->
+        <a href="{{ url_for('budget_bp.output') }}"
+            class="block rounded-xl border p-6 shadow-sm transition hover:shadow
+                    bg-indigo-50 border-indigo-100 hover:bg-indigo-100">
+          <div class="font-semibold text-slate-900">Output</div>
+          <div class="mt-1 text-sm text-slate-600">Preview, print, save PDF and email financial statements and reports.</div>
+        </a>
+
         <!-- 6. Wallet & Transfer Block -->
         <div class="flex flex-col gap-2">
             <a href="{{ url_for('budget_bp.wallet_dashboard') }}" class="block text-left w-full rounded-xl border-2 p-5 shadow-sm transition hover:shadow-md bg-teal-50 border-teal-200 hover:border-teal-400 group flex-1">

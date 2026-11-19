@@ -6,7 +6,7 @@ import secrets
 import time
 from collections import OrderedDict
 from datetime import date, datetime, timedelta
-from flask import Blueprint, redirect, render_template, request, jsonify, abort, url_for, flash
+from flask import Blueprint, redirect, render_template, request, jsonify, abort, url_for, flash, current_app
 from flask_login import login_required, current_user
 from sqlalchemy import text
 from app.extensions import db, csrf
@@ -78,6 +78,9 @@ def _prune_pending_imports():
 @budget_bp.post("/import-statement")
 @login_required
 def import_statement():
+    if not current_app.config.get("ENABLE_BUDGET_STATEMENT_IMPORT", False):
+        flash("Statement import is currently disabled.", "warning")
+        return redirect(url_for("budget_bp.dashboard")), 302
     from app.models.auth import AitTokenWallet, AitTokenTransaction
     _prune_pending_imports()
 
@@ -383,6 +386,9 @@ def summary():
 @budget_bp.get("/import")
 @login_required
 def import_page():
+    if not current_app.config.get("ENABLE_BUDGET_STATEMENT_IMPORT", False):
+        flash("Statement import is currently disabled.", "warning")
+        return redirect(url_for("budget_bp.dashboard")), 302
     accounts = db.session.execute(text("""
         SELECT id, name, kind
           FROM bud_account
@@ -423,7 +429,7 @@ def about():
 @budget_bp.get("/start")
 @login_required
 def start():
-    return redirect(url_for("budget_bp.import_page"))
+    return redirect(url_for("budget_bp.dashboard"))
 
 @budget_bp.get("/dashboard")
 @login_required
@@ -886,6 +892,12 @@ def account_new():
 
     return render_template("program_budget/account_new.html", groups=groups, next_url=next_url)
 
+@budget_bp.route("/output", methods=["GET", "POST"])
+@login_required
+def output():
+    from .output import output_view
+    return output_view()
+
 @budget_bp.route("/reports/statement", methods=["GET"])
 @login_required
 def report_statement():
@@ -904,98 +916,22 @@ def report_statement():
     last_day = calendar.monthrange(start_date.year, start_date.month)[1]
     end_date = start_date.replace(day=last_day)
 
-    # -------- INCOME --------
-    income_rows = db.session.execute(text("""
-        SELECT a.name, COALESCE(SUM(l.amount_cents), 0) AS cents
-          FROM bud_account a
-          LEFT JOIN bud_ledger l ON a.id = l.account_id AND l.user_id = :uid
-                                AND l.txn_date BETWEEN :s AND :e
-         WHERE a.user_id = :uid
-           AND a.kind = 'income'
-           AND COALESCE(a.is_hidden,false) = false
-         GROUP BY a.name
-         ORDER BY a.name
-    """), {
-        "uid": current_user.id,
-        "s": start_date.strftime("%Y-%m-%d"),
-        "e": end_date.strftime("%Y-%m-%d"),
-    }).mappings().all()
-
-    # -------- EXPENSES --------
-    expense_rows = db.session.execute(text("""
-        SELECT a.name, COALESCE(SUM(l.amount_cents), 0) AS cents
-          FROM bud_account a
-          LEFT JOIN bud_ledger l ON a.id = l.account_id AND l.user_id = :uid
-                                AND l.txn_date BETWEEN :s AND :e
-         WHERE a.user_id = :uid
-           AND a.kind IN ('expense', 'liability')
-           AND COALESCE(a.is_hidden,false) = false
-         GROUP BY a.name
-         ORDER BY a.name
-    """), {
-        "uid": current_user.id,
-        "s": start_date.strftime("%Y-%m-%d"),
-        "e": end_date.strftime("%Y-%m-%d"),
-    }).mappings().all()
-
-    income_total_cents  = sum(r["cents"] or 0 for r in income_rows)
-    expense_total_cents = sum(r["cents"] or 0 for r in expense_rows)
-    net_cents = income_total_cents - expense_total_cents
-
-    # Hide accounts with 0 amounts
-    income_rows = [r for r in income_rows if r["cents"] != 0]
-    expense_rows = [r for r in expense_rows if r["cents"] != 0]
-
-    
-    # -------- NET WORTH --------
-    accounts = db.session.execute(text("""
-        SELECT id, name, kind FROM bud_account
-         WHERE user_id = :uid AND is_active = 1 AND COALESCE(is_hidden,false) = false
-    """), {"uid": current_user.id}).mappings().all()
-
-    snapshots = db.session.execute(text("""
-        SELECT account_id, balance_cents FROM bud_snapshot
-         WHERE user_id = :uid ORDER BY as_at DESC, id DESC
-    """), {"uid": current_user.id}).mappings().all()
-    
-    latest_balances = {}
-    for s in snapshots:
-        if s["account_id"] not in latest_balances:
-            latest_balances[s["account_id"]] = s["balance_cents"]
-
-    asset_total_cents = 0
-    liability_total_cents = 0
-    asset_rows = []
-    liability_rows = []
-    for a in accounts:
-        bal = latest_balances.get(a["id"], 0)
-        if bal == 0:
-            continue
-            
-        row = {"name": a["name"], "cents": bal}
-        if a["kind"] in ("asset", "income"):
-            asset_total_cents += bal
-            asset_rows.append(row)
-        else:
-            # this covers "liability" and "expense"
-            liability_total_cents += bal
-            liability_rows.append(row)
-
-    net_worth_cents = asset_total_cents - liability_total_cents
+    from .output import get_financial_statement_data
+    stmt_data = get_financial_statement_data(current_user.id, start_date, end_date)
 
     return render_template(
         "program_budget/report_statement.html",
         period=period,
-        income_rows=income_rows,
-        expense_rows=expense_rows,
-        income_total_cents=int(income_total_cents),
-        expense_total_cents=int(expense_total_cents),
-        net_cents=int(net_cents),
-        asset_total_cents=int(asset_total_cents),
-        liability_total_cents=int(liability_total_cents),
-        net_worth_cents=int(net_worth_cents),
-        asset_rows=asset_rows,
-        liability_rows=liability_rows,
+        income_rows=stmt_data["income_rows"],
+        expense_rows=stmt_data["expense_rows"],
+        income_total_cents=stmt_data["income_total_cents"],
+        expense_total_cents=stmt_data["expense_total_cents"],
+        net_cents=stmt_data["net_cents"],
+        asset_total_cents=stmt_data["asset_total_cents"],
+        liability_total_cents=stmt_data["liability_total_cents"],
+        net_worth_cents=stmt_data["net_worth_cents"],
+        asset_rows=stmt_data["asset_rows"],
+        liability_rows=stmt_data["liability_rows"],
         back_url=back_url,
     )
 

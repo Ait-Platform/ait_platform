@@ -83,9 +83,16 @@
   const api={
     folderError(error,stage){
       const detail=(error.name || 'Error')+': '+(error.message || 'No browser detail available');
-      if(stage==='picker')return (error.name==='AbortError'?
-        'The browser ended folder selection without returning a folder. This may be cancellation, a refused access prompt or a browser failure.':
-        error.name==='NotAllowedError' || error.name==='SecurityError'?'Browser folder access was denied.':'Folder selection failed.')+' '+detail+' The saved folder is unchanged.';
+      if(stage==='picker'){
+        const reasons={
+          AbortError:'The browser ended folder selection without returning a folder. Save and browser storage have not run. Click Select Folder, choose the intended report folder, then confirm any browser access prompt. AbortError does not distinguish a dismissed dialog from a folder the browser refuses to expose.',
+          NotAllowedError:'Browser folder access was denied. Select the folder again and confirm its access prompt; if this site is blocked, review its folder permissions in browser Site settings.',
+          SecurityError:'The browser blocked the folder picker for security reasons. Open the HTTPS AIT page directly in its own tab and click Select Folder yourself.',
+          NotFoundError:'The selected folder is no longer available. Check that its drive is connected and select the folder again.',
+          TypeError:'The browser did not return a usable directory handle or rejected the picker request. Retry in current desktop Chrome or Edge.'
+        };
+        return (reasons[error.name] || 'The folder picker failed before a directory handle was available.')+' '+detail+' The saved folder is unchanged.';
+      }
       if(stage==='permission')return 'Folder permission was not granted. The selected folder is retained; click Save to retry. The previous saved folder is unchanged. '+detail;
       if(stage==='storage')return 'Browser storage could not save the folder. The selected folder is retained; click Save to retry. The previous saved folder is unchanged. '+detail;
       return 'The saved folder could not be restored from browser storage. '+detail;

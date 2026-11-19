@@ -36,6 +36,58 @@ def open_browser(runtime,markup=None,init=''):
 
 
 class DirectoryRegisterTests(unittest.TestCase):
+    def test_picker_requests_original_write_mode_directly_from_click(self):
+        from playwright.sync_api import sync_playwright
+        with sync_playwright() as runtime:
+            browser,page=open_browser(runtime,init="""window.showDirectoryPicker=async options=>{
+                window.pickerCall={options,active:navigator.userActivation.isActive};
+                return (await navigator.storage.getDirectory()).getDirectoryHandle('Dale reports',{create:true});
+            };""")
+            try:
+                page.locator('#directory-select').click()
+                page.wait_for_function("document.getElementById('directory-folder').textContent==='Dale reports'")
+                self.assertEqual(page.evaluate('pickerCall'),dict(options=dict(mode='readwrite',id='ait-pm-reports'),active=True))
+                self.assertFalse(page.evaluate("AITDirectories.get({user:'7',property:'26'})"))
+                page.locator('#directory-save').click()
+                page.wait_for_function("document.getElementById('directory-message').textContent.startsWith('Folder saved.')")
+                page.reload()
+                page.wait_for_function("document.getElementById('directory-folder').textContent==='Dale reports'")
+                self.assertFalse(page.evaluate("AITDirectories.get({user:'7',property:'27'})"))
+            finally:browser.close()
+
+    def test_precise_picker_security_and_missing_handle_errors(self):
+        from playwright.sync_api import sync_playwright
+        with sync_playwright() as runtime:
+            for init,expected in [
+                ("window.showDirectoryPicker=async()=>{throw new DOMException('User activation required','SecurityError');};",'HTTPS AIT page directly'),
+                ("window.showDirectoryPicker=async()=>{throw new DOMException('Drive disconnected','NotFoundError');};",'drive is connected'),
+                ("window.showDirectoryPicker=async()=>undefined;",'usable directory handle'),
+            ]:
+                with self.subTest(expected=expected):
+                    browser,page=open_browser(runtime,init=init)
+                    try:
+                        page.locator('#directory-select').click()
+                        page.wait_for_function("text=>document.getElementById('directory-message').textContent.includes(text)",arg=expected)
+                        self.assertTrue(page.locator('#directory-save').is_disabled())
+                        self.assertEqual(page.locator('#directory-folder').inner_text(),'No folder selected')
+                    finally:browser.close()
+
+    def test_missing_gesture_and_capabilities_explain_actual_requirement(self):
+        from playwright.sync_api import sync_playwright
+        with sync_playwright() as runtime:
+            for init,expected,click in [
+                ("Object.defineProperty(navigator,'userActivation',{value:{isActive:false}});window.showDirectoryPicker=()=>{throw Error('Picker must not run');};",'needs a direct click',True),
+                ("Object.defineProperty(window,'isSecureContext',{value:false});",'requires HTTPS',False),
+                ("Object.defineProperty(window,'indexedDB',{value:undefined});",'storage is unavailable',False),
+            ]:
+                with self.subTest(expected=expected):
+                    browser,page=open_browser(runtime,init=init)
+                    try:
+                        if click:page.locator('#directory-select').click()
+                        else:self.assertTrue(page.locator('#directory-select').is_disabled())
+                        self.assertIn(expected,page.locator('#directory-message').inner_text())
+                    finally:browser.close()
+
     def test_historical_pm_pdf_view_print_retains_existing_layout_and_filename(self):
         from playwright.sync_api import sync_playwright
         with sync_playwright() as runtime:

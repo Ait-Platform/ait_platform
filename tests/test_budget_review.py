@@ -607,5 +607,26 @@ class BudgetReview(unittest.TestCase):
     def test_invalid_group_report_period_does_not_crash(self):
         for period in ['abcd-ef', '2026-13', '2026-00']:
             self.assertEqual(self.client.get('/budget/reports/by-group?period=' + period).status_code, 200)
+
+    def test_cashbook_menu_button_order_on_ledger(self):
+        """Cashbook menu must display buttons in sequence: New Account, Manage Accounts, Import Statement, Financial Statement, Snapshot History, Manage Groups, Help Guide."""
+        self.login(self.user_id)
+        res = self.client.get('/budget/ledger')
+        self.assertEqual(res.status_code, 200)
+        content = res.get_data(as_text=True)
+
+        idx_new = content.index("New Account")
+        idx_manage = content.index("Manage Accounts")
+        idx_import = content.index("Import Statement")
+        idx_stmt = content.index("Financial Statement")
+        idx_snapshot = content.index("Snapshot History")
+        idx_groups = content.index("Manage Groups")
+        idx_help = content.index("Help Guide")
+
+        self.assertTrue(
+            idx_new < idx_manage < idx_import < idx_stmt < idx_snapshot < idx_groups < idx_help,
+            f"Cashbook buttons out of sequence: new={idx_new}, manage={idx_manage}, import={idx_import}, stmt={idx_stmt}, snap={idx_snapshot}, groups={idx_groups}, help={idx_help}"
+        )
+
 if __name__ == '__main__':
     unittest.main()

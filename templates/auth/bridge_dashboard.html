@@ -11,7 +11,55 @@
   'hds':     'bg-fuchsia-600'
 } %}
 
+{% set single_budget = (is_single_budget if is_single_budget is defined else (not platform_admin_bridge and subjects|length == 1 and subjects[0].slug == 'budget')) %}
+{% if single_budget and budget_wallet_balance is not defined %}
+  {% set budget_wallet_balance = (user.wallet.balance if user and user.wallet else 0) %}
+{% endif %}
+
 <div class="mx-auto max-w-5xl py-10">
+
+  {% if single_budget %}
+    {# --- Single BudgetCash Programme Compact Tile --- #}
+    <div class="max-w-xl mx-auto">
+      <div class="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
+        <div class="h-2 bg-amber-500"></div>
+
+        <div class="p-8">
+          {% include "partials/flash_messages.html" %}
+
+          <div class="mb-3">
+            <h1 class="text-2xl font-bold text-slate-800">Welcome back, {{ user.name }}!</h1>
+          </div>
+
+          <div class="mb-4 inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200">
+            <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+            BudgetCash — Active | Wallet: {{ budget_wallet_balance }} tokens
+          </div>
+
+          <div class="rounded-xl border border-slate-200 bg-slate-50 p-4 mb-4 flex items-center justify-between">
+            <span class="text-sm font-medium text-slate-600">Wallet</span>
+            <span class="text-base font-bold text-slate-900">{{ budget_wallet_balance }} tokens</span>
+          </div>
+
+          <p class="text-sm text-slate-600 leading-relaxed mb-6">
+            Manage your cashbook, financial accounts and reports.
+          </p>
+
+          <div class="flex items-center gap-3">
+            <a href="{{ url_for('budget_bp.dashboard') }}"
+               class="inline-flex items-center justify-center rounded-lg px-5 py-2.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 shadow-sm transition-colors">
+              Open BudgetCash
+            </a>
+            <a href="{{ url_for('budget_bp.wallet_dashboard') }}"
+               class="inline-flex items-center justify-center rounded-lg px-4 py-2.5 text-sm font-medium text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 transition-colors">
+              Wallet
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  {% else %}
 
   <div class="rounded-2xl bg-white border border-slate-200 shadow-sm p-6 mb-8">
     {% include "partials/flash_messages.html" %}
@@ -85,6 +133,8 @@
           {% set primary_href = url_for('spv_bp.investor_dashboard') %}
         {% elif s.slug == 'healthcore' %}
           {% set primary_href = url_for('healthcore_bp.healthcore_dashboard') %}
+        {% elif s.slug == 'budget' %}
+          {% set primary_href = url_for('budget_bp.dashboard') %}
 
         {% else %}
           {% set primary_href = url_for('auth_bp.learner_subject_dashboard', subject=s.slug) %}
@@ -178,6 +228,8 @@
                   class="inline-flex items-center rounded-lg px-4 py-2 text-sm font-semibold border border-transparent bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm transition-colors">
                   {% if is_admin %}
                     Open Admin
+                  {% elif s.slug == 'budget' %}
+                    Open BudgetCash
                   {% else %}
                     Open Program
                   {% endif %}
@@ -206,6 +258,8 @@
     {% endif %}
     {% endfor %}
   </div>
+  {% endif %}
+
   {% endif %}
 </div>
 

@@ -50,8 +50,21 @@ def _ensure_or_create_user_from_session(ctx: dict) -> int:
     # Exclude SACE Endorsement and UIP users from receiving tokens/wallets
     subject = (ctx.get("subject") or "").strip().lower()
     if not subject.startswith("sace") and subject != "uip":
-        tokens = 50 if subject == "budget" else 100
-        desc = "BudgetCash Welcome Bonus" if subject == "budget" else "Registration Trial Bonus"
+        if subject == "budget":
+            tokens = 50
+            try:
+                import app.models.billing as billing_mod
+                sb_cls = getattr(billing_mod, 'SignupBonus', None)
+                if sb_cls:
+                    sb = sb_cls.query.filter_by(program_slug='budget').first()
+                    if sb and sb.bonus_tokens is not None:
+                        tokens = sb.bonus_tokens
+            except Exception:
+                pass
+            desc = "BudgetCash Welcome Bonus"
+        else:
+            tokens = 100
+            desc = "Registration Trial Bonus"
         db.session.execute(
             sa_text("""
                 INSERT INTO ait_token_wallet (user_id, balance, created_at)

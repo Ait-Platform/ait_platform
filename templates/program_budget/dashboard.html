@@ -24,11 +24,68 @@
         </div>
       </div>
 
-    <div class="mt-8 space-y-6">
+      <!-- Getting Started Section -->
+      <div class="mb-8 rounded-xl border border-amber-200 bg-amber-50/70 p-5 shadow-sm">
+        <div class="flex items-start gap-3">
+          <div class="p-2 bg-amber-100 text-amber-800 rounded-lg shrink-0 mt-0.5">
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <div>
+            <h2 class="text-base font-bold text-slate-900">Getting Started</h2>
+            <p class="mt-1 text-sm text-slate-700">
+              Start by creating your financial account. Once your account is created, open Cashbook to record your income and expenses.
+            </p>
+          </div>
+        </div>
+      </div>
 
-      <div class="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div class="mt-6 space-y-6">
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         
-        <!-- Wallet & Transfer Tile Block -->
+        <!-- 1. New Account -->
+        <a href="{{ url_for('budget_bp.account_new', next=url_for('budget_bp.dashboard')) }}"
+            class="block rounded-xl border p-6 shadow-sm transition hover:shadow
+                    bg-emerald-50 border-emerald-100 hover:bg-emerald-100">
+          <div class="font-semibold text-slate-900">New Account</div>
+          <div class="mt-1 text-sm text-slate-600">Create a cash, expense, income, or liability account.</div>
+        </a>
+
+        <!-- 2. Cashbook -->
+        <a href="{{ url_for('budget_bp.ledger') }}"
+            class="block rounded-xl border p-6 shadow-sm transition hover:shadow
+                    bg-sky-50 border-sky-100 hover:bg-sky-100">
+          <div class="font-semibold text-slate-900">Cashbook</div>
+          <div class="mt-1 text-sm text-slate-600">Capture payments and view entries.</div>
+        </a>
+
+        <!-- 3. Financial Statement -->
+        <a href="{{ url_for('budget_bp.report_statement') }}"
+            class="block rounded-xl border p-6 shadow-sm transition hover:shadow
+                    bg-amber-50 border-amber-100 hover:bg-amber-100">
+          <div class="font-semibold text-slate-900">Financial Statement</div>
+          <div class="mt-1 text-sm text-slate-600">View your financials by month.</div>
+        </a>
+
+        <!-- 4. List of Accounts -->
+        <a href="{{ url_for('budget_bp.accounts_list', next=url_for('budget_bp.dashboard')) }}"
+            class="block rounded-xl border p-6 shadow-sm transition hover:shadow
+                    bg-blue-50 border-blue-100 hover:bg-blue-100">
+          <div class="font-semibold text-slate-900">List of Accounts</div>
+          <div class="mt-1 text-sm text-slate-600">View and manage all your created accounts.</div>
+        </a>
+
+        <!-- 5. Reports by Groups -->
+        <a href="{{ url_for('budget_bp.report_by_group', next=request.full_path) }}"
+          class="block rounded-xl border p-6 shadow-sm transition hover:shadow
+                  bg-purple-50 border-purple-100 hover:bg-purple-100">
+          <div class="font-semibold text-slate-900">Reports by Groups</div>
+          <div class="mt-1 text-sm text-slate-600">Totals by selected group type.</div>
+        </a>
+
+        <!-- 6. Wallet & Transfer Block -->
         <div class="flex flex-col gap-2">
             <a href="{{ url_for('budget_bp.wallet_dashboard') }}" class="block text-left w-full rounded-xl border-2 p-5 shadow-sm transition hover:shadow-md bg-teal-50 border-teal-200 hover:border-teal-400 group flex-1">
                 <div class="font-bold text-slate-900 group-hover:text-teal-700 text-lg">Wallet</div>
@@ -39,71 +96,24 @@
                 <i class="fas fa-exchange-alt mr-1 group-hover:text-orange-700"></i> Transfer Tokens
             </a>
         </div>
-        
-        <!--div class="grid grid-cols-1 sm:grid-cols-3 gap-3"-->
-        <a href="{{ url_for('budget_bp.ledger') }}"
-            class="block rounded-xl border p-6 shadow-sm transition hover:shadow
-                    bg-sky-50 border-sky-100 hover:bg-sky-100">
-          <div class="font-semibold text-slate-900">Cashbook</div>
-          <div class="mt-1 text-sm text-slate-600">Capture payments and view entries.</div>
-        </a>
 
-        <!--a href="{{ url_for('budget_bp.ledger') }}#lookup"
-            class="block rounded-xl border p-6 shadow-sm transition hover:shadow
-                    bg-indigo-50 border-indigo-100 hover:bg-indigo-100">
-          <div class="font-semibold text-slate-900">Lookup</div>
-          <div class="mt-1 text-sm text-slate-600">Find an account to edit arrears/balance/due.</div>
-        </a-->
-        <a href="{{ url_for('budget_bp.report_statement') }}"
-            class="block rounded-xl border p-6 shadow-sm transition hover:shadow
-                    bg-amber-50 border-amber-100 hover:bg-amber-100">
-          <div class="font-semibold text-slate-900">Financial statement</div>
-          <div class="mt-1 text-sm text-slate-600">View your financials by month.</div>
-        </a>
-
-        <a href="{{ url_for('budget_bp.account_new', next=url_for('budget_bp.dashboard')) }}"
-            class="block rounded-xl border p-6 shadow-sm transition hover:shadow
-                    bg-emerald-50 border-emerald-100 hover:bg-emerald-100">
-          <div class="font-semibold text-slate-900">New account</div>
-          <div class="mt-1 text-sm text-slate-600">Create a cash, expense, income, or liability account.</div>
-        </a>
-
-
-      
-
-        <!-- Row 2 >
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3"-->
-
-
-        <a href="{{ url_for('budget_bp.accounts_list', next=url_for('budget_bp.dashboard')) }}"
-            class="block rounded-xl border p-6 shadow-sm transition hover:shadow
-                    bg-blue-50 border-blue-100 hover:bg-blue-100">
-          <div class="font-semibold text-slate-900">List of accounts</div>
-          <div class="mt-1 text-sm text-slate-600">View and manage all your created accounts.</div>
-        </a>
-
-        <a href="{{ url_for('budget_bp.report_by_group', next=request.full_path) }}"
-          class="block rounded-xl border p-6 shadow-sm transition hover:shadow
-                  bg-purple-50 border-purple-100 hover:bg-purple-100">
-          <div class="font-semibold text-slate-900">Report by groups</div>
-          <div class="mt-1 text-sm text-slate-600">Totals by selected group type.</div>
-        </a>
-
-
+        <!-- 7. Add Group Types -->
         <a href="{{ url_for('budget_bp.group_types') }}"
             class="block rounded-xl border p-6 shadow-sm transition hover:shadow
                     bg-rose-50 border-rose-100 hover:bg-rose-100">
-          <div class="font-semibold text-slate-900">Add group types</div>
+          <div class="font-semibold text-slate-900">Add Group Types</div>
           <div class="mt-1 text-sm text-slate-600">Manage group labels used in reports.</div>
         </a>
 
+        <!-- 8. Help Guide -->
         <a href="{{ url_for('budget_bp.help_guide') }}"
             class="block rounded-xl border p-6 shadow-sm transition hover:shadow
                     bg-slate-50 border-slate-200 hover:bg-slate-100">
-          <div class="font-semibold text-slate-900">Help guide</div>
+          <div class="font-semibold text-slate-900">Help Guide</div>
           <div class="mt-1 text-sm text-slate-600">Account type meanings and setup tips.</div>
         </a>
 
+        <!-- 9. Email Support -->
         <a href="{{ url_for('budget_bp.support_request') }}"
             class="block rounded-xl border p-6 shadow-sm transition hover:shadow
                     bg-teal-50 border-teal-200 hover:bg-teal-100">

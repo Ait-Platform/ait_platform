@@ -11,12 +11,12 @@
       <!-- Row 1: Title & Action/Back Buttons -->
       <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 pb-4 border-b border-gray-100 gap-4">
         <div>
-            <h1 class="text-2xl md:text-3xl font-bold text-gray-800 flex items-center">Help guide</h1>
-            <p class="mt-1 text-slate-600">Setup and how to use BudgetCash</p>
+            <h1 class="text-2xl md:text-3xl font-bold text-slate-900 flex items-center">Help Guide</h1>
+            <p class="mt-1 text-slate-700 font-medium">Setup and how to use BudgetCash</p>
         </div>
         <div class="flex items-center gap-3">
             <a href="{{ url_for('budget_bp.dashboard') }}"
-               class="rounded border border-slate-300 px-3 py-1.5 hover:bg-slate-50 text-sm">
+               class="rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 shadow-sm transition">
               ← Back to dashboard
             </a>
         </div>
@@ -24,103 +24,158 @@
 
   <div class="mt-6 space-y-6">
 
-    <div class="rounded border border-slate-200 p-4">
-      <div class="font-semibold text-slate-900">1) Manage your Chart of Accounts (COA) first</div>
-      <p class="text-sm text-slate-600 mt-1">
+    <!-- Getting Started with BudgetCash (6-step sequence) -->
+    <div class="rounded-xl border-2 border-amber-300 bg-amber-50/70 p-6 shadow-sm">
+      <div class="flex items-center gap-2 mb-2">
+        <span class="w-3 h-3 rounded-full bg-amber-500"></span>
+        <h2 class="text-lg font-bold text-slate-900">Getting Started with BudgetCash</h2>
+      </div>
+      <p class="text-sm text-slate-800 leading-relaxed font-medium">
+        Follow this standard 6-step workflow to configure your accounts and manage your cashflow with ease:
+      </p>
+      <ol class="mt-4 space-y-3 pl-2 text-sm text-slate-800">
+        <li class="flex items-start gap-3">
+          <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-600 text-xs font-bold text-white">1</span>
+          <div>
+            <strong class="text-slate-900">Create a financial account:</strong>
+            <span class="text-slate-700"> Start by creating your bank, card, savings, or liability accounts (e.g. Bank Account, Credit Card, Loans). A standard 18-account Chart of Accounts is already set up to get you going.</span>
+          </div>
+        </li>
+        <li class="flex items-start gap-3">
+          <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-600 text-xs font-bold text-white">2</span>
+          <div>
+            <strong class="text-slate-900">Open Cashbook:</strong>
+            <span class="text-slate-700"> Navigate to Cashbook to begin capturing your everyday financial movements.</span>
+          </div>
+        </li>
+        <li class="flex items-start gap-3">
+          <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-600 text-xs font-bold text-white">3</span>
+          <div>
+            <strong class="text-slate-900">Capture income and expenses:</strong>
+            <span class="text-slate-700"> Log payments and receipts as they occur. Each successfully saved new transaction costs only <span class="font-bold text-amber-800">{{ txn_cost|default(1) }} token</span>. Editing, deleting, and viewing are always free.</span>
+          </div>
+        </li>
+        <li class="flex items-start gap-3">
+          <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-600 text-xs font-bold text-white">4</span>
+          <div>
+            <strong class="text-slate-900">Import an existing statement if required:</strong>
+            <span class="text-slate-700"> Upload your bank statement via CSV to import multiple transactions in bulk (<span class="font-bold text-amber-800">{{ txn_cost|default(1) }} token</span> per successfully imported row).</span>
+          </div>
+        </li>
+        <li class="flex items-start gap-3">
+          <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-600 text-xs font-bold text-white">5</span>
+          <div>
+            <strong class="text-slate-900">Generate financial statements and reports:</strong>
+            <span class="text-slate-700"> View monthly financial summaries, reports by group, and net worth balance sheets at no extra charge.</span>
+          </div>
+        </li>
+        <li class="flex items-start gap-3">
+          <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-600 text-xs font-bold text-white">6</span>
+          <div>
+            <strong class="text-slate-900">Monitor available tokens in Wallet:</strong>
+            <span class="text-slate-700"> Check your prepaid balance and transaction history anytime in your Wallet, and top up via secure Paystack when needed.</span>
+          </div>
+        </li>
+      </ol>
+    </div>
+
+    <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div class="font-bold text-slate-900 text-base">1) Manage your Chart of Accounts (COA)</div>
+      <p class="text-sm text-slate-700 mt-2 leading-relaxed">
         Your <b>Chart of Accounts (COA)</b> is the master list of names you will use everywhere to log transactions and snapshots. To get you started, we automatically provide a comprehensive 18-account COA:
       </p>
-      <ul class="mt-2 mb-3 list-disc pl-5 text-sm text-slate-700 space-y-1">
+      <ul class="mt-3 mb-3 list-disc pl-5 text-sm text-slate-800 space-y-1">
         <li><b>Assets:</b> Bank, Cash, Savings</li>
         <li><b>Income:</b> Salary, Side Hustle, Other Income</li>
         <li><b>Liabilities:</b> Home Loan, Vehicle Loan, Credit Card, Personal Loan</li>
         <li><b>Expenses:</b> Groceries, Transport, Lights & Water, Entertainment, School Fees, Insurance, Medical, Clothing</li>
       </ul>
-      <p class="text-sm text-slate-600 mt-1">
+      <p class="text-sm text-slate-700 mt-2 leading-relaxed">
         If you accidentally delete these, you can easily bring them back using the <b>"Restore Defaults"</b> button on the Accounts page.
       </p>
 
-      <div class="mt-3 rounded border border-slate-200 bg-slate-50 p-3">
-        <div class="text-sm font-semibold text-slate-900">Account naming (recommended)</div>
-        <p class="text-sm text-slate-700 mt-1">
+      <div class="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
+        <div class="text-sm font-bold text-slate-900">Account naming (recommended)</div>
+        <p class="text-sm text-slate-800 mt-1">
           Use short, recognisable names that stay stable over time.
         </p>
-        <ul class="mt-2 list-disc pl-5 text-sm text-slate-700 space-y-1">
+        <ul class="mt-2 list-disc pl-5 text-sm text-slate-800 space-y-1">
           <li>Start with the provider/brand, then add a unique short suffix.</li>
           <li>For cards or store accounts, use the <b>last 4 digits</b>.</li>
         </ul>
-        <p class="text-sm text-slate-700 mt-2">
+        <p class="text-sm text-slate-800 mt-2 font-medium">
           Example: 3 credit cards from BlueBean →
-          <span class="font-medium">BB-7894</span>, <span class="font-medium">BB-1120</span>, <span class="font-medium">BB-4431</span>
+          <span class="font-semibold text-slate-900">BB-7894</span>, <span class="font-semibold text-slate-900">BB-1120</span>, <span class="font-semibold text-slate-900">BB-4431</span>
         </p>
         <p class="text-xs text-slate-600 mt-2">
           Avoid “Card 1 / Card 2”, avoid full card numbers, and avoid renaming accounts every month.
         </p>
       </div>
 
-      <ul class="mt-3 list-disc pl-5 text-sm text-slate-700 space-y-1">
+      <ul class="mt-4 list-disc pl-5 text-sm text-slate-800 space-y-1.5">
         <li><b>Asset</b> = cash/bank or anything that holds value (Bank, Wallet, Savings).</li>
         <li><b>Liability</b> = anything you owe and may have arrears or a repayment plan (Bills in arrears, Store account, Loan, Credit card).</li>
         <li><b>Expense</b> = normal monthly spending categories (Fuel, Groceries, Data).</li>
         <li><b>Income</b> = sources of money coming in (Salary, Side income).</li>
       </ul>
-      <p class="text-xs text-slate-500 mt-3">
+      <p class="text-xs font-medium text-slate-700 mt-3 bg-slate-50 p-2.5 rounded border border-slate-200">
         Best practice: if an account has a statement with arrears/balance/due, treat it as a <b>Liability</b>.
       </p>
     </div>
 
-    <div class="rounded border border-slate-200 p-4">
-      <div class="font-semibold text-slate-900">2) Add groups for reporting (optional)</div>
-      <p class="text-sm text-slate-600 mt-1">
+    <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div class="font-bold text-slate-900 text-base">2) Add groups for reporting (optional)</div>
+      <p class="text-sm text-slate-700 mt-2 leading-relaxed">
         Groups let you report totals like Retail, Cards, Utilities, School.
       </p>
-      <ul class="mt-3 list-disc pl-5 text-sm text-slate-700 space-y-1">
+      <ul class="mt-3 list-disc pl-5 text-sm text-slate-800 space-y-1">
         <li>Create group types once.</li>
         <li>Assign a group to an account when creating/editing it.</li>
       </ul>
     </div>
 
-    <div class="rounded border border-slate-200 p-4">
-      <div class="font-semibold text-slate-900">3) Build your Snapshot History</div>
-      <p class="text-sm text-slate-600 mt-1">
+    <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div class="font-bold text-slate-900 text-base">3) Build your Snapshot History</div>
+      <p class="text-sm text-slate-700 mt-2 leading-relaxed">
         Whenever you receive a statement (like a credit card statement), you should record its balances.
       </p>
-      <ol class="mt-3 list-decimal pl-5 text-sm text-slate-700 space-y-1">
+      <ol class="mt-3 list-decimal pl-5 text-sm text-slate-800 space-y-1.5">
         <li>Open Cashbook → <b>Snapshot history</b></li>
         <li>Select the account and enter the <b>Date</b> shown on the statement.</li>
         <li>Fill in the amounts provided (Arrears, Balance, Due).</li>
         <li>Save.</li>
       </ol>
-      <div class="mt-3 grid grid-cols-1 md:grid-cols-4 gap-2 text-xs text-slate-600">
-        <div class="rounded border border-slate-200 p-2 text-center"><b>As at</b><br>Statement date</div>
-        <div class="rounded border border-slate-200 p-2 text-center"><b>Arrears</b><br>Overdue portion</div>
-        <div class="rounded border border-slate-200 p-2 text-center"><b>Balance</b><br>Total outstanding</div>
-        <div class="rounded border border-slate-200 p-2 text-center"><b>Due</b><br>Next amount to pay</div>
+      <div class="mt-4 grid grid-cols-1 md:grid-cols-4 gap-2 text-xs text-slate-800">
+        <div class="rounded-lg border border-slate-200 bg-slate-50 p-2.5 text-center"><b>As at</b><br><span class="text-slate-600">Statement date</span></div>
+        <div class="rounded-lg border border-slate-200 bg-slate-50 p-2.5 text-center"><b>Arrears</b><br><span class="text-slate-600">Overdue portion</span></div>
+        <div class="rounded-lg border border-slate-200 bg-slate-50 p-2.5 text-center"><b>Balance</b><br><span class="text-slate-600">Total outstanding</span></div>
+        <div class="rounded-lg border border-slate-200 bg-slate-50 p-2.5 text-center"><b>Due</b><br><span class="text-slate-600">Next amount to pay</span></div>
       </div>
-      <p class="text-sm text-slate-600 mt-4">
+      <p class="text-sm text-slate-700 mt-4 leading-relaxed">
         <b>Why do this?</b> After several statements, you will be able to see a full snapshot history for your accounts over time. Additionally, <b>the Balance Sheet</b> is automatically generated using the most recent snapshot for each of your Asset and Liability accounts to calculate your Net Worth!
       </p>
     </div>
 
-    <div class="rounded border border-slate-200 p-4">
-      <div class="font-semibold text-slate-900">4) Record payments and income (Cashbook)</div>
-      <p class="text-sm text-slate-600 mt-1">
+    <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div class="font-bold text-slate-900 text-base">4) Record payments and income (Cashbook)</div>
+      <p class="text-sm text-slate-700 mt-2 leading-relaxed">
         Cashbook entries are the real movements. They feed reports and “Paid to date”.
       </p>
-      <ul class="mt-3 list-disc pl-5 text-sm text-slate-700 space-y-1">
+      <ul class="mt-3 list-disc pl-5 text-sm text-slate-800 space-y-1">
         <li>When you pay: Add payment (account + date + amount).</li>
         <li>When money comes in: add an entry to an Income account.</li>
       </ul>
     </div>
 
-    <div class="rounded border border-slate-200 p-4">
-      <div class="font-semibold text-slate-900">5) Fix mistakes (edit account type/name/group)</div>
-      <p class="text-sm text-slate-600 mt-1">
+    <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div class="font-bold text-slate-900 text-base">5) Fix mistakes (edit account type/name/group)</div>
+      <p class="text-sm text-slate-700 mt-2 leading-relaxed">
         If you created an account with the wrong type:
       </p>
-      <ol class="mt-3 list-decimal pl-5 text-sm text-slate-700 space-y-1">
-        <li>Cashbook → Lookup → open the account</li>
+      <ol class="mt-3 list-decimal pl-5 text-sm text-slate-800 space-y-1.5">
+        <li>Cashbook → Manage Accounts → select account</li>
         <li>Use <b>Account settings</b> to change Type/Name/Group</li>
-        <li>Save.</li>
+        <li>Save changes.</li>
       </ol>
     </div>
 

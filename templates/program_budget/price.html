@@ -22,13 +22,13 @@
 
       <!-- Content Body -->
       <div>
-        <p class="text-slate-600 leading-relaxed mb-6">
-          BudgetCash operates on a transparent, <strong>pay-as-you-go</strong> token model with <strong>free registration</strong> and <strong>no monthly subscriptions</strong>. Every new account receives 50 complimentary welcome tokens to start capturing transactions immediately.
+        <p class="text-slate-800 font-medium leading-relaxed mb-6 text-base">
+          BudgetCash operates on a transparent, <strong>pay-as-you-go</strong> token model with <strong>free registration</strong> and <strong>no monthly subscriptions</strong>. Every new account receives {{ welcome_tokens|default(50) }} complimentary welcome tokens to start capturing transactions immediately.
         </p>
 
         <!-- Country Selector -->
-        <div class="mb-8 flex flex-col md:flex-row items-start md:items-center gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
-          <label class="text-sm font-semibold text-slate-700 whitespace-nowrap">Select your country for token top-up pricing:</label>
+        <div class="mb-8 flex flex-col md:flex-row items-start md:items-center gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
+          <label class="text-sm font-bold text-slate-800 whitespace-nowrap">Select your country for token top-up pricing:</label>
           {% from 'shared/country_selector.html' import render_country_selector %}
           {{ render_country_selector(countries, subject_slug='budget') }}
         </div>
@@ -37,83 +37,79 @@
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
           
           <!-- Registration -->
-          <div class="bg-slate-50 rounded-2xl p-6 border border-slate-100 flex flex-col justify-between h-full">
+          <div class="bg-slate-50 rounded-2xl p-6 border border-slate-200 shadow-sm flex flex-col justify-between h-full">
             <div>
-              <div class="w-12 h-12 bg-white rounded-xl shadow-sm flex items-center justify-center text-amber-600 mb-4">
+              <div class="w-12 h-12 bg-white rounded-xl shadow-sm flex items-center justify-center text-amber-600 mb-4 border border-slate-200">
                 <i class="fas fa-gift text-xl"></i>
               </div>
               <h3 class="text-lg font-bold text-slate-900 mb-2">Free Registration</h3>
-              <p class="text-slate-600 text-sm leading-relaxed">
-                Join BudgetCash at no cost. New users receive 50 complimentary tokens upon signup to begin tracking cashflow immediately.
+              <p class="text-slate-700 text-sm leading-relaxed">
+                Join BudgetCash at no cost. New users receive {{ welcome_tokens|default(50) }} complimentary tokens upon signup to begin tracking cashflow immediately.
               </p>
-              <ul class="list-disc pl-5 mt-4 space-y-1 text-xs text-slate-600">
+              <ul class="list-disc pl-5 mt-4 space-y-1.5 text-sm text-slate-800 font-medium">
                 <li><strong>Registration Fee:</strong> FREE</li>
-                <li><strong>Welcome Bonus:</strong> 50 Tokens included</li>
+                <li><strong>Welcome Bonus:</strong> {{ welcome_tokens|default(50) }} Tokens included</li>
                 <li><strong>Monthly Subscription:</strong> NONE</li>
               </ul>
             </div>
-            <div class="mt-6">
-              <span class="text-2xl font-bold text-emerald-600">FREE</span>
-              <span class="text-slate-500 text-sm ml-1">+ 50 Welcome Tokens</span>
+            <div class="mt-6 pt-4 border-t border-slate-200">
+              <span class="text-2xl font-black text-emerald-600">FREE</span>
+              <span class="text-slate-700 font-semibold text-sm ml-1">+ {{ welcome_tokens|default(50) }} Welcome Tokens</span>
             </div>
           </div>
 
           <!-- Micro-transactions -->
-          <div class="bg-slate-50 rounded-2xl p-6 border border-slate-100 flex flex-col justify-between h-full">
+          <div class="bg-slate-50 rounded-2xl p-6 border border-slate-200 shadow-sm flex flex-col justify-between h-full">
             <div>
-              <div class="w-12 h-12 bg-white rounded-xl shadow-sm flex items-center justify-center text-amber-600 mb-4">
+              <div class="w-12 h-12 bg-white rounded-xl shadow-sm flex items-center justify-center text-amber-600 mb-4 border border-slate-200">
                 <i class="fas fa-coins text-xl"></i>
               </div>
               <h3 class="text-lg font-bold text-slate-900 mb-2">Transparent Token Usage</h3>
-              <p class="text-slate-600 text-sm leading-relaxed">
+              <p class="text-slate-700 text-sm leading-relaxed">
                 Tokens are deducted only for chargeable operations. Viewing, editing, deleting, accounts, and reports are always free.
               </p>
               
-              <ul class="list-disc pl-5 mt-4 space-y-1.5 text-xs text-slate-600">
-                <li><strong>New Cashbook Entry:</strong> <span class="inline-flex items-center rounded-md bg-amber-50 px-1.5 py-0.5 text-xs font-bold text-amber-800 border border-amber-200">1 Token</span> per saved transaction</li>
-                <li><strong>CSV Statement Import:</strong> <span class="inline-flex items-center rounded-md bg-amber-50 px-1.5 py-0.5 text-xs font-bold text-amber-800 border border-amber-200">1 Token</span> per imported transaction</li>
+              <ul class="list-disc pl-5 mt-4 space-y-1.5 text-sm text-slate-800">
+                <li><strong>New Cashbook Entry:</strong> <span class="inline-flex items-center rounded-md bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-900 border border-amber-300">{{ txn_cost|default(1) }} Token</span> per saved transaction</li>
+                <li><strong>CSV Statement Import:</strong> <span class="inline-flex items-center rounded-md bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-900 border border-amber-300">{{ txn_cost|default(1) }} Token</span> per imported transaction</li>
                 <li><strong>Edit / Delete Transactions:</strong> FREE</li>
                 <li><strong>View Transactions & Cashbook:</strong> FREE</li>
                 <li><strong>Create & Manage Accounts:</strong> FREE</li>
                 <li><strong>Financial Statements & Reports:</strong> FREE</li>
               </ul>
             </div>
-            <div class="mt-6">
-              <span class="text-2xl font-bold text-amber-600">1 Token = R1.00</span>
-              <span class="text-slate-500 text-xs ml-1">(R50 for 50 tokens)</span>
+            <div class="mt-6 pt-4 border-t border-slate-200">
+              <span id="token_pricing_display" class="text-2xl font-black text-amber-600">
+                {% if price.has_quote and price.local_currency and price.local_currency != 'ZAR' %}
+                  {{ price.local_currency }} {{ "%.2f"|format(price.local_amount / 100) }}
+                {% else %}
+                  1 Token = R1.00
+                {% endif %}
+              </span>
+              <span id="token_pricing_sub" class="text-slate-600 text-xs ml-1 font-semibold">
+                {% if price.has_quote and price.local_currency and price.local_currency != 'ZAR' %}
+                  (for 50 tokens)
+                {% else %}
+                  (R50 for 50 tokens)
+                {% endif %}
+              </span>
             </div>
           </div>
 
-        </div>
-
-        <!-- Token Purchase Info Card -->
-        <div class="mb-10 p-5 rounded-2xl bg-amber-50 border border-amber-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div class="flex items-start gap-3">
-            <div class="w-10 h-10 rounded-xl bg-amber-600 text-white flex items-center justify-center font-bold text-lg mt-0.5 shadow-sm">
-              <i class="fas fa-wallet"></i>
-            </div>
-            <div>
-              <h4 class="font-bold text-slate-900 text-sm">Paystack Prepaid Token Top-Up</h4>
-              <p class="text-xs text-slate-600 mt-0.5">Top up your prepaid token wallet anytime via secure Paystack. Approved bundle: <strong>50 Tokens for R50.00</strong>.</p>
-            </div>
-          </div>
-          <a href="{{ url_for('auth_bp.register', subject='budget', next=url_for('budget_bp.dashboard')) }}"
-             class="whitespace-nowrap rounded-lg bg-amber-600 hover:bg-amber-700 text-white px-5 py-2 text-xs font-bold shadow-sm transition">
-            Get Started
-          </a>
         </div>
 
         <!-- CTA -->
-        <div class="border-t border-slate-100 pt-8 text-center">
-          <h4 class="text-lg font-bold text-slate-900 mb-4">Ready to manage your cashbook?</h4>
+        <div class="border-t border-slate-200 pt-8 text-center">
+          <h4 class="text-xl font-bold text-slate-900 mb-4">Ready to manage your cashbook?</h4>
           
           <a id="register_btn" href="{{ url_for('auth_bp.register', subject='budget', next=url_for('budget_bp.dashboard')) }}"
-             class="inline-block bg-amber-600 text-white py-3 px-8 rounded-xl font-bold text-lg hover:bg-amber-700 transition shadow-sm">Register Free & Get 50 Tokens</a>
-             class="inline-block bg-amber-600 text-white py-3 px-8 rounded-xl font-bold text-lg hover:bg-amber-700 transition shadow-sm">Register & Get Started</a>
+             class="inline-block bg-amber-600 text-white py-3 px-8 rounded-xl font-bold text-base md:text-lg hover:bg-amber-700 transition shadow-sm">
+            Register Free & Get {{ welcome_tokens|default(50) }} Tokens
+          </a>
           
-          <p class="text-sm text-slate-500 mt-4">
-            Once registered, simply 
-            <a href="{{ url_for('auth_bp.login', next=url_for('budget_bp.dashboard')) }}" class="text-amber-600 font-semibold hover:underline">log in to your dashboard</a>.
+          <p class="text-sm text-slate-600 mt-4 font-medium">
+            Already registered? 
+            <a href="{{ url_for('auth_bp.login', next=url_for('budget_bp.dashboard')) }}" class="text-amber-700 font-bold hover:underline">Log in to your dashboard</a>.
           </p>
         </div>
 
@@ -142,12 +138,25 @@
 
       document.addEventListener('countryPriceSuccess', function(e) {
         const data = e.detail.data;
-        if(data.error) {
-          priceDisplay.innerHTML = '<span class="text-lg font-medium">Charged once-off if you continue with program</span>';
-          if (onceOffLabel) onceOffLabel.style.display = 'none';
-        } else {
-          priceDisplay.textContent = data.display_price;
-          if (onceOffLabel) onceOffLabel.style.display = 'inline';
+        const tokenDisplay = document.getElementById('token_pricing_display');
+        const tokenSub = document.getElementById('token_pricing_sub');
+        if (tokenDisplay && data && data.display_price) {
+          if (data.currency === 'ZAR') {
+            tokenDisplay.textContent = '1 Token = R1.00';
+            if (tokenSub) tokenSub.textContent = '(R50 for 50 tokens)';
+          } else {
+            tokenDisplay.textContent = data.display_price;
+            if (tokenSub) tokenSub.textContent = '(for 50 tokens)';
+          }
+        }
+        if (priceDisplay) {
+          if(data.error) {
+            priceDisplay.innerHTML = '<span class="text-lg font-medium">Charged once-off if you continue with program</span>';
+            if (onceOffLabel) onceOffLabel.style.display = 'none';
+          } else {
+            priceDisplay.textContent = data.display_price;
+            if (onceOffLabel) onceOffLabel.style.display = 'inline';
+          }
         }
       });
       

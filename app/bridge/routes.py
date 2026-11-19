@@ -232,8 +232,21 @@ def bridge_dashboard():
                         "href": url_for("modes_bp.modes_checkpoint_route", subject_slug=crm_subj.slug)
                     })
 
+        # Check if user is enrolled only in BudgetCash
+        is_single_budget = (not platform_admin and len(tiles) == 1 and tiles[0].get("slug") == "budget")
+        budget_wallet_balance = 0
+        if is_single_budget:
+            try:
+                from app.models.auth import AitTokenWallet
+                b_wallet = AitTokenWallet.query.filter_by(user_id=user.id).first()
+                budget_wallet_balance = b_wallet.balance if b_wallet else 0
+            except Exception:
+                budget_wallet_balance = getattr(getattr(user, 'wallet', None), 'balance', 0)
+
     return render_template("auth/bridge_dashboard.html", user=user, subjects=tiles,
-                           platform_admin_bridge=platform_admin)
+                           platform_admin_bridge=platform_admin,
+                           is_single_budget=is_single_budget if 'is_single_budget' in locals() else False,
+                           budget_wallet_balance=budget_wallet_balance if 'budget_wallet_balance' in locals() else 0)
 
 def handle_lifelong_paid_enrollment(user, subj):
     enrollment = UserEnrollment.query.filter_by(user_id=user.id, subject_id=subj.id).first()

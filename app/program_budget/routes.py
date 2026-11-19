@@ -391,9 +391,34 @@ def import_page():
     """), {"uid": current_user.id}).mappings().all()
     return render_template("program_budget/import.html", accounts=accounts)
 
+def _get_budget_tariffs_and_bonus():
+    """Retrieve welcome bonus and cashbook transaction tariff dynamically from admin configuration."""
+    welcome_tokens = 50
+    txn_cost = 1
+    try:
+        import app.models.billing as billing_mod
+        sb_cls = getattr(billing_mod, 'SignupBonus', None)
+        if sb_cls:
+            b = sb_cls.query.filter_by(program_slug='budget').first()
+            if b and b.bonus_tokens is not None:
+                welcome_tokens = b.bonus_tokens
+    except Exception:
+        pass
+    try:
+        import app.models.billing as billing_mod
+        tt_cls = getattr(billing_mod, 'TokenTariff', None)
+        if tt_cls:
+            t = tt_cls.query.filter_by(program_slug='budget', action_name='ledger_entry').first()
+            if t and t.base_token_cost is not None:
+                txn_cost = t.base_token_cost
+    except Exception:
+        pass
+    return welcome_tokens, txn_cost
+
 @budget_bp.get("/about")
 def about():
-    return render_template("program_budget/about.html")
+    welcome_tokens, txn_cost = _get_budget_tariffs_and_bonus()
+    return render_template("program_budget/about.html", welcome_tokens=welcome_tokens, txn_cost=txn_cost)
 
 @budget_bp.get("/start")
 @login_required
@@ -977,7 +1002,8 @@ def report_statement():
 @budget_bp.route("/help", methods=["GET"])
 @login_required
 def help_guide():
-    return render_template("program_budget/help.html")
+    welcome_tokens, txn_cost = _get_budget_tariffs_and_bonus()
+    return render_template("program_budget/help.html", welcome_tokens=welcome_tokens, txn_cost=txn_cost)
 
 @budget_bp.route("/accounts/<int:account_id>", methods=["GET"])
 @login_required
@@ -1452,7 +1478,6 @@ def _safe_next(url: str | None) -> str | None:
 @budget_bp.route('/price')
 def price_page():
     from app.models.auth import AuthSubject
-    from app.models.payment import RefCountryCurrency
     from app.enrollment.logic import get_quote_for_subject_country
     from flask import session
     
@@ -1509,12 +1534,16 @@ def price_page():
     from app.utils.country import get_active_countries
     countries = get_active_countries()
 
+    welcome_tokens, txn_cost = _get_budget_tariffs_and_bonus()
+
     return render_template(
         "program_budget/price.html",
         subject=subject,
         countries=countries,
         price=price_ctx,
-        country_code=country_code
+        country_code=country_code,
+        welcome_tokens=welcome_tokens,
+        txn_cost=txn_cost
     )
 
 @budget_bp.route("/snapshots", methods=["GET", "POST"])

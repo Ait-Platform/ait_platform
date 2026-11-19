@@ -243,7 +243,7 @@ class BudgetBridgeAndWalletTests(unittest.TestCase):
             m.__path__ = [str(ROOT / path)]
             replacements[name] = m
 
-        for name in ['app.extensions', 'app.models.auth', 'app.models.payment', 'app.auth.routes', 'app.bridge.helpers', 'app.modes.helpers', 'app.sace_activity', 'app.utils.enrollment', 'app.models.practice_crm']:
+        for name in ['app.extensions', 'app.models.auth', 'app.models.payment', 'app.auth.routes', 'app.bridge.helpers', 'app.modes.helpers', 'app.sace_activity', 'app.utils.enrollment', 'app.models.practice_crm', 'app.utils.country', 'app.enrollment.logic']:
             replacements[name] = ModuleType(name)
 
         replacements['app.extensions'].db = fake_db
@@ -257,7 +257,10 @@ class BudgetBridgeAndWalletTests(unittest.TestCase):
         replacements['app.models.auth'].AitTokenWallet = AitTokenWallet
         replacements['app.models.auth'].AitTokenTransaction = AitTokenTransaction
         replacements['app.models.payment'].PaystackPayment = PaystackPayment
+        replacements['app.models.payment'].RefCountryCurrency = object
         replacements['app.models.practice_crm'].CrmPracticeUser = SimpleNamespace(query=SimpleNamespace(filter_by=lambda **kw: SimpleNamespace(first=lambda: None)))
+        replacements['app.utils.country'].get_active_countries = lambda: [SimpleNamespace(code='ZA', name='South Africa')]
+        replacements['app.enrollment.logic'].get_quote_for_subject_country = lambda *a, **k: SimpleNamespace(id=1, country_code='ZA', local_currency='ZAR', local_amount_cents=5000, zar_amount_cents=5000, fx_rate=1, is_discount=False)
 
         replacements['app.auth.routes'].check_admin = lambda email: False
         replacements['app.auth.routes'].get_all_subjects = lambda: AuthSubject.query.all()
@@ -279,6 +282,7 @@ class BudgetBridgeAndWalletTests(unittest.TestCase):
 
         # Dummy routes for navigation
         self.app.add_url_rule('/login', endpoint='auth_bp.login', view_func=lambda: 'login')
+        self.app.add_url_rule('/register', endpoint='auth_bp.register', view_func=lambda: 'register')
         self.app.add_url_rule('/logout', endpoint='auth_bp.logout', view_func=lambda: 'logout')
         self.app.add_url_rule('/welcome', endpoint='public_bp.welcome', view_func=lambda: 'welcome')
         self.app.add_url_rule('/contact', endpoint='public_bp.contact', view_func=lambda: 'contact')
@@ -450,6 +454,127 @@ class BudgetBridgeAndWalletTests(unittest.TestCase):
         self.session.expire_all()
         wallet_after_dup = self.AitTokenWallet.query.filter_by(user_id=self.user_id).first()
         self.assertEqual(wallet_after_dup.balance, initial_balance + 50)
+
+    def test_single_budget_bridge_combined_compact_tile(self):
+        """Single BudgetCash enrolled user sees one combined compact tile on Bridge without duplicate welcome header."""
+        with self.client.session_transaction() as sess:
+            sess['_user_id'] = str(self.user_id)
+
+        res = self.client.get('/bridge')
+        self.assertEqual(res.status_code, 200)
+        content = res.get_data(as_text=True)
+
+        # Compact combined card elements
+        self.assertIn("Welcome back, Budget User!", content)
+        self.assertIn("BudgetCash — Active | Wallet: 100 tokens", content)
+        self.assertIn("Manage your cashbook, financial accounts and reports.", content)
+        self.assertIn("Open BudgetCash", content)
+        self.assertIn('href="/budget/dashboard"', content)
+
+        # Multi-programme prompt should NOT be shown
+        self.assertNotIn("Choose a subject/program to continue.", content)
+
+    def test_multi_program_bridge_preserves_grid_and_distinct_tiles(self):
+        """Multi-programme enrolled user preserves multi-programme Bridge tiles and Open buttons."""
+        # Add second enrollment (mechanic / ProTrade)
+        self.conn.execute(sa.text("""
+            INSERT INTO user_enrollment (user_id, subject_id, status)
+            VALUES (:uid, 24, 'active')
+        """), {'uid': self.user_id})
+        self.conn.commit()
+        self.session.expire_all()
+
+        with self.client.session_transaction() as sess:
+            sess['_user_id'] = str(self.user_id)
+
+        res = self.client.get('/bridge')
+        self.assertEqual(res.status_code, 200)
+        content = res.get_data(as_text=True)
+
+        # Multi-programme header shown
+        self.assertIn("Choose a subject/program to continue.", content)
+        # BudgetCash tile with direct dashboard link
+        self.assertIn("Open BudgetCash", content)
+        self.assertIn('href="/budget/dashboard"', content)
+        # ProTrade tile preserved
+        self.assertIn("ProTrade", content)
+        self.assertIn("Open Program", content)
+
+    def test_budget_dashboard_getting_started_and_action_order(self):
+        """BudgetCash dashboard displays Getting Started banner and 9 actions in exact logical sequence."""
+        with self.client.session_transaction() as sess:
+            sess['_user_id'] = str(self.user_id)
+
+        res = self.client.get('/budget/dashboard')
+        self.assertEqual(res.status_code, 200)
+        content = res.get_data(as_text=True)
+
+        # Getting Started introductory section
+        self.assertIn("Getting Started", content)
+        self.assertIn("Start by creating your financial account. Once your account is created, open Cashbook to record your income and expenses.", content)
+
+        # Check sequential order of actions in the dashboard action grid:
+        # 1. New Account, 2. Cashbook, 3. Financial Statement, 4. List of Accounts, 5. Reports by Groups,
+        # 6. Wallet, 7. Add Group Types, 8. Help Guide, 9. Email Support
+        grid_content = content.split('grid grid-cols-1 md:grid-cols-3 gap-4')[1]
+        idx_new = grid_content.index("New Account")
+        idx_cashbook = grid_content.index("Cashbook")
+        idx_statement = grid_content.index("Financial Statement")
+        idx_accounts = grid_content.index("List of Accounts")
+        idx_reports = grid_content.index("Reports by Groups")
+        idx_wallet = grid_content.index("Wallet")
+        idx_transfer = grid_content.index("Transfer Tokens")
+        idx_groups = grid_content.index("Add Group Types")
+        idx_help = grid_content.index("Help Guide")
+        idx_support = grid_content.index("Email Support")
+
+        self.assertTrue(
+            idx_new < idx_cashbook < idx_statement < idx_accounts < idx_reports < idx_wallet < idx_transfer < idx_groups < idx_help < idx_support,
+            f"Actions not in required sequence: new={idx_new}, cashbook={idx_cashbook}, stmt={idx_statement}, accounts={idx_accounts}, reports={idx_reports}, wallet={idx_wallet}, transfer={idx_transfer}, groups={idx_groups}, help={idx_help}, support={idx_support}"
+        )
+
+    def test_budget_help_guide_getting_started_and_dynamic_tariffs(self):
+        """Help guide includes 6-step Getting Started workflow and dynamic token costs."""
+        with self.client.session_transaction() as sess:
+            sess['_user_id'] = str(self.user_id)
+
+        res = self.client.get('/budget/help')
+        self.assertEqual(res.status_code, 200)
+        content = res.get_data(as_text=True)
+
+        # Check Getting Started section and 6-step sequence
+        self.assertIn("Getting Started with BudgetCash", content)
+        self.assertIn("Create a financial account", content)
+        self.assertIn("Open Cashbook", content)
+        self.assertIn("Capture income and expenses", content)
+        self.assertIn("Import an existing statement if required", content)
+        self.assertIn("Generate financial statements and reports", content)
+        self.assertIn("Monitor available tokens in Wallet", content)
+        self.assertIn("1 token", content)
+
+    def test_budget_about_and_price_cleanup(self):
+        """About and Pricing pages display dynamic values and have no premature Paystack promo block."""
+        with self.client.session_transaction() as sess:
+            sess['_user_id'] = str(self.user_id)
+
+        res_about = self.client.get('/budget/about')
+        self.assertEqual(res_about.status_code, 200)
+        about_content = res_about.get_data(as_text=True)
+        self.assertIn("BudgetCash", about_content)
+        self.assertIn("50 Welcome Tokens Included", about_content)
+        self.assertIn("1 Token", about_content)
+
+        res_price = self.client.get('/budget/price?country=ZA')
+        self.assertEqual(res_price.status_code, 200)
+        price_content = res_price.get_data(as_text=True)
+
+        # Premature Paystack promotional block removed
+        self.assertNotIn("Paystack Prepaid Token Top-Up", price_content)
+        # Pricing cards & CTA
+        self.assertIn("Free Registration", price_content)
+        self.assertIn("Transparent Token Usage", price_content)
+        self.assertIn("1 Token = R1.00", price_content)
+        self.assertIn("Register Free & Get 50 Tokens", price_content)
 
 
 if __name__ == '__main__':

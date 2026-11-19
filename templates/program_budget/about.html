@@ -13,28 +13,61 @@
       
       <!-- Row 1: Title & Back Button -->
       <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 pb-4 border-b border-gray-100 gap-4">
-        <h1 class="text-2xl md:text-3xl font-bold text-gray-800 flex items-center">
+        <h1 class="text-2xl md:text-3xl font-bold text-slate-900 flex items-center">
           <span class="mr-2"></span> BudgetCash
         </h1>
-        <a href="{{ url_for('public_bp.welcome') }}" class="inline-flex items-center text-sm font-medium text-slate-700 hover:text-slate-900 transition bg-slate-100 hover:bg-slate-200 px-4 py-2 rounded-lg border border-slate-300 shadow-sm">
-<svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
-Back
-</a>
+        <a href="{{ url_for('public_bp.welcome') }}" class="inline-flex items-center text-sm font-semibold text-slate-700 hover:text-slate-900 transition bg-slate-100 hover:bg-slate-200 px-4 py-2 rounded-lg border border-slate-300 shadow-sm">
+          <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+          Back
+        </a>
       </div>
       
       <!-- Content -->
-      <div class="prose max-w-none text-gray-600 space-y-6">
-        <p class="text-lg leading-relaxed">
-          <strong class="text-amber-700">BudgetCash</strong> is an external statement cashbook built to streamline your financial management.
+      <div class="prose max-w-none text-slate-700 space-y-6">
+        <p class="text-lg leading-relaxed text-slate-800 font-medium">
+          <strong class="text-amber-700 font-bold">BudgetCash</strong> is an external statement cashbook built to streamline your financial management.
         </p>
 
-        <p class="leading-relaxed">
+        <p class="leading-relaxed text-slate-700">
           Import external statements, easily reconcile transactions, and automatically compute accurate balances, arrears, and amounts due. Built for flexibility, it offers a seamless way to keep track of your cashflow month after month.
         </p>
 
-        <p class="leading-relaxed text-sm bg-amber-50 text-amber-800 p-4 rounded-lg">
-          <strong>50 Welcome Tokens Included:</strong> Register for free and get started immediately with 50 complimentary welcome tokens. BudgetCash operates on a transparent pay-as-you-go token model (1 token per saved transaction or imported CSV transaction) with free accounts, free reports, and no recurring monthly subscriptions.
-        </p>
+        <div class="rounded-xl border border-amber-200 bg-amber-50/80 p-5 shadow-sm text-slate-800">
+          <div class="flex items-start gap-3">
+            <div class="p-2 bg-amber-100 text-amber-800 rounded-lg shrink-0 mt-0.5">
+              <i class="fas fa-gift text-lg"></i>
+            </div>
+            <div>
+              <h2 class="text-base font-bold text-slate-900">{{ welcome_tokens|default(50) }} Welcome Tokens Included</h2>
+              <p class="mt-1 text-sm text-slate-700 leading-relaxed">
+                Register for free without upfront payment and get started immediately with <strong>{{ welcome_tokens|default(50) }} complimentary welcome tokens</strong>. BudgetCash operates on a transparent pay-as-you-go token model (<strong>{{ txn_cost|default(1) }} token</strong> per saved new cashbook transaction or imported CSV transaction) with free account creation, free financial statements, free reports, and no recurring monthly subscriptions.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+          <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <h3 class="font-bold text-slate-900 text-base mb-2">What is Included Free</h3>
+            <ul class="list-disc pl-5 text-sm text-slate-700 space-y-1">
+              <li>Free user registration with {{ welcome_tokens|default(50) }} welcome tokens</li>
+              <li>Create and manage financial accounts</li>
+              <li>View transactions and cashbook anytime</li>
+              <li>Edit or delete existing transactions</li>
+              <li>Generate monthly financial statements & reports</li>
+              <li>No monthly subscription fees</li>
+            </ul>
+          </div>
+          <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <h3 class="font-bold text-slate-900 text-base mb-2">Pay-As-You-Go Tariffs</h3>
+            <ul class="list-disc pl-5 text-sm text-slate-700 space-y-1">
+              <li><strong>{{ txn_cost|default(1) }} Token:</strong> per successfully saved new transaction</li>
+              <li><strong>{{ txn_cost|default(1) }} Token:</strong> per successfully imported CSV row</li>
+              <li>Tokens are deducted only upon successful completion</li>
+              <li>Top up tokens securely in your Wallet when needed</li>
+            </ul>
+          </div>
+        </div>
       </div>
 
     </div>

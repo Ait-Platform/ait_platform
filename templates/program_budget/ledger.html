@@ -22,33 +22,33 @@
       </div>
 
       <div class="flex flex-wrap items-center gap-3 mb-8 text-sm">
-        <a href="{{ url_for('budget_bp.snapshots', next=request.full_path) }}"
-           class="rounded bg-violet-600 text-white px-4 py-2 font-medium hover:bg-violet-700 shadow-sm transition-colors">
-           Snapshot history
-        </a>
-        <a href="{{ url_for('budget_bp.report_statement', next=request.full_path) }}"
-           class="rounded bg-emerald-600 text-white px-4 py-2 font-medium hover:bg-emerald-700 shadow-sm transition-colors">
-           Financial statement
-        </a>
-        <a href="{{ url_for('budget_bp.import_page') }}"
-           class="rounded bg-teal-600 text-white px-4 py-2 font-medium hover:bg-teal-700 shadow-sm transition-colors">
-           Import statement
-        </a>
         <a href="{{ url_for('budget_bp.account_new', next=request.full_path) }}"
-           class="rounded bg-sky-600 text-white px-4 py-2 font-medium hover:bg-sky-700 shadow-sm transition-colors">
-           New account
+           class="rounded-lg bg-sky-600 text-white px-4 py-2 font-medium hover:bg-sky-700 shadow-sm transition-colors">
+           New Account
         </a>
         <a href="{{ url_for('budget_bp.accounts_list', next=request.full_path) }}"
-           class="rounded bg-sky-600 text-white px-4 py-2 font-medium hover:bg-sky-700 shadow-sm transition-colors">
-           Manage accounts
+           class="rounded-lg bg-sky-600 text-white px-4 py-2 font-medium hover:bg-sky-700 shadow-sm transition-colors">
+           Manage Accounts
+        </a>
+        <a href="{{ url_for('budget_bp.import_page') }}"
+           class="rounded-lg bg-teal-600 text-white px-4 py-2 font-medium hover:bg-teal-700 shadow-sm transition-colors">
+           Import Statement
+        </a>
+        <a href="{{ url_for('budget_bp.report_statement', next=request.full_path) }}"
+           class="rounded-lg bg-emerald-600 text-white px-4 py-2 font-medium hover:bg-emerald-700 shadow-sm transition-colors">
+           Financial Statement
+        </a>
+        <a href="{{ url_for('budget_bp.snapshots', next=request.full_path) }}"
+           class="rounded-lg bg-violet-600 text-white px-4 py-2 font-medium hover:bg-violet-700 shadow-sm transition-colors">
+           Snapshot History
         </a>
         <a href="{{ url_for('budget_bp.group_types', next=request.full_path) }}"
-           class="rounded bg-sky-600 text-white px-4 py-2 font-medium hover:bg-sky-700 shadow-sm transition-colors">
-           Manage groups
+           class="rounded-lg bg-indigo-600 text-white px-4 py-2 font-medium hover:bg-indigo-700 shadow-sm transition-colors">
+           Manage Groups
         </a>
         <a href="{{ url_for('budget_bp.help_guide') }}"
-           class="rounded bg-slate-600 text-white px-4 py-2 font-medium hover:bg-slate-700 shadow-sm transition-colors">
-           Help
+           class="rounded-lg bg-slate-700 text-white px-4 py-2 font-medium hover:bg-slate-800 shadow-sm transition-colors">
+           Help Guide
         </a>
       </div>
 

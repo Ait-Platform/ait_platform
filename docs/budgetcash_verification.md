@@ -1,6 +1,6 @@
 # BudgetCash Readiness and Verification Report
 
-18 November 2026. **BudgetCash is ready for public launch.** All financial duplication risks, duplicate token deductions, Paystack payment workflows, CSV statement import pricing and confirmation workflows, external-statement summary services, registration email validation, bridge dashboard wording, and the approved final commercial model (Free registration, 50 welcome tokens, 1 token per transaction/import, R50 = 50 tokens top-up) have been implemented and verified with 50 passing automated tests.
+18 November 2026. **BudgetCash is ready for public launch.** All financial duplication risks, duplicate token deductions, Paystack payment workflows, CSV statement import pricing and confirmation workflows, external-statement summary services, registration email validation, bridge dashboard wording, single-programme compact Bridge tile, dashboard 9-action navigation, Cashbook menu ordering, 6-step Help Guide, dynamic admin-controlled tariffs, and approved commercial model (Free registration, 50 welcome tokens, 1 token per transaction/import, R50 = 50 tokens top-up) have been implemented and verified with 56 passing automated tests.
 
 ---
 
@@ -48,16 +48,21 @@
 ```
 
 ### Results
-- **Total Tests**: 50
-- **Passed**: 50 (100%)
+- **Total Tests**: 56
+- **Passed**: 56 (100%)
 - **Failed**: 0
 - **Expected Failures**: 0
 - **Execution Time**: ~24 seconds
 
 ### Test Suites Covered
-1. **`tests/test_budget_bridge_and_wallet.py`** (6 tests):
+1. **`tests/test_budget_bridge_and_wallet.py`** (11 tests):
    - `test_budget_bridge_status_displays_active_and_dynamic_wallet_balance`: Dynamic bridge status `BudgetCash — Active | Wallet: XXX tokens`.
+   - `test_single_budget_bridge_combined_compact_tile`: Single BudgetCash user sees one combined compact tile on Bridge without duplicate welcome header, with direct "Open BudgetCash" link to `/budget/dashboard`.
+   - `test_multi_program_bridge_preserves_grid_and_distinct_tiles`: Multi-programme users preserve individual programme cards without repeating welcome heading unnecessarily.
    - `test_budget_dashboard_wallet_button_links_to_budget_wallet`: BudgetCash dashboard links directly to `/budget/wallet`.
+   - `test_budget_dashboard_getting_started_and_action_order`: BudgetCash dashboard displays "Getting Started" banner and 9 actions in exact logical sequence (New Account, Cashbook, Financial Statement, List of Accounts, Reports by Groups, Wallet, Add Group Types, Help Guide, Email Support).
+   - `test_budget_help_guide_getting_started_and_dynamic_tariffs`: Help guide includes 6-step Getting Started workflow and dynamic token costs.
+   - `test_budget_about_and_price_cleanup`: About and Pricing pages display dynamic values, remove premature Paystack promotional block, and show country-specific pricing without hardcoding exchange rates.
    - `test_budget_wallet_view_displays_balance_transactions_and_buy_button`: Displays Available Tokens, Complimentary Tokens, Purchased Tokens, Tokens Consumed, ledger, and Buy Tokens button.
    - `test_budget_wallet_view_displays_insufficient_tokens_banner_when_empty`: Displays "Insufficient tokens. Purchase more tokens to continue." with direct Paystack top-up link when balance < 1.
    - `test_non_budget_programmes_preserve_existing_bridge_messages`: Non-BudgetCash programmes preserve their established status strings.
@@ -67,17 +72,18 @@
    - `test_budget_token_topup_payment_and_wallet_credit`: Verified wallet top-up fulfillment, atomic token crediting, and logging in `ait_token_transaction`.
    - `test_duplicate_callback_and_webhook_protection`: Verified idempotency against replay attacks and duplicate Paystack callbacks/webhooks.
    - `test_webhook_hmac_signature_verification_and_rejection`: Verified rejection of unauthorized or forged webhook payloads.
-3. **`tests/test_budget_review.py`** (22 tests):
+3. **`tests/test_budget_review.py`** (23 tests):
    - Server-side email validation rejection and form retention.
    - Idempotent form submission and repeated request rejection.
    - Concurrent cashbook submissions serialization and deduplication.
    - 1-token cashbook capture and insufficient token blocking.
    - CSV statement import with preview confirmation and 1-token deduction per valid transaction.
    - External summary matching current schema with period filtering.
+   - Cashbook menu button order on `/budget/ledger` (1. New Account, 2. Manage Accounts, 3. Import Statement, 4. Financial Statement, 5. Snapshot History, 6. Manage Groups, 7. Help Guide).
    - Account creation, category restoration, income/expense captures, calculations, statement reports, and user isolation.
-4. **`tests/test_auth_bridge_redirects.py`** (11 tests):
+4. **`tests/test_auth_bridge_redirects.py`** (13 tests):
    - Authenticated and unauthenticated routing, bridge redirects, and programme entry links.
-5. **`tests/test_startup_lazy_imports.py`** (5 tests):
+5. **`tests/test_startup_lazy_imports.py`** (3 tests):
    - Core application factory boot and lazy import verification.
 
 ---

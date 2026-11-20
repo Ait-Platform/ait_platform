@@ -9,8 +9,8 @@
   function context(){
     const period=['metsoa_statement','utilities_reconciliation'].includes(report.value);
     document.getElementById('output-period-controls').hidden=!period;month.required=period;recipient.required=period;
-    first.readOnly=last.readOnly=period;first.disabled=last.disabled=month.disabled=report.value==='account_register';
-    if(report.value==='account_register'){first.value='';last.value='';}
+    first.readOnly=last.readOnly=period;first.disabled=last.disabled=month.disabled=['account_register','linked_meters'].includes(report.value);
+    if(['account_register','linked_meters'].includes(report.value)){first.value='';last.value='';}
     if(period && !month.value)month.value=document.getElementById('output-billing-month').value;
     if(period && month.value)applyMonth();
   }
@@ -22,8 +22,8 @@
   [first,last].forEach(input=>input.addEventListener('change',()=>{if(!first.readOnly)month.value='';}));
   source.addEventListener('change',()=>{
     report.replaceChildren(...(catalog[source.value] || []).map(([key,label])=>new Option(label,key)));
-    item.replaceChildren(new Option(source.value==='readings'?'All Meters':'All Accounts',''));
-    (choices[source.value] || []).forEach(row=>item.add(new Option(source.value==='readings'?row.meter_number:row.account_number,String(row.id))));
+    item.replaceChildren(new Option(['readings','linked_meters'].includes(source.value)?'All Meters':'All Accounts',''));
+    (choices[source.value] || []).forEach(row=>item.add(new Option(['readings','linked_meters'].includes(source.value)?row.meter_number:row.account_number,String(row.id))));
     context();dirty();
   });
   report.addEventListener('change',()=>{context();dirty();});month.addEventListener('change',()=>{applyMonth();context();});

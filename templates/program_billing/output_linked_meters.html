@@ -1,0 +1,6 @@
+{% macro meter_row(meter,role) %}<tr><td>{{ role }}</td><td>{{ meter.meter_number }}</td><td>{{ meter.id }}</td><td>{{ meter.utility_type }}</td><td>{{ meter.description or meter.label or meter.pointing_to or 'Not recorded' }}</td></tr>{% endmacro %}
+<table class="report-table"><thead><tr><th>Relationship</th><th>Meter</th><th>Meter ID</th><th>Utility</th><th>Description / location</th></tr></thead><tbody>
+{% for group in groups %}{{ meter_row(group.parent,'Bulk meter') }}{% for child in group.children %}{{ meter_row(child,'Sub-meter of ' ~ group.parent.meter_number) }}{% endfor %}{% endfor %}
+{% if not groups %}<tr><td colspan="5">No confirmed bulk/sub-meter links recorded.</td></tr>{% endif %}
+</tbody></table>
+<h3>Unlinked Meters</h3><table class="report-table"><thead><tr><th>Relationship</th><th>Meter</th><th>Meter ID</th><th>Utility</th><th>Description / location</th></tr></thead><tbody>{% for meter in unlinked %}{{ meter_row(meter,'Unlinked') }}{% else %}<tr><td colspan="5">No unlinked meters.</td></tr>{% endfor %}</tbody></table>

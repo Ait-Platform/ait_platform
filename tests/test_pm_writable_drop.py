@@ -33,7 +33,7 @@ class PMWritableDropTests(unittest.TestCase):
                 page.locator('#directory-select').click()
                 page.wait_for_function("document.getElementById('directory-message').textContent.includes('Writable folder assigned')")
                 self.assertEqual(page.evaluate('permissionClicks'),[True])
-                expected=sorted({r['source']+'/'+r['title'] for r in REPORTS})
+                expected=sorted({r['source']+'/'+r['title'] for r in REPORTS if not r['create_on_save']})
                 structure=page.evaluate("""async()=>{const root=(await AITDirectories.get({user:'7',property:'27'})).handle,paths=[];
                     for await(const [name,category] of root.entries())for await(const [title] of category.entries())paths.push(name+'/'+title);
                     return paths.sort();}""")

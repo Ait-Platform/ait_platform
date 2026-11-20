@@ -10,9 +10,40 @@ CATALOG={
  'metsoa':[('metsoa_statement','METSOA Statement')],
  'accounts':[('account_register','Account Register')],
  'arrangements':[('arrangement_register','Arrangement Register')],
+ 'linked_meters':[('linked_meters','Linked Meters')],
 }
-SOURCES={'readings':'Meter Readings','reconciliation':'Reconciliation','metsoa':'METSOA','accounts':'Municipal Accounts','arrangements':'Payment Arrangements'}
+SOURCES={'readings':'Meter Readings','reconciliation':'Reconciliation','metsoa':'METSOA','accounts':'Municipal Accounts','arrangements':'Payment Arrangements','linked_meters':'Link Meters'}
 PERIOD_REPORTS={'metsoa_statement','utilities_reconciliation'}
+
+
+# Explicit paths are created on first Save Report; legacy destinations retain
+# their established source/report paths and initial-setup behaviour.
+REPORT_PATHS={'linked_meters':('Link Meters',)}
+
+def report_destinations():
+    return [dict(code=code,title=title,source=SOURCES[source],
+                 directories=list(REPORT_PATHS.get(code,(SOURCES[source],title))),
+                 create_on_save=code in REPORT_PATHS)
+            for source,reports in CATALOG.items() for code,title in reports]
+
+def linked_meter_rows(p,session,item=''):
+    from .bulk_meter_linking import confirmed_meters,kind
+    rows=[dict(row) for row in session.execute(text('SELECT * FROM bil_meter WHERE property_id=:p ORDER BY meter_number,id'),dict(p=p)).mappings()]
+    rows=confirmed_meters(p,rows,session=session)
+    meters={row['id']:row for row in rows};children={}
+    for meter in rows:
+        parent=meters.get(meter.get('parent_meter_id'))
+        if parent and parent['id']!=meter['id'] and kind(parent['utility_type'])==kind(meter['utility_type']):
+            children.setdefault(parent['id'],[]).append(meter)
+        else:meter['parent_meter_id']=None
+    groups=[dict(parent=meter,children=children[meter['id']]) for meter in rows if meter['id'] in children]
+    unlinked=[meter for meter in rows if not meter.get('parent_meter_id') and meter['id'] not in children]
+    if item:
+        selected=int(item)
+        groups=[dict(parent=group['parent'],children=group['children'] if group['parent']['id']==selected else [m for m in group['children'] if m['id']==selected])
+                for group in groups if group['parent']['id']==selected or any(m['id']==selected for m in group['children'])]
+        unlinked=[meter for meter in unlinked if meter['id']==selected]
+    return dict(groups=groups,unlinked=unlinked)
 
 
 def populate(data,args,session):
@@ -34,10 +65,14 @@ def populate(data,args,session):
     if key in PERIOD_REPORTS:
         data.update(by_month=data['billing_month'],date_from=start.isoformat(),date_to=end.isoformat())
     if key=='municipal_submission':data.update(date_from=data['date_from'] or start.isoformat(),date_to=data['date_to'] or end.isoformat())
-    if key=='account_register':data.update(date_from='',date_to='')
+    if key in ('account_register','linked_meters'):data.update(date_from='',date_to='')
     wanted=args.get('preview')=='1' or args.get('format')=='pdf' or args.get('action')=='email'
     if key=='history' or key=='metro_reconciliation' or not wanted:return
-    if key=='municipal_submission':
+    if key=='linked_meters':
+        payload=linked_meter_rows(p,session,data['item_id'])
+        data['report_payload']=payload
+        data['report_markup']=render_template('program_billing/output_linked_meters.html',**payload)
+    elif key=='municipal_submission':
         from .municipal_readings_pdf import report,presentation
         first=date.fromisoformat(data['date_from']) if data['date_from'] else start
         last=date.fromisoformat(data['date_to']) if data['date_to'] else end

@@ -11,7 +11,7 @@ from werkzeug.exceptions import HTTPException
 from app.extensions import db
 from .metsoa_setup_safety import property_scope
 
-from .utilities_output_reports import CATALOG,SOURCES,PERIOD_REPORTS
+from .utilities_output_reports import CATALOG,SOURCES,PERIOD_REPORTS,report_destinations
 
 FILTERS=('source','report','item_id','by_month','date_from','date_to','billing_month','recipient_id','test_report')
 
@@ -53,7 +53,7 @@ def report(p,args):
     key=args.get('report') or CATALOG[source][0][0]
     if key not in dict(CATALOG[source]):abort(400,description='Select a report belonging to the selected source.')
     account_choices=[dict(r) for r in db.session.execute(text('SELECT id,account_number FROM bil_muni_account WHERE property_id=:p ORDER BY account_number,id'),dict(p=p)).mappings()]
-    all_choices=dict(readings=meters(p),**{name:account_choices for name in SOURCES if name!='readings'})
+    all_choices={name:meters(p) if name in ('readings','linked_meters') else account_choices for name in SOURCES}
     choices=all_choices[source];item=args.get('item_id','')
     selected=next((m for m in choices if str(m['id'])==item),None) if item else None
     if item and not selected:abort(403)
@@ -75,9 +75,10 @@ def report(p,args):
     prop=db.session.execute(text('SELECT id,name,address,manager_id FROM bil_property WHERE id=:p'),dict(p=p)).mappings().one()
     groups=meter_histories(choices,rows,history) if key=='history' else []
     if key=='history':rows.sort(key=lambda r:(r['reading_date'],r['id']))
-    data=dict(by_month=by_month,report=key,catalog=CATALOG,source_labels=SOURCES,meter_reports=groups,property=prop,source=source,title=dict(CATALOG[source])[key],choices=choices,all_choices=all_choices,item_id=item,item_label=selected['meter_number' if source=='readings' else 'account_number'] if selected else ('All Meters' if source=='readings' else 'All Accounts'),rows=rows,date_from=date_from,date_to=date_to,generated_at=datetime.now(ZoneInfo('Africa/Johannesburg')),billing_month=args.get('billing_month',''))
+    data=dict(by_month=by_month,report=key,catalog=CATALOG,source_labels=SOURCES,meter_reports=groups,property=prop,source=source,title=dict(CATALOG[source])[key],choices=choices,all_choices=all_choices,item_id=item,item_label=selected['meter_number' if source in ('readings','linked_meters') else 'account_number'] if selected else ('All Meters' if source in ('readings','linked_meters') else 'All Accounts'),rows=rows,date_from=date_from,date_to=date_to,generated_at=datetime.now(ZoneInfo('Africa/Johannesburg')),billing_month=args.get('billing_month',''))
     from .utilities_output_reports import populate
     populate(data,args,db.session)
+    data['directory_reports']=report_destinations()
     data['save_period_end']=report_end_date(data)
     return data
 

@@ -54,12 +54,13 @@ separate: never describe an untested browser/OS workflow as proven live.
 ### Subfolders and new reports
 
 - Each program defines its own required report categories and safe directory
-  names. Never copy PM's seven categories into unrelated programs. Create only
-  defined destinations with verified write access, during authorised initial
-  setup or restoration of a writable assignment. Existing folders are reused;
-  browsing, reading and read-permission renewal must not create directories.
+  names. Never copy PM's categories into unrelated programs. Preserve authorised
+  initial-setup/restoration creation for PM's legacy destinations only. New
+  registered paths are created on first Save Report with verified write access.
+  Reuse existing folders; browsing, reading and read-permission renewal must
+  not create directories.
 - Preserve PM's existing per-user/property main folder and `source / report`
-  hierarchy, report filenames and seven catalogue destinations. Do not move,
+  hierarchy, report filenames and registered catalogue destinations. Do not move,
   wrap, rename, delete or migrate existing directories. New programs may use
   `base / user / client / document type` with stable identity markers to avoid
   merging same-named clients and to retain paths after display-name changes.
@@ -68,6 +69,30 @@ separate: never describe an untested browser/OS workflow as proven live.
   locks and collision-safe filenames; never overwrite historical documents.
   Declare Saved only after write and close succeed. A started browser download
   is not proof that it completed. Preserve PDF generation and download fallback.
+
+### Automatic Report-Folder Creation
+
+- Every future report-producing function must register its destination beneath
+  the authorised main folder. PM's `utilities_output_reports.report_destinations()`
+  is the shared source for Output saving and Folder Register. Register the report
+  in `CATALOG` / `SOURCES` and declare its path in `REPORT_PATHS`; do not maintain
+  a separate hardcoded folder register. PM retains its seven legacy paths and
+  adds `Link Meters` as the eighth destination for Linked Meters reports.
+- On Save Report, validate the PDF and actual write permission first, then create
+  any missing registered path components and write/close the document using the
+  shared saver. Reuse existing directories and collision protection. Future
+  explicitly registered paths are created on first save, not on selection,
+  initial folder setup, navigation, browsing or permission renewal. A failed
+  write must not be reported as saved; directories may remain after a failed
+  write, but existing reports must remain unchanged.
+- Folder Register discovers registered destinations automatically, reads actual
+  counts and refreshes after a completed save. Missing/unreadable destinations
+  show a dash, not a false zero. Never create folders for unrelated functions
+  that do not produce saved reports.
+- This principle guides future PM, ProTrade, BudgetCash, Lease Management,
+  CRM Health and other report-producing AIT programs. Each retains its appropriate
+  structure and stable ownership IDs. Do not modify other programs without a
+  separate authorised task; the current ProTrade release exception still applies.
 
 ### Folder Register and historical documents
 
@@ -85,8 +110,9 @@ separate: never describe an untested browser/OS workflow as proven live.
   Never regenerate, recalculate, rewrite financial snapshots, deduct tokens,
   rename, modify, delete, move or duplicate a historical PDF during retrieval,
   printing or emailing. Preserve old-path retrieval where layouts have evolved.
-- Print uses the selected original PDF through the browser/native PDF viewer.
-  Do not claim printing completed. Email uses the existing AIT mail service,
+- Print uses the original saved PDF bytes through the existing PM isolated
+  PDF.js print adapter and browser print dialog, never the hub webpage. Do not
+  reintroduce the failed native PDF iframe printing path or claim printing completed. Email uses the existing AIT mail service,
   the exact original bytes and original filename, with an entered recipient.
   Only an explicit Send Email uploads that selected attachment for delivery;
   do not upload paths, directory handles or unrelated local files. Require

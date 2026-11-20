@@ -10,6 +10,7 @@
   const emailForm=byId('folder-view-email-form'),emailConfig=JSON.parse(byId('directory-email').textContent);
   const scope=JSON.parse(byId('directory-context').textContent),reports=JSON.parse(byId('directory-reports').textContent);
   let revision=0,summary='',readHandle=null,url=null,selected=null;
+  const reportPath=report=>report.directories || [report.source,report.title];
   const states=reports.map(()=>null);
   function release(){
     window.AITPMPdfPrint.clear();
@@ -24,7 +25,7 @@
     rows.replaceChildren();
     reports.forEach((report,index)=>{
       const row=document.createElement('tr');row.className='border-t border-slate-200';cell(row,String(index+1));
-      link(cell(row,''),report.source+' / '+report.title,()=>showFiles(index),states[index]===null);
+      link(cell(row,''),reportPath(report).join(' / '),()=>showFiles(index),states[index]===null);
       cell(row,states[index]===null?'\u2014':String(states[index]));rows.appendChild(row);
     });
   }
@@ -40,14 +41,14 @@
     readHandle=null;access.hidden=true;return handle;
   }
   async function entries(root,report){
-    const source=await root.getDirectoryHandle(report.source,{create:false});
-    const folder=await source.getDirectoryHandle(report.title,{create:false}),result=[];
+    let folder=root;for(const segment of reportPath(report))folder=await folder.getDirectoryHandle(segment,{create:false});
+    const result=[];
     for await(const [name,handle] of folder.entries())if(handle.kind==='file')result.push({name,handle});
     return result.sort((a,b)=>a.name.localeCompare(b.name));
   }
   async function showFiles(index){
     const current=++revision;release();table.hidden=true;contents.hidden=false;viewer.hidden=true;files.replaceChildren();
-    path.textContent=reports[index].source+' / '+reports[index].title;message.textContent='Reading existing files...';
+    path.textContent=reportPath(reports[index]).join(' / ');message.textContent='Reading existing files...';
     try{
       const listed=await entries(await assignedRoot(),reports[index]);
       if(current!==revision)return;states[index]=listed.length;render();
@@ -148,5 +149,12 @@
       summary='Existing report folders in '+root.name+'.'+(unavailable?' A dash means the folder could not be read.':'');message.textContent=summary;
     }catch(error){if(current===revision){states.fill(null);render();summary=error.message;message.textContent=summary;}}
   }
+  function changed(event){
+    const value=event.detail || event.data;
+    if(value?.user===String(scope.user) && value.property===String(scope.property) && !area.hidden && !table.hidden)load();
+  }
+  window.addEventListener('ait:local-documents',changed);
+  if(window.BroadcastChannel){const channel=new BroadcastChannel('ait-protrade-documents');channel.onmessage=changed;}
+  window.addEventListener('focus',()=>{if(!area.hidden && !table.hidden)load();});
   open.onclick=load;window.addEventListener('pagehide',release);
 })();

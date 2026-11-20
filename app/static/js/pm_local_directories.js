@@ -44,6 +44,14 @@
       try{const folder=await client.getDirectoryHandle(entry.path[2],{create});return {handle:folder,path:[user.name,client.name,folder.name].join('/')};}
       catch(error){if(!create && error.name==='NotFoundError')return null;throw error;}
     }
+    if(entry.directories){
+      if(!Array.isArray(entry.directories) || !entry.directories.length)throw new Error('Invalid report destination.');
+      entry.directories.forEach(safeSegment);
+      let folder=handle;
+      try{for(const segment of entry.directories)folder=await folder.getDirectoryHandle(segment,{create});}
+      catch(error){if(!create && error.name==='NotFoundError')return null;throw error;}
+      return {handle:folder,path:entry.directories.join('/')};
+    }
     try{const source=await handle.getDirectoryHandle(safeSegment(entry.source),{create});const folder=await source.getDirectoryHandle(safeSegment(entry.title),{create});return {handle:folder,path:[source.name,folder.name].join('/')};}
     catch(error){if(!create && error.name==='NotFoundError')return null;throw error;}
   }
@@ -77,7 +85,6 @@
   }
   function check(scope){if(!scope.user || !scope.property)throw new Error('Select an authorised property first.');}
   function notify(scope,type){
-    if(String(scope.property)!=='protrade')return;
     const detail={user:String(scope.user),property:String(scope.property),type};
     window.dispatchEvent(new CustomEvent('ait:local-documents',{detail}));
     // The folder/file is already committed. Optional cross-tab messaging must

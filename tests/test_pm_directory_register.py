@@ -12,8 +12,10 @@ from jinja2 import ChoiceLoader, DictLoader, FileSystemLoader
 
 ROOT=Path(__file__).resolve().parents[1]
 catalog_tree=ast.parse((ROOT/'app/program_billing/utilities_output_reports.py').read_text(encoding='utf-8'))
-values={n.targets[0].id:ast.literal_eval(n.value) for n in catalog_tree.body if isinstance(n,ast.Assign) and isinstance(n.targets[0],ast.Name) and n.targets[0].id in {'CATALOG','SOURCES'}}
-REPORTS=[dict(code=c,title=t,source=values['SOURCES'][source]) for source,items in values['CATALOG'].items() for c,t in items]
+values={n.targets[0].id:ast.literal_eval(n.value) for n in catalog_tree.body if isinstance(n,ast.Assign) and isinstance(n.targets[0],ast.Name) and n.targets[0].id in {'CATALOG','SOURCES','REPORT_PATHS'}}
+destination_function=next(n for n in catalog_tree.body if isinstance(n,ast.FunctionDef) and n.name=='report_destinations')
+exec(compile(ast.Module(body=[destination_function],type_ignores=[]),'<report-destinations>','exec'),values)
+REPORTS=values['report_destinations']()
 
 
 def browser_html(property_id=26,email_to=""):
@@ -63,7 +65,7 @@ class DirectoryRegisterTests(unittest.TestCase):
         blueprint=Blueprint('billing_bp',__name__)
         tree=ast.parse((ROOT/'app/program_billing/directory_register.py').read_text())
         function=next(n for n in tree.body if isinstance(n,ast.FunctionDef))
-        namespace.update(billing_bp=blueprint,login_required=login_required,require_pm_user=lambda:None,request=request,current_app=current_app,SOURCES={'all':'Utilities'},CATALOG={'all':[(r['code'],r['title']) for r in REPORTS]},render_pm_template=lambda name,**kw:dict(user=kw['directory_context']['user'],properties=kw['properties'],recipient=kw['directory_email_to']))
+        namespace.update(billing_bp=blueprint,login_required=login_required,require_pm_user=lambda:None,request=request,current_app=current_app,SOURCES={'all':'Utilities'},CATALOG={'all':[(r['code'],r['title']) for r in REPORTS]},report_destinations=lambda:REPORTS,render_pm_template=lambda name,**kw:dict(user=kw['directory_context']['user'],properties=kw['properties'],recipient=kw['directory_email_to']))
         exec(compile(ast.Module(body=[function],type_ignores=[]),'<real-directory-route>','exec'),namespace)
         app.register_blueprint(blueprint);client=app.test_client()
         self.assertEqual(client.get('/billing/directory-register').status_code,401)

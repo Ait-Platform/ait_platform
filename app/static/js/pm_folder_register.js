@@ -12,6 +12,7 @@
   let revision=0,summary='',readHandle=null,url=null,selected=null;
   const states=reports.map(()=>null);
   function release(){
+    window.AITPMPdfPrint.clear();
     if(renderTask){renderTask.cancel();renderTask=null;}
     if(pdfTask){pdfTask.destroy().catch(()=>{});pdfTask=null;}
     for(const canvas of pages.querySelectorAll('canvas')){canvas.width=canvas.height=0;}
@@ -98,19 +99,17 @@
   byId('folder-register-back').onclick=()=>{revision++;register();};
   byId('folder-view-back').onclick=()=>{revision++;release();viewer.hidden=true;contents.hidden=false;message.textContent='Select a filename to view the original saved PDF.';};
   byId('folder-view-print').onclick=()=>{
-    if(!selected || !url)return;
-    const original=url,current=revision;
-    message.textContent='Preparing the original saved PDF for browser printing...';
-    function print(){
-      if(current!==revision || url!==original)return;
-      try{frame.contentWindow.focus();frame.contentWindow.print();message.textContent='Print requested for the original saved PDF. Confirm printing in the browser.';}
-      catch(_){message.textContent='The browser could not print this saved PDF. Printing has not been confirmed.';}
-    }
-    if(frame.getAttribute('src')===original)print();
-    else{frame.onload=print;frame.src=original;}
-
+    if(!selected)return;
+    const current=revision;
+    window.AITPMPdfPrint.print(selected.blob,selected.name,pages.dataset,text=>{
+      if(current===revision)message.textContent=text;
+    });
   };
-  byId('folder-view-email').onclick=()=>{if(selected){emailForm.hidden=false;byId('folder-email-to').focus();}};
+  byId('folder-view-email').onclick=()=>{if(selected){
+    const recipient=byId('folder-email-to');
+    if(!recipient.value)recipient.value=emailConfig.recipient || '';
+    emailForm.hidden=false;recipient.focus();
+  }};
   emailForm.onsubmit=async event=>{
     event.preventDefault();if(!selected || !emailForm.reportValidity())return;
     const document=selected,submit=emailForm.querySelector('button[type="submit"]'),current=revision;

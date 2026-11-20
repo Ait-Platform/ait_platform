@@ -16,13 +16,13 @@ values={n.targets[0].id:ast.literal_eval(n.value) for n in catalog_tree.body if 
 REPORTS=[dict(code=c,title=t,source=values['SOURCES'][source]) for source,items in values['CATALOG'].items() for c,t in items]
 
 
-def browser_html(property_id=26):
+def browser_html(property_id=26,email_to=""):
     app=Flask('directory-browser')
     app.jinja_loader=ChoiceLoader([DictLoader({'layout.html':'<html><head></head><body>{% block content %}{% endblock %}</body></html>'}),FileSystemLoader(str(ROOT/'templates'))])
     with app.test_request_context():
         properties=[dict(id=26,name='Almond'),dict(id=27,name='Dale')]
         selected=next(p for p in properties if p['id']==property_id)
-        return render_template('program_billing/directory_register.html',properties=properties,selected_property=selected,directory_context=dict(user='7',property=str(property_id)),directory_reports=REPORTS,url_for=lambda endpoint,**kw:'/static/'+kw['filename'] if endpoint=='static' else '/'+endpoint)
+        return render_template('program_billing/directory_register.html',properties=properties,selected_property=selected,directory_email_to=email_to,directory_context=dict(user='7',property=str(property_id)),directory_reports=REPORTS,url_for=lambda endpoint,**kw:'/static/'+kw['filename'] if endpoint=='static' else '/'+endpoint)
 
 
 def open_browser(runtime,markup=None,init=''):
@@ -47,7 +47,7 @@ class DirectoryRegisterTests(unittest.TestCase):
         app=Flask('directory-route');app.secret_key='test-only';app.config['TESTING']=True
         manager=LoginManager(app)
         class User(UserMixin):
-            def __init__(self,id):self.id=id
+            def __init__(self,id):self.id=id;self.email=f"registered-{id}@example.com"
         manager.user_loader(lambda uid:User(int(uid)))
         properties=[dict(id=26,name='Almond',manager_id=7),dict(id=28,name='Almond',manager_id=8)]
         def execute(statement,params):
@@ -63,7 +63,7 @@ class DirectoryRegisterTests(unittest.TestCase):
         blueprint=Blueprint('billing_bp',__name__)
         tree=ast.parse((ROOT/'app/program_billing/directory_register.py').read_text())
         function=next(n for n in tree.body if isinstance(n,ast.FunctionDef))
-        namespace.update(billing_bp=blueprint,login_required=login_required,require_pm_user=lambda:None,request=request,current_app=current_app,SOURCES={'all':'Utilities'},CATALOG={'all':[(r['code'],r['title']) for r in REPORTS]},render_pm_template=lambda name,**kw:dict(user=kw['directory_context']['user'],properties=kw['properties']))
+        namespace.update(billing_bp=blueprint,login_required=login_required,require_pm_user=lambda:None,request=request,current_app=current_app,SOURCES={'all':'Utilities'},CATALOG={'all':[(r['code'],r['title']) for r in REPORTS]},render_pm_template=lambda name,**kw:dict(user=kw['directory_context']['user'],properties=kw['properties'],recipient=kw['directory_email_to']))
         exec(compile(ast.Module(body=[function],type_ignores=[]),'<real-directory-route>','exec'),namespace)
         app.register_blueprint(blueprint);client=app.test_client()
         self.assertEqual(client.get('/billing/directory-register').status_code,401)
@@ -71,5 +71,6 @@ class DirectoryRegisterTests(unittest.TestCase):
             with client.session_transaction() as session:session['_user_id']=str(uid);session['_fresh']=True
             response=client.get('/billing/directory-register?property_id='+str(own));self.assertEqual(response.status_code,200)
             self.assertEqual([p['id'] for p in response.json['properties']],[own])
+            self.assertEqual(response.json['recipient'],f'registered-{uid}@example.com')
             self.assertEqual(client.get('/billing/directory-register?property_id='+str(foreign)).status_code,403)
         self.assertEqual(client.post('/billing/directory-register').status_code,405)

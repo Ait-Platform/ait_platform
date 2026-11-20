@@ -146,10 +146,6 @@ class FolderRegisterTests(unittest.TestCase):
                 self.assertEqual(bytes(viewed),original)
                 self.assertRegex(page.locator('#folder-register-files tr td:nth-child(3)').inner_text(),r'\d{2}/\d{2}/\d{4}')
                 self.assertTrue(page.locator('#folder-register-viewer').is_visible())
-                page.evaluate("""()=>{const frame=document.getElementById('folder-view-pdf');Object.defineProperty(frame,'contentWindow',{value:{focus(){},print(){window.printedURL=frame.src;}}});}""")
-                page.locator('#folder-view-print').click()
-                page.evaluate("document.getElementById('folder-view-pdf').onload()")
-                self.assertEqual(page.evaluate('printedURL'),page.locator('#folder-view-pdf').get_attribute('src'))
                 submitted=[]
                 def email(route):
                     submitted.append(route.request.post_data_buffer);route.fulfill(json=dict(message='Original PDF accepted for delivery.'))

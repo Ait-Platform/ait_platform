@@ -22,6 +22,7 @@ def directory_register():
     selected = next((p for p in properties if p['id'] == selected), properties[0] if properties else None)
     response = current_app.make_response(render_pm_template('program_billing/directory_register.html',
         properties=properties, selected_property=selected,
+        directory_email_to=getattr(current_user, 'email', '') or '',
         directory_context=dict(user=str(current_user.id), property=str(selected['id']) if selected else ''),
         directory_reports=[dict(code=code,title=title,source=SOURCES[source]) for source,reports in CATALOG.items() for code,title in reports]))
     response.headers['Cache-Control'] = 'private, no-store'

@@ -1,5 +1,27 @@
 # PM folder picker verification — 19 November 2026
 
+## Approved separate writable connection — 20 November 2026
+
+HTML selection remains name-only. The user approved dropping a folder from File
+Explorer onto the existing Select Folder button, then clicking that same button
+to approve write access. `getAsFileSystemHandle()` is invoked in the drop event;
+no native directory picker is called. A drop alone creates and assigns nothing.
+
+On the subsequent genuine click, verify read/write permission before creating
+the existing report catalogue's source/report directories. Reject destinations
+equal to, beneath, or containing another authorised property's assigned folder.
+Serialize this check, creation and assignment with the existing origin-wide
+report lock. Persist only the current user/property and verify the stored handle.
+No original assignment, report or directory is deleted. Partial failures report
+whether folders were created and whether the assignment committed.
+
+Automated tests simulate the OS drop using genuine Chromium origin-private
+directory handles; this is not proof of a native Windows writable connection.
+The live success condition is still: Dale receives its own dropped directory,
+browser write approval succeeds, the existing report subfolders physically exist,
+and a normal PM report saves successfully there. Do not call the live issue solved
+until that sequence is confirmed. Earlier sections below describe historical steps.
+
 ## Clean rebuild status — 20 November 2026
 
 The operator reproduced native AbortError outside AIT in both read and read/write

@@ -58,7 +58,7 @@ class FolderNameTests(unittest.TestCase):
                         self.assertTrue(chooser.value.is_multiple())
                         chooser.value.set_files(str(folder))
                         page.wait_for_function("name=>document.getElementById('directory-folder').textContent===name",arg=title)
-                        self.assertEqual(page.locator('button').count(),1)
+                        self.assertEqual(page.locator('button:visible').count(),2)
                         self.assertTrue(page.locator('#directory-input').is_hidden())
                         self.assertEqual(page.locator('#directory-input').evaluate('(input)=>input.files.length'),0)
                         self.assertIn('does not grant write access',page.locator('#directory-message').inner_text())

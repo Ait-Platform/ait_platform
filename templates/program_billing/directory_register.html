@@ -8,9 +8,16 @@
 <input id="directory-input" type="file" webkitdirectory multiple hidden>
 <p class="my-4 break-words">Selected folder: <strong id="directory-folder">No folder selected</strong></p>
 <p id="directory-message" role="status" aria-live="polite" class="text-sm text-slate-700"></p>
+<div class="mt-4 flex justify-end"><button id="folder-register-open" type="button" {% if not selected_property %}disabled{% endif %} aria-expanded="false" aria-controls="folder-register-area" class="rounded-lg border border-blue-200 bg-blue-100 px-4 py-2 font-semibold">Folder Register</button></div>
+<section id="folder-register-area" hidden class="mt-6 rounded-lg border border-slate-200 p-4">
+<div class="flex flex-wrap items-center justify-between gap-3"><h2 class="text-lg font-semibold">Folder Register{% if selected_property %} — {{ selected_property.name }}{% endif %}</h2><button id="folder-register-close" type="button" class="rounded-lg bg-slate-100 px-4 py-2">Close</button></div>
+<p id="folder-register-message" role="status" aria-live="polite" class="my-3 text-sm text-slate-700"></p>
+<div class="overflow-x-auto"><table class="w-full text-left text-sm"><thead class="bg-slate-50"><tr><th scope="col" class="p-2">No.</th><th scope="col" class="p-2">Folder</th><th scope="col" class="p-2">Availability</th></tr></thead><tbody id="folder-register-rows"></tbody></table></div>
+</section>
 </div></div></div>
 <script id="directory-context" type="application/json">{{ directory_context|tojson }}</script>
 <script id="directory-reports" type="application/json">{{ directory_reports|tojson }}</script>
 <script src="{{ url_for('static',filename='js/pm_local_directories.js',v='20261120-observed-storage') }}" defer></script>
 <script src="{{ url_for('static',filename='js/pm_folder_name.js',v='20261120-drop-write-connection') }}" defer></script>
+<script src="{{ url_for('static',filename='js/pm_folder_register.js',v='20261120-read-only') }}" defer></script>
 {% endblock %}

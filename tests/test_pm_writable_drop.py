@@ -49,7 +49,7 @@ class PMWritableDropTests(unittest.TestCase):
                 self.assertEqual(result,dict(root='Dale destination',file='310726_METSOA.pdf',text='%PDF-Dale report',almond='Almond original',old='%PDF-Almond history'))
                 page.reload()
                 page.wait_for_function("document.getElementById('directory-folder').textContent==='Dale destination'")
-                self.assertEqual(page.locator('button').count(),1)
+                self.assertEqual(page.locator('button:visible').count(),2)
             finally:browser.close()
 
     def test_rejects_same_nested_and_parent_property_folders(self):

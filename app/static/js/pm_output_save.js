@@ -7,8 +7,9 @@
   // Expose the actual existing destination; a folder name selected through the
   // HTML input cannot replace this writable handle.
   window.AITDirectories.get(scope).then(async row=>{
-    const granted=row && await row.handle.queryPermission({mode:'readwrite'})==='granted';
-    if(!saving && !savedMessage)message.textContent=granted?'Report destination: '+row.handle.name+'.':'No authorised report folder. Use Download PDF.';
+    const permission=row && await row.handle.queryPermission({mode:'readwrite'});
+    if(!saving && !savedMessage)message.textContent=!row?'No authorised report folder. Use Download PDF.':
+      'Report destination: '+row.handle.name+'.'+(permission==='granted'?'':permission==='prompt'?' Click Save Report to confirm write access.':' Write access is denied. Use Download PDF.');
   }).catch(()=>{if(!saving && !savedMessage)message.textContent='Could not read the report destination. Use Download PDF.';});
   function refresh(){
     const seconds=Math.max(0,Math.ceil((cooldownUntil-Date.now())/1000));
@@ -27,7 +28,9 @@
         savedMessage='PDF download started: '+name+'. Browser completion is not confirmed.';
       }else{
         const assigned=await window.AITDirectories.get(scope);
-        if(!assigned || await assigned.handle.queryPermission({mode:'readwrite'})!=='granted')throw new Error('No authorised report folder. Use Download PDF.');
+        if(!assigned || await assigned.handle.queryPermission({mode:'readwrite'})==='denied')throw new Error('No authorised report folder. Use Download PDF.');
+        // A restored handle may need confirmation. The existing save helper
+        // requests it from this genuine Save Report click, never on page load.
         const name=await window.AITDirectories.save(scope,scope.report,url);
         savedMessage='Saved '+name+' to your registered folder. Destination: '+assigned.handle.name+'.';
       }

@@ -5,6 +5,35 @@ from test_pm_directory_register import open_browser
 
 
 class OutputLocalSaveTests(unittest.TestCase):
+    def test_restored_dale_handle_can_renew_permission_from_save_click(self):
+        markup="""<html><body><button id="output-save">Save Report</button><a id="output-download" href="/existing-pdf">Download PDF</a><span id="output-save-message"></span>
+        <script id="output-directory-context" type="application/json">{"user":"644","property":"27","report":"account_register","period_end":"2026-11-20"}</script>
+        <script id="output-catalog" type="application/json">{"accounts":[["account_register","Account Register"]]}</script>
+        <script id="output-sources" type="application/json">{"accounts":"Municipal Accounts"}</script>
+        <script src="/static/js/pm_local_directories.js" defer></script><script src="/static/js/pm_output_save.js" defer></script></body></html>"""
+        with sync_playwright() as runtime:
+            browser,page=open_browser(runtime,markup=markup)
+            try:
+                page.evaluate("""async()=>{const root=await navigator.storage.getDirectory();
+                    await AITDirectories.set({user:'644',property:'26'},await root.getDirectoryHandle('Almond unchanged',{create:true}));
+                    await AITDirectories.set({user:'644',property:'27'},await root.getDirectoryHandle('1PM Dale',{create:true}));}""")
+                page.add_init_script("""window.permissionGranted=false;window.permissionRequests=[];
+                    FileSystemDirectoryHandle.prototype.queryPermission=async()=>permissionGranted?'granted':'prompt';
+                    FileSystemDirectoryHandle.prototype.requestPermission=async()=>{permissionRequests.push(navigator.userActivation.isActive);permissionGranted=true;return 'granted';};
+                    window.fetch=async()=>new Response('%PDF-Dale verified',{headers:{'Content-Type':'application/pdf'}});
+                """)
+                page.reload()
+                page.wait_for_function("document.getElementById('output-save-message').textContent.length>0")
+                self.assertEqual(page.evaluate('permissionRequests'),[])
+                page.locator('#output-save').click()
+                page.wait_for_function("document.getElementById('output-save-message').textContent.includes('Saved 201126_Account_Register.pdf')",timeout=3000)
+                self.assertEqual(page.evaluate('permissionRequests'),[True])
+                result=page.evaluate("""async()=>{const row=await AITDirectories.get({user:'644',property:'27'});
+                    const file=await(await(await row.handle.getDirectoryHandle('Municipal Accounts')).getDirectoryHandle('Account Register')).getFileHandle('201126_Account_Register.pdf');
+                    return {dale:row.handle.name,text:await(await file.getFile()).text(),almond:(await AITDirectories.get({user:'644',property:'26'})).handle.name};}""")
+                self.assertEqual(result,dict(dale='1PM Dale',text='%PDF-Dale verified',almond='Almond unchanged'))
+            finally:browser.close()
+
     def test_real_local_saves_all_reports_collision_sequence_and_scope(self):
         with sync_playwright() as runtime:
             browser,page=open_browser(runtime)

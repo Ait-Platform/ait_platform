@@ -12,12 +12,13 @@
 <section id="folder-register-area" hidden class="mt-6 rounded-lg border border-slate-200 p-4">
 <div class="flex flex-wrap items-center justify-between gap-3"><h2 class="text-lg font-semibold">Folder Register{% if selected_property %} — {{ selected_property.name }}{% endif %}</h2><button id="folder-register-close" type="button" class="rounded-lg bg-slate-100 px-4 py-2">Close</button></div>
 <p id="folder-register-message" role="status" aria-live="polite" class="my-3 text-sm text-slate-700"></p>
-<div class="overflow-x-auto"><table class="w-full text-left text-sm"><thead class="bg-slate-50"><tr><th scope="col" class="p-2">No.</th><th scope="col" class="p-2">Folder</th><th scope="col" class="p-2">Availability</th></tr></thead><tbody id="folder-register-rows"></tbody></table></div>
+<div id="folder-register-table" class="overflow-x-auto"><table class="w-full text-left text-sm"><thead class="bg-slate-50"><tr><th scope="col" class="p-2">No.</th><th scope="col" class="p-2">Folder</th><th scope="col" class="p-2">Files</th><th scope="col" class="p-2">Action</th></tr></thead><tbody id="folder-register-rows"></tbody></table></div>
+<div id="folder-register-contents" hidden><h3 id="folder-register-path" class="mb-3 font-semibold"></h3><ol id="folder-register-files" class="space-y-2 break-words text-sm"></ol></div>
 </section>
 </div></div></div>
 <script id="directory-context" type="application/json">{{ directory_context|tojson }}</script>
 <script id="directory-reports" type="application/json">{{ directory_reports|tojson }}</script>
 <script src="{{ url_for('static',filename='js/pm_local_directories.js',v='20261120-observed-storage') }}" defer></script>
-<script src="{{ url_for('static',filename='js/pm_folder_name.js',v='20261120-drop-write-connection') }}" defer></script>
-<script src="{{ url_for('static',filename='js/pm_folder_register.js',v='20261120-read-only') }}" defer></script>
+<script src="{{ url_for('static',filename='js/pm_folder_name.js',v='20261120-protected-assignment') }}" defer></script>
+<script src="{{ url_for('static',filename='js/pm_folder_register.js',v='20261120-file-register') }}" defer></script>
 {% endblock %}

@@ -25,11 +25,10 @@ class FolderNameTests(unittest.TestCase):
                     page.goto('https://ait.test/directory-register?property_id='+prop)
                     page.wait_for_function("name=>document.getElementById('directory-folder').textContent===name",arg=title)
                     page.wait_for_function("name=>document.getElementById('directory-message').textContent.includes(name)",arg=title)
-                    with page.expect_file_chooser() as chooser:page.locator('#directory-select').click()
-                    chooser.value.set_files(str(selected))
-                    self.assertEqual(page.locator('#directory-folder').inner_text(),'New name only')
-                    self.assertIn(title,page.locator('#directory-message').inner_text())
-                    self.assertIn('does not grant write access',page.locator('#directory-message').inner_text())
+                    self.assertTrue(page.locator('#directory-select').is_hidden())
+                    page.evaluate("()=>{window.chooserCalls=0;document.getElementById('directory-input').click=()=>chooserCalls++;document.getElementById('directory-select').onclick();}")
+                    self.assertEqual(page.evaluate('chooserCalls'),0)
+                    self.assertEqual(page.locator('#directory-folder').inner_text(),title)
                     self.assertEqual(page.evaluate("async prop=>(await AITDirectories.get({user:'7',property:prop})).handle.name",prop),title)
                     page.evaluate("""reports=>{const s=document.createElement('script');s.id='directory-reports';s.textContent=JSON.stringify(reports);document.body.append(s);
                         window.fetch=async()=>new Response('%PDF-original destination',{headers:{'Content-Type':'application/pdf'}});}""",REPORTS)
@@ -94,4 +93,14 @@ class FolderNameTests(unittest.TestCase):
                 page.locator('#directory-input').dispatch_event('cancel')
                 self.assertIn('Folder selection cancelled.',page.locator('#directory-message').inner_text())
                 self.assertEqual(page.locator('#directory-folder').inner_text(),'Reports')
+            finally:browser.close()
+
+    def test_assignment_read_failure_does_not_allow_replacement(self):
+        with sync_playwright() as runtime:
+            browser,page=open_browser(runtime,init="IDBObjectStore.prototype.get=function(){throw Error('Storage read failed');};")
+            try:
+                page.wait_for_function("document.getElementById('directory-message').textContent.includes('Could not read')")
+                self.assertTrue(page.locator('#directory-select').is_disabled())
+                page.evaluate("()=>{window.chooserCalls=0;document.getElementById('directory-input').click=()=>chooserCalls++;document.getElementById('directory-select').onclick();}")
+                self.assertEqual(page.evaluate('chooserCalls'),0)
             finally:browser.close()

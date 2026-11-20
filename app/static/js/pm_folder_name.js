@@ -5,19 +5,22 @@
   const input=document.getElementById('directory-input'),name=document.getElementById('directory-folder'),message=document.getElementById('directory-message');
   const scope=JSON.parse(document.getElementById('directory-context').textContent),api=window.AITDirectories;
   let attempted=false,selectedName='',registered=null,writable=false,notice='';
-  let dropped=null,connecting=false,dropVersion=0,assignmentVersion=0;
+  let dropped=null,connecting=false,dropVersion=0,assignmentVersion=0,loaded=false;
+  button.disabled=true;
+  function selectionState(){button.hidden=!!registered;button.disabled=!loaded || connecting || !scope.property || !('webkitdirectory' in input);}
   function status(){
     const destination=registered?'Existing report destination: '+registered.name+(writable?'.':' (no current write access). Use Download PDF.'):'No authorised report folder is assigned. Use Download PDF.';
-    message.textContent=[notice,selectedName?'This folder name does not grant write access or change the report destination.':'',destination,'To authorise a destination, drag its folder onto Select Folder, then click that button.'].filter(Boolean).join(' ');
+    message.textContent=[notice,selectedName?'This folder name does not grant write access or change the report destination.':'',destination,!registered && loaded?'To authorise a destination, drag its folder onto Select Folder, then click that button.':''].filter(Boolean).join(' ');
   }
   // Only restore the current user's property assignment; never replace it from
   // a FileList or prompt for permission while loading the page.
   if(scope.property){const version=assignmentVersion;api.get(scope).then(async row=>{
+    if(row && (String(row.user)!==String(scope.user) || String(row.property)!==String(scope.property) || row.handle?.kind!=='directory'))throw new Error('Invalid assignment');
     const handle=row?.handle || null;
     let allowed=false;
     if(handle)try{allowed=await handle.queryPermission({mode:'readwrite'})==='granted';}catch(_){}
     if(version!==assignmentVersion)return;
-    registered=handle;writable=allowed;
+    registered=handle;writable=allowed;loaded=true;selectionState();
     if(registered && !attempted)name.textContent=registered.name;
     status();
   }).catch(()=>{if(version===assignmentVersion){notice='Could not read the existing assignment.';status();}});}
@@ -33,7 +36,7 @@
   }
   button.ondragover=event=>{if(Array.from(event.dataTransfer.types).includes('Files'))event.preventDefault();};
   button.ondrop=async event=>{
-    event.preventDefault();if(connecting || !scope.property)return;
+    event.preventDefault();if(connecting || !loaded || registered || !scope.property)return;
     const version=++dropVersion;attempted=true;dropped=null;
     try{
       const items=Array.from(event.dataTransfer.items).filter(item=>item.kind==='file');
@@ -48,7 +51,7 @@
     }catch(error){if(version===dropVersion){notice=error.message;status();}}
   };
   async function connect(){
-    if(connecting || !dropped)return;
+    if(connecting || !loaded || registered || !dropped)return;
     const handle=dropped;connecting=true;button.disabled=true;assignmentVersion++;
     let committed=false,foldersReady=false,creationStarted=false;
     try{
@@ -56,6 +59,13 @@
       // The click reaches permission handling before any IndexedDB await.
       if(!await api.permission(handle) || await handle.queryPermission({mode:'readwrite'})!=='granted')throw new Error('Write access was not granted. The existing assignment is unchanged.');
       await navigator.locks.request('ait-pm-local-report-save',async()=>{
+      const existing=await api.get(scope);
+      if(existing){
+        if(String(existing.user)!==String(scope.user) || String(existing.property)!==String(scope.property) || existing.handle?.kind!=='directory')throw new Error('Could not verify the existing assignment.');
+        registered=existing.handle;name.textContent=registered.name;selectedName='';
+        writable=await registered.queryPermission({mode:'readwrite'})==='granted';
+        throw new Error('This property already has a folder assignment. It has been preserved.');
+      }
       await separateFromOtherProperties(handle);
       const reports=JSON.parse(document.getElementById('directory-reports').textContent);
       if(!reports.length)throw new Error('The PM report catalogue is unavailable.');
@@ -77,13 +87,14 @@
       notice=committed?'The assignment was stored but could not be verified. Reopen Folders before saving a report.':
         foldersReady?'Report subfolders were created, but the assignment could not be saved. The previous assignment is unchanged.':
         creationStarted?'Report folder creation could not finish; some subfolders may exist. The previous assignment is unchanged.':error.message;
-    }finally{dropped=null;connecting=false;button.disabled=false;status();}
+    }finally{dropped=null;connecting=false;selectionState();status();}
   }
   if(!('webkitdirectory' in input)){
     button.disabled=true;message.textContent='Folder selection is unavailable in this browser.';return;
   }
-  button.onclick=()=>{if(dropped)return connect();dropVersion++;attempted=true;selectedName='';name.textContent='No folder selected';notice='Choose a folder containing a file.';status();input.click();};
+  button.onclick=()=>{if(!loaded || registered)return;if(dropped)return connect();dropVersion++;attempted=true;selectedName='';name.textContent='No folder selected';notice='Choose a folder containing a file.';status();input.click();};
   input.onchange=()=>{
+    if(!loaded || registered){input.value='';return;}
     const relativePath=input.files[0]?.webkitRelativePath || '';
     const folderName=relativePath.includes('/')?relativePath.split('/')[0]:'';
     name.textContent=folderName || 'No folder selected';

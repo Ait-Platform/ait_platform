@@ -49,7 +49,7 @@ class PMWritableDropTests(unittest.TestCase):
                 self.assertEqual(result,dict(root='Dale destination',file='310726_METSOA.pdf',text='%PDF-Dale report',almond='Almond original',old='%PDF-Almond history'))
                 page.reload()
                 page.wait_for_function("document.getElementById('directory-folder').textContent==='Dale destination'")
-                self.assertEqual(page.locator('button:visible').count(),2)
+                self.assertTrue(page.locator('#directory-select').is_hidden())
             finally:browser.close()
 
     def test_rejects_same_nested_and_parent_property_folders(self):
@@ -87,7 +87,7 @@ class PMWritableDropTests(unittest.TestCase):
         self.assertNotIn('requestPermission',html_handler)
         self.assertNotIn('showDirectoryPicker',source)
 
-    def test_failed_assignment_write_preserves_previous_destination(self):
+    def test_existing_assignment_cannot_be_replaced_by_drop(self):
         with sync_playwright() as runtime:
             browser,page=open_browser(runtime)
             try:
@@ -95,10 +95,25 @@ class PMWritableDropTests(unittest.TestCase):
                     await AITDirectories.set({user:'7',property:'27'},await root.getDirectoryHandle('Original Dale',{create:true}));}""")
                 page.goto('https://ait.test/directory-register?property_id=27')
                 page.wait_for_function("document.getElementById('directory-folder').textContent==='Original Dale'")
+                self.assertTrue(page.locator('#directory-select').is_hidden())
                 self.drop(page,"(await navigator.storage.getDirectory()).getDirectoryHandle('New Dale',{create:true})")
-                page.evaluate("()=>{IDBObjectStore.prototype.put=function(){throw new DOMException('Test storage failure','DataCloneError');};}")
-                page.locator('#directory-select').click()
-                page.wait_for_function("document.getElementById('directory-message').textContent.includes('assignment could not be saved')")
-                self.assertIn('subfolders were created',page.locator('#directory-message').inner_text())
+                page.evaluate("document.getElementById('directory-select').onclick()")
+                self.assertEqual(page.locator('#directory-folder').inner_text(),'Original Dale')
                 self.assertEqual(page.evaluate("async()=>(await AITDirectories.get({user:'7',property:'27'})).handle.name"),'Original Dale')
+                self.assertEqual(page.evaluate("async()=>Array.fromAsync((await(await navigator.storage.getDirectory()).getDirectoryHandle('New Dale')).keys())"),[])
+            finally:browser.close()
+
+    def test_assignment_created_in_another_tab_is_preserved_before_folder_creation(self):
+        with sync_playwright() as runtime:
+            browser,page=open_browser(runtime)
+            try:
+                page.goto('https://ait.test/directory-register?property_id=27')
+                self.drop(page,"(await navigator.storage.getDirectory()).getDirectoryHandle('Candidate Dale',{create:true})")
+                page.evaluate("""async()=>{const root=await navigator.storage.getDirectory();
+                    await AITDirectories.set({user:'7',property:'27'},await root.getDirectoryHandle('Assigned elsewhere',{create:true}));}""")
+                page.locator('#directory-select').click()
+                page.wait_for_function("document.getElementById('directory-select').hidden")
+                self.assertIn('preserved',page.locator('#directory-message').inner_text())
+                self.assertEqual(page.locator('#directory-folder').inner_text(),'Assigned elsewhere')
+                self.assertEqual(page.evaluate("async()=>Array.fromAsync((await(await navigator.storage.getDirectory()).getDirectoryHandle('Candidate Dale')).keys())"),[])
             finally:browser.close()

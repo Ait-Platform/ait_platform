@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><title>PM new folder module — local verification</title>
+<style>body{font:18px system-ui;background:#f8fafc;color:#0f172a;margin:3rem auto;max-width:650px;padding:1rem}main{background:white;border:1px solid #cbd5e1;border-top:8px solid #22c55e;border-radius:12px;padding:24px}header{display:flex;align-items:center;justify-content:space-between;gap:16px}button,select{font:inherit;border:1px solid #cbd5e1;border-radius:8px;padding:10px;margin:12px 0}button{background:#dcfce7}label{display:block}p{overflow-wrap:anywhere}</style>
+<main><header><h1>Folders</h1><a href="../../">Back</a></header>
+<label for="property">Property</label><select id="property"><option value="26">Almond</option><option value="27">Dale</option></select>
+<div><button id="select" type="button">Select Folder</button></div>
+<p>Selected folder: <strong id="name">No folder selected</strong></p><p id="message" role="status" aria-live="polite"></p></main>
+<script src="../../app/static/js/pm_property_folders.js"></script>
+<script>
+// Local verification only. This origin has no AIT login or production assignments.
+const property=document.getElementById('property');
+property.value=new URLSearchParams(location.search).get('property')==='27'?'27':'26';
+property.onchange=()=>{location.search='?property='+property.value;};
+PMPropertyFolders.mount({userId:'644',propertyId:property.value},{select:document.getElementById('select'),name:document.getElementById('name'),message:document.getElementById('message')});
+</script></html>

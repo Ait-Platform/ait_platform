@@ -4,6 +4,7 @@ from playwright.sync_api import sync_playwright
 from test_pm_directory_register import open_browser, REPORTS
 
 
+@unittest.skip('Retired picker is inactive; replacement coverage is in test_pm_property_folders.py')
 class FolderSelectionStagesTests(unittest.TestCase):
     def test_mismatched_readback_never_claims_success(self):
         with sync_playwright() as runtime:

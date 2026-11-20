@@ -5,6 +5,7 @@ from playwright.sync_api import sync_playwright
 from test_pm_directory_register import open_browser, browser_html
 
 
+@unittest.skip('Temporary diagnostics belong to the retired picker; no longer loaded by PM')
 class FolderDiagnosticsTests(unittest.TestCase):
     def open(self,runtime,property_id=26,init=''):
         markup=browser_html(property_id).replace('"user": "7"','"user": "644"')

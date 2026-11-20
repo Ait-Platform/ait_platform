@@ -1,5 +1,30 @@
 # PM folder picker verification — 19 November 2026
 
+## Clean rebuild status — 20 November 2026
+
+The operator reproduced native AbortError outside AIT in both read and read/write
+tests. A JavaScript rewrite cannot establish a working native selection method.
+The original picker and diagnostics are no longer loaded by the Folders page.
+Select Folder is paused explicitly; no stored assignment is deleted or silently
+displayed as a newly selected folder. Existing report-saving behavior remains
+unchanged during this gate.
+
+The independent `app/static/js/pm_property_folders.js` module uses a separate
+`ait-pm-property-folders-v1` database, `propertyFolders` store and compound
+`[userId, propertyId]` keys. It never reads or migrates the legacy database and
+does not use `AITDirectories` or ProTrade code. It is not connected to production.
+`tests/manual/pm_property_folders.html` is a local-only native verification harness
+with the four requested controls. It does not share the production origin/login.
+Browser tests use a stubbed native picker with real Chromium handles and IndexedDB;
+their success must not be reported as Windows picker success.
+
+Before activation, an actual supported browser must return a native directory
+handle, successfully retain it across reopening, and permit a test report write.
+Only then wire the Folders page and report-save adapter to the new module together.
+Do not activate just one side or fall back automatically to an old assignment.
+No database migration, Render setting change, storage deletion or report move is
+required or authorised by this rebuild. Earlier findings below are historical.
+
 ## Observed failure and limits
 
 The live HTTPS page `/billing/directory-register?property_id=27` showed Dale,

@@ -4,6 +4,12 @@
   const scope=JSON.parse(document.getElementById('output-directory-context').textContent);
   const message=document.getElementById('output-save-message'),download=document.getElementById('output-download');
   let saving=false,cooldownUntil=0,timer=null,savedMessage='';
+  // Expose the actual existing destination; a folder name selected through the
+  // HTML input cannot replace this writable handle.
+  window.AITDirectories.get(scope).then(async row=>{
+    const granted=row && await row.handle.queryPermission({mode:'readwrite'})==='granted';
+    if(!saving && !savedMessage)message.textContent=granted?'Report destination: '+row.handle.name+'.':'No authorised report folder. Use Download PDF.';
+  }).catch(()=>{if(!saving && !savedMessage)message.textContent='Could not read the report destination. Use Download PDF.';});
   function refresh(){
     const seconds=Math.max(0,Math.ceil((cooldownUntil-Date.now())/1000));
     button.disabled=saving || seconds>0 || download.getAttribute('aria-disabled')==='true';
@@ -20,8 +26,10 @@
         const name=await window.AITDirectories.download(scope,scope.report,url);
         savedMessage='PDF download started: '+name+'. Browser completion is not confirmed.';
       }else{
+        const assigned=await window.AITDirectories.get(scope);
+        if(!assigned || await assigned.handle.queryPermission({mode:'readwrite'})!=='granted')throw new Error('No authorised report folder. Use Download PDF.');
         const name=await window.AITDirectories.save(scope,scope.report,url);
-        savedMessage='Saved '+name+' to your registered folder.';
+        savedMessage='Saved '+name+' to your registered folder. Destination: '+assigned.handle.name+'.';
       }
       if(scope.report==='metsoa_statement')cooldownUntil=Date.now()+10000;
     }catch(error){message.textContent=error.name==='AbortError'?'Saving cancelled. No report was saved.':error.message;if(error.name!=='AbortError')download.hidden=false;}

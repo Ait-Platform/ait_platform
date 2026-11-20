@@ -141,6 +141,7 @@ class OutputLocalSaveTests(unittest.TestCase):
         with sync_playwright() as runtime:
             browser,page=open_browser(runtime,markup=markup)
             try:
+                page.evaluate("""async()=>{const root=await navigator.storage.getDirectory();await AITDirectories.set({user:'7',property:'26'},root);}""")
                 page.evaluate("""()=>{window.calls=0;AITDirectories.save=()=>{calls++;return new Promise(resolve=>{window.complete=resolve;});};}""")
                 page.locator('#output-save').click()
                 self.assertTrue(page.locator('#output-save').is_disabled())
@@ -153,6 +154,14 @@ class OutputLocalSaveTests(unittest.TestCase):
                 page.locator('#output-save').click()
                 self.assertEqual(page.evaluate('downloads'),1)
                 page.wait_for_function("document.getElementById('output-save-message').textContent.includes('PDF download started')")
+                page.evaluate("""()=>{AITDirectories.supported=()=>true;
+                    FileSystemDirectoryHandle.prototype.queryPermission=async()=> 'denied';
+                    FileSystemDirectoryHandle.prototype.requestPermission=async()=>{throw Error('No permission workaround');};}""")
+                page.locator('#output-save').click()
+                page.wait_for_function("document.getElementById('output-save-message').textContent.includes('No authorised report folder')")
+                self.assertEqual(page.evaluate('calls'),1)
+                self.assertEqual(page.evaluate('downloads'),1)
+                self.assertTrue(page.locator('#output-download').is_visible())
             finally:browser.close()
 
 

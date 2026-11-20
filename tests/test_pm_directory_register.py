@@ -29,7 +29,7 @@ def open_browser(runtime,markup=None,init=''):
     browser=runtime.chromium.launch(headless=True)
     page=browser.new_page()
     def serve(route):
-        name=route.request.url.split('/')[-1]
+        name=urlsplit(route.request.url).path.rsplit('/',1)[-1]
         if name.endswith('.js') and (ROOT/'app/static/js'/name).exists():route.fulfill(body=(ROOT/'app/static/js'/name).read_text(encoding='utf-8'),content_type='text/javascript')
         else:route.fulfill(body=markup or browser_html(int(parse_qs(urlsplit(route.request.url).query).get('property_id',['26'])[0])),content_type='text/html')
     page.route('**/*',serve)

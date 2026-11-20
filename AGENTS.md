@@ -8,13 +8,13 @@ ProTrade uses ordinary PDF downloads and application-backed document selection. 
 
 ## Reusable browser folder convention
 
-**PM clean rebuild exception (20 November 2026):** The replacement PM module is
-`pm_property_folders.js`, with its own new database and no legacy picker/storage
-reuse. It remains disconnected from production until native browser selection is
-verified. The Folders page must not load the retired picker. Preserve legacy
-assignments and existing report saving during this gate; do not migrate, delete,
-or silently reuse old assignments. The shared conventions below continue to apply
-to existing adapters, not as authorisation to reconnect the retired PM picker.
+**PM HTML picker exception (20 November 2026):** Folders uses `pm_folder_name.js`
+and an HTML `webkitdirectory` input. It displays names but cannot provide writable
+handles. Read existing user/property assignments through `AITDirectories` and
+identify them explicitly as the report destination. Never replace those handles
+from a FileList, upload selected files, or invoke the retired native picker.
+Existing authorised report saving retains its paths; show Download PDF when no
+valid write access exists. The staged `pm_property_folders.js` stays inactive.
 
 - The user chooses a base folder using **Select Folder** and grants browser access. PM and ProTrade display the selected name, then use **Save** to request/confirm access and persist the handle; its saved-document list refreshes automatically without background permission prompts. Property Management retains **Allow Access** to renew permission for its displayed handle and its established View Folder controls. Do not create document directories during selection, permission renewal, navigation or historical-file listing.
 - Reuse `app/static/js/pm_local_directories.js` (`window.AITDirectories`) rather than implementing another folder-handle store. Preserve the existing IndexedDB assignments and their user/client scope. Server-produced folder/report configuration must contain only businesses/properties authorised for the current user. Never accept a filesystem path or another user's folder assignment from an HTTP request.

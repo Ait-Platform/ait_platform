@@ -125,7 +125,7 @@ class NewPMFoldersTests(unittest.TestCase):
     def test_production_uses_only_the_name_display_experiment(self):
         template=(ROOT/'templates/program_billing/directory_register.html').read_text()
         self.assertNotIn('pm_directory_register.js',template)
-        self.assertNotIn('pm_local_directories.js',template)
+        self.assertIn('pm_local_directories.js',template)
         self.assertNotIn('pm_property_folders.js',template)
         self.assertIn('pm_folder_name.js',template)
         self.assertNotIn('document_history',template)

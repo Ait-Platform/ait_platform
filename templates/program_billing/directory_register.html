@@ -9,5 +9,8 @@
 <p class="my-4 break-words">Selected folder: <strong id="directory-folder">No folder selected</strong></p>
 <p id="directory-message" role="status" aria-live="polite" class="text-sm text-slate-700"></p>
 </div></div></div>
-<script src="{{ url_for('static',filename='js/pm_folder_name.js',v='20261120-html-folder-input') }}" defer></script>
+<script id="directory-context" type="application/json">{{ directory_context|tojson }}</script>
+<script id="directory-reports" type="application/json">{{ directory_reports|tojson }}</script>
+<script src="{{ url_for('static',filename='js/pm_local_directories.js',v='20261120-observed-storage') }}" defer></script>
+<script src="{{ url_for('static',filename='js/pm_folder_name.js',v='20261120-existing-destination') }}" defer></script>
 {% endblock %}

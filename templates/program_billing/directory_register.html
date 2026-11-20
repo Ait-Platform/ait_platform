@@ -1,17 +1,13 @@
 {% extends 'layout.html' %}{% block title %}Folders{% endblock %}{% block flashes %}{% endblock %}
 {% block content %}
-<div id="directory-register" class="mx-auto max-w-6xl px-4 py-10"><div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow"><div class="h-2 bg-green-500"></div><div class="p-6">
-<div class="flex items-center justify-between gap-3"><h1 class="text-2xl font-semibold">Folders</h1><a href="{{ url_for('billing_bp.learner_dashboard') }}" class="rounded-lg bg-slate-100 px-4 py-2">Back to Property Management</a></div>
-<form method="GET" class="my-4"><label for="directory-property" class="font-semibold">Property</label> <select id="directory-property" name="property_id" onchange="this.form.submit()">{% for item in properties %}<option value="{{ item.id }}" {% if selected_property and item.id==selected_property.id %}selected{% endif %}>{{ item.name }}</option>{% endfor %}</select></form>
-<div class="flex flex-wrap justify-end gap-2"><button id="directory-select" type="button" class="rounded-lg bg-green-100 px-4 py-2 font-semibold">Select Folder</button><button id="directory-save" type="button" disabled class="rounded-lg bg-green-100 px-4 py-2 font-semibold">Save</button><button id="directory-reauthorise" type="button" class="rounded-lg bg-green-100 px-4 py-2">Allow Access</button><button id="directory-view" type="button" class="rounded-lg bg-blue-100 px-4 py-2 font-semibold">View Folder</button></div>
-<p id="directory-message" role="status" aria-live="polite" class="my-3"></p>
-<p class="text-sm text-slate-600">Select one main Property Management folder on this PC, check the displayed name, then click Save. Allow Access renews permission for the displayed folder. AIT creates only the source and report subfolders needed when saving a document. Selecting or allowing access creates no unused directories. Existing folders and filenames are retained. The folder assignment stays in this browser for this user and property; clearing browser data removes it. Existing individual report assignments are no longer used.</p>
-<section id="directory-workspace" hidden class="mt-4 rounded-lg border border-slate-200 p-4"><div class="flex justify-between"><h2 class="text-xl font-semibold">Main Property Management Folder</h2><button id="directory-close" type="button" class="rounded-lg bg-slate-100 px-4 py-2">Close</button></div>
-<p class="my-4">Selected folder: <strong id="directory-folder">No folder selected</strong></p>
-<div class="flex flex-wrap justify-end gap-2"><button id="directory-change" type="button" class="rounded-lg bg-blue-100 px-4 py-2">Change Folder</button></div>
-<h3 class="mt-4 font-semibold">Automatic subfolders</h3><ul class="my-3 list-disc pl-6">{% for group in directory_reports|groupby('source') %}<li><strong>{{ group.grouper }}</strong><ul class="list-disc pl-6">{% for report in group.list %}<li>{{ report.title }}</li>{% endfor %}</ul></li>{% endfor %}</ul>
-</section></div></div></div>
-<style>#directory-register{background:#f8fafc}#directory-register select{border:1px solid #b8cde6;border-radius:6px;min-height:42px;padding:8px 12px;background:white}#directory-register th,#directory-register td{text-align:left;padding:10px;border-bottom:1px solid #e2e8f0}#directory-register [hidden]{display:none}</style>
-<script id="directory-context" type="application/json">{{ directory_context|tojson }}</script><script id="directory-reports" type="application/json">{{ directory_reports|tojson }}</script>
-<script src="{{ url_for('static',filename='js/pm_local_directories.js',v='20261119-picker-errors') }}" defer></script><script src="{{ url_for('static',filename='js/pm_directory_register.js',v='20261119-picker-access') }}" defer></script>
-{% include 'partials/local_document_history.html' %}{% endblock %}
+<div id="directory-register" class="mx-auto max-w-2xl px-4 py-10"><div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow"><div class="h-2 bg-green-500"></div><div class="p-6">
+<div class="flex flex-wrap items-center justify-between gap-3"><h1 class="text-2xl font-semibold">Folders</h1><a href="{{ url_for('billing_bp.learner_dashboard') }}" class="rounded-lg bg-slate-100 px-4 py-2">Back to Property Management</a></div>
+{% include 'partials/flash_messages.html' %}
+<form method="GET" class="my-4"><label for="directory-property" class="mb-2 block font-semibold">Property</label><select id="directory-property" name="property_id" autofocus onchange="this.form.submit()" class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2">{% for item in properties %}<option value="{{ item.id }}" {% if selected_property and item.id==selected_property.id %}selected{% endif %}>{{ item.name }}</option>{% endfor %}</select></form>
+<div class="flex justify-end"><button id="directory-select" type="button" class="rounded-lg bg-green-100 px-4 py-2 font-semibold">Select Folder</button></div>
+<p class="my-4 break-words">Selected folder: <strong id="directory-folder">No folder selected</strong></p>
+<p id="directory-message" role="status" aria-live="polite" class="text-sm text-slate-700"></p>
+</div></div></div>
+<script id="directory-context" type="application/json">{{ directory_context|tojson }}</script>
+<script src="{{ url_for('static',filename='js/pm_local_directories.js',v='20261119-picker-errors') }}" defer></script><script src="{{ url_for('static',filename='js/pm_directory_register.js',v='20261120-simple-picker') }}" defer></script>
+{% endblock %}

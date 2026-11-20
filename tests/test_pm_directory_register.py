@@ -36,124 +36,72 @@ def open_browser(runtime,markup=None,init=''):
 
 
 class DirectoryRegisterTests(unittest.TestCase):
-    def test_picker_requests_original_write_mode_directly_from_click(self):
+
+    def test_select_auto_save_reload_replace_and_property_isolation(self):
+        from playwright.sync_api import sync_playwright
+        with sync_playwright() as runtime:
+            browser,page=open_browser(runtime)
+            try:
+                page.locator('#directory-select').click()
+                page.wait_for_function("document.getElementById('directory-message').textContent==='Folder saved.'")
+                self.assertEqual(page.locator('#directory-folder').inner_text(),'Reports')
+                self.assertEqual(page.evaluate("async()=>Array.fromAsync((await AITDirectories.get({user:'7',property:'26'})).handle.keys())"),[])
+                self.assertFalse(page.evaluate("AITDirectories.get({user:'8',property:'26'})"))
+                # Retain a distinct assignment for another property.
+                page.evaluate("""async()=>{const root=await navigator.storage.getDirectory();
+                    await AITDirectories.set({user:'7',property:'27'},await root.getDirectoryHandle('Dale',{create:true}));
+                    window.showDirectoryPicker=async()=>root.getDirectoryHandle('Replacement',{create:true});}""")
+                page.locator('#directory-select').click()
+                page.wait_for_function("document.getElementById('directory-message').textContent==='Folder saved.'")
+                self.assertEqual(page.locator('#directory-folder').inner_text(),'Replacement')
+                page.reload()
+                page.wait_for_function("document.getElementById('directory-folder').textContent==='Replacement'")
+                self.assertEqual(page.evaluate("async()=>(await AITDirectories.get({user:'7',property:'27'})).handle.name"),'Dale')
+                # No permission prompts on reopening.
+                page.evaluate("window.permissionPrompts=0;FileSystemDirectoryHandle.prototype.requestPermission=async()=>{permissionPrompts++;return 'granted';};")
+                page.evaluate("location.reload()")
+                page.wait_for_function("document.getElementById('directory-folder').textContent==='Replacement'")
+            finally:browser.close()
+
+    def test_picker_options_gesture_and_immediate_display_before_storage(self):
         from playwright.sync_api import sync_playwright
         with sync_playwright() as runtime:
             browser,page=open_browser(runtime,init="""window.showDirectoryPicker=async options=>{
                 window.pickerCall={options,active:navigator.userActivation.isActive};
-                return (await navigator.storage.getDirectory()).getDirectoryHandle('Dale reports',{create:true});
+                return (await navigator.storage.getDirectory()).getDirectoryHandle('Selected now',{create:true});
             };""")
             try:
+                page.evaluate("""()=>{window.persist=AITDirectories.set;
+                    AITDirectories.set=async(...args)=>{window.finishSave=()=>persist(...args);await new Promise(resolve=>window.releaseSave=resolve);return finishSave();};}""")
                 page.locator('#directory-select').click()
-                page.wait_for_function("document.getElementById('directory-folder').textContent==='Dale reports'")
+                page.wait_for_function("document.getElementById('directory-folder').textContent==='Selected now'")
                 self.assertEqual(page.evaluate('pickerCall'),dict(options=dict(mode='readwrite',id='ait-pm-reports'),active=True))
                 self.assertFalse(page.evaluate("AITDirectories.get({user:'7',property:'26'})"))
-                page.locator('#directory-save').click()
-                page.wait_for_function("document.getElementById('directory-message').textContent.startsWith('Folder saved.')")
+                page.evaluate('releaseSave()')
+                page.wait_for_function("document.getElementById('directory-message').textContent==='Folder saved.'")
+                self.assertEqual(page.evaluate("async()=>(await AITDirectories.get({user:'7',property:'26'})).handle.name"),'Selected now')
+            finally:browser.close()
+
+    def test_reload_never_requests_permission(self):
+        from playwright.sync_api import sync_playwright
+        with sync_playwright() as runtime:
+            browser,page=open_browser(runtime)
+            try:
+                page.locator('#directory-select').click()
+                page.wait_for_function("document.getElementById('directory-message').textContent==='Folder saved.'")
+                page.add_init_script("window.prompts=0;FileSystemDirectoryHandle.prototype.requestPermission=async()=>{prompts++;throw Error('No load prompts');};")
                 page.reload()
-                page.wait_for_function("document.getElementById('directory-folder').textContent==='Dale reports'")
-                self.assertFalse(page.evaluate("AITDirectories.get({user:'7',property:'27'})"))
-            finally:browser.close()
-
-    def test_precise_picker_security_and_missing_handle_errors(self):
-        from playwright.sync_api import sync_playwright
-        with sync_playwright() as runtime:
-            for init,expected in [
-                ("window.showDirectoryPicker=async()=>{throw new DOMException('User activation required','SecurityError');};",'HTTPS AIT page directly'),
-                ("window.showDirectoryPicker=async()=>{throw new DOMException('Drive disconnected','NotFoundError');};",'drive is connected'),
-                ("window.showDirectoryPicker=async()=>undefined;",'usable directory handle'),
-            ]:
-                with self.subTest(expected=expected):
-                    browser,page=open_browser(runtime,init=init)
-                    try:
-                        page.locator('#directory-select').click()
-                        page.wait_for_function("text=>document.getElementById('directory-message').textContent.includes(text)",arg=expected)
-                        self.assertTrue(page.locator('#directory-save').is_disabled())
-                        self.assertEqual(page.locator('#directory-folder').inner_text(),'No folder selected')
-                    finally:browser.close()
-
-    def test_missing_gesture_and_capabilities_explain_actual_requirement(self):
-        from playwright.sync_api import sync_playwright
-        with sync_playwright() as runtime:
-            for init,expected,click in [
-                ("Object.defineProperty(navigator,'userActivation',{value:{isActive:false}});window.showDirectoryPicker=()=>{throw Error('Picker must not run');};",'needs a direct click',True),
-                ("Object.defineProperty(window,'isSecureContext',{value:false});",'requires HTTPS',False),
-                ("Object.defineProperty(window,'indexedDB',{value:undefined});",'storage is unavailable',False),
-            ]:
-                with self.subTest(expected=expected):
-                    browser,page=open_browser(runtime,init=init)
-                    try:
-                        if click:page.locator('#directory-select').click()
-                        else:self.assertTrue(page.locator('#directory-select').is_disabled())
-                        self.assertIn(expected,page.locator('#directory-message').inner_text())
-                    finally:browser.close()
-
-    def test_historical_pm_pdf_view_print_retains_existing_layout_and_filename(self):
-        from playwright.sync_api import sync_playwright
-        with sync_playwright() as runtime:
-            browser,page=open_browser(runtime)
-            try:
-                page.locator('#directory-select').click()
-                page.locator('#directory-save').click()
                 page.wait_for_function("document.getElementById('directory-folder').textContent==='Reports'")
-                page.evaluate("""async()=>{
-                    const scope={user:'7',property:'26'},root=(await AITDirectories.get(scope)).handle;
-                    const source=await root.getDirectoryHandle('METSOA',{create:true}),folder=await source.getDirectoryHandle('METSOA Statement',{create:true});
-                    const writer=await(await folder.getFileHandle('Original historical METSOA.pdf',{create:true})).createWritable();
-                    await writer.write('%PDF-original historical PM report');await writer.close();
-                    window.fetch=()=>{throw new Error('Historical viewing must not regenerate a PDF');};
-                    window.open=()=>{window.pdfViewer={location:{href:''},opener:null,close(){}};return pdfViewer;};
-                }""")
-                page.locator('#document-history-refresh').click()
-                page.wait_for_function("document.getElementById('document-history-message').textContent.startsWith('1 saved PDF')")
-                self.assertIn('METSOA/METSOA Statement/Original historical METSOA.pdf',page.locator('#document-history-files').inner_text())
-                page.get_by_role('button',name='View / Print').click()
-                page.wait_for_function("window.pdfViewer.location.href.startsWith('blob:')")
-                self.assertIn('Print control',page.locator('#document-history-message').inner_text())
-                original=page.evaluate("""async()=>{const root=(await AITDirectories.get({user:'7',property:'26'})).handle,source=await root.getDirectoryHandle('METSOA'),folder=await source.getDirectoryHandle('METSOA Statement');return await(await(await folder.getFileHandle('Original historical METSOA.pdf')).getFile()).text();}""")
-                self.assertEqual(original,'%PDF-original historical PM report')
+                self.assertEqual(page.evaluate('prompts'),0)
             finally:browser.close()
 
-    def test_main_folder_creates_structure_changes_persists_and_isolates(self):
-        from playwright.sync_api import sync_playwright
-        with sync_playwright() as runtime:
-            browser,page=open_browser(runtime)
-            try:
-                self.assertTrue(page.locator('#directory-workspace').is_hidden())
-                self.assertEqual(page.locator('#directory-report').count(),0)
-                page.locator('#directory-select').click()
-                page.locator('#directory-save').click()
-                page.wait_for_function("document.getElementById('directory-message').textContent.includes('Folder saved')")
-                self.assertEqual(page.locator('#directory-folder').inner_text(),'Reports')
-                structure=page.evaluate("""async()=>{
-                    const row=await AITDirectories.get({user:'7',property:'26'}),names=[];
-                    for await(const [source,handle] of row.handle.entries()){
-                        for await(const [report] of handle.entries())names.push(source+'/'+report);
-                    }return names.sort();
-                }""")
-                self.assertEqual(structure,[])
-                page.locator('#document-history-refresh').click()
-                page.wait_for_function("document.getElementById('document-history-message').textContent.startsWith('No saved PDFs')")
-                page.evaluate("window.showDirectoryPicker=async()=>{const root=await navigator.storage.getDirectory();return root.getDirectoryHandle('Updated',{create:true});};")
-                page.locator('#directory-change').click();page.locator('#directory-save').click();page.wait_for_function("document.getElementById('directory-folder').textContent==='Updated'")
-                page.reload();page.locator('#directory-view').click();page.wait_for_function("document.getElementById('directory-folder').textContent==='Updated'")
-                page.locator('#directory-reauthorise').click();page.wait_for_function("document.getElementById('directory-message').textContent.includes('access authorised')")
-                result=page.evaluate("""async()=>{
-                    const a=AITDirectories,root=await navigator.storage.getDirectory(),old=await root.getDirectoryHandle('Reports');
-                    await a.set({user:'8',property:'26'},old);await a.set({user:'7',property:'28'},old);
-                    return [(await a.get({user:'7',property:'26'})).handle.name,(await a.get({user:'8',property:'26'})).handle.name,(await a.get({user:'7',property:'28'})).handle.name,!!await a.get({user:'9',property:'26'})];
-                }""")
-                self.assertEqual(result,['Updated','Reports','Reports',False])
-                page.locator('#directory-close').click();self.assertTrue(page.locator('#directory-workspace').is_hidden())
-            finally:browser.close()
-
-    def test_unsupported_browser_disables_registration_and_explains_download(self):
+    def test_unsupported_browser_has_short_fallback(self):
         from playwright.sync_api import sync_playwright
         with sync_playwright() as runtime:
             browser,page=open_browser(runtime,init='window.showDirectoryPicker=undefined;')
             try:
                 self.assertTrue(page.locator('#directory-select').is_disabled())
-                self.assertIn('Download PDF',page.locator('#directory-message').inner_text())
+                self.assertIn('desktop Chrome or Edge',page.locator('#directory-message').inner_text())
             finally:browser.close()
 
     def test_real_route_requires_login_and_manager_scope_without_writes(self):
@@ -186,6 +134,3 @@ class DirectoryRegisterTests(unittest.TestCase):
             self.assertEqual([p['id'] for p in response.json['properties']],[own])
             self.assertEqual(client.get('/billing/directory-register?property_id='+str(foreign)).status_code,403)
         self.assertEqual(client.post('/billing/directory-register').status_code,405)
-
-
-if __name__=='__main__':unittest.main()

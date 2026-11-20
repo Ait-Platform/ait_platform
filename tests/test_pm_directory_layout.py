@@ -29,16 +29,18 @@ class DirectoryLayoutTests(unittest.TestCase):
         tree=html.fromstring(browser_html())
         self.assertFalse(tree.xpath('//nav[@aria-label="Property Management"]'))
         self.assertEqual(tree.xpath('//a[contains(text(),"Back to Property Management")]/text()'),['Back to Property Management'])
-        for identifier in ['directory-select','directory-view','directory-close','directory-change','directory-reauthorise']:
-            self.assertIsNotNone(tree.get_element_by_id(identifier))
-        self.assertIsNotNone(tree.get_element_by_id('directory-workspace').get('hidden'))
+        self.assertEqual(tree.xpath('//button/@id'),['directory-select'])
+        self.assertFalse(tree.xpath('//*[@id="directory-workspace" or @id="document-history-files"]'))
+        self.assertIn('max-w-2xl',tree.get_element_by_id('directory-register').get('class'))
 
     def test_folders_replaces_per_report_form_with_one_main_folder(self):
         tree=html.fromstring(browser_html())
         self.assertEqual(tree.xpath('//h1/text()'),['Folders'])
         self.assertFalse(tree.xpath('//*[@id="directory-report" or @id="directory-form"]'))
         self.assertEqual(tree.xpath('//*[@id="directory-select"]/text()'),['Select Folder'])
-        self.assertEqual(len(tree.xpath('//section[@id="directory-workspace"]//ul/ li/ul/li')),7)
+        self.assertFalse(tree.xpath('//ul'))
+        self.assertIsNotNone(tree.get_element_by_id('directory-property'))
+        self.assertIsNotNone(tree.get_element_by_id('directory-folder'))
 
     def test_four_menu_buttons_fit_one_desktop_row(self):
         from playwright.sync_api import sync_playwright

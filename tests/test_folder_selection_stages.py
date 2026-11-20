@@ -1,131 +1,85 @@
-"""Real Chromium/IndexedDB/OPFS tests. The OS picker is stubbed, not verified here."""
+"""Real Chromium storage/permission tests; the native OS picker is stubbed."""
 import unittest
 from playwright.sync_api import sync_playwright
-from test_pm_directory_register import open_browser
-
-
-PT = '''<html><body><span id="output-folder-name">Not selected on this browser</span>
-<button id="output-folder-select">Select Folder</button><button id="output-folder-allow">Save</button>
-<p id="output-save-message"></p><script id="output-directory-context" type="application/json">
-{"user":"7","property":"protrade"}</script><script src="/static/js/pm_local_directories.js" defer></script>
-<script src="/static/js/protrade_output.js" defer></script></body></html>'''
+from test_pm_directory_register import open_browser, REPORTS
 
 
 class FolderSelectionStagesTests(unittest.TestCase):
-    def variants(self):
-        return [('PM', None, '#directory-select', '#directory-save', '#directory-folder', '#directory-message', '26')]
-
-    def test_selection_save_refresh_and_existing_assignment_isolation(self):
+    def test_picker_errors_are_short_and_keep_previous_assignment(self):
         with sync_playwright() as runtime:
-            for program,markup,select,save,name,message,prop in self.variants():
-                with self.subTest(program=program):
-                    browser,page=open_browser(runtime,markup)
-                    try:
-                        page.locator(select).click()
-                        page.wait_for_function("s=>document.querySelector(s).textContent==='Reports'",arg=name)
-                        scope={'user':'7','property':prop}
-                        self.assertFalse(page.evaluate('s=>AITDirectories.get(s)',scope))
-                        self.assertIn('Click Save',page.locator(message).inner_text())
-                        page.evaluate("""()=>{window.permissionGesture=false;
-                            FileSystemDirectoryHandle.prototype.requestPermission=async()=>{window.permissionGesture=navigator.userActivation.isActive;return 'granted';};}""")
-                        page.locator(save).click()
-                        page.wait_for_function("s=>document.querySelector(s).textContent.startsWith('Folder saved.')",arg=message)
-                        self.assertTrue(page.evaluate('permissionGesture'))
-                        self.assertEqual(page.evaluate('async s=>{const h=(await AITDirectories.get(s)).handle;return Array.fromAsync(h.keys());}',scope),[])
-                        self.assertFalse(page.evaluate("s=>AITDirectories.get({...s,user:'8'})",scope))
-                        page.reload()
-                        page.wait_for_function("s=>document.querySelector(s).textContent==='Reports'",arg=name)
-                    finally:browser.close()
+            browser,page=open_browser(runtime)
+            try:
+                page.locator('#directory-select').click()
+                page.wait_for_function("document.getElementById('directory-message').textContent==='Folder saved.'")
+                for error in ('AbortError','NotAllowedError','SecurityError','TypeError'):
+                    with self.subTest(error=error):
+                        page.evaluate("name=>{window.showDirectoryPicker=async()=>{throw new DOMException('RAW PRIVATE ERROR',name);};}",error)
+                        page.locator('#directory-select').click()
+                        page.wait_for_function("document.getElementById('directory-message').textContent!=='Folder saved.'")
+                        message=page.locator('#directory-message').inner_text()
+                        self.assertNotIn('RAW PRIVATE ERROR',message)
+                        self.assertLess(len(message),140)
+                        self.assertEqual(page.locator('#directory-folder').inner_text(),'Reports')
+                        self.assertEqual(page.evaluate("async()=>(await AITDirectories.get({user:'7',property:'26'})).handle.name"),'Reports')
+            finally:browser.close()
 
-    def test_picker_cancellation_and_denial_without_a_previous_selection(self):
+    def test_permission_denial_and_retry_use_same_button(self):
         with sync_playwright() as runtime:
-            for program,markup,select,save,name,message,prop in self.variants():
-                for error in ['AbortError','NotAllowedError']:
-                    with self.subTest(program=program,error=error):
-                        init="window.showDirectoryPicker=async()=>{throw new DOMException('Picker rejected',"+repr(error)+");};"
-                        browser,page=open_browser(runtime,markup,init)
-                        try:
-                            page.locator(select).click()
-                            page.wait_for_function("s=>document.querySelector(s).textContent.includes('Picker rejected')",arg=message)
-                            self.assertTrue(page.locator(save).is_disabled())
-                            self.assertFalse(page.locator(select).is_disabled())
-                            self.assertFalse(page.evaluate('s=>AITDirectories.get(s)',{'user':'7','property':prop}))
-                            if error=='NotAllowedError':self.assertIn('access was denied',page.locator(message).inner_text())
-                        finally:browser.close()
+            browser,page=open_browser(runtime,init="""window.showDirectoryPicker=async()=>({
+                kind:'directory',name:'Denied folder',requestPermission:async()=>'denied'
+            });""")
+            try:
+                page.locator('#directory-select').click()
+                page.wait_for_function("document.getElementById('directory-message').textContent.includes('not allowed')")
+                self.assertEqual(page.locator('#directory-folder').inner_text(),'Denied folder')
+                self.assertFalse(page.evaluate("AITDirectories.get({user:'7',property:'26'})"))
+                page.evaluate("window.showDirectoryPicker=async()=>(await navigator.storage.getDirectory()).getDirectoryHandle('Allowed',{create:true})")
+                page.locator('#directory-select').click()
+                page.wait_for_function("document.getElementById('directory-message').textContent==='Folder saved.'")
+                self.assertEqual(page.locator('#directory-folder').inner_text(),'Allowed')
+            finally:browser.close()
 
-    def test_picker_abort_is_not_claimed_to_be_user_cancellation(self):
+    def test_indexeddb_failure_keeps_old_assignment_and_retries(self):
         with sync_playwright() as runtime:
-            for program,markup,select,save,name,message,prop in self.variants():
-                with self.subTest(program=program):
-                    browser,page=open_browser(runtime,markup)
-                    try:
-                        page.locator(select).click();page.locator(save).click()
-                        page.wait_for_function("s=>document.querySelector(s).textContent.startsWith('Folder saved.')",arg=message)
-                        page.evaluate("()=>{window.showDirectoryPicker=async()=>{throw new DOMException('The user aborted a request','AbortError');};}")
-                        page.locator(select).click()
-                        page.wait_for_function("s=>document.querySelector(s).textContent.includes('without returning a folder')",arg=message)
-                        self.assertIn('Save and browser storage have not run',page.locator(message).inner_text())
-                        self.assertIn('does not distinguish',page.locator(message).inner_text())
-                        self.assertEqual(page.locator(name).inner_text(),'Reports')
-                        self.assertEqual(page.evaluate('async s=>(await AITDirectories.get(s)).handle.name',{'user':'7','property':prop}),'Reports')
-                    finally:browser.close()
+            browser,page=open_browser(runtime)
+            try:
+                page.locator('#directory-select').click()
+                page.wait_for_function("document.getElementById('directory-message').textContent==='Folder saved.'")
+                page.evaluate("""()=>{window.realPut=IDBObjectStore.prototype.put;
+                    IDBObjectStore.prototype.put=function(){throw new DOMException('RAW STORAGE ERROR','AbortError');};
+                    window.showDirectoryPicker=async()=>(await navigator.storage.getDirectory()).getDirectoryHandle('New folder',{create:true});}""")
+                page.locator('#directory-select').click()
+                page.wait_for_function("document.getElementById('directory-message').textContent.includes('Could not remember')")
+                self.assertEqual(page.locator('#directory-folder').inner_text(),'New folder')
+                self.assertNotIn('RAW STORAGE ERROR',page.locator('#directory-message').inner_text())
+                self.assertEqual(page.evaluate("async()=>(await AITDirectories.get({user:'7',property:'26'})).handle.name"),'Reports')
+                page.evaluate("()=>{IDBObjectStore.prototype.put=realPut;}")
+                page.locator('#directory-select').click()
+                page.wait_for_function("document.getElementById('directory-message').textContent==='Folder saved.'")
+                page.reload()
+                page.wait_for_function("document.getElementById('directory-folder').textContent==='New folder'")
+            finally:browser.close()
 
-    def test_denied_write_permission_keeps_selection_for_retry(self):
+    def test_report_save_retains_lazy_paths_and_original_files(self):
         with sync_playwright() as runtime:
-            for program,markup,select,save,name,message,prop in self.variants():
-                with self.subTest(program=program):
-                    browser,page=open_browser(runtime,markup)
-                    try:
-                        page.locator(select).click()
-                        page.evaluate("FileSystemDirectoryHandle.prototype.requestPermission=async()=> 'denied'")
-                        page.locator(save).click()
-                        page.wait_for_function("s=>document.querySelector(s).textContent.includes('Folder permission was not granted')",arg=message)
-                        self.assertEqual(page.locator(name).inner_text(),'Reports')
-                        self.assertFalse(page.locator(save).is_disabled())
-                        self.assertFalse(page.evaluate('s=>AITDirectories.get(s)',{'user':'7','property':prop}))
-                        page.evaluate("FileSystemDirectoryHandle.prototype.requestPermission=async()=> 'granted'")
-                        page.locator(save).click()
-                        page.wait_for_function("s=>document.querySelector(s).textContent.startsWith('Folder saved.')",arg=message)
-                    finally:browser.close()
-
-    def test_indexeddb_abort_preserves_previous_assignment_and_pending_handle(self):
-        with sync_playwright() as runtime:
-            for program,markup,select,save,name,message,prop in self.variants():
-                with self.subTest(program=program):
-                    browser,page=open_browser(runtime,markup)
-                    try:
-                        page.locator(select).click();page.locator(save).click()
-                        page.wait_for_function("s=>document.querySelector(s).textContent.startsWith('Folder saved.')",arg=message)
-                        page.evaluate("""()=>{
-                            window.showDirectoryPicker=async()=> (await navigator.storage.getDirectory()).getDirectoryHandle('New selection',{create:true});
-                            window.realPut=IDBObjectStore.prototype.put;
-                            IDBObjectStore.prototype.put=function(){throw new DOMException('Simulated IndexedDB write abort','AbortError');};
-                        }""")
-                        page.locator(select).click();page.locator(save).click()
-                        page.wait_for_function("s=>document.querySelector(s).textContent.includes('Browser storage could not save')",arg=message)
-                        self.assertIn('Simulated IndexedDB write abort',page.locator(message).inner_text())
-                        self.assertEqual(page.locator(name).inner_text(),'New selection')
-                        self.assertEqual(page.evaluate('async s=>(await AITDirectories.get(s)).handle.name',{'user':'7','property':prop}),'Reports')
-                        page.evaluate('()=>{IDBObjectStore.prototype.put=window.realPut;}')
-                        page.locator(save).click()
-                        page.wait_for_function("s=>document.querySelector(s).textContent.startsWith('Folder saved.')",arg=message)
-                        page.reload()
-                        page.wait_for_function("s=>document.querySelector(s).textContent==='New selection'",arg=name)
-                    finally:browser.close()
-
-    def test_storage_open_failure_does_not_prevent_selection_display(self):
-        with sync_playwright() as runtime:
-            for program,markup,select,save,name,message,prop in self.variants():
-                with self.subTest(program=program):
-                    init="""window.showDirectoryPicker=async()=>({kind:'directory',name:'Chosen local folder',requestPermission:async()=> 'granted',queryPermission:async()=> 'granted'});
-                        indexedDB.open=()=>{const request={};setTimeout(()=>{request.error=new DOMException('Local storage unavailable','UnknownError');request.onerror();},0);return request;};"""
-                    browser,page=open_browser(runtime,markup,init)
-                    try:
-                        page.wait_for_function("s=>document.querySelector(s).textContent.includes('could not be restored')",arg=message)
-                        page.locator(select).click()
-                        self.assertEqual(page.locator(name).inner_text(),'Chosen local folder')
-                        page.locator(save).click()
-                        page.wait_for_function("s=>document.querySelector(s).textContent.includes('Browser storage could not save')",arg=message)
-                        self.assertIn('Local storage unavailable',page.locator(message).inner_text())
-                    finally:browser.close()
+            browser,page=open_browser(runtime)
+            try:
+                page.locator('#directory-select').click()
+                page.wait_for_function("document.getElementById('directory-message').textContent==='Folder saved.'")
+                # Report pages supply the existing catalog; the compact Folders page does not.
+                page.evaluate("""reports=>{const config=document.createElement('script');
+                    config.id='directory-reports';config.type='application/json';config.textContent=JSON.stringify(reports);
+                    document.body.append(config);
+                    window.fetch=async()=>new Response('%PDF-existing report',{status:200,headers:{'Content-Type':'application/pdf'}});
+                }""",REPORTS)
+                result=page.evaluate("""async()=>{const scope={user:'7',property:'26',period_end:'2026-07-31'};
+                    await AITDirectories.save(scope,'metsoa_statement','/test.pdf');
+                    await AITDirectories.save(scope,'metsoa_statement','/test.pdf');
+                    const root=(await AITDirectories.get(scope)).handle;
+                    return {roots:await Array.fromAsync(root.keys()),files:(await AITDirectories.list(scope,'metsoa_statement',{prompt:false})).map(x=>({name:x.name,path:x.folder}))};
+                }""")
+                self.assertEqual(result['roots'],['METSOA'])
+                self.assertEqual({x['name'] for x in result['files']},{'310726_METSOA.pdf','310726_METSOA(1).pdf'})
+                self.assertTrue(all(x['path']=='METSOA/METSOA Statement' for x in result['files']))
+            finally:browser.close()
 

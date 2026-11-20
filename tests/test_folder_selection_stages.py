@@ -5,6 +5,93 @@ from test_pm_directory_register import open_browser, REPORTS
 
 
 class FolderSelectionStagesTests(unittest.TestCase):
+    def test_mismatched_readback_never_claims_success(self):
+        with sync_playwright() as runtime:
+            for mismatch in ('property','handle'):
+                with self.subTest(mismatch=mismatch):
+                    browser,page=open_browser(runtime)
+                    try:
+                        page.evaluate("""mismatch=>{const read=AITDirectories.get;AITDirectories.get=async scope=>{
+                            const row=await read(scope);if(!row)return row;
+                            if(mismatch==='property')return {...row,property:'27'};
+                            const other=await(await navigator.storage.getDirectory()).getDirectoryHandle('Other parent',{create:true});
+                            return {...row,handle:await other.getDirectoryHandle('Reports',{create:true})};
+                        };}""",mismatch)
+                        page.locator('#directory-select').click()
+                        page.wait_for_function("document.getElementById('directory-message').textContent.includes('Could not confirm')")
+                        self.assertNotIn('Folder saved.',page.locator('#directory-message').inner_text())
+                    finally:browser.close()
+
+    def test_already_granted_handle_does_not_repeat_permission_request(self):
+        with sync_playwright() as runtime:
+            browser,page=open_browser(runtime)
+            try:
+                page.evaluate("""()=>{FileSystemDirectoryHandle.prototype.queryPermission=async()=> 'granted';
+                    FileSystemDirectoryHandle.prototype.requestPermission=async()=>{throw new DOMException('Redundant request aborted','AbortError');};}""")
+                page.locator('#directory-select').click()
+                page.wait_for_function("document.getElementById('directory-message').textContent==='Folder saved.'")
+                self.assertEqual(page.evaluate("async()=>(await AITDirectories.get({user:'7',property:'26'})).handle.name"),'Reports')
+            finally:browser.close()
+
+    def test_late_restore_never_overrides_successful_replacement(self):
+        init="""Object.defineProperty(window,'AITDirectories',{configurable:true,set(api){
+            const original=api.get;let first=true;api.get=scope=>{if(!first)return original(scope);first=false;
+                return new Promise(resolve=>window.restoreOld=async()=>resolve({handle:await (await navigator.storage.getDirectory()).getDirectoryHandle('Old assignment',{create:true})}));};
+            Object.defineProperty(window,'AITDirectories',{value:api,configurable:true});
+        }});
+        window.showDirectoryPicker=async()=>(await navigator.storage.getDirectory()).getDirectoryHandle('New assignment',{create:true});"""
+        with sync_playwright() as runtime:
+            browser,page=open_browser(runtime,init=init)
+            try:
+                page.locator('#directory-select').click()
+                page.wait_for_function("document.getElementById('directory-message').textContent==='Folder saved.'")
+                page.evaluate('restoreOld()')
+                self.assertEqual(page.locator('#directory-folder').inner_text(),'New assignment')
+            finally:browser.close()
+
+    def test_almond_dale_legacy_keys_switch_reload_and_report_destinations(self):
+        with sync_playwright() as runtime:
+            browser,page=open_browser(runtime)
+            try:
+                page.evaluate("""async()=>{const root=await navigator.storage.getDirectory();
+                    const old=await root.getDirectoryHandle('1Property Management',{create:true});
+                    await AITDirectories.set({user:'7',property:'26'},old);
+                    await new Promise((resolve,reject)=>{const open=indexedDB.open('ait-pm-directories',1);
+                        open.onsuccess=()=>{const db=open.result,tx=db.transaction('assignments','readwrite'),store=tx.objectStore('assignments');
+                            for(const key of [JSON.stringify(['7','26','metsoa_statement']),JSON.stringify(['7','__main__'])])store.put({key,user:'7',property:'26',handle:old});
+                            tx.oncomplete=()=>{db.close();resolve();};tx.onerror=()=>reject(tx.error);};});
+                }""")
+                page.reload()
+                page.wait_for_function("document.getElementById('directory-folder').textContent==='1Property Management'")
+                for prop,name in [('26','New Almond'),('27','Dale folder')]:
+                    if prop=='27':
+                        with page.expect_navigation():page.locator('#directory-property').select_option(prop)
+                        self.assertEqual(page.locator('#directory-folder').inner_text(),'No folder selected')
+                    page.evaluate("name=>{window.showDirectoryPicker=async()=>(await navigator.storage.getDirectory()).getDirectoryHandle(name,{create:true});}",name)
+                    page.locator('#directory-select').click()
+                    page.wait_for_function("document.getElementById('directory-message').textContent==='Folder saved.'")
+                    page.reload()
+                    page.wait_for_function("name=>document.getElementById('directory-folder').textContent===name",arg=name)
+                    page.evaluate("""reports=>{const s=document.createElement('script');s.id='directory-reports';s.textContent=JSON.stringify(reports);document.body.append(s);
+                        window.fetch=async()=>new Response('%PDF-report',{headers:{'Content-Type':'application/pdf'}});}""",REPORTS)
+                    destination=page.evaluate("""async prop=>{const scope={user:'7',property:prop,period_end:'2026-07-31'};
+                        await AITDirectories.save(scope,'metsoa_statement','/report.pdf');
+                        const root=(await AITDirectories.get(scope)).handle;
+                        const file=await(await(await root.getDirectoryHandle('METSOA')).getDirectoryHandle('METSOA Statement')).getFileHandle('310726_METSOA.pdf');
+                        return {name:root.name,text:await(await file.getFile()).text()};}""",prop)
+                    self.assertEqual(destination,dict(name=name,text='%PDF-report'))
+                with page.expect_navigation():page.locator('#directory-property').select_option('26')
+                page.wait_for_function("document.getElementById('directory-folder').textContent==='New Almond'")
+                result=page.evaluate("""async()=>{const request=indexedDB.open('ait-pm-directories',1);
+                    return new Promise(resolve=>{request.onsuccess=()=>{const db=request.result,tx=db.transaction('assignments'),r=tx.objectStore('assignments').getAll();
+                        r.onsuccess=()=>resolve(r.result.map(x=>({key:x.key,name:x.handle.name})));tx.oncomplete=()=>db.close();};});}""")
+                rows={r['key']:r['name'] for r in result}
+                self.assertEqual(rows['["7","26","__main__"]'],'New Almond')
+                self.assertEqual(rows['["7","27","__main__"]'],'Dale folder')
+                self.assertEqual(rows['["7","26","metsoa_statement"]'],'1Property Management')
+                self.assertEqual(rows['["7","__main__"]'],'1Property Management')
+            finally:browser.close()
+
     def test_picker_errors_are_short_and_keep_previous_assignment(self):
         with sync_playwright() as runtime:
             browser,page=open_browser(runtime)

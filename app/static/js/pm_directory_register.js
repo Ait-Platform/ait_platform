@@ -7,9 +7,10 @@
   function say(text){message.textContent=text;}
   function controls(){select.disabled=busy || !scope.property || !api.supported();}
   function failure(error,stage){
+    if(stage==='confirm')return 'Could not confirm the saved folder. Reopen this page before selecting it again.';
     if(stage==='storage')return 'Could not remember this folder. Please select it again; the previous saved folder is unchanged.';
-    if(error.name==='AbortError')return 'No folder was returned. Select a folder and confirm browser access.';
     if(error.name==='NotAllowedError' || stage==='permission')return 'Folder access was not allowed. Select the folder again and allow access.';
+    if(error.name==='AbortError')return 'No folder was returned. Select a folder and confirm browser access.';
     if(error.name==='SecurityError')return 'Open the secure AIT page and click Select Folder directly.';
     return 'Could not select this folder. Please try again.';
   }
@@ -22,9 +23,14 @@
       const handle=await window.showDirectoryPicker({mode:'readwrite',id:'ait-pm-reports'});
       if(!handle || handle.kind!=='directory')throw new TypeError('No directory handle');
       selected=handle;folder.textContent=handle.name;say('Saving folder...');
+      // Use the existing permission check; do not request an already-granted
+      // permission a second time after the native picker.
       stage='permission';
-      if(await handle.requestPermission({mode:'readwrite'})!=='granted')throw new DOMException('Denied','NotAllowedError');
+      if(!await api.permission(handle))throw new DOMException('Denied','NotAllowedError');
       stage='storage';await api.set(scope,handle);
+      stage='confirm';
+      const saved=await api.get(scope);
+      if(!saved || saved.user!==String(scope.user) || saved.property!==String(scope.property) || !await saved.handle.isSameEntry(handle))throw new Error('Folder assignment verification failed');
       say('Folder saved.');
     }catch(error){say(failure(error,stage));}
     finally{busy=false;controls();}

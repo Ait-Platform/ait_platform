@@ -4,6 +4,7 @@ from pathlib import Path
 from types import SimpleNamespace
 import unittest
 from unittest.mock import Mock
+from urllib.parse import parse_qs, urlsplit
 from flask import Flask, Blueprint, request, current_app, render_template, abort
 from flask_login import LoginManager, UserMixin, current_user, login_required
 from sqlalchemy import text
@@ -15,11 +16,13 @@ values={n.targets[0].id:ast.literal_eval(n.value) for n in catalog_tree.body if 
 REPORTS=[dict(code=c,title=t,source=values['SOURCES'][source]) for source,items in values['CATALOG'].items() for c,t in items]
 
 
-def browser_html():
+def browser_html(property_id=26):
     app=Flask('directory-browser')
     app.jinja_loader=ChoiceLoader([DictLoader({'layout.html':'<html><head></head><body>{% block content %}{% endblock %}</body></html>'}),FileSystemLoader(str(ROOT/'templates'))])
     with app.test_request_context():
-        return render_template('program_billing/directory_register.html',properties=[dict(id=26,name='Almond')],selected_property=dict(id=26,name='Almond'),directory_context=dict(user='7',property='26'),directory_reports=REPORTS,url_for=lambda endpoint,**kw:'/static/'+kw['filename'] if endpoint=='static' else '/'+endpoint)
+        properties=[dict(id=26,name='Almond'),dict(id=27,name='Dale')]
+        selected=next(p for p in properties if p['id']==property_id)
+        return render_template('program_billing/directory_register.html',properties=properties,selected_property=selected,directory_context=dict(user='7',property=str(property_id)),directory_reports=REPORTS,url_for=lambda endpoint,**kw:'/static/'+kw['filename'] if endpoint=='static' else '/'+endpoint)
 
 
 def open_browser(runtime,markup=None,init=''):
@@ -28,7 +31,7 @@ def open_browser(runtime,markup=None,init=''):
     def serve(route):
         name=route.request.url.split('/')[-1]
         if name.endswith('.js') and (ROOT/'app/static/js'/name).exists():route.fulfill(body=(ROOT/'app/static/js'/name).read_text(encoding='utf-8'),content_type='text/javascript')
-        else:route.fulfill(body=markup or browser_html(),content_type='text/html')
+        else:route.fulfill(body=markup or browser_html(int(parse_qs(urlsplit(route.request.url).query).get('property_id',['26'])[0])),content_type='text/html')
     page.route('**/*',serve)
     page.add_init_script(init or "window.showDirectoryPicker=async()=>{const root=await navigator.storage.getDirectory();return root.getDirectoryHandle('Reports',{create:true});};")
     page.goto('https://ait.test/directory-register')

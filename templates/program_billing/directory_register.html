@@ -18,7 +18,8 @@
 <div id="folder-register-viewer" hidden>
 <div class="my-3 flex flex-wrap gap-2"><button id="folder-view-back" type="button" class="rounded-lg bg-slate-100 px-4 py-2">Back to Files</button><button id="folder-view-print" type="button" class="rounded-lg bg-slate-100 px-4 py-2">Print</button><button id="folder-view-email" type="button" class="rounded-lg bg-slate-100 px-4 py-2">Email</button></div>
 <p id="folder-view-name" class="mb-3 break-words font-semibold"></p>
-<iframe id="folder-view-pdf" title="Historical PDF" class="h-[65vh] w-full rounded-lg border border-slate-300"></iframe>
+<div id="folder-view-pages" role="region" aria-label="Historical PDF pages" class="max-h-[65vh] w-full space-y-3 overflow-auto rounded-lg border border-slate-300 bg-slate-100 p-2" data-runtime="{{ url_for('static',filename='vendor/pdfjs-6.5.438/pdf.min.mjs') }}" data-worker="{{ url_for('static',filename='vendor/pdfjs-6.5.438/pdf.worker.min.mjs') }}" data-assets="{{ url_for('static',filename='vendor/pdfjs-6.5.438/') }}"></div>
+<iframe id="folder-view-pdf" title="Print original historical PDF" aria-hidden="true" style="position:fixed;width:1px;height:1px;left:-10000px;border:0"></iframe>
 <form id="folder-view-email-form" hidden class="mt-3 rounded-lg border border-slate-300 p-3"><label for="folder-email-to" class="block font-semibold">Recipient email</label><input id="folder-email-to" name="email_to" type="email" required maxlength="254" class="my-2 w-full rounded-lg border border-slate-300 px-3 py-2"><button type="submit" class="rounded-lg bg-blue-100 px-4 py-2 font-semibold">Send Email</button><p class="mt-2 text-sm text-slate-700">Only Send Email transmits this original saved PDF to AIT for delivery.</p></form>
 </div>
 </section>
@@ -28,5 +29,5 @@
 <script id="directory-reports" type="application/json">{{ directory_reports|tojson }}</script>
 <script src="{{ url_for('static',filename='js/pm_local_directories.js',v='20261120-observed-storage') }}" defer></script>
 <script src="{{ url_for('static',filename='js/pm_folder_name.js',v='20261120-assigned-subfolders') }}" defer></script>
-<script src="{{ url_for('static',filename='js/pm_folder_register.js',v='20261120-historical-pdf') }}" defer></script>
+<script src="{{ url_for('static',filename='js/pm_folder_register.js',v='20261120-render-pdf-pages') }}" defer></script>
 {% endblock %}

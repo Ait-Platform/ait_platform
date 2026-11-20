@@ -29,8 +29,11 @@ def open_browser(runtime,markup=None,init=''):
     browser=runtime.chromium.launch(headless=True)
     page=browser.new_page()
     def serve(route):
-        name=urlsplit(route.request.url).path.rsplit('/',1)[-1]
-        if name.endswith('.js') and (ROOT/'app/static/js'/name).exists():route.fulfill(body=(ROOT/'app/static/js'/name).read_text(encoding='utf-8'),content_type='text/javascript')
+        import mimetypes
+        path=urlsplit(route.request.url).path
+        asset=(ROOT/'app'/path.lstrip('/')).resolve()
+        if path.startswith('/static/') and asset.is_relative_to((ROOT/'app/static').resolve()) and asset.is_file():
+            route.fulfill(body=asset.read_bytes(),content_type='text/javascript' if asset.suffix in {'.js','.mjs'} else mimetypes.guess_type(str(asset))[0] or 'application/octet-stream')
         else:route.fulfill(body=markup or browser_html(int(parse_qs(urlsplit(route.request.url).query).get('property_id',['26'])[0])),content_type='text/html')
     page.route('**/*',serve)
     page.add_init_script(init or "window.showDirectoryPicker=async()=>{const root=await navigator.storage.getDirectory();return root.getDirectoryHandle('Reports',{create:true});};")

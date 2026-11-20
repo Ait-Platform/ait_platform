@@ -5,11 +5,17 @@
   const rows=byId('folder-register-rows'),message=byId('folder-register-message'),access=byId('folder-register-access');
   const table=byId('folder-register-table'),contents=byId('folder-register-contents'),viewer=byId('folder-register-viewer');
   const path=byId('folder-register-path'),files=byId('folder-register-files'),frame=byId('folder-view-pdf');
+  const pages=byId('folder-view-pages');
+  let pdfTask=null,renderTask=null;
   const emailForm=byId('folder-view-email-form'),emailConfig=JSON.parse(byId('directory-email').textContent);
   const scope=JSON.parse(byId('directory-context').textContent),reports=JSON.parse(byId('directory-reports').textContent);
   let revision=0,summary='',readHandle=null,url=null,selected=null;
   const states=reports.map(()=>null);
-  function release(){frame.removeAttribute('src');if(url)URL.revokeObjectURL(url);url=null;selected=null;emailForm.hidden=true;}
+  function release(){
+    if(renderTask){renderTask.cancel();renderTask=null;}
+    if(pdfTask){pdfTask.destroy().catch(()=>{});pdfTask=null;}
+    for(const canvas of pages.querySelectorAll('canvas')){canvas.width=canvas.height=0;}
+    pages.replaceChildren();delete pages.dataset.objectUrl;frame.onload=null;frame.removeAttribute('src');if(url)URL.revokeObjectURL(url);url=null;selected=null;emailForm.hidden=true;}
   function register(){release();table.hidden=false;contents.hidden=true;viewer.hidden=true;message.textContent=summary;}
   function cell(row,text){const td=document.createElement('td');td.className='p-2';td.textContent=text;row.appendChild(td);return td;}
   function link(parent,label,callback,disabled=false){const button=document.createElement('button');button.type='button';button.textContent=label;button.className='text-left text-blue-800 underline disabled:text-slate-600 disabled:no-underline';button.disabled=disabled;button.onclick=callback;parent.appendChild(button);}
@@ -64,16 +70,45 @@
       const bytes=await file.arrayBuffer();if(current!==revision)return;
       const blob=new Blob([bytes],{type:'application/pdf'});url=URL.createObjectURL(blob);
       selected={blob,name:entry.name,report:reports[index].code,request:crypto.randomUUID()};
-      byId('folder-view-name').textContent=entry.name;frame.src=url;
-      table.hidden=true;contents.hidden=true;viewer.hidden=false;message.textContent='Original saved PDF. No report has been regenerated.';
+      byId('folder-view-name').textContent=entry.name;pages.dataset.objectUrl=url;
+      table.hidden=true;contents.hidden=true;viewer.hidden=false;
+      message.textContent='Rendering the original saved PDF...';
+      // Render pages ourselves rather than delegating display to the browser's
+      // PDF plug-in, which may substitute a grey click-to-open placeholder.
+      const library=await import(pages.dataset.runtime);if(current!==revision)return;
+      library.GlobalWorkerOptions.workerSrc=pages.dataset.worker;
+      const task=library.getDocument({url,isEvalSupported:false,
+        cMapUrl:pages.dataset.assets+'cmaps/',cMapPacked:true,
+        standardFontDataUrl:pages.dataset.assets+'standard_fonts/',wasmUrl:pages.dataset.assets+'wasm/'});
+      pdfTask=task;const pdf=await task.promise;if(current!==revision)return;
+      for(let number=1;number<=pdf.numPages;number++){
+        const page=await pdf.getPage(number);if(current!==revision)return;
+        const natural=page.getViewport({scale:1});
+        const width=Math.max(240,pages.clientWidth-20),scale=Math.min(2,(window.devicePixelRatio || 1)*width/natural.width);
+        const viewport=page.getViewport({scale}),canvas=document.createElement('canvas');
+        canvas.width=Math.ceil(viewport.width);canvas.height=Math.ceil(viewport.height);
+        canvas.style.width='100%';canvas.style.height='auto';canvas.style.display='block';
+        canvas.setAttribute('aria-label','PDF page '+number+' of '+pdf.numPages);pages.appendChild(canvas);
+        renderTask=page.render({canvasContext:canvas.getContext('2d'),viewport});await renderTask.promise;
+        if(current!==revision)return;renderTask=null;page.cleanup();
+      }
+      message.textContent='Original saved PDF: '+pdf.numPages+' page(s). No report has been regenerated.';
     }catch(error){if(current===revision)message.textContent=error.message;}
   }
   byId('folder-register-back').onclick=()=>{revision++;register();};
   byId('folder-view-back').onclick=()=>{revision++;release();viewer.hidden=true;contents.hidden=false;message.textContent='Select a filename to view the original saved PDF.';};
   byId('folder-view-print').onclick=()=>{
     if(!selected || !url)return;
-    try{frame.contentWindow.focus();frame.contentWindow.print();message.textContent='Print requested for the original saved PDF. Confirm printing in the browser.';}
-    catch(_){message.textContent='Use the embedded PDF viewer\u2019s Print control. Printing has not been confirmed.';}
+    const original=url,current=revision;
+    message.textContent='Preparing the original saved PDF for browser printing...';
+    function print(){
+      if(current!==revision || url!==original)return;
+      try{frame.contentWindow.focus();frame.contentWindow.print();message.textContent='Print requested for the original saved PDF. Confirm printing in the browser.';}
+      catch(_){message.textContent='The browser could not print this saved PDF. Printing has not been confirmed.';}
+    }
+    if(frame.getAttribute('src')===original)print();
+    else{frame.onload=print;frame.src=original;}
+
   };
   byId('folder-view-email').onclick=()=>{if(selected){emailForm.hidden=false;byId('folder-email-to').focus();}};
   emailForm.onsubmit=async event=>{

@@ -29,7 +29,7 @@ class DirectoryLayoutTests(unittest.TestCase):
         tree=html.fromstring(browser_html())
         self.assertFalse(tree.xpath('//nav[@aria-label="Property Management"]'))
         self.assertEqual(tree.xpath('//a[contains(text(),"Back to Property Management")]/text()'),['Back to Property Management'])
-        self.assertEqual(tree.xpath('//button/@id'),['directory-select','folder-register-open','folder-register-close'])
+        self.assertEqual(tree.xpath('//button/@id'),['directory-select','folder-register-open','folder-register-close','folder-register-access','folder-register-back','folder-view-back','folder-view-print','folder-view-email'])
         self.assertIsNotNone(tree.get_element_by_id('folder-register-area').get('hidden'))
         self.assertFalse(tree.xpath('//*[@id="directory-workspace" or @id="document-history-files"]'))
         self.assertIn('max-w-2xl',tree.get_element_by_id('directory-register').get('class'))

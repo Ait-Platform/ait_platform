@@ -11,14 +11,22 @@
 <div class="mt-4 flex justify-end"><button id="folder-register-open" type="button" {% if not selected_property %}disabled{% endif %} aria-expanded="false" aria-controls="folder-register-area" class="rounded-lg border border-blue-200 bg-blue-100 px-4 py-2 font-semibold">Folder Register</button></div>
 <section id="folder-register-area" hidden class="mt-6 rounded-lg border border-slate-200 p-4">
 <div class="flex flex-wrap items-center justify-between gap-3"><h2 class="text-lg font-semibold">Folder Register{% if selected_property %} — {{ selected_property.name }}{% endif %}</h2><button id="folder-register-close" type="button" class="rounded-lg bg-slate-100 px-4 py-2">Close</button></div>
+<button id="folder-register-access" type="button" hidden class="mt-3 rounded-lg bg-blue-100 px-4 py-2 font-semibold">Allow Access</button>
 <p id="folder-register-message" role="status" aria-live="polite" class="my-3 text-sm text-slate-700"></p>
-<div id="folder-register-table" class="overflow-x-auto"><table class="w-full text-left text-sm"><thead class="bg-slate-50"><tr><th scope="col" class="p-2">No.</th><th scope="col" class="p-2">Folder</th><th scope="col" class="p-2">Files</th><th scope="col" class="p-2">Action</th></tr></thead><tbody id="folder-register-rows"></tbody></table></div>
-<div id="folder-register-contents" hidden><h3 id="folder-register-path" class="mb-3 font-semibold"></h3><ol id="folder-register-files" class="space-y-2 break-words text-sm"></ol></div>
+<div id="folder-register-table" class="overflow-x-auto"><table class="w-full text-left text-sm"><thead class="bg-slate-50"><tr><th scope="col" class="p-2">No.</th><th scope="col" class="p-2">Folder</th><th scope="col" class="p-2">Files</th></tr></thead><tbody id="folder-register-rows"></tbody></table></div>
+<div id="folder-register-contents" hidden><h3 id="folder-register-path" class="mb-3 font-semibold"></h3><button id="folder-register-back" type="button" class="mb-3 rounded-lg bg-slate-100 px-4 py-2">Back to Folder Register</button><table class="w-full text-left text-sm"><thead><tr><th class="p-2">No.</th><th class="p-2">Filename</th><th class="p-2">Date</th></tr></thead><tbody id="folder-register-files"></tbody></table></div>
+<div id="folder-register-viewer" hidden>
+<div class="my-3 flex flex-wrap gap-2"><button id="folder-view-back" type="button" class="rounded-lg bg-slate-100 px-4 py-2">Back to Files</button><button id="folder-view-print" type="button" class="rounded-lg bg-slate-100 px-4 py-2">Print</button><button id="folder-view-email" type="button" class="rounded-lg bg-slate-100 px-4 py-2">Email</button></div>
+<p id="folder-view-name" class="mb-3 break-words font-semibold"></p>
+<iframe id="folder-view-pdf" title="Historical PDF" class="h-[65vh] w-full rounded-lg border border-slate-300"></iframe>
+<form id="folder-view-email-form" hidden class="mt-3 rounded-lg border border-slate-300 p-3"><label for="folder-email-to" class="block font-semibold">Recipient email</label><input id="folder-email-to" name="email_to" type="email" required maxlength="254" class="my-2 w-full rounded-lg border border-slate-300 px-3 py-2"><button type="submit" class="rounded-lg bg-blue-100 px-4 py-2 font-semibold">Send Email</button><p class="mt-2 text-sm text-slate-700">Only Send Email transmits this original saved PDF to AIT for delivery.</p></form>
+</div>
 </section>
 </div></div></div>
 <script id="directory-context" type="application/json">{{ directory_context|tojson }}</script>
+<script id="directory-email" type="application/json">{{ {"url":url_for("billing_bp.directory_email"),"csrf":csrf_token() if csrf_token is defined else ""}|tojson }}</script>
 <script id="directory-reports" type="application/json">{{ directory_reports|tojson }}</script>
 <script src="{{ url_for('static',filename='js/pm_local_directories.js',v='20261120-observed-storage') }}" defer></script>
-<script src="{{ url_for('static',filename='js/pm_folder_name.js',v='20261120-protected-assignment') }}" defer></script>
-<script src="{{ url_for('static',filename='js/pm_folder_register.js',v='20261120-file-register') }}" defer></script>
+<script src="{{ url_for('static',filename='js/pm_folder_name.js',v='20261120-assigned-subfolders') }}" defer></script>
+<script src="{{ url_for('static',filename='js/pm_folder_register.js',v='20261120-historical-pdf') }}" defer></script>
 {% endblock %}

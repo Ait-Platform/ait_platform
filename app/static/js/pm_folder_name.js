@@ -23,6 +23,16 @@
     registered=handle;writable=allowed;loaded=true;selectionState();
     if(registered && !attempted)name.textContent=registered.name;
     status();
+    if(registered && writable && navigator.locks){
+      try{await navigator.locks.request('ait-pm-local-report-save',async()=>{
+        const saved=await api.get(scope);
+        if(!saved || !await saved.handle.isSameEntry(registered))return;
+        for(const report of JSON.parse(document.getElementById('directory-reports').textContent)){
+          const source=await registered.getDirectoryHandle(report.source,{create:true});
+          await source.getDirectoryHandle(report.title,{create:true});
+        }
+      });}catch(_){notice='Some report subfolders could not be checked or created. Existing files are unchanged.';status();}
+    }
   }).catch(()=>{if(version===assignmentVersion){notice='Could not read the existing assignment.';status();}});}
   async function separateFromOtherProperties(handle){
     for(const option of document.getElementById('directory-property').options){

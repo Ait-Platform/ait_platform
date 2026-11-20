@@ -52,19 +52,27 @@
     if(!entry)throw new Error('Select a supported report.');
     return (await resolve(handle,entry,scope,true)).handle;
   }
-  function database(){return new Promise((resolve,reject)=>{
+  // Optional local diagnostics. Observer failures must never affect storage.
+  function observe(observer,event,details={}){if(typeof observer==='function')try{observer(event,details);}catch(_){}}
+  function observedError(error){return {name:error?.name || 'Error',message:error?.message || ''};}
+  function database(observer){return new Promise((resolve,reject)=>{
+    observe(observer,'indexeddb-open-start');
     const request=indexedDB.open('ait-pm-directories',1);
     request.onupgradeneeded=()=>{const store=request.result.createObjectStore('assignments',{keyPath:'key'});store.createIndex('scope',['user','property']);};
-    request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error);
-    request.onblocked=()=>reject(new Error('Close other AIT tabs and try again.'));
+    request.onsuccess=()=>{observe(observer,'indexeddb-open-complete');resolve(request.result);};
+    request.onerror=()=>{observe(observer,'indexeddb-open-failed',observedError(request.error));reject(request.error);};
+    request.onblocked=()=>{observe(observer,'indexeddb-open-blocked');reject(new Error('Close other AIT tabs and try again.'));};
   });}
-  async function operation(mode,work){
-    const db=await database();
+  async function operation(mode,work,observer){
+    const db=await database(observer);
     try{return await new Promise((resolve,reject)=>{
       const tx=db.transaction('assignments',mode);let result;
+      observe(observer,'indexeddb-transaction-start',{mode});
       const req=work(tx.objectStore('assignments'));
-      req.onsuccess=()=>{result=req.result;};
-      tx.oncomplete=()=>resolve(result);tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error || new Error('Local storage operation cancelled.'));
+      req.onsuccess=()=>{result=req.result;observe(observer,'indexeddb-request-success',{mode});};
+      tx.oncomplete=()=>{observe(observer,'indexeddb-transaction-complete',{mode});resolve(result);};
+      tx.onerror=()=>{observe(observer,'indexeddb-transaction-error',{mode,...observedError(tx.error)});reject(tx.error);};
+      tx.onabort=()=>{observe(observer,'indexeddb-transaction-abort',{mode,...observedError(tx.error)});reject(tx.error || new Error('Local storage operation cancelled.'));};
     });}finally{db.close();}
   }
   function check(scope){if(!scope.user || !scope.property)throw new Error('Select an authorised property first.');}
@@ -98,11 +106,15 @@
       return 'The saved folder could not be restored from browser storage. '+detail;
     },
     supported:()=>window.isSecureContext && typeof window.showDirectoryPicker==='function' && !!window.indexedDB,
-    async get(scope){check(scope);return operation('readonly',store=>store.get(key(scope)));},
-    async set(scope,handle){
+    async get(scope,observer){check(scope);observe(observer,'indexeddb-read-key',{key:key(scope)});return operation('readonly',store=>store.get(key(scope)),observer);},
+    async set(scope,handle,observer){
       check(scope);if(!handle || handle.kind!=='directory')throw new Error('Select a folder.');
       if(!await api.permission(handle))throw new Error('Folder permission was not granted. The previous main folder is unchanged.');
-      const result=await operation('readwrite',store=>store.put({key:key(scope),user:String(scope.user),property:String(scope.property),handle}));
+      observe(observer,'indexeddb-write-key',{key:key(scope)});
+      const result=await operation('readwrite',store=>{
+        observe(observer,'indexeddb-put-start');
+        return store.put({key:key(scope),user:String(scope.user),property:String(scope.property),handle});
+      },observer);
       notify(scope,'folder');return result;
     },
     async reauthorise(scope){

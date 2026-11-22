@@ -6,6 +6,7 @@ from types import SimpleNamespace
 from uuid import uuid4
 from unittest.mock import patch
 import unittest
+from tempfile import TemporaryDirectory
 from urllib.parse import urlsplit
 from alembic.migration import MigrationContext
 from alembic.operations import Operations
@@ -229,7 +230,7 @@ class ProTradeLocalFoldersTests(unittest.TestCase):
         self.assertEqual(self.client.get('/mechanic/folders/access').status_code,401)
         self.assertEqual(self.send().status_code,401)
 
-    def test_native_picker_assigns_empty_folder_before_any_documents_exist(self):
+    def test_dropped_folder_authorisation_preserves_lazy_destinations(self):
         before=self.snapshot()
         with sync_playwright() as runtime:
             browser,page=self.browser(runtime)
@@ -238,10 +239,8 @@ class ProTradeLocalFoldersTests(unittest.TestCase):
                 page.wait_for_function("!document.getElementById('directory-select').disabled")
                 self.assertTrue(page.locator('#folder-register-open').is_disabled())
                 self.assertEqual(page.locator('#folder-register-rows tr').count(),0)
-                page.evaluate("""async()=>{window.emptyHandle=await(await navigator.storage.getDirectory()).getDirectoryHandle('Empty ProTrade',{create:true});window.pickerCalls=[];
-                    window.showDirectoryPicker=options=>{pickerCalls.push({mode:options.mode,active:navigator.userActivation.isActive});return Promise.resolve(emptyHandle);};}""")
-                page.locator('#directory-select').click();page.wait_for_function("document.getElementById('directory-select').hidden")
-                self.assertEqual(page.evaluate('pickerCalls'),[dict(mode='readwrite',active=True)])
+                self.drop(page,'Empty ProTrade')
+                page.evaluate("async()=>{window.emptyHandle=await(await navigator.storage.getDirectory()).getDirectoryHandle('Empty ProTrade');}")
                 self.assertEqual(page.locator('#directory-folder').inner_text(),'Empty ProTrade')
                 self.assertEqual(page.evaluate('async()=>Array.fromAsync(emptyHandle.keys())'),[])
                 page.locator('#folder-register-open').click();page.wait_for_function("document.getElementById('folder-register-message').textContent.startsWith('Existing report folders')")
@@ -269,21 +268,32 @@ class ProTradeLocalFoldersTests(unittest.TestCase):
                 self.assertEqual(before,self.snapshot())
             finally:browser.close()
 
-    def test_native_cancel_or_permission_rejection_never_assigns_a_folder(self):
-        with sync_playwright() as runtime:
-            for error in ['AbortError','NotAllowedError']:
-                with self.subTest(error=error):
-                    browser,page=self.browser(runtime)
-                    try:
-                        page.goto('https://ait.test/mechanic/folders');page.wait_for_function("!document.getElementById('directory-select').disabled")
-                        page.evaluate("error=>{window.showDirectoryPicker=()=>Promise.reject(new DOMException('Test refusal',error));}",error)
-                        page.locator('#directory-select').click()
-                        page.wait_for_function("document.getElementById('directory-message').textContent.includes('unchanged')")
-                        self.assertFalse(page.evaluate("AITDirectories.get({user:'1',property:'protrade'})"))
-                        self.assertTrue(page.locator('#folder-register-open').is_disabled())
-                        self.assertEqual(page.locator('#folder-register-rows tr').count(),0)
-                        self.assertFalse(page.locator('#directory-select').is_hidden())
-                    finally:browser.close()
+    def test_html_picker_displays_name_without_assignment_or_file_retention(self):
+        before=self.snapshot()
+        with TemporaryDirectory() as temporary, sync_playwright() as runtime:
+            folder=Path(temporary)/'1ProTrade';(folder/'Existing files').mkdir(parents=True)
+            (folder/'Existing files'/'sample.txt').write_text('Local only')
+            browser,page=self.browser(runtime)
+            try:
+                page.goto('https://ait.test/mechanic/folders')
+                page.wait_for_function("!document.getElementById('directory-select').disabled")
+                for _ in range(2):
+                    with page.expect_file_chooser() as chooser:page.locator('#directory-select').click()
+                    chooser.value.set_files(str(folder))
+                    self.assertEqual(page.locator('#directory-folder').inner_text(),'1ProTrade')
+                    self.assertIn('does not grant write access',page.locator('#directory-message').inner_text())
+                    self.assertEqual(page.locator('#directory-input').evaluate('(input)=>input.files.length'),0)
+                    self.assertFalse(page.evaluate("AITDirectories.get({user:'1',property:'protrade'})"))
+                    self.assertTrue(page.locator('#folder-register-open').is_disabled())
+                    self.assertEqual(page.locator('#folder-register-rows tr').count(),0)
+                page.locator('#directory-input').dispatch_event('cancel')
+                self.assertIn('cancelled',page.locator('#directory-message').inner_text())
+                self.assertEqual(page.locator('#directory-folder').inner_text(),'1ProTrade')
+                page.locator('#directory-input').dispatch_event('change')
+                self.assertEqual(page.locator('#directory-folder').inner_text(),'No folder selected')
+                self.assertIn('containing a file',page.locator('#directory-message').inner_text())
+                self.assertEqual(before,self.snapshot())
+            finally:browser.close()
 
     def test_existing_and_earlier_destinations_remain_registered_when_read_access_expires(self):
         with sync_playwright() as runtime:
@@ -310,12 +320,12 @@ class ProTradeLocalFoldersTests(unittest.TestCase):
                 self.assertEqual(page.locator('#folder-register-rows td:last-child').all_text_contents(),['1','1'])
             finally:browser.close()
 
-    def test_empty_native_selection_displays_name_but_requires_actual_write_permission(self):
+    def test_dropped_empty_folder_requires_actual_write_permission(self):
         with sync_playwright() as runtime:
             browser,page=self.browser(runtime)
             try:
                 page.goto('https://ait.test/mechanic/folders');page.wait_for_function("!document.getElementById('directory-select').disabled")
-                page.evaluate("""async()=>{window.deniedEmpty=await(await navigator.storage.getDirectory()).getDirectoryHandle('Empty without permission',{create:true});window.showDirectoryPicker=()=>Promise.resolve(deniedEmpty);
+                page.evaluate("""async()=>{window.deniedEmpty=await(await navigator.storage.getDirectory()).getDirectoryHandle('Empty without permission',{create:true});await document.getElementById('directory-select').ondrop({preventDefault(){},dataTransfer:{items:[{kind:'file',getAsFileSystemHandle:()=>Promise.resolve(deniedEmpty)}]}});
                     FileSystemDirectoryHandle.prototype.queryPermission=async()=> 'prompt';FileSystemDirectoryHandle.prototype.requestPermission=async()=> 'denied';}""")
                 page.locator('#directory-select').click();page.wait_for_function("document.getElementById('directory-message').textContent.includes('not granted')")
                 self.assertEqual(page.locator('#directory-folder').inner_text(),'Empty without permission')

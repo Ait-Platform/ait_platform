@@ -13,7 +13,7 @@
 <script id="directory-reports" type="application/json">{{ directory_reports|tojson }}</script>
 <script id="directory-email" type="application/json">{{ dict(url=url_for('mechanic_bp.protrade_folder_email'),csrf=csrf_token(),recipient=current_user.email or '')|tojson }}</script>
 <script src="{{ url_for('static',filename='js/pm_local_directories.js',v='20261120-report-paths') }}" defer></script>
-<script src="{{ url_for('static',filename='js/protrade_folders.js',v='20261122-empty-native-actual-register') }}" defer></script>
+<script src="{{ url_for('static',filename='js/protrade_folders.js',v='20261122-html-name-selection') }}" defer></script>
 <script src="{{ url_for('static',filename='js/pm_pdf_print.js',v='20261120-original-print') }}" defer></script>
 <script src="{{ url_for('static',filename='js/pm_folder_register.js',v='20261120-registered-paths') }}" defer></script>
 {% endblock %}

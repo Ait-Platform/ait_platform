@@ -67,7 +67,7 @@
   window.AITDirectories=Object.assign({},api,{async get(value){validate(value);const row=await record();return row?{...row,handle:readableRoot(row.handle)}:null;}});
   function state(){button.hidden=!!registered;button.disabled=!loaded || busy;registerButton.disabled=!registered;}
   button.disabled=true;
-  record().then(row=>{registered=row?.handle || null;loaded=true;if(registered)label.textContent=registered.name;state();message.textContent=registered?'Assigned main folder restored. Existing assignments cannot be replaced here.':'Select and authorise your main ProTrade folder. Empty folders are supported in Chrome; dragging a folder remains available.';}).catch(()=>{message.textContent='The saved assignment could not be read. It has not been changed.';});
+  record().then(row=>{registered=row?.handle || null;loaded=true;if(registered)label.textContent=registered.name;state();message.textContent=registered?'Assigned main folder restored. Existing assignments cannot be replaced here.':'Select your main ProTrade folder to display its name. Folder selection alone does not authorise saving.';}).catch(()=>{message.textContent='The saved assignment could not be read. It has not been changed.';});
   button.ondragover=event=>{if(event.dataTransfer.types.includes('Files'))event.preventDefault();};
   button.ondrop=async event=>{
     event.preventDefault();if(!loaded || registered || busy)return;
@@ -80,11 +80,9 @@
   };
   button.onclick=async()=>{
     if(!loaded || registered || busy)return;
-    if(!pending && !(window.isSecureContext && typeof window.showDirectoryPicker==='function')){input.click();message.textContent='This browser cannot authorise a folder through this dialog. Drag the folder onto Select Folder, then click to authorise it; empty folders are supported by dragging.';return;}
+    if(!pending){if(!('webkitdirectory' in input)){message.textContent='Folder selection is unavailable in this browser.';return;}input.click();return;}
     busy=true;state();let handle=pending;
     try{
-      // Invoke directly from the click, before authentication or IndexedDB awaits.
-      if(!handle)handle=await window.showDirectoryPicker({mode:'readwrite'});
       if(handle?.kind!=='directory')throw Error('The browser did not return a usable folder.');
       label.textContent=handle.name;
       if(!navigator.locks)throw Error('Direct saving is unavailable. Download PDF remains available.');
@@ -103,7 +101,7 @@
   input.onchange=()=>{
     if(registered || !loaded){input.value='';return;}
     const path=input.files[0]?.webkitRelativePath || '',name=path.includes('/')?path.split('/')[0]:'';
-    label.textContent=name || 'No folder selected';message.textContent=name?'Folder name identified only. Drag the folder onto Select Folder, then click it to authorise saving.':'No folder name was returned. Drag the folder onto Select Folder to authorise it; no placeholder file is needed.';input.value='';
+    label.textContent=name || 'No folder selected';message.textContent=name?'Folder name identified only; this does not grant write access or change the report destination.':'Folder name unavailable. Choose a folder containing a file.';input.value='';
   };
   window.addEventListener('DOMContentLoaded',()=>{
     function protect(element){

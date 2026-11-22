@@ -4,14 +4,28 @@
   const config=document.getElementById('directory-context');if(!config)return;
   const scope=JSON.parse(config.textContent),reports=JSON.parse(document.getElementById('directory-reports').textContent),api=window.AITDirectories;
   const button=document.getElementById('directory-select'),input=document.getElementById('directory-input'),label=document.getElementById('directory-folder'),message=document.getElementById('directory-message');
-  let registered=null,pending=null,loaded=false,busy=false;
+  let registered=null,pending=null,loaded=false,busy=false,readable=false;
+  const destinations=new Set(),rows=document.getElementById('folder-register-rows');
+  const registerButton=document.getElementById('folder-register-open'),empty=document.getElementById('protrade-register-empty');
+  // Server metadata is an ownership allowlist, not evidence of saved folders.
+  // Project the unchanged PM register onto destinations actually found on disk.
+  function actualRows(){
+    let number=0;
+    for(const row of Array.from(rows.children)){
+      const code=row.dataset.destination || reports[Number(row.children[0]?.textContent)-1]?.code;
+      if(!registered || !destinations.has(code)){row.remove();continue;}
+      row.dataset.destination=code;row.children[0].textContent=String(++number);
+    }
+    empty.hidden=!registered || !readable || number>0;
+  }
+  new MutationObserver(actualRows).observe(rows,{childList:true});
   async function authorise(){
     const endpoint=JSON.parse(document.getElementById('protrade-folder-auth').textContent).url;
     let value;
     try{const response=await fetch(endpoint,{credentials:'same-origin',cache:'no-store',redirect:'error'});
       if(!response.ok)throw Error('Access unavailable');value=await response.json();
-    }catch(_){throw Error('Consultant access could not be verified. Sign in again before accessing local files.');}
-    if(String(value.user)!==String(scope.user) || !Array.isArray(value.shops) || reports.some(report=>!value.shops.includes(String(report.shop))))throw Error('Consultant or business access changed. Reopen ProTrade Folders.');
+    }catch(_){destinations.clear();readable=false;actualRows();throw Error('Consultant access could not be verified. Sign in again before accessing local files.');}
+    if(String(value.user)!==String(scope.user) || !Array.isArray(value.shops) || reports.some(report=>!value.shops.includes(String(report.shop)))){destinations.clear();readable=false;actualRows();throw Error('Consultant or business access changed. Reopen ProTrade Folders.');}
   }
   function validate(value){if(String(value.user)!==String(scope.user) || String(value.property)!=='protrade')throw Error('Folder assignment is outside this consultant account.');}
   async function record(){await authorise();const value=await api.get(scope);if(value){validate(value);if(value.handle?.kind!=='directory')throw Error('Invalid saved directory.');}return value;}
@@ -33,14 +47,17 @@
       node.report=report;
     }
     function nodeHandle(node){return {
-      name:root.name,kind:'directory',queryPermission:options=>root.queryPermission(options),requestPermission:options=>root.requestPermission(options),
+      name:root.name,kind:'directory',async queryPermission(options){const result=await root.queryPermission(options);readable=result==='granted';return result;},requestPermission:options=>root.requestPermission(options),
       async getDirectoryHandle(name,options){
         if(options?.create)throw Error('Folder Register cannot create directories.');
         const next=node.children.get(name);if(!next)throw new DOMException('Unknown business destination.','NotFoundError');
         if(!next.report)return nodeHandle(next);
         const entry=next.report;
-        const consultant=await owned(root,'user',scope.user),business=await owned(consultant,'client',entry.owner.client);
-        return business.getDirectoryHandle(entry.path[2],{create:false});
+        try{
+          const consultant=await owned(root,'user',scope.user),business=await owned(consultant,'client',entry.owner.client);
+          const folder=await business.getDirectoryHandle(entry.path[2],{create:false});
+          destinations.add(entry.code);return folder;
+        }catch(error){if(error.name==='NotFoundError')destinations.delete(entry.code);throw error;}
       }
     };}
     return nodeHandle(tree);
@@ -48,9 +65,9 @@
   // Only this ProTrade page receives a read-only tree facade. The original save
   // helper retains its original private API and stable-identity write resolver.
   window.AITDirectories=Object.assign({},api,{async get(value){validate(value);const row=await record();return row?{...row,handle:readableRoot(row.handle)}:null;}});
-  function state(){button.hidden=!!registered;button.disabled=!loaded || busy;}
+  function state(){button.hidden=!!registered;button.disabled=!loaded || busy;registerButton.disabled=!registered;}
   button.disabled=true;
-  record().then(row=>{registered=row?.handle || null;loaded=true;if(registered)label.textContent=registered.name;state();message.textContent=registered?'Assigned main folder restored. Existing assignments cannot be replaced here.':'Select a folder name, or drag your main ProTrade folder onto Select Folder and click it to approve write access.';}).catch(()=>{message.textContent='The saved assignment could not be read. It has not been changed.';});
+  record().then(row=>{registered=row?.handle || null;loaded=true;if(registered)label.textContent=registered.name;state();message.textContent=registered?'Assigned main folder restored. Existing assignments cannot be replaced here.':'Select and authorise your main ProTrade folder. Empty folders are supported in Chrome; dragging a folder remains available.';}).catch(()=>{message.textContent='The saved assignment could not be read. It has not been changed.';});
   button.ondragover=event=>{if(event.dataTransfer.types.includes('Files'))event.preventDefault();};
   button.ondrop=async event=>{
     event.preventDefault();if(!loaded || registered || busy)return;
@@ -63,9 +80,13 @@
   };
   button.onclick=async()=>{
     if(!loaded || registered || busy)return;
-    if(!pending){input.click();return;}
-    busy=true;state();const handle=pending;
+    if(!pending && !(window.isSecureContext && typeof window.showDirectoryPicker==='function')){input.click();message.textContent='This browser cannot authorise a folder through this dialog. Drag the folder onto Select Folder, then click to authorise it; empty folders are supported by dragging.';return;}
+    busy=true;state();let handle=pending;
     try{
+      // Invoke directly from the click, before authentication or IndexedDB awaits.
+      if(!handle)handle=await window.showDirectoryPicker({mode:'readwrite'});
+      if(handle?.kind!=='directory')throw Error('The browser did not return a usable folder.');
+      label.textContent=handle.name;
       if(!navigator.locks)throw Error('Direct saving is unavailable. Download PDF remains available.');
       if(!await api.permission(handle))throw Error('Write access was not granted.');
       await navigator.locks.request('ait-pm-local-report-save',async()=>{
@@ -75,13 +96,14 @@
         if(!saved || !await saved.handle.isSameEntry(handle))throw Error('The saved assignment could not be verified. Reopen Folders.');
         registered=saved.handle;message.textContent='Main folder assigned. Only saving a document creates its consultant, business and document-type folders.';
       });
-    }catch(error){message.textContent=error.message;}
+    }catch(error){message.textContent=error.name==='AbortError'?'Chrome did not return a folder. Selection was cancelled or blocked; the saved assignment is unchanged. You can drag an empty folder onto Select Folder instead.':
+      ['NotAllowedError','SecurityError'].includes(error.name)?'Chrome did not grant folder access. The saved assignment is unchanged.':error.message;}
     finally{pending=null;busy=false;if(registered)label.textContent=registered.name;state();}
   };
   input.onchange=()=>{
     if(registered || !loaded){input.value='';return;}
     const path=input.files[0]?.webkitRelativePath || '',name=path.includes('/')?path.split('/')[0]:'';
-    label.textContent=name || 'No folder selected';message.textContent=name?'Folder name identified only. Drag the folder onto Select Folder, then click it to authorise saving.':'Choose a folder containing a file to identify its name.';input.value='';
+    label.textContent=name || 'No folder selected';message.textContent=name?'Folder name identified only. Drag the folder onto Select Folder, then click it to authorise saving.':'No folder name was returned. Drag the folder onto Select Folder to authorise it; no placeholder file is needed.';input.value='';
   };
   window.addEventListener('DOMContentLoaded',()=>{
     function protect(element){

@@ -228,3 +228,98 @@ class ProTradeLocalFoldersTests(unittest.TestCase):
         self.assertEqual(self.client.get('/mechanic/folders').status_code,401)
         self.assertEqual(self.client.get('/mechanic/folders/access').status_code,401)
         self.assertEqual(self.send().status_code,401)
+
+    def test_native_picker_assigns_empty_folder_before_any_documents_exist(self):
+        before=self.snapshot()
+        with sync_playwright() as runtime:
+            browser,page=self.browser(runtime)
+            try:
+                page.goto('https://ait.test/mechanic/folders')
+                page.wait_for_function("!document.getElementById('directory-select').disabled")
+                self.assertTrue(page.locator('#folder-register-open').is_disabled())
+                self.assertEqual(page.locator('#folder-register-rows tr').count(),0)
+                page.evaluate("""async()=>{window.emptyHandle=await(await navigator.storage.getDirectory()).getDirectoryHandle('Empty ProTrade',{create:true});window.pickerCalls=[];
+                    window.showDirectoryPicker=options=>{pickerCalls.push({mode:options.mode,active:navigator.userActivation.isActive});return Promise.resolve(emptyHandle);};}""")
+                page.locator('#directory-select').click();page.wait_for_function("document.getElementById('directory-select').hidden")
+                self.assertEqual(page.evaluate('pickerCalls'),[dict(mode='readwrite',active=True)])
+                self.assertEqual(page.locator('#directory-folder').inner_text(),'Empty ProTrade')
+                self.assertEqual(page.evaluate('async()=>Array.fromAsync(emptyHandle.keys())'),[])
+                page.locator('#folder-register-open').click();page.wait_for_function("document.getElementById('folder-register-message').textContent.startsWith('Existing report folders')")
+                self.assertEqual(page.locator('#folder-register-rows tr').count(),0)
+                self.assertTrue(page.locator('#protrade-register-empty').is_visible())
+                self.assertEqual(page.evaluate('async()=>Array.fromAsync(emptyHandle.keys())'),[])
+                page.route('**/snapshot.pdf',lambda route:route.fulfill(body=self.pdf,content_type='application/pdf'))
+                for shop,kind,count in [(self.o.carpentry,'quote',1),(self.o.second,'statement',2)]:
+                    page.evaluate("async code=>AITDirectories.save({user:'1',property:'protrade',period_end:'2026-11-22'},code,'/snapshot.pdf')",str(shop.id)+':'+kind)
+                    page.wait_for_function("count=>document.getElementById('folder-register-rows').children.length===count",arg=count)
+                self.assertEqual(page.locator('#folder-register-rows td:first-child').all_text_contents(),['1','2'])
+                self.assertEqual(page.locator('#folder-register-rows td:last-child').all_text_contents(),['1','1'])
+                labels=page.locator('#folder-register-rows button').all_text_contents()
+                self.assertTrue(any(label.endswith('/ Quotes') for label in labels))
+                self.assertTrue(any(label.endswith('/ Statements') for label in labels))
+                self.assertFalse(any('/ Invoices' in label or '/ Earlier /' in label for label in labels))
+                self.assertTrue(page.locator('#protrade-register-empty').is_hidden())
+                page.reload();page.wait_for_function("document.getElementById('directory-select').hidden")
+                self.assertEqual(page.locator('#directory-folder').inner_text(),'Empty ProTrade')
+                page.evaluate("()=>{window.pickerCalls=0;window.showDirectoryPicker=()=>{pickerCalls++;throw Error('Must preserve assignment');};document.getElementById('directory-select').onclick();}")
+                self.assertEqual(page.evaluate('pickerCalls'),0)
+                page.locator('#folder-register-open').click()
+                page.wait_for_function("document.getElementById('folder-register-message').textContent.startsWith('Existing report folders')")
+                self.assertEqual(page.locator('#folder-register-rows tr').count(),2)
+                self.assertEqual(before,self.snapshot())
+            finally:browser.close()
+
+    def test_native_cancel_or_permission_rejection_never_assigns_a_folder(self):
+        with sync_playwright() as runtime:
+            for error in ['AbortError','NotAllowedError']:
+                with self.subTest(error=error):
+                    browser,page=self.browser(runtime)
+                    try:
+                        page.goto('https://ait.test/mechanic/folders');page.wait_for_function("!document.getElementById('directory-select').disabled")
+                        page.evaluate("error=>{window.showDirectoryPicker=()=>Promise.reject(new DOMException('Test refusal',error));}",error)
+                        page.locator('#directory-select').click()
+                        page.wait_for_function("document.getElementById('directory-message').textContent.includes('unchanged')")
+                        self.assertFalse(page.evaluate("AITDirectories.get({user:'1',property:'protrade'})"))
+                        self.assertTrue(page.locator('#folder-register-open').is_disabled())
+                        self.assertEqual(page.locator('#folder-register-rows tr').count(),0)
+                        self.assertFalse(page.locator('#directory-select').is_hidden())
+                    finally:browser.close()
+
+    def test_existing_and_earlier_destinations_remain_registered_when_read_access_expires(self):
+        with sync_playwright() as runtime:
+            browser,page=self.browser(runtime)
+            try:
+                page.goto('https://ait.test/mechanic/folders');self.drop(page)
+                page.route('**/snapshot.pdf',lambda route:route.fulfill(body=self.pdf,content_type='application/pdf'))
+                for kind in ['quote','legacy_quotes']:
+                    page.evaluate("async code=>AITDirectories.save({user:'1',property:'protrade',period_end:'2026-11-22'},code,'/snapshot.pdf')",str(self.o.carpentry.id)+':'+kind)
+                page.locator('#folder-register-open').click()
+                page.wait_for_function("document.getElementById('folder-register-message').textContent.startsWith('Existing report folders')")
+                self.assertEqual(page.locator('#folder-register-rows tr').count(),2)
+                self.assertEqual(page.locator('#folder-register-rows td:last-child').all_text_contents(),['1','1'])
+                labels=page.locator('#folder-register-rows button').all_text_contents()
+                self.assertTrue(any('/ Earlier / Quotes & Invoices' in label for label in labels))
+                page.evaluate("()=>{window.originalReadPermission=FileSystemDirectoryHandle.prototype.queryPermission;FileSystemDirectoryHandle.prototype.queryPermission=async()=> 'prompt';}")
+                page.locator('#folder-register-open').click();page.locator('#folder-register-access').wait_for(state='visible')
+                self.assertEqual(page.locator('#folder-register-rows tr').count(),2)
+                self.assertTrue(all(count==chr(0x2014) for count in page.locator('#folder-register-rows td:last-child').all_text_contents()))
+                self.assertTrue(page.locator('#protrade-register-empty').is_hidden())
+                page.evaluate('()=>{FileSystemDirectoryHandle.prototype.queryPermission=originalReadPermission;}')
+                page.locator('#folder-register-open').click()
+                page.wait_for_function("document.getElementById('folder-register-message').textContent.startsWith('Existing report folders')")
+                self.assertEqual(page.locator('#folder-register-rows td:last-child').all_text_contents(),['1','1'])
+            finally:browser.close()
+
+    def test_empty_native_selection_displays_name_but_requires_actual_write_permission(self):
+        with sync_playwright() as runtime:
+            browser,page=self.browser(runtime)
+            try:
+                page.goto('https://ait.test/mechanic/folders');page.wait_for_function("!document.getElementById('directory-select').disabled")
+                page.evaluate("""async()=>{window.deniedEmpty=await(await navigator.storage.getDirectory()).getDirectoryHandle('Empty without permission',{create:true});window.showDirectoryPicker=()=>Promise.resolve(deniedEmpty);
+                    FileSystemDirectoryHandle.prototype.queryPermission=async()=> 'prompt';FileSystemDirectoryHandle.prototype.requestPermission=async()=> 'denied';}""")
+                page.locator('#directory-select').click();page.wait_for_function("document.getElementById('directory-message').textContent.includes('not granted')")
+                self.assertEqual(page.locator('#directory-folder').inner_text(),'Empty without permission')
+                self.assertTrue(page.locator('#folder-register-open').is_disabled())
+                self.assertFalse(page.evaluate("AITDirectories.get({user:'1',property:'protrade'})"))
+                self.assertEqual(page.evaluate('async()=>Array.fromAsync(deniedEmpty.keys())'),[])
+            finally:browser.close()

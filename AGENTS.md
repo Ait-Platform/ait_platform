@@ -20,6 +20,15 @@ email: it allows debtor-free history receipts while retaining ordinary Output
 debtor requirements. Do not execute it without production approval. No Franchise
 functionality is authorised by this rollout.
 
+**ProTrade production correction (22 November 2026):** Use
+`showDirectoryPicker({mode:'readwrite'})` directly from Select Folder in secure,
+supported Chrome contexts, including empty folders. Retain the existing drop
+fallback and handle store. This explicit exception is ProTrade-only; do not
+change PM's working selection/authorisation flow. Business/report metadata is
+an allowlist, not a document registration: show only destinations found under
+the authorised, correctly marked main folder. Create directories on first save,
+not on business creation, folder selection or historical browsing.
+
 ## Reusable AIT folder-management standard
 
 Use the Property Management workflow for future authorised folder development:

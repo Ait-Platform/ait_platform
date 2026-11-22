@@ -5,7 +5,7 @@
 <div class="flex justify-end"><button id="directory-select" type="button" class="rounded-lg bg-blue-100 px-4 py-2 font-semibold">Select Folder</button></div><input id="directory-input" type="file" webkitdirectory multiple hidden>
 <p class="my-4">Selected main folder: <strong id="directory-folder">No folder selected</strong></p><p id="directory-message" role="status" class="text-sm text-slate-700"></p>
 <p class="my-3 text-sm text-slate-700">Save new documents in Output. Earlier folders are listed for historical retrieval only. Folder access never regenerates documents or deducts tokens.</p>
-<div class="flex justify-end"><button id="folder-register-open" type="button" aria-expanded="false" class="rounded-lg border border-blue-200 bg-blue-100 px-4 py-2 font-semibold">Folder Register</button></div>
+<div class="flex justify-end"><button id="folder-register-open" type="button" disabled aria-expanded="false" class="rounded-lg border border-blue-200 bg-blue-100 px-4 py-2 font-semibold">Folder Register</button></div>
 {% include 'program_mechanic/folder_working_area.html' %}
 </div></div></div>
 <script id="protrade-folder-auth" type="application/json">{{ dict(url=url_for('mechanic_bp.protrade_folder_access'))|tojson }}</script>
@@ -13,7 +13,7 @@
 <script id="directory-reports" type="application/json">{{ directory_reports|tojson }}</script>
 <script id="directory-email" type="application/json">{{ dict(url=url_for('mechanic_bp.protrade_folder_email'),csrf=csrf_token(),recipient=current_user.email or '')|tojson }}</script>
 <script src="{{ url_for('static',filename='js/pm_local_directories.js',v='20261120-report-paths') }}" defer></script>
-<script src="{{ url_for('static',filename='js/protrade_folders.js',v='20261122-folders') }}" defer></script>
+<script src="{{ url_for('static',filename='js/protrade_folders.js',v='20261122-empty-native-actual-register') }}" defer></script>
 <script src="{{ url_for('static',filename='js/pm_pdf_print.js',v='20261120-original-print') }}" defer></script>
 <script src="{{ url_for('static',filename='js/pm_folder_register.js',v='20261120-registered-paths') }}" defer></script>
 {% endblock %}

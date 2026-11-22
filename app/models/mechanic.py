@@ -100,13 +100,14 @@ class ProTradeBoqQuote(db.Model):
 
 
 class ProTradeOutputEmail(db.Model):
-    """Durable at-most-once SMTP attempt for a confirmed Output preview."""
+    """Durable at-most-once SMTP attempt for Output or an original saved PDF."""
     __tablename__ = 'protrade_output_email'
+    __table_args__ = (db.CheckConstraint("debtor_id IS NOT NULL OR selection LIKE 'history:%'", name='ck_protrade_email_history_debtor'),)
     id = db.Column(db.Integer, primary_key=True)
     request_key = db.Column(db.String(64), nullable=False, unique=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     shop_id = db.Column(db.Integer, db.ForeignKey('mech_shops.id'), nullable=False)
-    debtor_id = db.Column(db.Integer, db.ForeignKey('debtor.id'), nullable=False)
+    debtor_id = db.Column(db.Integer, db.ForeignKey('debtor.id'), nullable=True)
     selection = db.Column(db.String(100), nullable=False)
     recipient = db.Column(db.String(150), nullable=False)
     status = db.Column(db.String(30), nullable=False, default='attempted')

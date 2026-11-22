@@ -4,12 +4,21 @@ Read and follow [AGENT.md](AGENT.md) for the established repository, application
 database and UI rules. This standard does not authorise production migrations,
 financial changes or rollout to another program.
 
-## Current ProTrade release exception
+## ProTrade local-folder rollout
 
-ProTrade currently uses ordinary PDF downloads and application-backed document
-selection. Do not add local folder controls, permissions or browser file history
-to ProTrade without a subsequent explicitly authorised task. Existing local PDFs
-remain on the user's device. Do not modify other programs while working on PM.
+ProTrade local folders are explicitly authorised (22 November 2026). Reuse the
+existing AITDirectories store and stable owner markers, PM historical viewer and
+isolated print adapter. ProTrade adapters must not modify PM files, paths or
+behaviour. Each consultant's main folder uses the existing user/protrade key;
+create consultant/business/type directories only on successful document saving.
+Use Quotes, Invoices and Statements; retain read-only access to earlier marked
+layouts. Historical viewing/printing/emailing must never regenerate documents
+or deduct tokens. ProTrade history operations recheck authenticated consultant
+and business ownership, including stale tabs after account changes. Apply the
+forward-only `protrade_local_files_020` migration before enabling historical
+email: it allows debtor-free history receipts while retaining ordinary Output
+debtor requirements. Do not execute it without production approval. No Franchise
+functionality is authorised by this rollout.
 
 ## Reusable AIT folder-management standard
 
@@ -92,7 +101,7 @@ separate: never describe an untested browser/OS workflow as proven live.
 - This principle guides future PM, ProTrade, BudgetCash, Lease Management,
   CRM Health and other report-producing AIT programs. Each retains its appropriate
   structure and stable ownership IDs. Do not modify other programs without a
-  separate authorised task; the current ProTrade release exception still applies.
+  separate authorised task; ProTrade changes remain subject to the explicit rollout scope above.
 
 ### Folder Register and historical documents
 

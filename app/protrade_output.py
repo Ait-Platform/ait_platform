@@ -323,7 +323,13 @@ def output_page():
             if claim is None:
                 data=None;token=''
     pdf_url=url_for('mechanic_bp.protrade_output',shop_id=shop.id,selection=selected,recipient_id=recipient_id,format='pdf',preview_token=token) if data else ''
-    return render_template('program_mechanic/output.html',shop=shop,shops=shops,choices=public_choices,labels=LABELS,selection=selected,
+    from app.protrade_folders import local_reports
+    local_directory_reports=local_reports(shops)
+    local_save_code=str(shop.id)+':'+selected.split(':',1)[0] if shop and selected.split(':',1)[0] in ('quote','invoice','statement') else ''
+    if data and local_save_code:
+        for destination in local_directory_reports:
+            if destination['code']==local_save_code:destination['title']=secure_filename(data['document']['reference']) or destination['title']
+    return render_template('program_mechanic/output.html',local_directory_reports=local_directory_reports,local_save_code=local_save_code,shop=shop,shops=shops,choices=public_choices,labels=LABELS,selection=selected,
                            debtors=debtors,recipient_id=recipient_id,report_data=data,preview_token=token,generated=claim['generated'] if claim else '',
                            pdf_url=pdf_url,error=error),status
 

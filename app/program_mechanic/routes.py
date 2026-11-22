@@ -1141,8 +1141,22 @@ def mechanic_quote_items(shop_id,debtor_id,quote_id):
 @mechanic_bp.route('/mechanic/folders', methods=['GET'])
 @login_required
 def protrade_folders():
-    from app.protrade_output import support_page
-    return support_page('folders')
+    from app.protrade_folders import folders_page
+    return folders_page()
+
+
+@mechanic_bp.route('/mechanic/folders/access', methods=['GET'])
+@login_required
+def protrade_folder_access():
+    from app.protrade_folders import access_context
+    return access_context()
+
+
+@mechanic_bp.route('/mechanic/folders/email', methods=['POST'])
+@login_required
+def protrade_folder_email():
+    from app.protrade_folders import email_history
+    return email_history()
 
 
 @mechanic_bp.route('/mechanic/help', methods=['GET'])

@@ -1,4 +1,4 @@
-/* ProTrade exports use ordinary PDF downloads; no local directory permissions. */
+/* ProTrade export controls; local saving uses the existing shared folder API. */
 (() => {
   'use strict';
   const email=document.getElementById('output-email'),form=document.getElementById('protrade-output-select');
@@ -9,6 +9,7 @@
   document.getElementById('output-print')?.addEventListener('click',()=>window.print());
   document.getElementById('output-shop')?.addEventListener('change',()=>{form.querySelector('[name=selection]')?.removeAttribute('required');window.location.href='/mechanic/output?shop_id='+encodeURIComponent(document.getElementById('output-shop').value);});
   for(const id of ['output-selection','output-recipient'])document.getElementById(id)?.addEventListener('change',()=>{
+    document.getElementById('output-save')?.setAttribute('disabled','');
     email.disabled=true;document.getElementById('output-print').disabled=true;
     if(message)message.textContent='Selection changed. Click Preview before printing, downloading or emailing.';
     const target=document.getElementById('output-email-form');if(target)target.hidden=true;

@@ -1,4 +1,4 @@
-"""Approved drop-to-authorise PM path. OS drop/permission are simulated here."""
+"""Shared modal setup. OS drops and browser permission prompts are simulated."""
 from pathlib import Path
 import unittest
 from playwright.sync_api import sync_playwright
@@ -7,10 +7,15 @@ from test_pm_directory_register import open_browser, REPORTS
 
 class PMWritableDropTests(unittest.TestCase):
     def drop(self,page,expression):
+        page.wait_for_function("!document.getElementById('directory-select').disabled || document.getElementById('directory-select').hidden")
+        if not page.locator('#directory-select').is_hidden() and not page.locator('#directory-modal').is_visible():page.locator('#directory-select').click()
         page.evaluate("""async expression=>{
             const handle=await (new Function('return (async()=>('+expression+'))()'))();
-            const event={preventDefault(){},dataTransfer:{items:[{kind:'file',getAsFileSystemHandle:()=>Promise.resolve(handle)}]}};
-            await document.getElementById('directory-select').ondrop(event);
+            const prototype=FileSystemDirectoryHandle.prototype,q=prototype.queryPermission,r=prototype.requestPermission;
+            prototype.queryPermission=async()=> 'prompt';
+            prototype.requestPermission=async()=>{throw new DOMException('Fresh click required','SecurityError');};
+            try{await document.getElementById('directory-drop-zone').ondrop({preventDefault(){},dataTransfer:{items:[{kind:'file',getAsFileSystemHandle:()=>Promise.resolve(handle)}]}});}
+            finally{prototype.queryPermission=q;prototype.requestPermission=r;}
         }""",expression)
 
     def test_dale_approval_creates_original_structure_and_saves_without_touching_almond(self):
@@ -25,12 +30,12 @@ class PMWritableDropTests(unittest.TestCase):
                     window.showDirectoryPicker=()=>{throw Error('Forbidden picker');};}""")
                 page.goto('https://ait.test/directory-register?property_id=27')
                 self.drop(page,"(await navigator.storage.getDirectory()).getDirectoryHandle('Dale destination',{create:true})")
-                self.assertIn('not yet assigned',page.locator('#directory-message').inner_text())
+                self.assertIn('Click here to allow saving',page.locator('#directory-message').inner_text())
                 self.assertFalse(page.evaluate("AITDirectories.get({user:'7',property:'27'})"))
                 self.assertEqual(page.evaluate("async()=>Array.fromAsync((await(await navigator.storage.getDirectory()).getDirectoryHandle('Dale destination')).keys())"),[])
                 page.evaluate("""()=>{window.permissionClicks=[];FileSystemDirectoryHandle.prototype.queryPermission=async()=>window.writeGranted?'granted':'prompt';
                     FileSystemDirectoryHandle.prototype.requestPermission=async()=>{permissionClicks.push(navigator.userActivation.isActive);window.writeGranted=true;return 'granted';};}""")
-                page.locator('#directory-select').click()
+                page.locator('#directory-drop-zone').click()
                 page.wait_for_function("document.getElementById('directory-message').textContent.includes('Writable folder assigned')")
                 self.assertEqual(page.evaluate('permissionClicks'),[True])
                 expected=sorted({r['source']+'/'+r['title'] for r in REPORTS if not r['create_on_save']})
@@ -74,18 +79,24 @@ class PMWritableDropTests(unittest.TestCase):
                 self.drop(page,"(await navigator.storage.getDirectory()).getDirectoryHandle('Denied Dale',{create:true})")
                 page.evaluate("""()=>{FileSystemDirectoryHandle.prototype.queryPermission=async()=> 'prompt';
                     FileSystemDirectoryHandle.prototype.requestPermission=async()=> 'denied';}""")
-                page.locator('#directory-select').click()
+                page.locator('#directory-drop-zone').click()
                 page.wait_for_function("document.getElementById('directory-message').textContent.includes('not granted')")
                 self.assertFalse(page.evaluate("AITDirectories.get({user:'7',property:'27'})"))
                 self.assertEqual(page.evaluate("async()=>Array.fromAsync((await(await navigator.storage.getDirectory()).getDirectoryHandle('Denied Dale')).keys())"),[])
             finally:browser.close()
 
-    def test_html_selection_is_still_not_a_writable_assignment(self):
-        source=(Path(__file__).resolve().parents[1]/'app/static/js/pm_folder_name.js').read_text()
-        html_handler=source[source.index('input.onchange='):source.index('input.oncancel=')]
-        self.assertNotIn('api.set',html_handler)
-        self.assertNotIn('requestPermission',html_handler)
-        self.assertNotIn('showDirectoryPicker',source)
+    def test_selection_is_shared_modal_without_either_picker(self):
+        with sync_playwright() as runtime:
+            browser,page=open_browser(runtime)
+            try:
+                page.wait_for_function("!document.getElementById('directory-select').disabled")
+                page.locator('#directory-select').click()
+                self.assertTrue(page.get_by_role('heading',name='Select Main Folder').is_visible())
+                self.assertEqual(page.locator('input[type=file]').count(),0)
+                self.assertTrue(page.locator('#directory-drop-zone').is_visible())
+                page.locator('#directory-modal-close').click()
+                self.assertFalse(page.locator('#directory-modal').is_visible())
+            finally:browser.close()
 
     def test_existing_assignment_cannot_be_replaced_by_drop(self):
         with sync_playwright() as runtime:
@@ -111,7 +122,7 @@ class PMWritableDropTests(unittest.TestCase):
                 self.drop(page,"(await navigator.storage.getDirectory()).getDirectoryHandle('Candidate Dale',{create:true})")
                 page.evaluate("""async()=>{const root=await navigator.storage.getDirectory();
                     await AITDirectories.set({user:'7',property:'27'},await root.getDirectoryHandle('Assigned elsewhere',{create:true}));}""")
-                page.locator('#directory-select').click()
+                page.locator('#directory-drop-zone').click()
                 page.wait_for_function("document.getElementById('directory-select').hidden")
                 self.assertIn('preserved',page.locator('#directory-message').inner_text())
                 self.assertEqual(page.locator('#directory-folder').inner_text(),'Assigned elsewhere')
@@ -131,7 +142,7 @@ class PMWritableDropTests(unittest.TestCase):
                             if(stage==='storage')AITDirectories.set=async()=>{throw Error('Storage unavailable');};
                             else AITDirectories.get=async(...args)=>String(args[0].property)==='27' && ++reads===2?null:originalGet(...args);
                         }""",stage)
-                        page.locator('#directory-select').click()
+                        page.locator('#directory-drop-zone').click()
                         expected='assignment was stored but could not be verified' if stage=='verification' else 'assignment could not be saved'
                         page.wait_for_function("expected=>document.getElementById('directory-message').textContent.includes(expected)",arg=expected)
                         self.assertNotIn('Writable folder assigned',page.locator('#directory-message').inner_text())

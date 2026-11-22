@@ -1,12 +1,21 @@
 /* Browser-only handles. Never send directories or local paths to AIT. */
 (() => {
   'use strict';
+  const templates=new Map();
   const key=scope=>JSON.stringify([String(scope.user),String(scope.property),'__main__']);
   function reports(){
     const configured=document.getElementById('directory-reports');
-    if(configured)return JSON.parse(configured.textContent);
-    const catalog=JSON.parse(document.getElementById('output-catalog').textContent),sources=JSON.parse(document.getElementById('output-sources').textContent);
-    return Object.entries(catalog).flatMap(([source,items])=>items.map(([code,title])=>({code,title,source:sources[source]})));
+    let values;
+    if(configured)values=JSON.parse(configured.textContent);
+    else{
+      const catalog=JSON.parse(document.getElementById('output-catalog').textContent),sources=JSON.parse(document.getElementById('output-sources').textContent);
+      values=Object.entries(catalog).flatMap(([source,items])=>items.map(([code,title])=>({code,title,source:sources[source]})));
+    }
+    const programme=document.getElementById('directory-program');
+    if(!programme)return values; // Existing legacy Output adapters remain compatible.
+    const template=templates.get(JSON.parse(programme.textContent));
+    if(!template)throw new Error('Unsupported folder programme.');
+    return template.documents({reports:values});
   }
   const marker='.ait-folder-owner.json';
   function safeSegment(name){
@@ -138,15 +147,6 @@
 
   // Shared selection/registration core. Programme adapters retain their UI and
   // supply authorised scope, display metadata and programme-specific checks.
-  api.selectFolderName=input=>{
-    if(!('webkitdirectory' in input))throw new Error('Folder selection is unavailable in this browser.');
-    input.click();
-  };
-  api.selectedFolderName=input=>{
-    const relative=input.files[0]?.webkitRelativePath || '';
-    const name=relative.includes('/')?relative.split('/')[0]:'';
-    input.value='';return name;
-  };
   api.droppedDirectory=async event=>{
     const items=Array.from(event.dataTransfer.items).filter(item=>item.kind==='file');
     if(items.length!==1 || typeof items[0].getAsFileSystemHandle!=='function')throw new Error('This browser cannot authorise a dropped folder. Use Download PDF.');
@@ -155,18 +155,36 @@
     if(handle?.kind!=='directory')throw new Error('Drop one folder, not a file.');
     return handle;
   };
+  api.registerTemplate=(program,template)=>{
+    if(!/^[a-z][a-z0-9_-]*$/.test(program) || typeof template.initial!=='function')throw new Error('Invalid folder template.');
+    if(templates.has(program))throw new Error('Folder template is already registered.');
+    if(template.documents!==undefined && typeof template.documents!=='function')throw new Error('Invalid document template.');
+    templates.set(program,{...template,documents:template.documents || (context=>context.reports)});
+  };
+  // Central programme templates. All names and ownership come from the page's
+  // authenticated database context, never from a filesystem path or user input.
+  api.registerTemplate('pm',{initial:context=>{
+    if(!context.reports?.length)throw new Error('The PM report catalogue is unavailable.');
+    return context.reports.filter(report=>!report.create_on_save);
+  }});
+  api.registerTemplate('protrade',{initial:context=>[
+    {owned:{name:context.consultant,kind:'user',id:String(context.scope.user)}}
+  ]});
   api.initialise=async(scope,handle,options)=>{
     check(scope);
-    if(options.program==='pm'){
-      if(!options.reports?.length)throw new Error('The PM report catalogue is unavailable.');
-      for(const report of options.reports){
-        if(report.create_on_save)continue;
-        const destination=await resolve(handle,report,scope,true);
-        if(!destination)throw new Error('Report folder creation failed.');
+    const template=templates.get(options.program);
+    if(!template)throw new Error('Unsupported folder programme.');
+    if(await handle.queryPermission({mode:'readwrite'})!=='granted')throw new Error('Write access was not granted.');
+    for(const entry of template.initial({...options,scope})){
+      if(entry.owned){
+        const item=entry.owned;
+        if(item.kind!=='user' || String(item.id)!==String(scope.user))throw new Error('Invalid consultant ownership.');
+        await ownedFolder(handle,safeSegment(item.name),{program:options.program,user:String(scope.user)},item.kind,item.id,true);
+      }else{
+        if(entry.owner && (entry.owner.program!==options.program || String(entry.owner.user)!==String(scope.user)))throw new Error('Invalid folder ownership.');
+        if(!await resolve(handle,entry,scope,true))throw new Error('Report folder creation failed.');
       }
-    }else if(options.program==='protrade' && String(scope.property)==='protrade'){
-      await ownedFolder(handle,safeSegment(options.consultant),{program:'protrade',user:String(scope.user)},'user',scope.user,true);
-    }else throw new Error('Unsupported folder programme.');
+    }
   };
   api.register=async(scope,handle,options)=>{
     check(scope);
@@ -192,6 +210,59 @@
         return saved;
       }catch(error){error.registrationStage=stage;throw error;}
     });
+  };
+
+  api.bindSelection=options=>{
+    const dialog=document.getElementById('directory-modal'),zone=document.getElementById('directory-drop-zone');
+    const status=document.getElementById('directory-modal-message'),close=document.getElementById('directory-modal-close');
+    let pending=null,busy=false,version=0;
+    const notice=text=>{status.textContent=text;options.message.textContent=text;};
+    function dismiss(){if(busy)return;version++;pending=null;dialog.close();}
+    async function connect(){
+      if(!pending || busy || !options.ready())return;
+      busy=true;zone.setAttribute('aria-disabled','true');close.disabled=true;
+      try{
+        const saved=await api.register(options.scope,pending,options.registration);
+        pending=null;options.success(saved);dialog.close();
+      }catch(error){
+        if(error.name==='SecurityError' && !error.registrationStage){
+          notice('Folder received. Click here to allow saving, then approve the browser permission prompt.');zone.focus();
+        }else{
+          const detail=error.registrationStage==='verification'?'The assignment was stored but could not be verified. Reopen Folders before saving a report.':
+            error.registrationStage==='storage'?'Report subfolders were created, but the assignment could not be saved. The previous saved folder is unchanged.':
+            error.registrationStage==='creation'?'Folder creation could not finish; some subfolders may exist. The previous saved folder is unchanged.':error.message;
+          notice(detail);if(error.registrationStage)pending=null;
+          options.failure?.(error);
+        }
+      }finally{busy=false;zone.removeAttribute('aria-disabled');close.disabled=false;}
+    }
+    options.button.onclick=()=>{
+      if(!options.ready())return;
+      version++;pending=null;status.textContent='Drag your main Windows folder into the area below. Empty folders are supported.';
+      if(!window.isSecureContext || !window.indexedDB || !navigator.locks || typeof dialog.showModal!=='function'){notice('Folder setup is unavailable in this browser. Use Download PDF.');return;}
+      dialog.showModal();zone.focus();
+    };
+    zone.ondragover=event=>{if(Array.from(event.dataTransfer.types).includes('Files'))event.preventDefault();};
+    zone.ondrop=async event=>{
+      event.preventDefault();if(!dialog.open || busy || !options.ready())return;
+      const current=++version;pending=null;
+      try{
+        const handle=await api.droppedDirectory(event);
+        if(current!==version || !dialog.open)return;
+        await options.inspect?.(handle);
+        if(current!==version || !dialog.open)return;
+        pending=handle;options.label.textContent=handle.name;
+        const permission=await handle.queryPermission({mode:'readwrite'});
+        if(current!==version || !dialog.open)return;
+        if(permission==='granted' || navigator.userActivation?.isActive)await connect();
+        else notice('Folder received. Click here to allow saving, then approve the browser permission prompt.');
+      }catch(error){if(current===version)notice(error.message);}
+    };
+    zone.onclick=()=>connect();
+    zone.onkeydown=event=>{if(event.key==='Enter' || event.key===' '){event.preventDefault();connect();}};
+    close.onclick=dismiss;
+    dialog.oncancel=event=>{event.preventDefault();dismiss();};
+    dialog.addEventListener('close',()=>{version++;pending=null;});
   };
 
   api.list=async(scope,report,options={})=>{

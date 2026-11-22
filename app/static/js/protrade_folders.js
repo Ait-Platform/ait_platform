@@ -3,8 +3,8 @@
   'use strict';
   const config=document.getElementById('directory-context');if(!config)return;
   const scope=JSON.parse(config.textContent),reports=JSON.parse(document.getElementById('directory-reports').textContent),api=window.AITDirectories;
-  const button=document.getElementById('directory-select'),input=document.getElementById('directory-input'),label=document.getElementById('directory-folder'),message=document.getElementById('directory-message');
-  let registered=null,pending=null,loaded=false,busy=false,readable=false;
+  const button=document.getElementById('directory-select'),label=document.getElementById('directory-folder'),message=document.getElementById('directory-message');
+  let registered=null,loaded=false,readable=false;
   const destinations=new Set(),rows=document.getElementById('folder-register-rows');
   const registerButton=document.getElementById('folder-register-open'),empty=document.getElementById('protrade-register-empty');
   // Server metadata is an ownership allowlist, not evidence of saved folders.
@@ -65,37 +65,16 @@
   // Only this ProTrade page receives a read-only tree facade. The original save
   // helper retains its original private API and stable-identity write resolver.
   window.AITDirectories=Object.assign({},api,{async get(value){validate(value);const row=await record();return row?{...row,handle:readableRoot(row.handle)}:null;}});
-  function state(){button.hidden=!!registered;button.disabled=!loaded || busy;registerButton.disabled=!registered;}
+  function state(){button.hidden=!!registered;button.disabled=!loaded;registerButton.disabled=!registered;}
   button.disabled=true;
-  record().then(row=>{registered=row?.handle || null;loaded=true;if(registered)label.textContent=registered.name;state();message.textContent=registered?'Assigned main folder restored. Existing assignments cannot be replaced here.':'Select your main ProTrade folder to display its name. Folder selection alone does not authorise saving.';}).catch(()=>{message.textContent='The saved assignment could not be read. It has not been changed.';});
-  button.ondragover=event=>{if(event.dataTransfer.types.includes('Files'))event.preventDefault();};
-  button.ondrop=async event=>{
-    event.preventDefault();if(!loaded || registered || busy)return;
-    try{
-      const handle=await api.droppedDirectory(event);
-      pending=handle;label.textContent=handle.name;message.textContent='Folder received. Click Select Folder to approve and assign it. No document directories have been created.';
-    }catch(error){message.textContent=error.message;}
-  };
-  button.onclick=async()=>{
-    if(!loaded || registered || busy)return;
-    if(!pending){try{api.selectFolderName(input);}catch(error){message.textContent=error.message;}return;}
-    busy=true;state();let handle=pending;
-    try{
-      label.textContent=handle.name;
-      const saved=await api.register(scope,handle,{
-        program:'protrade',consultant:scope.consultant,authorise,
-        existing:row=>{registered=row.handle;}
-      });
-      registered=saved.handle;message.textContent='Main folder assigned. Consultant folder ready. Business and document-type folders are created only on first save.';
-    }catch(error){message.textContent=error.name==='AbortError'?'Chrome did not return a folder. Selection was cancelled or blocked; the saved assignment is unchanged. You can drag an empty folder onto Select Folder instead.':
-      ['NotAllowedError','SecurityError'].includes(error.name)?'Chrome did not grant folder access. The saved assignment is unchanged.':error.message;}
-    finally{pending=null;busy=false;if(registered)label.textContent=registered.name;state();}
-  };
-  input.onchange=()=>{
-    if(registered || !loaded){input.value='';return;}
-    const name=api.selectedFolderName(input);
-    label.textContent=name || 'No folder selected';message.textContent=name?'Folder name identified only; this does not grant write access or change the report destination.':'Folder name unavailable. Choose a folder containing a file.';input.value='';
-  };
+  record().then(row=>{registered=row?.handle || null;loaded=true;if(registered)label.textContent=registered.name;state();message.textContent=registered?'Assigned main folder restored. Existing assignments cannot be replaced here.':'Select Folder to authorise your main ProTrade folder.';}).catch(()=>{message.textContent='The saved assignment could not be read. It has not been changed.';});
+  api.bindSelection({scope,button,label,message,ready:()=>loaded && !registered,
+    registration:{program:'protrade',consultant:scope.consultant,authorise,
+      existing:row=>{registered=row.handle;label.textContent=registered.name;state();}
+    },
+    success:row=>{registered=row.handle;label.textContent=registered.name;state();
+      message.textContent='Main folder assigned. Consultant folder ready. Business and document-type folders are created only on first save.';}
+  });
   window.addEventListener('DOMContentLoaded',()=>{
     function protect(element){
       const original=element.onclick || element.onsubmit,submit=element.tagName==='FORM';
@@ -108,5 +87,4 @@
     }
     for(const id of ['folder-view-print','folder-view-email','folder-view-back','folder-register-back','folder-view-email-form'])protect(document.getElementById(id));
   });
-  input.oncancel=()=>{message.textContent='Folder selection cancelled. The existing assignment is unchanged.';};
 })();

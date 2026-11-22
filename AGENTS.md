@@ -20,20 +20,23 @@ email: it allows debtor-free history receipts while retaining ordinary Output
 debtor requirements. Do not execute it without production approval. No Franchise
 functionality is authorised by this rollout.
 
-**Shared folder core (22 November 2026):** `window.AITDirectories` in
-`app/static/js/pm_local_directories.js` owns HTML name selection, dropped-directory
-handles, permission approval, protected registration, programme initialisation and
-PDF saving. PM and ProTrade UI adapters call `selectFolderName`,
-`selectedFolderName`, `droppedDirectory`, `register` and `initialise`; do not add
-another store or picker. HTML selection grants no write access and cannot identify
-an empty folder; retain the drop-and-click approval path. PM retains its existing
-initial report folders and first-save categories. ProTrade creates only the
-stable-owner consultant folder during initial authorisation; business and document
-folders remain first-save only. Names come from authenticated server metadata,
-never hard-coded people. Existing assignments cannot be replaced by registration.
-Business/report metadata remains an allowlist, not a document registration: list
-only destinations found under the authorised, correctly marked main folder.
-No Add Folder or Franchise functions are included in this core consolidation.
+**Template-driven folder core (22 November 2026):** `window.AITDirectories` in
+`app/static/js/pm_local_directories.js` owns the programme template registry,
+shared Select Main Folder modal, dropped-directory handles, permission checks,
+protected registration, initialisation, PDF saving and historical listing.
+Programme adapters supply authenticated scope, safe database display names and
+report descriptors. Register new programme templates centrally with
+`registerTemplate`; never copy PM categories or hard-code a person/business.
+The initial template controls immediate directories; Output descriptors retain
+first-save creation for dynamic business/document destinations. ProTrade creates
+only its stable-owner consultant directory initially. Preserve PM's legacy paths.
+Select Folder opens the shared modal: drop the main folder, then proceed
+immediately if write permission exists. If Chrome needs fresh activation, the
+same drop area says Click here to allow saving and requests permission on that
+click or Enter/Space. No separate authorisation button or HTML/native picker is
+used. Never bypass browser permission or claim completion before verified
+registration. Preserve all existing assignment keys, ownership markers and files.
+No Add Folder, Franchise accounting or SOA generation is part of this workflow.
 
 ## Reusable AIT folder-management standard
 
@@ -52,16 +55,14 @@ separate: never describe an untested browser/OS workflow as proven live.
   business or client IDs. Server configuration includes only contexts belonging
   to that user. Never accept local filesystem paths or another user's assignment
   from an HTTP request. Display names are not ownership identifiers.
-- Reuse the PM selection/authorisation flow in `pm_folder_name.js`. HTML
-  `webkitdirectory` selects and displays a name only; it does not grant writable
-  access. Never upload its selected files, persist a FileList as an assignment,
-  or reintroduce the retired `showDirectoryPicker()` picker. The staged
-  `pm_property_folders.js` remains inactive.
-- For initial writable setup, an explicit folder drop onto Select Folder obtains
-  `getAsFileSystemHandle()` during the drop event. Clicking that same button
-  requests write approval through a genuine user gesture. Verify granted write
-  permission, reject same/nested/parent destinations assigned to other contexts,
-  and persist/read back the real directory handle. A name alone proves nothing.
+- Reuse `AITDirectories.bindSelection` and
+  `templates/partials/directory_selection_modal.html`. Do not add another HTML
+  file input, native picker, directory store or programme-specific modal.
+- A folder drop calls `getAsFileSystemHandle()` during the drop event. An empty
+  directory is valid. Query read/write permission first; request permission only
+  if needed, using the same drop area for a fresh gesture when required. Validate
+  ownership/overlap, create template initial directories, persist/read back the
+  real handle, then report success. Never infer write access from a name.
 - Reuse `app/static/js/pm_local_directories.js` (`window.AITDirectories`) and its
   existing IndexedDB user/property assignments; do not create another handle
   store or delete/migrate legacy assignments. Automatically restore the saved

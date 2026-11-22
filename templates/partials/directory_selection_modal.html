@@ -1,0 +1,6 @@
+<dialog id="directory-modal" aria-labelledby="directory-modal-title" class="w-full max-w-lg rounded-xl border border-slate-300 bg-white p-0 shadow-xl backdrop:bg-slate-900/50">
+<div class="h-2 {{ directory_modal_colour|default('bg-slate-700') }}"></div><div class="p-6">
+<div class="flex items-center justify-between gap-3"><h2 id="directory-modal-title" class="text-xl font-semibold">Select Main Folder</h2><button id="directory-modal-close" type="button" class="rounded-lg bg-slate-100 px-4 py-2">Close</button></div>
+<p id="directory-modal-message" role="status" aria-live="polite" class="my-4 text-sm text-slate-700"></p>
+<div id="directory-drop-zone" role="button" tabindex="0" aria-label="Drop main folder or allow saving" aria-describedby="directory-modal-message" class="rounded-lg border-2 border-dashed border-blue-400 bg-blue-50 p-8 text-center font-semibold text-blue-900 focus:outline focus:outline-2 focus:outline-blue-700">Drop your main Windows folder here</div>
+</div></dialog>

@@ -95,7 +95,7 @@ class ProTradeLocalFoldersTests(unittest.TestCase):
             browser,page=self.browser(runtime)
             try:
                 page.goto('https://ait.test/mechanic/folders');self.drop(page)
-                self.assertEqual(page.evaluate("async()=>{const root=await(await navigator.storage.getDirectory()).getDirectoryHandle('ProTrade');return Array.fromAsync(root.keys());}"),[])
+                self.assertEqual(page.evaluate("async()=>{const root=await(await navigator.storage.getDirectory()).getDirectoryHandle('ProTrade');return Array.fromAsync(root.keys());}"),['Owner'])
                 page.reload();page.wait_for_function("document.getElementById('directory-select').hidden")
                 page.route('**/snapshot.pdf',lambda route:route.fulfill(body=self.pdf,content_type='application/pdf'))
                 shops=[self.o.carpentry,self.o.second]
@@ -242,16 +242,20 @@ class ProTradeLocalFoldersTests(unittest.TestCase):
                 self.drop(page,'Empty ProTrade')
                 page.evaluate("async()=>{window.emptyHandle=await(await navigator.storage.getDirectory()).getDirectoryHandle('Empty ProTrade');}")
                 self.assertEqual(page.locator('#directory-folder').inner_text(),'Empty ProTrade')
-                self.assertEqual(page.evaluate('async()=>Array.fromAsync(emptyHandle.keys())'),[])
+                consultant=page.evaluate("""async()=>{const root=await(await navigator.storage.getDirectory()).getDirectoryHandle('Empty ProTrade'),user=await root.getDirectoryHandle('Owner');return {children:await Array.fromAsync(user.keys()),marker:JSON.parse(await(await(await user.getFileHandle('.ait-folder-owner.json')).getFile()).text())};}""")
+                self.assertEqual(consultant,dict(children=['.ait-folder-owner.json'],marker=dict(program='protrade',user='1',kind='user',id='1')))
+
+                self.assertEqual(page.evaluate('async()=>Array.fromAsync(emptyHandle.keys())'),['Owner'])
                 page.locator('#folder-register-open').click();page.wait_for_function("document.getElementById('folder-register-message').textContent.startsWith('Existing report folders')")
                 self.assertEqual(page.locator('#folder-register-rows tr').count(),0)
                 self.assertTrue(page.locator('#protrade-register-empty').is_visible())
-                self.assertEqual(page.evaluate('async()=>Array.fromAsync(emptyHandle.keys())'),[])
+                self.assertEqual(page.evaluate('async()=>Array.fromAsync(emptyHandle.keys())'),['Owner'])
                 page.route('**/snapshot.pdf',lambda route:route.fulfill(body=self.pdf,content_type='application/pdf'))
                 for shop,kind,count in [(self.o.carpentry,'quote',1),(self.o.second,'statement',2)]:
                     page.evaluate("async code=>AITDirectories.save({user:'1',property:'protrade',period_end:'2026-11-22'},code,'/snapshot.pdf')",str(shop.id)+':'+kind)
                     page.wait_for_function("count=>document.getElementById('folder-register-rows').children.length===count",arg=count)
                 self.assertEqual(page.locator('#folder-register-rows td:first-child').all_text_contents(),['1','2'])
+                page.wait_for_function("Array.from(document.querySelectorAll('#folder-register-rows td:last-child')).every(cell=>cell.textContent==='1')")
                 self.assertEqual(page.locator('#folder-register-rows td:last-child').all_text_contents(),['1','1'])
                 labels=page.locator('#folder-register-rows button').all_text_contents()
                 self.assertTrue(any(label.endswith('/ Quotes') for label in labels))
@@ -306,6 +310,7 @@ class ProTradeLocalFoldersTests(unittest.TestCase):
                 page.locator('#folder-register-open').click()
                 page.wait_for_function("document.getElementById('folder-register-message').textContent.startsWith('Existing report folders')")
                 self.assertEqual(page.locator('#folder-register-rows tr').count(),2)
+                page.wait_for_function("Array.from(document.querySelectorAll('#folder-register-rows td:last-child')).every(cell=>cell.textContent==='1')")
                 self.assertEqual(page.locator('#folder-register-rows td:last-child').all_text_contents(),['1','1'])
                 labels=page.locator('#folder-register-rows button').all_text_contents()
                 self.assertTrue(any('/ Earlier / Quotes & Invoices' in label for label in labels))
@@ -317,7 +322,21 @@ class ProTradeLocalFoldersTests(unittest.TestCase):
                 page.evaluate('()=>{FileSystemDirectoryHandle.prototype.queryPermission=originalReadPermission;}')
                 page.locator('#folder-register-open').click()
                 page.wait_for_function("document.getElementById('folder-register-message').textContent.startsWith('Existing report folders')")
+                page.wait_for_function("Array.from(document.querySelectorAll('#folder-register-rows td:last-child')).every(cell=>cell.textContent==='1')")
                 self.assertEqual(page.locator('#folder-register-rows td:last-child').all_text_contents(),['1','1'])
+            finally:browser.close()
+
+    def test_authorisation_initialises_consultant_without_any_businesses(self):
+        before=self.snapshot()
+        with patch.object(folders,'owned_shops',return_value=[]),sync_playwright() as runtime:
+            browser,page=self.browser(runtime)
+            try:
+                page.goto('https://ait.test/mechanic/folders');self.drop(page,'Consultant without shops')
+                self.assertEqual(page.evaluate("async()=>{const root=await(await navigator.storage.getDirectory()).getDirectoryHandle('Consultant without shops');return Array.fromAsync(root.keys());}"),['Owner'])
+                self.assertEqual(page.evaluate("async()=>{const root=await(await navigator.storage.getDirectory()).getDirectoryHandle('Consultant without shops');return Array.fromAsync((await root.getDirectoryHandle('Owner')).keys());}"),['.ait-folder-owner.json'])
+                page.reload();page.wait_for_function("document.getElementById('directory-select').hidden")
+                self.assertEqual(page.locator('#directory-folder').inner_text(),'Consultant without shops')
+                self.assertEqual(before,self.snapshot())
             finally:browser.close()
 
     def test_dropped_empty_folder_requires_actual_write_permission(self):

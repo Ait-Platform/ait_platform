@@ -20,14 +20,20 @@ email: it allows debtor-free history receipts while retaining ordinary Output
 debtor requirements. Do not execute it without production approval. No Franchise
 functionality is authorised by this rollout.
 
-**ProTrade production correction (22 November 2026):** Use
-`showDirectoryPicker({mode:'readwrite'})` directly from Select Folder in secure,
-supported Chrome contexts, including empty folders. Retain the existing drop
-fallback and handle store. This explicit exception is ProTrade-only; do not
-change PM's working selection/authorisation flow. Business/report metadata is
-an allowlist, not a document registration: show only destinations found under
-the authorised, correctly marked main folder. Create directories on first save,
-not on business creation, folder selection or historical browsing.
+**Shared folder core (22 November 2026):** `window.AITDirectories` in
+`app/static/js/pm_local_directories.js` owns HTML name selection, dropped-directory
+handles, permission approval, protected registration, programme initialisation and
+PDF saving. PM and ProTrade UI adapters call `selectFolderName`,
+`selectedFolderName`, `droppedDirectory`, `register` and `initialise`; do not add
+another store or picker. HTML selection grants no write access and cannot identify
+an empty folder; retain the drop-and-click approval path. PM retains its existing
+initial report folders and first-save categories. ProTrade creates only the
+stable-owner consultant folder during initial authorisation; business and document
+folders remain first-save only. Names come from authenticated server metadata,
+never hard-coded people. Existing assignments cannot be replaced by registration.
+Business/report metadata remains an allowlist, not a document registration: list
+only destinations found under the authorised, correctly marked main folder.
+No Add Folder or Franchise functions are included in this core consolidation.
 
 ## Reusable AIT folder-management standard
 

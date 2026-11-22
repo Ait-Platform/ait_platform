@@ -39,8 +39,9 @@ def folders_page():
         except (TypeError,ValueError):abort(404)
         shop=next((row for row in shops if row.id==identifier),None)
         if not shop:abort(404)
+    from app.protrade_output import folder_label
     response=current_app.make_response(render_template('program_mechanic/folders.html',shop=shop,shops=shops,
-        directory_reports=local_reports(shops),protrade_menu_active='folders'))
+        directory_reports=local_reports(shops),directory_consultant=folder_label(current_user.name,'User-'+str(current_user.id)),protrade_menu_active='folders'))
     response.headers['Cache-Control']='private, no-store'
     return response
 

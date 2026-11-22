@@ -136,6 +136,64 @@
     }
   };
 
+  // Shared selection/registration core. Programme adapters retain their UI and
+  // supply authorised scope, display metadata and programme-specific checks.
+  api.selectFolderName=input=>{
+    if(!('webkitdirectory' in input))throw new Error('Folder selection is unavailable in this browser.');
+    input.click();
+  };
+  api.selectedFolderName=input=>{
+    const relative=input.files[0]?.webkitRelativePath || '';
+    const name=relative.includes('/')?relative.split('/')[0]:'';
+    input.value='';return name;
+  };
+  api.droppedDirectory=async event=>{
+    const items=Array.from(event.dataTransfer.items).filter(item=>item.kind==='file');
+    if(items.length!==1 || typeof items[0].getAsFileSystemHandle!=='function')throw new Error('This browser cannot authorise a dropped folder. Use Download PDF.');
+    // Obtain the promise inside the native drop event, before any await.
+    const handle=await items[0].getAsFileSystemHandle();
+    if(handle?.kind!=='directory')throw new Error('Drop one folder, not a file.');
+    return handle;
+  };
+  api.initialise=async(scope,handle,options)=>{
+    check(scope);
+    if(options.program==='pm'){
+      if(!options.reports?.length)throw new Error('The PM report catalogue is unavailable.');
+      for(const report of options.reports){
+        if(report.create_on_save)continue;
+        const destination=await resolve(handle,report,scope,true);
+        if(!destination)throw new Error('Report folder creation failed.');
+      }
+    }else if(options.program==='protrade' && String(scope.property)==='protrade'){
+      await ownedFolder(handle,safeSegment(options.consultant),{program:'protrade',user:String(scope.user)},'user',scope.user,true);
+    }else throw new Error('Unsupported folder programme.');
+  };
+  api.register=async(scope,handle,options)=>{
+    check(scope);
+    if(handle?.kind!=='directory')throw new Error('Select a folder.');
+    if(!navigator.locks)throw new Error('Direct folder saving is unavailable. Use Download PDF.');
+    // Keep permission approval in the caller's click, before storage/network waits.
+    if(!await api.permission(handle) || await handle.queryPermission({mode:'readwrite'})!=='granted')throw new Error('Write access was not granted. The existing assignment is unchanged.');
+    return navigator.locks.request('ait-pm-local-report-save',async()=>{
+      await options.authorise?.();
+      const existing=await api.get(scope);
+      if(existing){
+        if(String(existing.user)!==String(scope.user) || String(existing.property)!==String(scope.property) || existing.handle?.kind!=='directory')throw new Error('Could not verify the existing assignment.');
+        await options.existing?.(existing);
+        throw new Error('An existing assignment was preserved.');
+      }
+      await options.validate?.(handle);
+      let stage='creation';
+      try{
+        await api.initialise(scope,handle,options);
+        stage='storage';await api.set(scope,handle);
+        stage='verification';await options.authorise?.();const saved=await api.get(scope);
+        if(!saved || String(saved.user)!==String(scope.user) || String(saved.property)!==String(scope.property) || !await saved.handle.isSameEntry(handle))throw new Error('Assignment verification failed.');
+        return saved;
+      }catch(error){error.registrationStage=stage;throw error;}
+    });
+  };
+
   api.list=async(scope,report,options={})=>{
     const row=await api.get(scope);if(!row)throw new Error('Select Folder first.');
     const permitted=options.prompt===false?await row.handle.queryPermission({mode:'readwrite'})==='granted':await api.permission(row.handle);

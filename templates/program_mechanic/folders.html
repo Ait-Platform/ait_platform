@@ -9,11 +9,11 @@
 {% include 'program_mechanic/folder_working_area.html' %}
 </div></div></div>
 <script id="protrade-folder-auth" type="application/json">{{ dict(url=url_for('mechanic_bp.protrade_folder_access'))|tojson }}</script>
-<script id="directory-context" type="application/json">{{ dict(user=current_user.id|string,property='protrade')|tojson }}</script>
+<script id="directory-context" type="application/json">{{ dict(user=current_user.id|string,property='protrade',consultant=directory_consultant)|tojson }}</script>
 <script id="directory-reports" type="application/json">{{ directory_reports|tojson }}</script>
 <script id="directory-email" type="application/json">{{ dict(url=url_for('mechanic_bp.protrade_folder_email'),csrf=csrf_token(),recipient=current_user.email or '')|tojson }}</script>
-<script src="{{ url_for('static',filename='js/pm_local_directories.js',v='20261120-report-paths') }}" defer></script>
-<script src="{{ url_for('static',filename='js/protrade_folders.js',v='20261122-html-name-selection') }}" defer></script>
+<script src="{{ url_for('static',filename='js/pm_local_directories.js',v='20261122-shared-folder-core') }}" defer></script>
+<script src="{{ url_for('static',filename='js/protrade_folders.js',v='20261122-shared-folder-core') }}" defer></script>
 <script src="{{ url_for('static',filename='js/pm_pdf_print.js',v='20261120-original-print') }}" defer></script>
 <script src="{{ url_for('static',filename='js/pm_folder_register.js',v='20261120-registered-paths') }}" defer></script>
 {% endblock %}

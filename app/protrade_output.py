@@ -21,21 +21,23 @@ from app.models.debtors import Debtor,DebtorLedger
 LABELS={'quote':'Quotations','invoice':'Invoices','statement':'Debtor Statements','price_list':'Price Lists'}
 
 
+def folder_label(value, fallback):
+    import re
+    value=re.sub(r'[<>:"/\\|?*\x00-\x1f]','_',str(value or '')).strip(' .')[:100]
+    if not value or re.fullmatch(r'(?i)(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\..*)?',value):return fallback
+    return value
+
+
 def folder_reports(shops, short_codes=False):
     """Browser destinations reuse owned shops; legacy source/title paths stay readable."""
-    import re
-    def label(value,fallback):
-        value=re.sub(r'[<>:"/\\|?*\x00-\x1f]','_',str(value or '')).strip(' .')[:100]
-        if not value or re.fullmatch(r'(?i)(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\..*)?',value):return fallback
-        return value
-    user=label(current_user.name,'User-'+str(current_user.id))
+    user=folder_label(current_user.name,'User-'+str(current_user.id))
     reports=[]
     for shop in shops:
         for kind,title in dict(LABELS,**({'boq_section':'BOQ Sections'} if shop.trade=='boq' else {})).items():
             group='SOA' if kind=='statement' else 'BOQ' if kind in ('price_list','boq_section') or (kind=='quote' and shop.trade=='boq') else 'Quotes & Invoices'
             reports.append(dict(code=kind if short_codes else f'{shop.id}:{kind}',title=title,
                 source=secure_filename(f'Shop-{shop.id}-{shop.business_name}')[:80] or f'Shop-{shop.id}',
-                path=[user,label(shop.business_name,'Shop-'+str(shop.id)),group],
+                path=[user,folder_label(shop.business_name,'Shop-'+str(shop.id)),group],
                 owner=dict(program='protrade',user=str(current_user.id),client=str(shop.id))))
     return reports
 

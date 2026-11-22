@@ -27,11 +27,7 @@
       try{await navigator.locks.request('ait-pm-local-report-save',async()=>{
         const saved=await api.get(scope);
         if(!saved || !await saved.handle.isSameEntry(registered))return;
-        for(const report of JSON.parse(document.getElementById('directory-reports').textContent)){
-          if(report.create_on_save)continue;
-          const source=await registered.getDirectoryHandle(report.source,{create:true});
-          await source.getDirectoryHandle(report.title,{create:true});
-        }
+        await api.initialise(scope,registered,{program:'pm',reports:JSON.parse(document.getElementById('directory-reports').textContent)});
       });}catch(_){notice='Some report subfolders could not be checked or created. Existing files are unchanged.';status();}
     }
   }).catch(()=>{if(version===assignmentVersion){notice='Could not read the existing assignment.';status();}});}
@@ -50,11 +46,7 @@
     event.preventDefault();if(connecting || !loaded || registered || !scope.property)return;
     const version=++dropVersion;attempted=true;dropped=null;
     try{
-      const items=Array.from(event.dataTransfer.items).filter(item=>item.kind==='file');
-      if(items.length!==1 || typeof items[0].getAsFileSystemHandle!=='function')throw new Error('This browser cannot authorise a dropped folder. Use Download PDF.');
-      // Must be invoked synchronously in the native drop event, before an await.
-      const handle=await items[0].getAsFileSystemHandle();
-      if(handle?.kind!=='directory')throw new Error('Drop one folder, not a file.');
+      const handle=await api.droppedDirectory(event);
       await separateFromOtherProperties(handle);
       if(version!==dropVersion)return;
       dropped=handle;selectedName='';name.textContent=handle.name;
@@ -64,51 +56,31 @@
   async function connect(){
     if(connecting || !loaded || registered || !dropped)return;
     const handle=dropped;connecting=true;button.disabled=true;assignmentVersion++;
-    let committed=false,foldersReady=false,creationStarted=false;
     try{
-      if(!navigator.locks)throw new Error('Direct folder saving is unavailable. Use Download PDF.');
-      // The click reaches permission handling before any IndexedDB await.
-      if(!await api.permission(handle) || await handle.queryPermission({mode:'readwrite'})!=='granted')throw new Error('Write access was not granted. The existing assignment is unchanged.');
-      await navigator.locks.request('ait-pm-local-report-save',async()=>{
-      const existing=await api.get(scope);
-      if(existing){
-        if(String(existing.user)!==String(scope.user) || String(existing.property)!==String(scope.property) || existing.handle?.kind!=='directory')throw new Error('Could not verify the existing assignment.');
-        registered=existing.handle;name.textContent=registered.name;selectedName='';
-        writable=await registered.queryPermission({mode:'readwrite'})==='granted';
-        throw new Error('This property already has a folder assignment. It has been preserved.');
-      }
-      await separateFromOtherProperties(handle);
-      const reports=JSON.parse(document.getElementById('directory-reports').textContent);
-      if(!reports.length)throw new Error('The PM report catalogue is unavailable.');
-      creationStarted=true;
-      for(const report of reports){
-        if(report.create_on_save)continue;
-        const source=await handle.getDirectoryHandle(report.source,{create:true});
-        await source.getDirectoryHandle(report.title,{create:true});
-        // Confirm the destination exists without creating it on this read.
-        await source.getDirectoryHandle(report.title);
-      }
-      foldersReady=true;
-      await api.set(scope,handle);committed=true;
-      const saved=await api.get(scope);
-      if(!saved || !await saved.handle.isSameEntry(handle))throw new Error('Assignment verification failed.');
+      const saved=await api.register(scope,handle,{
+        program:'pm',reports:JSON.parse(document.getElementById('directory-reports').textContent),
+        validate:separateFromOtherProperties,
+        existing:async row=>{
+          registered=row.handle;name.textContent=registered.name;selectedName='';
+          writable=await registered.queryPermission({mode:'readwrite'})==='granted';
+          throw new Error('This property already has a folder assignment. It has been preserved.');
+        }
+      });
       registered=saved.handle;writable=true;selectedName='';name.textContent=handle.name;
       notice='Writable folder assigned. PM report subfolders are ready. Save a report from Utilities Output to verify the complete connection.';
-      });
     }catch(error){
-      notice=committed?'The assignment was stored but could not be verified. Reopen Folders before saving a report.':
-        foldersReady?'Report subfolders were created, but the assignment could not be saved. The previous assignment is unchanged.':
-        creationStarted?'Report folder creation could not finish; some subfolders may exist. The previous assignment is unchanged.':error.message;
+      notice=error.registrationStage==='verification'?'The assignment was stored but could not be verified. Reopen Folders before saving a report.':
+        error.registrationStage==='storage'?'Report subfolders were created, but the assignment could not be saved. The previous assignment is unchanged.':
+        error.registrationStage==='creation'?'Report folder creation could not finish; some subfolders may exist. The previous assignment is unchanged.':error.message;
     }finally{dropped=null;connecting=false;selectionState();status();}
   }
   if(!('webkitdirectory' in input)){
     button.disabled=true;message.textContent='Folder selection is unavailable in this browser.';return;
   }
-  button.onclick=()=>{if(!loaded || registered)return;if(dropped)return connect();dropVersion++;attempted=true;selectedName='';name.textContent='No folder selected';notice='Choose a folder containing a file.';status();input.click();};
+  button.onclick=()=>{if(!loaded || registered)return;if(dropped)return connect();dropVersion++;attempted=true;selectedName='';name.textContent='No folder selected';notice='Choose a folder containing a file.';status();api.selectFolderName(input);};
   input.onchange=()=>{
     if(!loaded || registered){input.value='';return;}
-    const relativePath=input.files[0]?.webkitRelativePath || '';
-    const folderName=relativePath.includes('/')?relativePath.split('/')[0]:'';
+    const folderName=api.selectedFolderName(input);
     name.textContent=folderName || 'No folder selected';
     selectedName=folderName;notice=folderName?'':'Folder name unavailable. Choose a folder containing a file.';status();
     // Retain neither the selected files nor their contents after reading the name.

@@ -117,3 +117,24 @@ class PMWritableDropTests(unittest.TestCase):
                 self.assertEqual(page.locator('#directory-folder').inner_text(),'Assigned elsewhere')
                 self.assertEqual(page.evaluate("async()=>Array.fromAsync((await(await navigator.storage.getDirectory()).getDirectoryHandle('Candidate Dale')).keys())"),[])
             finally:browser.close()
+
+    def test_shared_registration_reports_storage_and_verification_failures_truthfully(self):
+        with sync_playwright() as runtime:
+            for stage in ['storage','verification']:
+                with self.subTest(stage=stage):
+                    browser,page=open_browser(runtime)
+                    try:
+                        page.goto('https://ait.test/directory-register?property_id=27')
+                        self.drop(page,"(await navigator.storage.getDirectory()).getDirectoryHandle('Failure destination',{create:true})")
+                        page.evaluate("""stage=>{
+                            window.originalGet=AITDirectories.get;window.reads=0;
+                            if(stage==='storage')AITDirectories.set=async()=>{throw Error('Storage unavailable');};
+                            else AITDirectories.get=async(...args)=>String(args[0].property)==='27' && ++reads===2?null:originalGet(...args);
+                        }""",stage)
+                        page.locator('#directory-select').click()
+                        expected='assignment was stored but could not be verified' if stage=='verification' else 'assignment could not be saved'
+                        page.wait_for_function("expected=>document.getElementById('directory-message').textContent.includes(expected)",arg=expected)
+                        self.assertNotIn('Writable folder assigned',page.locator('#directory-message').inner_text())
+                        saved=page.evaluate("originalGet({user:'7',property:'27'}).then(row=>!!row)")
+                        self.assertEqual(saved,stage=='verification')
+                    finally:browser.close()

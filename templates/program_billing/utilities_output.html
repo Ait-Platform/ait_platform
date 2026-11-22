@@ -31,7 +31,7 @@
 {% include 'program_billing/output_report_styles.html' %}
 @media print{body *{visibility:hidden}#utilities-report,#utilities-report *{visibility:visible}#utilities-report{position:absolute;left:0;top:0;width:100%;color:#111;font-family:Arial,sans-serif;font-size:9pt}.output-controls{display:none!important}.report-table thead{display:table-header-group}.report-table tr{break-inside:avoid}.report-table tfoot{display:table-row-group}@page{size:A4;margin:12mm}}</style>
 <script id="output-directory-context" type="application/json">{{ dict(user=property.manager_id|string,property=property.id|string,report=report,period_end=save_period_end)|tojson }}</script>
-<script src="{{ url_for('static',filename='js/pm_local_directories.js',v='20261120-report-paths') }}" defer></script><script src="{{ url_for('static',filename='js/pm_output_save.js',v='20261120-restored-write-permission') }}" defer></script>
+<script src="{{ url_for('static',filename='js/pm_local_directories.js',v='20261122-shared-folder-core') }}" defer></script><script src="{{ url_for('static',filename='js/pm_output_save.js',v='20261120-restored-write-permission') }}" defer></script>
 <script id="directory-reports" type="application/json">{{ directory_reports|tojson }}</script>
 <script id="output-sources" type="application/json">{{ source_labels|tojson }}</script>
 <script id="output-choices" type="application/json">{{ all_choices|tojson }}</script><script id="output-catalog" type="application/json">{{ catalog|tojson }}</script><script src="{{ url_for('static',filename='js/pm_utilities_output.js',v='20261120-linked-meters') }}" defer></script>

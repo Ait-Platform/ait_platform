@@ -22,7 +22,7 @@
 <p id="output-save-message" role="status" class="mt-3 text-sm text-slate-700"></p>
 <script id="output-directory-context" type="application/json">{{ dict(user=current_user.id|string,property='protrade',report=local_save_code,period_end=generated[:10] if generated else '')|tojson }}</script>
 <script id="directory-reports" type="application/json">{{ local_directory_reports|tojson }}</script>
-<script src="{{ url_for('static',filename='js/pm_local_directories.js',v='20261120-report-paths') }}" defer></script>
+<script src="{{ url_for('static',filename='js/pm_local_directories.js',v='20261122-shared-folder-core') }}" defer></script>
 <script src="{{ url_for('static',filename='js/protrade_local_save.js',v='20261122-local-save') }}" defer></script>
 <script src="{{ url_for('static',filename='js/protrade_output.js',v='20261122-local-output') }}" defer></script>
 </div></div></div>

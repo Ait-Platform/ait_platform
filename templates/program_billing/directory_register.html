@@ -27,8 +27,8 @@
 <script id="directory-context" type="application/json">{{ directory_context|tojson }}</script>
 <script id="directory-email" type="application/json">{{ {"url":url_for("billing_bp.directory_email"),"csrf":csrf_token() if csrf_token is defined else "","recipient":directory_email_to|default("")}|tojson }}</script>
 <script id="directory-reports" type="application/json">{{ directory_reports|tojson }}</script>
-<script src="{{ url_for('static',filename='js/pm_local_directories.js',v='20261120-report-paths') }}" defer></script>
-<script src="{{ url_for('static',filename='js/pm_folder_name.js',v='20261120-save-only-paths') }}" defer></script>
+<script src="{{ url_for('static',filename='js/pm_local_directories.js',v='20261122-shared-folder-core') }}" defer></script>
+<script src="{{ url_for('static',filename='js/pm_folder_name.js',v='20261122-shared-folder-core') }}" defer></script>
 <script src="{{ url_for('static',filename='js/pm_pdf_print.js',v='20261120-original-print') }}" defer></script>
 <script src="{{ url_for('static',filename='js/pm_folder_register.js',v='20261120-registered-paths') }}" defer></script>
 {% endblock %}

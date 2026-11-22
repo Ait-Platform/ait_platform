@@ -72,35 +72,28 @@
   button.ondrop=async event=>{
     event.preventDefault();if(!loaded || registered || busy)return;
     try{
-      const items=Array.from(event.dataTransfer.items).filter(item=>item.kind==='file');
-      if(items.length!==1 || !items[0].getAsFileSystemHandle)throw Error('Drop one supported directory.');
-      const handle=await items[0].getAsFileSystemHandle();if(handle?.kind!=='directory')throw Error('Drop a folder, not a file.');
+      const handle=await api.droppedDirectory(event);
       pending=handle;label.textContent=handle.name;message.textContent='Folder received. Click Select Folder to approve and assign it. No document directories have been created.';
     }catch(error){message.textContent=error.message;}
   };
   button.onclick=async()=>{
     if(!loaded || registered || busy)return;
-    if(!pending){if(!('webkitdirectory' in input)){message.textContent='Folder selection is unavailable in this browser.';return;}input.click();return;}
+    if(!pending){try{api.selectFolderName(input);}catch(error){message.textContent=error.message;}return;}
     busy=true;state();let handle=pending;
     try{
-      if(handle?.kind!=='directory')throw Error('The browser did not return a usable folder.');
       label.textContent=handle.name;
-      if(!navigator.locks)throw Error('Direct saving is unavailable. Download PDF remains available.');
-      if(!await api.permission(handle))throw Error('Write access was not granted.');
-      await navigator.locks.request('ait-pm-local-report-save',async()=>{
-        const previous=await record();
-        if(previous){registered=previous.handle;throw Error('An existing assignment was preserved.');}
-        await api.set(scope,handle);const saved=await record();
-        if(!saved || !await saved.handle.isSameEntry(handle))throw Error('The saved assignment could not be verified. Reopen Folders.');
-        registered=saved.handle;message.textContent='Main folder assigned. Only saving a document creates its consultant, business and document-type folders.';
+      const saved=await api.register(scope,handle,{
+        program:'protrade',consultant:scope.consultant,authorise,
+        existing:row=>{registered=row.handle;}
       });
+      registered=saved.handle;message.textContent='Main folder assigned. Consultant folder ready. Business and document-type folders are created only on first save.';
     }catch(error){message.textContent=error.name==='AbortError'?'Chrome did not return a folder. Selection was cancelled or blocked; the saved assignment is unchanged. You can drag an empty folder onto Select Folder instead.':
       ['NotAllowedError','SecurityError'].includes(error.name)?'Chrome did not grant folder access. The saved assignment is unchanged.':error.message;}
     finally{pending=null;busy=false;if(registered)label.textContent=registered.name;state();}
   };
   input.onchange=()=>{
     if(registered || !loaded){input.value='';return;}
-    const path=input.files[0]?.webkitRelativePath || '',name=path.includes('/')?path.split('/')[0]:'';
+    const name=api.selectedFolderName(input);
     label.textContent=name || 'No folder selected';message.textContent=name?'Folder name identified only; this does not grant write access or change the report destination.':'Folder name unavailable. Choose a folder containing a file.';input.value='';
   };
   window.addEventListener('DOMContentLoaded',()=>{

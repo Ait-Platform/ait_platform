@@ -118,11 +118,16 @@ class PriceListTests(unittest.TestCase):
             source = (ROOT / 'templates/program_mechanic/menu.html').read_text()
             menu = self.app.jinja_env.from_string(source).render(active_shop=self.panel)
         tree = html.fromstring(menu)
-        link = tree.xpath('//a[text()="Price List"]')[0]
-        self.assertIn(f'shop_id={self.panel.id}', link.get('href'))
+        self.assertFalse(tree.xpath('//a[text()="Price List"]'))
         self.assertNotIn('Part List', menu)
         response = self.client.get(f'/mechanic/dashboard?shop_id={self.panel.id}')
         dashboard = html.fromstring(response.data)
+        links = dashboard.xpath('//table[@id="client-register-table"]//a[text()="Price List"]')
+        self.assertEqual({link.get('href') for link in links},
+                         {f'/mechanic/catalog?shop_id={shop.id}' for shop in (self.mech, self.second, self.panel)})
+        for link in links:
+            self.assertEqual(link.getnext().text, 'Debtor Register')
+            self.assertEqual(self.client.get(link.get('href')).status_code, 200)
         self.assertIn('Panel Beater', dashboard.xpath('//p[contains(@class,"text-xs") and contains(.,"Active Profile")]/text()')[0])
         self.assertEqual(self.ns['registered_trade_name'](self.panel), 'Panel Beater')
 

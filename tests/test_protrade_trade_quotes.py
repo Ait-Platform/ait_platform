@@ -241,7 +241,7 @@ class TradeQuoteTests(unittest.TestCase):
         response = self.client.get(f'/mechanic/dashboard?shop_id={self.carpentry.id}')
         tree = html.fromstring(response.data)
         row = tree.xpath('//tr[td/a[text()="Happy Carpentry"]]')[0]
-        self.assertEqual(row.xpath('./td[last()]/a/text()'),['Debtor Register'])
+        self.assertEqual(row.xpath('./td[last()]/a/text()'),['Price List','Debtor Register'])
         self.assertNotIn('Customer Jane',tree.get_element_by_id('client-register-table').text_content())
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch(headless=True)

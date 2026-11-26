@@ -26,7 +26,7 @@ class DashboardCleanupTests(unittest.TestCase):
         self.assertEqual(table.xpath('./thead/tr/th/text()'),['Client','Contact','Service','Action'])
         self.assertEqual(len(table.xpath('./tbody/tr')),2)
         for row in table.xpath('./tbody/tr'):
-            self.assertEqual(row.xpath('./td[last()]/a/text()'),['Debtor Register'])
+            self.assertEqual(row.xpath('./td[last()]/a/text()'),['Price List','Debtor Register'])
         happy=table.xpath('.//td[1]/a[text()="Happy Shop"]')
         self.assertEqual({link.get('href') for link in happy},{f'/mechanic/dashboard?shop_id={carpentry.id}&action=setup',f'/mechanic/dashboard?shop_id={generic.id}&action=setup'})
         self.assertNotIn('Legacy Customer',table.text_content())
@@ -38,7 +38,31 @@ class DashboardCleanupTests(unittest.TestCase):
         source=(base.ROOT/'templates/program_mechanic/menu.html').read_text(encoding='utf-8')
         with self.app.test_request_context('/'):
             menu=self.app.jinja_env.from_string(source).render(protrade_menu_active='dashboard',active_shop=carpentry)
-        self.assertEqual(html.fromstring(menu).xpath('//a/text()'),['Price List','Debtor','Tokens','Output','Folders','Help'])
+        self.assertEqual(html.fromstring(menu).xpath('//a/text()'),['Debtor','Tokens','Output','Folders','Help'])
+
+    def test_row_actions_stay_together_without_horizontal_scrolling(self):
+        carpentry,_,_=self.fixtures()
+        tree=html.fromstring(self.client.get(f'/mechanic/dashboard?shop_id={carpentry.id}').data)
+        table=html.tostring(tree.get_element_by_id('client-register-table'),encoding='unicode')
+        styles=''.join(tree.xpath('//style/text()'))
+        # Isolate the actual register and its responsive CSS from the legacy dashboard.
+        utilities="*{box-sizing:border-box}body{margin:0;font:14px Arial}table{width:100%;table-layout:fixed;border-collapse:collapse}td,th{padding:12px}.break-words{overflow-wrap:break-word}a{padding:8px 12px;font-weight:600}.hidden{display:none}"
+        with sync_playwright() as playwright:
+            browser=playwright.chromium.launch(headless=True)
+            try:
+                page=browser.new_page()
+                for width in (320,375,640,768,1280):
+                    page.set_viewport_size(dict(width=width,height=900))
+                    page.set_content(f'<style>{utilities}{styles}</style>{table}')
+                    self.assertTrue(page.evaluate('document.documentElement.scrollWidth <= innerWidth'), (width, page.locator('table').bounding_box(), page.evaluate('[...document.querySelectorAll("*")].filter(e=>e.getBoundingClientRect().right>innerWidth).map(e=>[e.tagName,e.className,e.getBoundingClientRect().right])')))
+                    for cell in page.locator('.shop-actions').all():
+                        first,second=cell.locator('a').all()
+                        left,right=first.bounding_box(),second.bounding_box()
+                        self.assertAlmostEqual(left['y'],right['y'],delta=1)
+                        self.assertLessEqual(left['x']+left['width'],right['x'])
+                        self.assertLessEqual(right['x']+right['width'],width)
+            finally:
+                browser.close()
 
     def test_shop_name_opens_exact_profile_without_creating_records(self):
         carpentry,generic,_=self.fixtures()

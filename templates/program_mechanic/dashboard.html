@@ -147,17 +147,28 @@
           <span>Shop Setup</span>
         </button>
       </div>
-      <p class="mt-1 text-sm text-slate-700">Select a shop to open its Debtor Register. Create quotations for saved debtors within that shop.</p>
+      <p class="mt-1 text-sm text-slate-700">Select a shop to open its Price List or Debtor Register. Create quotations for saved debtors within that shop.</p>
 
       <!-- Client Table -->
-      <div class="mt-4 overflow-x-auto rounded-lg border border-slate-200">
+      <style>
+        #client-register-table .shop-actions { white-space: nowrap; }
+        #client-register-table .shop-actions a { display: inline-flex; white-space: nowrap; }
+        @media (max-width: 639px) {
+          #client-register-table, #client-register-table tbody { display: block; }
+          #client-register-table thead { display: none; }
+          #client-register-table tbody tr:not(.hidden) { display: grid; grid-template-columns: minmax(0, 1fr); }
+          #client-register-table td { display: block; min-width: 0; overflow-wrap: anywhere; }
+          #client-register-table .shop-actions { display: flex; gap: 8px; justify-content: flex-end; }
+        }
+      </style>
+      <div class="mt-4 rounded-lg border border-slate-200">
         <table id="client-register-table" class="w-full table-fixed text-left text-sm">
           <thead class="bg-slate-50">
             <tr>
-              <th class="p-3 font-semibold text-slate-700" style="width: 30%;">Client</th>
-              <th class="p-3 font-semibold text-slate-700" style="width: 30%;">Contact</th>
-              <th class="p-3 font-semibold text-slate-700" style="width: 28%;">Service</th>
-              <th class="p-3 font-semibold text-slate-700 text-right" style="width: 12%;">Action</th>
+              <th class="p-3 font-semibold text-slate-700">Client</th>
+              <th class="p-3 font-semibold text-slate-700">Contact</th>
+              <th class="p-3 font-semibold text-slate-700">Service</th>
+              <th class="p-3 font-semibold text-slate-700 text-right" style="width: 280px;">Action</th>
             </tr>
           </thead>
           <tbody id="client-table-body">
@@ -173,7 +184,8 @@
               </td>
               <td class="p-3 text-slate-700 break-words whitespace-normal">{{ row.contact or '—' }}</td>
               <td class="p-3 text-slate-700 break-words whitespace-normal">{{ row.service or '—' }}</td>
-              <td class="p-3 text-right">
+              <td class="shop-actions p-3 text-right">
+                <a href="{{ url_for('mechanic_bp.catalog_manage', shop_id=row.shop.id) }}" class="inline-flex rounded-lg border border-amber-300 bg-yellow-50 px-3 py-2 font-semibold text-slate-900">Price List</a>
                 <a href="{{ url_for('mechanic_bp.shop_debtor_register', shop_id=row.shop.id) }}" class="inline-flex rounded-lg bg-slate-800 px-3 py-2 font-semibold text-white">Debtor Register</a>
               </td>
             </tr>

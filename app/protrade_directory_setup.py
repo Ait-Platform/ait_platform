@@ -1,9 +1,25 @@
 """Narrow main-directory setup and signed new-shop events; no report operations."""
-from flask import abort, current_app, jsonify, render_template, request, url_for
+from flask import abort, current_app, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user
 from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 from app.models.mechanic import MechShop
 from app.protrade_output import folder_label
+
+
+# Explicitly suspended after repeated live Windows failures. No environment
+# switch or automatic retry may resume this without separate authorisation.
+FOLDER_MANAGEMENT_SUSPENDED = True
+
+
+def require_folder_management():
+    if FOLDER_MANAGEMENT_SUSPENDED:
+        abort(503, description='ProTrade Folder Management is suspended. Shop registration and Output remain available independently.')
+
+
+def deferred_new_shop_directory_redirect(shop):
+    """Preserve the former registration continuation; the shop route does not call it."""
+    require_folder_management()
+    return redirect(url_for('mechanic_bp.protrade_main_directory', registration=registration_token(shop)))
 
 
 def signer():
@@ -41,6 +57,7 @@ def context_data():
 
 
 def setup_page():
+    require_folder_management()
     context = context_data()
     response = current_app.make_response(render_template('program_mechanic/main_directory.html',
         directory_setup=dict(scope=dict(user=context['user'], property='protrade'),
@@ -51,6 +68,7 @@ def setup_page():
 
 
 def setup_context():
+    require_folder_management()
     response = jsonify(context_data())
     response.headers['Cache-Control'] = 'private, no-store'
     return response

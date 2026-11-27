@@ -40,7 +40,9 @@
       <!-- One Horizontal Menu Row: Styled like Property Management with Different Light Pastel Colours -->
       {% set protrade_menu_active = 'dashboard' %}{% include 'program_mechanic/menu.html' %}
 
+      {# Main Directory is suspended; preserve this entry for future authorised development.
       <div class="flex justify-end"><a href="{{ url_for('mechanic_bp.protrade_main_directory') }}" class="rounded-lg border border-slate-300 bg-blue-100 px-4 py-2 text-sm font-semibold">Main Directory</a></div>
+      #}
 
       <!-- Working Area (Blank Initially on Page Load) -->
       <div id="working-area" class="mt-4 mb-6 rounded-xl border border-slate-200 bg-slate-50/50 p-6 shadow-sm hidden">

@@ -28,11 +28,15 @@ def owned_shops():
     return MechShop.query.filter_by(user_id=current_user.id).order_by(MechShop.business_name,MechShop.id).all()
 
 def access_context():
+    from app.protrade_directory_setup import require_folder_management
+    require_folder_management()
     response=jsonify(user=str(current_user.id),shops=[str(shop.id) for shop in owned_shops()])
     response.headers['Cache-Control']='private, no-store'
     return response
 
 def folders_page():
+    from app.protrade_directory_setup import require_folder_management
+    require_folder_management()
     shops=owned_shops();raw=request.args.get('shop_id',session.get('active_shop_id'));shop=None
     if raw is not None:
         try:identifier=int(raw)
@@ -46,6 +50,8 @@ def folders_page():
     return response
 
 def email_history():
+    from app.protrade_directory_setup import require_folder_management
+    require_folder_management()
     from email_validator import validate_email,EmailNotValidError
     from app.utils.mailer import send_pdf_email
     if not request.content_length or request.content_length>11*1024*1024:return jsonify(message='Attachments must be 10 MB or smaller.'),413

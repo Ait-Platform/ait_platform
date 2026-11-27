@@ -19,6 +19,7 @@ import test_protrade_output as fixture
 import test_protrade_shop_register as base
 import app.protrade_folders as folders
 
+@unittest.skip('ProTrade Folder Management is suspended after unresolved live Windows failures; retain tests for future authorised development.')
 class ProTradeLocalFoldersTests(unittest.TestCase):
     def setUp(self):
         self.o=fixture.ProTradeOutputTests(methodName='test_catalog_and_preview_are_shop_and_owner_scoped');self.o.setUp();self.addCleanup(self.o.doCleanups)

@@ -10,6 +10,7 @@ import app.protrade_directory_setup as setup
 registered_program_name_impl=setup.registered_program_name
 
 
+@unittest.skip('ProTrade Folder Management is suspended after unresolved live Windows failures; retain tests for future authorised development.')
 class MainDirectoryTests(unittest.TestCase):
     def setUp(self):
         self.o=base.ShopRegisterTests();self.o.setUp();self.addCleanup(self.o.doCleanups)

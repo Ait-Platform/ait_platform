@@ -182,13 +182,35 @@ Property Management and its existing Folder Management remain unchanged.
 Folder Management development and Franchise remain on HOLD; this requirement
 does not authorise implementation of the centralised module.
 
-**Focused exception authorised 27 November 2026:** ProTrade may provide Main
+**Historical exception (revoked 27 November 2026; retained for reference):** ProTrade may provide Main
 Directory selection, read/write verification and explicit replacement, and create
 `registered program / consultant / newly registered shop / Invoice, Statement`
 through the existing shared directory store and owner markers after successful
 shop registration. Do not backfill existing shops or create Quotes separately.
 Output saving and broader Folder Management remain suspended. Do not modify PM
 workflows, PDF operations, email or historical retrieval for this exception.
+
+### Unresolved ProTrade Windows directory failure - HOLD
+
+Live Windows testing failed again at commit `948f064a`. Earlier diagnostics
+(`3baf2fe6`) confirmed successful server authorisation, IndexedDB handle retrieval,
+shop ownership validation and lock acquisition, then stalled at
+`Shop creation: query main-directory permission` for at least 165 seconds while
+the creation lock remained held. The `948f064a` bounded-permission and
+fresh-registration recovery changes passed automated tests but did not resolve
+the reported live failure. An obsolete registration was investigated; its causal
+role and the underlying Windows/browser failure remain unconfirmed.
+
+All ProTrade Folder Management is now suspended, including Main Directory,
+legacy folder routes, automatic folder creation during shop registration,
+automatic permission checks and diagnostic processes. Shop registration must
+return to its normal workflow without directory selection or authorisation.
+Retain Preview, Print, Download PDF and Email independently. Preserve all folder
+code, diagnostic findings, records, registered browser handles and historical
+files. Do not clear registrations or delete, migrate or rewrite existing folders.
+Property Management is unchanged. Folder Management and Franchise remain on
+HOLD until explicitly authorised to resume; the historical exception above no
+longer authorises execution or development.
 
 ## Permanent filesystem and template naming conventions
 - Legacy subjects use the `subject_` filesystem/template prefix.

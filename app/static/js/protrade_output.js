@@ -3,11 +3,11 @@
   'use strict';
   const email=document.getElementById('output-email'),form=document.getElementById('protrade-output-select');
   const message=document.getElementById('output-action-message');
-  email?.addEventListener('click',()=>{const target=document.getElementById('output-email-form');target.hidden=!target.hidden;email.setAttribute('aria-expanded',String(!target.hidden));if(!target.hidden)target.querySelector('[name=to_email]').focus();});
+  email?.addEventListener('click',()=>{const target=document.getElementById('output-email-form');if(!target){message.textContent='The email interface is unavailable. Preview the document again.';return;}target.hidden=false;email.setAttribute('aria-expanded','true');target.scrollIntoView({block:'nearest'});target.querySelector('[name=to_email]').focus();});
   document.getElementById('output-email-cancel')?.addEventListener('click',()=>{document.getElementById('output-email-form').hidden=true;email.setAttribute('aria-expanded','false');email.focus();});
   const emailForm=document.getElementById('output-email-form');
   let sending=false;
-  if(emailForm)emailForm.addEventListener('submit',event=>{if(sending){event.preventDefault();return;}sending=true;emailForm.querySelector('button[type=submit]').disabled=true;document.getElementById('output-email-cancel').disabled=true;});
+  if(emailForm)emailForm.addEventListener('submit',event=>{if(sending){event.preventDefault();return;}sending=true;const submit=emailForm.querySelector('button[type=submit]');submit.disabled=true;submit.textContent='Sending...';document.getElementById('output-email-cancel').disabled=true;message.textContent='Submitting the selected PDF for email. Please wait; do not resubmit.';});
   document.getElementById('output-print')?.addEventListener('click',()=>window.print());
   document.getElementById('output-shop')?.addEventListener('change',()=>{form.querySelector('[name=selection]')?.removeAttribute('required');window.location.href='/mechanic/output?shop_id='+encodeURIComponent(document.getElementById('output-shop').value);});
   const category=document.getElementById('output-category'),selection=document.getElementById('output-selection');
@@ -43,6 +43,6 @@
   for(const field of [from,to])field?.addEventListener('change',()=>{month.value='';documents();invalidate();});
   selection?.addEventListener('change',invalidate);
   document.getElementById('email-debtor')?.addEventListener('change',event=>{
-    emailForm.querySelector('[name=to_email]').value=event.target.selectedOptions[0]?.dataset.email || '';
+    emailForm.querySelector('[name=to_email]').value=event.target.value ? (event.target.selectedOptions[0]?.dataset.email || '') : emailForm.dataset.defaultRecipient;
   });
 })();

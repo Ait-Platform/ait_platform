@@ -106,7 +106,7 @@ class ProTradeBoqQuote(db.Model):
 class ProTradeOutputEmail(db.Model):
     """Durable at-most-once SMTP attempt for Output or an original saved PDF."""
     __tablename__ = 'protrade_output_email'
-    __table_args__ = (db.CheckConstraint("debtor_id IS NOT NULL OR selection LIKE 'history:%'", name='ck_protrade_email_history_debtor'),)
+    __table_args__ = (db.CheckConstraint("debtor_id IS NOT NULL OR selection LIKE 'history:%' OR selection = 'price_list:all'", name='ck_protrade_email_history_debtor'),)
     id = db.Column(db.Integer, primary_key=True)
     request_key = db.Column(db.String(64), nullable=False, unique=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)

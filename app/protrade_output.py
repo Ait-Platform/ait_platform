@@ -240,11 +240,13 @@ def pdf_bytes(data,claim):
 
 def dispatch_once(shop,selection,data,claim,pdf):
     from email_validator import validate_email,EmailNotValidError
-    from app.utils.mailer import send_pdf_email
+    from app.utils.mailer import send_standard_report_email
     recipient=data['email_recipient']
     if data['document'].get('kind')=='price_list' and request.form.get('email_debtor_id'):
         debtor=owned_debtor(shop,request.form['email_debtor_id'])
         recipient=dict(id=debtor.id,**contact(debtor))
+    if not recipient and data['document'].get('kind')=='price_list':
+        recipient=dict(id=None,name=shop.business_name,email=shop.email or '')
     if not recipient:abort(400,description='Select the linked debtor for this document.')
     try:address=validate_email(request.form.get('to_email',recipient['email']),check_deliverability=False).normalized
     except EmailNotValidError:abort(400,description='Enter a valid recipient email address.')
@@ -270,7 +272,7 @@ def dispatch_once(shop,selection,data,claim,pdf):
     try:
         transport=current_app.extensions.get('mail')
         if current_app.config.get('MAIL_SUPPRESS_SEND') or getattr(transport,'suppress',False):raise RuntimeError('Mail is suppressed')
-        sent=send_pdf_email(address,subject,body,pdf,data['filename'])
+        sent=send_standard_report_email(to_email=address,subject=subject,pdf_url='',pdf_bytes=pdf,filename=data['filename'],message=body,document_label=data['document']['title'])
         if not sent:raise RuntimeError('SMTP acceptance not confirmed')
     except Exception:
         try:

@@ -129,18 +129,18 @@ class ProTradeOutputTests(unittest.TestCase):
 
     def test_email_confirmation_saved_address_and_durable_duplicate_prevention(self):
         fields=self.fields(self.preview())
-        with patch.object(output,'pdf_bytes',return_value=b'%PDF-test'),patch('app.utils.mailer.send_pdf_email',return_value=True) as sender:
+        with patch.object(output,'pdf_bytes',return_value=b'%PDF-test'),patch('app.utils.mailer.send_standard_report_email',return_value=True) as sender:
             self.email(fields,expected=400,confirm_email='')
             self.assertEqual(sender.call_count,0);self.assertEqual(base.ProTradeOutputEmail.query.count(),0)
             self.email(fields,email_to='forged@example.com')
-            self.assertEqual(sender.call_args.args[0],'jane@example.com')
+            self.assertEqual(sender.call_args.kwargs['to_email'],'jane@example.com')
             self.email(fields,expected=409)
             self.assertEqual(sender.call_count,1)
             self.assertEqual(base.ProTradeOutputEmail.query.one().status,'accepted')
 
     def test_failed_smtp_is_not_automatically_retried(self):
         fields=self.fields(self.preview())
-        with patch.object(output,'pdf_bytes',return_value=b'%PDF-test'),patch('app.utils.mailer.send_pdf_email',side_effect=RuntimeError('timeout')) as sender:
+        with patch.object(output,'pdf_bytes',return_value=b'%PDF-test'),patch('app.utils.mailer.send_standard_report_email',side_effect=RuntimeError('timeout')) as sender:
             self.email(fields,expected=503)
             self.email(fields,expected=409)
             self.assertEqual(sender.call_count,1)
@@ -148,7 +148,7 @@ class ProTradeOutputTests(unittest.TestCase):
 
     def test_changed_debtor_or_bad_tokens_never_send(self):
         fields=self.fields(self.preview())
-        with patch.object(output,'pdf_bytes',return_value=b'%PDF-test'),patch('app.utils.mailer.send_pdf_email') as sender:
+        with patch.object(output,'pdf_bytes',return_value=b'%PDF-test'),patch('app.utils.mailer.send_standard_report_email') as sender:
             self.email(fields,expected=400,preview_token='forged')
             self.debtor.email='changed@example.com';self.db_session.commit()
             self.email(fields,expected=409)
@@ -156,19 +156,19 @@ class ProTradeOutputTests(unittest.TestCase):
 
     def test_pdf_failure_and_receipt_failure_never_send(self):
         fields=self.fields(self.preview())
-        with patch.object(output,'pdf_bytes',side_effect=RuntimeError('renderer unavailable')),patch('app.utils.mailer.send_pdf_email') as sender:
+        with patch.object(output,'pdf_bytes',side_effect=RuntimeError('renderer unavailable')),patch('app.utils.mailer.send_standard_report_email') as sender:
             with self.assertLogs(self.app.logger,level='ERROR'):
                 self.email(fields,expected=503)
             self.assertEqual(sender.call_count,0);self.assertEqual(base.ProTradeOutputEmail.query.count(),0)
         self.conn.exec_driver_sql("ALTER TABLE protrade_output_email ADD CONSTRAINT reject_output_mail CHECK (status<>'attempted')")
-        with patch.object(output,'pdf_bytes',return_value=b'%PDF-test'),patch('app.utils.mailer.send_pdf_email') as sender:
+        with patch.object(output,'pdf_bytes',return_value=b'%PDF-test'),patch('app.utils.mailer.send_standard_report_email') as sender:
             self.email(fields,expected=503)
             self.assertEqual(sender.call_count,0)
 
     def test_smtp_success_then_receipt_failure_still_blocks_duplicates(self):
         fields=self.fields(self.preview())
         self.conn.exec_driver_sql("ALTER TABLE protrade_output_email ADD CONSTRAINT reject_accept CHECK (status<>'accepted')")
-        with patch.object(output,'pdf_bytes',return_value=b'%PDF-test'),patch('app.utils.mailer.send_pdf_email',return_value=True) as sender:
+        with patch.object(output,'pdf_bytes',return_value=b'%PDF-test'),patch('app.utils.mailer.send_standard_report_email',return_value=True) as sender:
             self.email(fields,expected=503)
             self.email(fields,expected=409)
             self.assertEqual(sender.call_count,1)
@@ -195,14 +195,14 @@ class ProTradeOutputTests(unittest.TestCase):
     def test_expired_preview_and_missing_saved_email_do_not_send(self):
         from itsdangerous import SignatureExpired
         fields=self.fields(self.preview())
-        with patch.object(output,'signer') as signer,patch('app.utils.mailer.send_pdf_email') as sender:
+        with patch.object(output,'signer') as signer,patch('app.utils.mailer.send_standard_report_email') as sender:
             signer.return_value.loads.side_effect=SignatureExpired('expired')
             self.email(fields,expected=400)
             sender.assert_not_called()
         self.debtor.email='';self.db_session.commit()
         preview=self.preview()
         self.assertFalse(html.fromstring(preview.data).xpath('//button[@id="output-email" and @disabled]'))
-        with patch.object(output,'pdf_bytes',return_value=b'%PDF-test'),patch('app.utils.mailer.send_pdf_email') as sender:
+        with patch.object(output,'pdf_bytes',return_value=b'%PDF-test'),patch('app.utils.mailer.send_standard_report_email') as sender:
             self.email(self.fields(preview),expected=400)
             sender.assert_not_called()
         self.assertEqual(base.ProTradeOutputEmail.query.count(),0)
@@ -214,11 +214,11 @@ class ProTradeOutputTests(unittest.TestCase):
                     ('price_list:all',self.carpentry,str(self.debtor.id))]
         snapshot=lambda: {table:self.conn.exec_driver_sql(f'SELECT * FROM {table} ORDER BY id').all() for table in ('debtor','mech_clients','protrade_boq_items','debtor_ledger')}
         before=snapshot()
-        with patch.object(output,'pdf_bytes',return_value=b'%PDF-selected'),patch('app.utils.mailer.send_pdf_email',return_value=True) as sender:
+        with patch.object(output,'pdf_bytes',return_value=b'%PDF-selected'),patch('app.utils.mailer.send_standard_report_email',return_value=True) as sender:
             for selection,shop,recipient in selections:
                 fields=self.fields(self.preview(selection,shop,recipient))
                 self.email(fields,to_email='override@example.com',subject='Selected document',body_text='Custom message')
-                self.assertEqual(sender.call_args.args[:4],('override@example.com','Selected document','Custom message',b'%PDF-selected'))
+                self.assertEqual(tuple(sender.call_args.kwargs[key] for key in ('to_email','subject','message','pdf_bytes')),('override@example.com','Selected document','Custom message',b'%PDF-selected'))
                 calls=sender.call_count
                 self.email(fields,expected=409,to_email='another@example.com')
                 self.assertEqual(sender.call_count,calls)
@@ -227,7 +227,7 @@ class ProTradeOutputTests(unittest.TestCase):
     def test_email_validation_and_previous_receipts_are_preserved(self):
         import hashlib
         fields=self.fields(self.preview())
-        with patch.object(output,'pdf_bytes',return_value=b'%PDF-selected'),patch('app.utils.mailer.send_pdf_email',return_value=True) as sender:
+        with patch.object(output,'pdf_bytes',return_value=b'%PDF-selected'),patch('app.utils.mailer.send_standard_report_email',return_value=True) as sender:
             for changes in ({'to_email':'invalid'}, {'subject':'bad\r\nheader'}, {'body_text':'x'*5001}):
                 self.email(fields,expected=400,**changes)
             sender.assert_not_called()
@@ -298,11 +298,11 @@ class ProTradeOutputTests(unittest.TestCase):
             with fitz.open(stream=pdf,filetype='pdf') as document:return ''.join(page.get_text() for page in document)
         downloaded_text=pdf_text(download.data)
         for value in ['AUTO-STD-004','Repair starter motor','123.45','67.89','191.34']:self.assertIn(value,downloaded_text)
-        with patch('app.utils.mailer.send_pdf_email',return_value=True) as sender:
+        with patch('app.utils.mailer.send_standard_report_email',return_value=True) as sender:
             self.email(fields,expected=404,email_debtor_id=str(self.other_debtor.id),to_email='once@example.com')
             sender.assert_not_called()
             self.email(fields,email_debtor_id=str(debtor.id),to_email='once@example.com',subject='Selected price list',body_text='Auto price list attached')
-            self.assertEqual(pdf_text(sender.call_args.args[3]),downloaded_text)
+            self.assertEqual(pdf_text(sender.call_args.kwargs['pdf_bytes']),downloaded_text)
             self.assertEqual(debtor.email,'auto@example.com')
         with sync_playwright() as runtime:
             browser=runtime.chromium.launch(headless=True)
@@ -372,6 +372,138 @@ class ProTradeOutputTests(unittest.TestCase):
                 self.assertEqual(page.locator('#output-actions').inner_text().split(),['Print','Download','PDF','Email'])
             finally:browser.close()
         self.assertEqual(self.quote.items,before)
+
+    def apply_output_email_migration(self):
+        spec=importlib.util.spec_from_file_location('output_email_022',base.ROOT/'migrations/versions/protrade_output_email_022.py')
+        migration=importlib.util.module_from_spec(spec);spec.loader.exec_module(migration)
+        migration.op=Operations(MigrationContext.configure(self.conn));migration.upgrade()
+        return migration
+
+    def test_price_list_without_debtors_opens_shared_composer_and_sends_through_standard_dispatcher(self):
+        from playwright.sync_api import sync_playwright
+        from urllib.parse import urlencode
+        shop=self.shop(name='Short Circuit without debtors',trade='auto_elec',status='active')
+        shop.email='registered@example.com';self.db_session.commit()
+        preview=self.preview('price_list:all',shop);fields=self.fields(preview)
+        self.assertFalse(html.fromstring(preview.data).xpath('//button[@id="output-email" and @disabled]'))
+        # Existing databases fail closed until the receipt constraint is upgraded.
+        with patch.object(output,'pdf_bytes',return_value=b'%PDF-selected-preview'),patch('app.utils.mailer.send_standard_report_email',return_value=True) as sender:
+            self.email(fields,expected=503,to_email='once@example.com')
+            sender.assert_not_called()
+            before=self.conn.exec_driver_sql('SELECT * FROM debtor ORDER BY id').all()
+            self.apply_output_email_migration()
+            self.assertEqual(before,self.conn.exec_driver_sql('SELECT * FROM debtor ORDER BY id').all())
+            with sync_playwright() as runtime:
+                browser=runtime.chromium.launch(headless=True)
+                try:
+                    page=browser.new_page();page.route('http://localhost/**',self.browser_route)
+                    page.goto('http://localhost/mechanic/output?'+urlencode(dict(shop_id=shop.id,selection='price_list:all',preview='1')))
+                    page.locator('#output-email').click()
+                    self.assertTrue(page.locator('#output-email-form').is_visible())
+                    self.assertEqual(page.locator('[name=to_email]').input_value(),'registered@example.com')
+                    self.assertEqual(page.locator('#email-debtor').count(),0)
+                    page.locator('[name=to_email]').fill('once@example.com')
+                    page.locator('[name=subject]').fill('Selected PDF subject')
+                    page.locator('[name=body_text]').fill('Editable message')
+                    page.locator('#output-email-cancel').click()
+                    self.assertTrue(page.locator('#output-email-form').is_hidden())
+                    page.locator('#output-email').click()
+                    self.assertEqual(page.locator('[name=to_email]').input_value(),'once@example.com')
+                finally:browser.close()
+            self.email(fields,to_email='once@example.com',subject='Selected PDF subject',body_text='Editable message')
+            self.assertEqual(sender.call_args.kwargs,dict(to_email='once@example.com',subject='Selected PDF subject',pdf_url='',pdf_bytes=b'%PDF-selected-preview',filename=sender.call_args.kwargs['filename'],message='Editable message',document_label='Price List'))
+            self.email(fields,expected=409,to_email='changed@example.com')
+            self.assertEqual(sender.call_count,1)
+        receipt=base.ProTradeOutputEmail.query.one()
+        self.assertIsNone(receipt.debtor_id)
+        self.assertEqual(receipt.selection,'price_list:all')
+        self.assertEqual(receipt.status,'accepted')
+        self.assertEqual(shop.email,'registered@example.com')
+        self.assertFalse(base.models.Debtor.query.filter_by(shop_id=shop.id).all())
+        from sqlalchemy.exc import IntegrityError
+        with self.assertRaises(IntegrityError):
+            with self.conn.begin_nested():
+                self.conn.exec_driver_sql("INSERT INTO protrade_output_email(request_key,user_id,shop_id,debtor_id,selection,recipient,status,created_at) VALUES ('blocked-without-debtor',1,%s,NULL,'quote:unlinked','once@example.com','attempted',now())",(shop.id,))
+
+    def test_standard_dispatcher_builds_pdf_attachment_with_edited_message(self):
+        from flask_mail import Mail
+        self.app.config.update(MAIL_DEFAULT_SENDER='ait@example.com',MAIL_SUPPRESS_SEND=False)
+        Mail(self.app)
+        selections=[(f'quote:boq-{self.quote.id}',self.carpentry,''),
+                    (f'invoice:stored-{self.invoice.id}',self.mechanic,''),
+                    (f'statement:debtor-{self.debtor.id}',self.carpentry,''),
+                    ('price_list:all',self.carpentry,str(self.debtor.id))]
+        with patch.object(output,'pdf_bytes',return_value=b'%PDF-current-preview'),patch('app.utils.mailer.mail.send') as transport:
+            for count,(selection,shop,recipient) in enumerate(selections,1):
+                fields=self.fields(self.preview(selection,shop,recipient))
+                self.email(fields,to_email='edited@example.com',subject='Edited subject',body_text='Edited message')
+                self.assertEqual(transport.call_count,count)
+                message=transport.call_args.args[0]
+                self.assertEqual(message.recipients,['edited@example.com'])
+                self.assertEqual(message.subject,'Edited subject')
+                self.assertIn('Edited message',message.body)
+                self.assertEqual(len(message.attachments),1)
+                self.assertEqual(message.attachments[0].data,b'%PDF-current-preview')
+                self.assertEqual(message.attachments[0].content_type,'application/pdf')
+                self.email(fields,expected=409,to_email='edited@example.com')
+                self.assertEqual(transport.call_count,count)
+
+    def test_email_migration_preserves_existing_history_and_linked_receipts(self):
+        from sqlalchemy.exc import IntegrityError
+        spec=importlib.util.spec_from_file_location('existing_email_history_020',base.ROOT/'migrations/versions/protrade_local_files_020.py')
+        history=importlib.util.module_from_spec(spec);spec.loader.exec_module(history)
+        history.op=Operations(MigrationContext.configure(self.conn));history.upgrade()
+        for key,selection,debtor in [('ordinary','quote:existing',self.debtor.id),('history','history:quote',None)]:
+            self.db_session.add(base.ProTradeOutputEmail(request_key=key,user_id=1,shop_id=self.carpentry.id,debtor_id=debtor,selection=selection,recipient='saved@example.com',status='accepted'))
+        self.db_session.commit()
+        before=self.conn.exec_driver_sql('SELECT * FROM protrade_output_email ORDER BY id').all()
+        migration=self.apply_output_email_migration()
+        self.assertEqual(migration.down_revision,'protrade_unified_prices_021')
+        self.assertEqual(migration.depends_on,'protrade_local_files_020')
+        self.assertEqual(before,self.conn.exec_driver_sql('SELECT * FROM protrade_output_email ORDER BY id').all())
+        shop_id=self.carpentry.id
+        with self.assertRaises(IntegrityError):
+            with self.conn.begin_nested():
+                self.conn.exec_driver_sql("INSERT INTO protrade_output_email(request_key,user_id,shop_id,debtor_id,selection,recipient,status,created_at) VALUES ('bad-invoice',1,%s,NULL,'invoice:any','once@example.com','attempted',now())",(shop_id,))
+
+    def test_browser_send_and_cancel_use_standard_email_for_all_document_types(self):
+        from playwright.sync_api import sync_playwright
+        from urllib.parse import urlencode,urlsplit,parse_qs
+        selections=[(f'quote:boq-{self.quote.id}',self.carpentry,''),
+                    (f'invoice:stored-{self.invoice.id}',self.mechanic,''),
+                    (f'statement:debtor-{self.debtor.id}',self.carpentry,''),
+                    ('price_list:all',self.carpentry,str(self.debtor.id))]
+        posted=[]
+        def serve(route):
+            if route.request.method!='POST':return self.browser_route(route)
+            values={key:items[0] for key,items in parse_qs(route.request.post_data,keep_blank_values=True).items()}
+            response=self.client.post(urlsplit(route.request.url).path,data=values)
+            posted.append(response.status_code)
+            # Resolve the app redirect inside this in-process browser fixture; no real localhost server is running.
+            displayed=self.client.get(response.headers['Location']) if response.status_code==302 else response
+            route.fulfill(status=displayed.status_code,body=displayed.data,content_type=displayed.content_type)
+        with patch.object(output,'pdf_bytes',return_value=b'%PDF-displayed-preview'),patch('app.utils.mailer.send_standard_report_email',return_value=True) as sender,sync_playwright() as runtime:
+            browser=runtime.chromium.launch(headless=True)
+            try:
+                page=browser.new_page();page.route('http://localhost/**',serve)
+                for count,(selection,shop,recipient) in enumerate(selections,1):
+                    fields=self.fields(self.preview(selection,shop,recipient))
+                    page.goto('http://localhost/mechanic/output?'+urlencode(dict(fields,preview='1')))
+                    page.locator('#output-email').click()
+                    self.assertTrue(page.locator('#output-email-form').is_visible())
+                    page.locator('#output-email-cancel').click()
+                    self.assertEqual(sender.call_count,count-1)
+                    page.locator('#output-email').click()
+                    page.locator('[name=to_email]').fill('browser@example.com')
+                    page.locator('[name=subject]').fill('Browser subject')
+                    page.locator('[name=body_text]').fill('Browser message')
+                    page.get_by_role('button',name='Send Email',exact=True).click()
+                    page.locator('#output-email[disabled]').wait_for()
+                    self.assertEqual(sender.call_count,count)
+                    self.assertEqual(sender.call_args.kwargs['pdf_bytes'],b'%PDF-displayed-preview')
+                    self.assertEqual(sender.call_args.kwargs['to_email'],'browser@example.com')
+                self.assertEqual(posted,[302]*4)
+            finally:browser.close()
 
     def browser_route(self,route):
         from urllib.parse import urlsplit

@@ -21,6 +21,9 @@
 
 
   <script src="https://cdn.paddle.com/paddle/v2/paddle.js"></script>
+  {% if request.blueprint == 'mechanic_bp' %}
+  <script src="{{ url_for('static', filename='js/protrade_number_inputs.js', v='20261127') }}" defer></script>
+  {% endif %}
   {% block head %}{% endblock %}
 </head>
 

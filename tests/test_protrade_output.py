@@ -240,6 +240,43 @@ class ProTradeOutputTests(unittest.TestCase):
             self.email(fields,expected=409,to_email='override@example.com')
             self.assertEqual(sender.call_count,1)
 
+    def test_output_actions_without_folder_registration_or_authorisation(self):
+        from playwright.sync_api import sync_playwright
+        from urllib.parse import urlencode
+        selections=[(f'quote:boq-{self.quote.id}',self.carpentry,''),
+                    (f'invoice:stored-{self.invoice.id}',self.mechanic,''),
+                    (f'statement:debtor-{self.debtor.id}',self.carpentry,''),
+                    ('price_list:all',self.carpentry,str(self.debtor.id))]
+        with sync_playwright() as runtime:
+            browser=runtime.chromium.launch(headless=True)
+            try:
+                page=browser.new_page(accept_downloads=True)
+                page.route('http://localhost/**',self.browser_route)
+                page.add_init_script("""Object.defineProperty(window,'indexedDB',{get(){throw Error('Folder storage must not be accessed');}});
+                    window.showDirectoryPicker=()=>{throw Error('Folder authorisation forbidden');};
+                    window.print=()=>{window.didPrint=true;};""")
+                with patch('app.protrade_folders.local_reports',side_effect=AssertionError('Output must not require folder metadata')),patch.object(output,'pdf_bytes',return_value=b'%PDF-independent'):
+                    for selection,shop,recipient in selections:
+                        fields=self.fields(self.preview(selection,shop,recipient))
+                        page.goto('http://localhost/mechanic/output?'+urlencode(dict(fields,preview='1')))
+                        self.assertEqual(page.locator('#output-save').count(),0)
+                        self.assertEqual(page.get_by_role('link',name='Folders',exact=True).count(),0)
+                        self.assertEqual(page.locator('script[src*="pm_local_directories"],script[src*="pm_output_save"],#output-directory-context').count(),0)
+                        self.assertTrue(page.evaluate('window.AITDirectories === undefined'))
+                        page.locator('#output-print').click()
+                        self.assertTrue(page.evaluate('didPrint'))
+                        with page.expect_download() as download:
+                            page.locator('#output-download').click()
+                        self.assertEqual(Path(download.value.path()).read_bytes(),b'%PDF-independent')
+                        page.locator('#output-email').click()
+                        self.assertTrue(page.locator('[name=to_email]').input_value())
+                        self.assertTrue(page.locator('[name=subject]').input_value())
+                        self.assertTrue(page.locator('[name=body_text]').input_value())
+                        page.locator('[name=to_email]').fill('one-off@example.com')
+                        page.locator('#output-email-cancel').click()
+                        self.assertTrue(page.locator('#output-email-form').is_hidden())
+            finally:browser.close()
+
     def browser_route(self,route):
         from urllib.parse import urlsplit
         url=urlsplit(route.request.url)

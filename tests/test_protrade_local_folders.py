@@ -124,6 +124,7 @@ class ProTradeLocalFoldersTests(unittest.TestCase):
                     self.assertIn(self.pdf,sent[0])
                 self.assertEqual(before,self.snapshot())
             finally:browser.close()
+    @unittest.skip('ProTrade Output folder saving is temporarily suspended; retain coverage for future reactivation.')
     def test_output_save_buttons_use_shared_saver_for_all_document_types(self):
         from urllib.parse import urlencode
         selections=[(f'quote:boq-{self.o.quote.id}',self.o.carpentry,'Quotes'),
@@ -186,6 +187,7 @@ class ProTradeLocalFoldersTests(unittest.TestCase):
                 self.assertTrue(page.locator('#folder-register-area').is_hidden());self.assertEqual(page.evaluate('printed'),[])
             finally:browser.close()
 
+    @unittest.skip('ProTrade Output folder saving is temporarily suspended; retain coverage for future reactivation.')
     def test_output_save_button_uses_owned_reference_and_preserves_financial_records(self):
         before=self.snapshot()
         with sync_playwright() as runtime:

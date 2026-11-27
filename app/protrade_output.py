@@ -279,6 +279,17 @@ def dispatch_once(shop,selection,data,claim,pdf):
         abort(503,description='Mail transport returned success, but recording the outcome failed. Retry is blocked to prevent duplicates. Check delivery before using a new preview.')
 
 
+def deferred_output_folder_context(shops,shop,selected,data):
+    """Preserved adapter; Output does not invoke it while folders are suspended."""
+    from app.protrade_folders import local_reports
+    local_directory_reports=local_reports(shops)
+    local_save_code=str(shop.id)+':'+selected.split(':',1)[0] if shop and selected.split(':',1)[0] in ('quote','invoice','statement','price_list') else ''
+    if data and local_save_code:
+        for destination in local_directory_reports:
+            if destination['code']==local_save_code:destination['title']=secure_filename(data['document']['reference']) or destination['title']
+    return dict(local_directory_reports=local_directory_reports,local_save_code=local_save_code)
+
+
 def output_page():
     args=request.form if request.method=='POST' else request.args
     shops=MechShop.query.filter_by(user_id=current_user.id).order_by(MechShop.business_name,MechShop.id).all()
@@ -339,13 +350,7 @@ def output_page():
             if claim is None:
                 data=None;token=''
     pdf_url=url_for('mechanic_bp.protrade_output',shop_id=shop.id,selection=selected,recipient_id=recipient_id,format='pdf',preview_token=token) if data else ''
-    from app.protrade_folders import local_reports
-    local_directory_reports=local_reports(shops)
-    local_save_code=str(shop.id)+':'+selected.split(':',1)[0] if shop and selected.split(':',1)[0] in ('quote','invoice','statement','price_list') else ''
-    if data and local_save_code:
-        for destination in local_directory_reports:
-            if destination['code']==local_save_code:destination['title']=secure_filename(data['document']['reference']) or destination['title']
-    return render_template('program_mechanic/output.html',local_directory_reports=local_directory_reports,local_save_code=local_save_code,shop=shop,shops=shops,choices=public_choices,labels=LABELS,selection=selected,
+    return render_template('program_mechanic/output.html',shop=shop,shops=shops,choices=public_choices,labels=LABELS,selection=selected,
                            debtors=debtors,recipient_id=recipient_id,report_data=data,preview_token=token,generated=claim['generated'] if claim else '',
                            pdf_url=pdf_url,error=error),status
 

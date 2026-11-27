@@ -170,6 +170,18 @@ This protocol does not authorise production writes or lift programme scope holds
 **Folder Management and Franchise remain on HOLD.**
 
 
+## Deferred centralised Folder Management
+
+AIT must have a centralised Folder Management module responsible for folder selection, authorisation, accessibility verification, replacement, automatic subfolder creation, document saving and historical document retrieval. Individual AIT programs must consume this shared module rather than maintain independent implementations.
+
+ProTrade Folder Management is temporarily suspended: hide Folders in all ProTrade
+menus and Save Report in Output. Preview, Print, Download PDF and the standardised
+email sender operate independently of local folder registration or authorisation.
+Preserve existing folder code, records, registered handles and historical documents.
+Property Management and its existing Folder Management remain unchanged.
+Folder Management development and Franchise remain on HOLD; this requirement
+does not authorise implementation of the centralised module.
+
 ## Permanent filesystem and template naming conventions
 - Legacy subjects use the `subject_` filesystem/template prefix.
 - Programs use the `program_` filesystem/template prefix.

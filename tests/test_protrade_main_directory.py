@@ -171,6 +171,69 @@ class MainDirectoryTests(unittest.TestCase):
             model.query.filter_by.return_value.first.return_value=SimpleNamespace(name='Registered Program Name')
             self.assertEqual(registered_program_name_impl(),'Registered Program Name')
 
+    def test_browse_selects_empty_folder_with_readwrite_access_and_continues_new_shop(self):
+        with sync_playwright() as runtime:
+            browser,page=self.browser(runtime)
+            try:
+                page.goto('https://ait.test'+self.new_shop())
+                page.wait_for_function("!document.getElementById('directory-select').disabled")
+                page.evaluate("""() => {window.pickerCalls=[];window.showDirectoryPicker=async options=>{
+                    pickerCalls.push({mode:options.mode,active:navigator.userActivation.isActive});
+                    return (await navigator.storage.getDirectory()).getDirectoryHandle('Empty selected folder',{create:true});
+                };}""")
+                page.locator('#directory-select').click()
+                self.assertTrue(page.get_by_role('button',name='Browse for Folder',exact=True).is_visible())
+                self.assertEqual(page.locator('input[type=file]').count(),0)
+                page.get_by_role('button',name='Browse for Folder',exact=True).click()
+                page.wait_for_function("document.getElementById('directory-message').textContent.startsWith('Verified directories:')")
+                self.assertFalse(page.locator('#directory-modal').is_visible())
+                self.assertEqual(page.evaluate('pickerCalls'),[dict(mode='readwrite',active=True)])
+                self.assertEqual(self.tree(page,'Empty selected folder'),{'ProTrade':{'Owner':{'Happy Shop':{'Invoice':{},'Statement':{}}}}})
+            finally:browser.close()
+
+    def test_browse_cancel_denial_and_write_failure_preserve_registration(self):
+        with sync_playwright() as runtime:
+            browser,page=self.browser(runtime)
+            try:
+                page.goto('https://ait.test/mechanic/main-directory');self.drop(page)
+                page.wait_for_function("document.getElementById('directory-message').textContent.includes('read/write access verified')")
+                for kind,expected in [('AbortError','cancelled'),('NotAllowedError','denied')]:
+                    page.evaluate("kind=>{window.showDirectoryPicker=async()=>{throw new DOMException('Selection failed',kind);};}",kind)
+                    page.locator('#directory-select').click()
+                    page.locator('#directory-browse').click()
+                    page.wait_for_function("text=>document.getElementById('directory-modal-message').textContent.includes(text)",arg=expected)
+                    self.assertTrue(page.locator('#directory-modal').is_visible())
+                    self.assertEqual(page.locator('#directory-folder').text_content(),'Main')
+                    page.locator('#directory-modal-close').click()
+                page.evaluate("""() => {window.showDirectoryPicker=async()=> (await navigator.storage.getDirectory()).getDirectoryHandle('Failed destination',{create:true});
+                    FileSystemFileHandle.prototype.createWritable=async()=>{throw Error('Write verification failed');};}""")
+                page.locator('#directory-select').click();page.locator('#directory-browse').click()
+                page.wait_for_function("document.getElementById('directory-modal-message').textContent.includes('Write verification failed')")
+                self.assertTrue(page.locator('#directory-modal').is_visible())
+                self.assertEqual(page.evaluate("async()=> (await AITDirectories.get({user:'1',property:'protrade'})).handle.name"),'Main')
+            finally:browser.close()
+
+    def test_browse_unavailable_keeps_drag_drop_available_and_is_opt_in(self):
+        from flask import render_template
+        with self.app.test_request_context('/'):
+            legacy=render_template('partials/directory_selection_modal.html')
+        self.assertNotIn('id="directory-browse"',legacy)
+        with sync_playwright() as runtime:
+            browser,page=self.browser(runtime)
+            try:
+                page.goto('https://ait.test/mechanic/main-directory')
+                page.wait_for_function("!document.getElementById('directory-select').disabled")
+                page.evaluate('window.showDirectoryPicker=undefined')
+                page.locator('#directory-select').click();page.locator('#directory-browse').click()
+                page.wait_for_function("document.getElementById('directory-modal-message').textContent.includes('Chrome or Edge')")
+                page.evaluate("""async()=>{const handle=await(await navigator.storage.getDirectory()).getDirectoryHandle('Drop fallback',{create:true});
+                    await document.getElementById('directory-drop-zone').ondrop({preventDefault(){},dataTransfer:{items:[{kind:'file',getAsFileSystemHandle:()=>Promise.resolve(handle)}]}});
+                }""")
+                page.wait_for_function("document.getElementById('directory-message').textContent.includes('read/write access verified')")
+                self.assertFalse(page.locator('#directory-modal').is_visible())
+                self.assertEqual(self.tree(page,'Drop fallback'),{'ProTrade':{}})
+            finally:browser.close()
+
     def test_signed_event_owner_expiry_and_existing_shop_exclusion(self):
         location=self.new_shop()
         query=urlsplit(location).query

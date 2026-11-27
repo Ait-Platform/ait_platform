@@ -278,12 +278,13 @@
   api.bindSelection=options=>{
     const dialog=document.getElementById('directory-modal'),zone=document.getElementById('directory-drop-zone');
     const status=document.getElementById('directory-modal-message'),close=document.getElementById('directory-modal-close');
+    const browse=document.getElementById('directory-browse');
     let pending=null,busy=false,version=0;
     const notice=text=>{status.textContent=text;options.message.textContent=text;};
     function dismiss(){if(busy)return;version++;pending=null;dialog.close();}
     async function connect(){
       if(!pending || busy || !options.ready())return;
-      busy=true;zone.setAttribute('aria-disabled','true');close.disabled=true;
+      busy=true;zone.setAttribute('aria-disabled','true');close.disabled=true;if(browse)browse.disabled=true;
       try{
         const saved=await (options.register || api.register)(options.scope,pending,options.registration);
         pending=null;options.success(saved);dialog.close();
@@ -297,29 +298,52 @@
           notice(detail);if(error.registrationStage)pending=null;
           options.failure?.(error);
         }
-      }finally{busy=false;zone.removeAttribute('aria-disabled');close.disabled=false;}
+      }finally{busy=false;zone.removeAttribute('aria-disabled');close.disabled=false;if(browse)browse.disabled=false;}
     }
     options.button.onclick=()=>{
       if(!options.ready())return;
-      version++;pending=null;status.textContent='Drag your main Windows folder into the area below. Empty folders are supported.';
+      version++;pending=null;status.textContent=browse?'Click Browse for Folder or drop your main folder below. Empty folders are supported.':'Drag your main Windows folder into the area below. Empty folders are supported.';
       if(!window.isSecureContext || !window.indexedDB || !navigator.locks || typeof dialog.showModal!=='function'){notice('Folder setup is unavailable in this browser. Use Download PDF.');return;}
       dialog.showModal();zone.focus();
+    };
+    async function accept(handle,current){
+      if(current!==version || !dialog.open)return;
+      if(handle?.kind!=='directory')throw new Error('Select a directory, not a file.');
+      await options.inspect?.(handle);
+      if(current!==version || !dialog.open)return;
+      pending=handle;
+      // Keep the registered label unchanged until verification succeeds in the
+      // opt-in browse workflow. Legacy adapters retain their selection display.
+      if(!browse)options.label.textContent=handle.name;
+      const permission=await handle.queryPermission({mode:'readwrite'});
+      if(current!==version || !dialog.open)return;
+      if(permission==='granted' || navigator.userActivation?.isActive)await connect();
+      else notice('Folder received. Click here to allow saving, then approve the browser permission prompt.');
+    }
+    if(browse)browse.onclick=async()=>{
+      if(!dialog.open || busy || browse.disabled || !options.ready())return;
+      const current=++version;pending=null;
+      if(typeof window.showDirectoryPicker!=='function'){
+        notice('Browse for Folder requires Chrome or Edge over HTTPS. You can also try dragging a folder into the area below.');return;
+      }
+      browse.disabled=true;
+      try{
+        // Invoke directly in the user click, before any asynchronous work.
+        const handle=await window.showDirectoryPicker({mode:'readwrite'});
+        await accept(handle,current);
+      }catch(error){
+        if(current===version && dialog.open){
+          pending=null;
+          notice(error.name==='AbortError'?'Folder selection cancelled. The registered main directory is unchanged.':api.folderError(error,'picker'));
+        }
+      }finally{browse.disabled=busy;}
     };
     zone.ondragover=event=>{if(Array.from(event.dataTransfer.types).includes('Files'))event.preventDefault();};
     zone.ondrop=async event=>{
       event.preventDefault();if(!dialog.open || busy || !options.ready())return;
       const current=++version;pending=null;
-      try{
-        const handle=await api.droppedDirectory(event);
-        if(current!==version || !dialog.open)return;
-        await options.inspect?.(handle);
-        if(current!==version || !dialog.open)return;
-        pending=handle;options.label.textContent=handle.name;
-        const permission=await handle.queryPermission({mode:'readwrite'});
-        if(current!==version || !dialog.open)return;
-        if(permission==='granted' || navigator.userActivation?.isActive)await connect();
-        else notice('Folder received. Click here to allow saving, then approve the browser permission prompt.');
-      }catch(error){if(current===version)notice(error.message);}
+      try{await accept(await api.droppedDirectory(event),current);}
+      catch(error){if(current===version)notice(error.message);}
     };
     zone.onclick=()=>connect();
     zone.onkeydown=event=>{if(event.key==='Enter' || event.key===' '){event.preventDefault();connect();}};

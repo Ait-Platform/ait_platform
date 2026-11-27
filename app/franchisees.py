@@ -1,4 +1,4 @@
-"""Small registration workflow following SACE's hashed, expiring invitation pattern."""
+"""Global account-linked Franchise registration and administrative accountability."""
 import base64
 import hashlib
 import hmac
@@ -43,14 +43,33 @@ def now():
     return datetime.now(timezone.utc)
 
 
-def cipher():
+TERMS_VERSION = '2026-11-27'
+
+
+def profile_key():
+    # Existing encrypted registrations retain their original configured key.
+    # New installations need only AIT's existing shared application secret.
     key = current_app.config.get('FRANCHISEE_PII_KEY')
     if not key:
-        abort(503, description='Franchisee registration is temporarily unavailable. Contact AIT Admin.')
+        secret = current_app.config.get('SECRET_KEY')
+        if not secret or secret == 'dev-secret':
+            abort(503, description='AIT secure configuration is unavailable. Contact AIT Admin.')
+        secret = secret.encode() if isinstance(secret, str) else secret
+        key = base64.urlsafe_b64encode(hmac.new(secret,
+            b'ait-global-franchise-profile-v1', hashlib.sha256).digest())
+    return key.encode() if isinstance(key, str) else key
+
+
+def cipher():
     try:
-        return Fernet(key.encode() if isinstance(key, str) else key)
+        return Fernet(profile_key())
     except (ValueError, TypeError):
-        abort(503, description='Franchisee registration is temporarily unavailable. Contact AIT Admin.')
+        abort(503, description='Private registration storage is unavailable. Contact AIT Admin.')
+
+
+def identity_key():
+    # Use the same key material as profile encryption; never hash an ID in plain text.
+    return base64.urlsafe_b64decode(profile_key())
 
 
 def normal_email(raw):
@@ -70,8 +89,8 @@ def linked_user(email):
     return users[0].id if users else None
 
 
-def audit(row, action, actor=None):
-    row.history = list(row.history or []) + [dict(action=action, actor_id=actor, at=now().isoformat())]
+def audit(row, action, actor=None, **details):
+    row.history = list(row.history or []) + [dict(action=action, actor_id=actor, at=now().isoformat(), **details)]
 
 
 @franchisee_bp.before_request
@@ -125,15 +144,18 @@ def registration_csrf_error(error):
 
 @franchisee_bp.route('/franchisees/opportunities/register', endpoint='registration_start')
 def registration_start():
-    return redirect(url_for('franchisee_bp.opportunities', area='register'))
+    registration = current_registration()
+    return redirect(url_for('franchisee_bp.opportunities', **({} if registration and registration.franchisee_number else {'area':'register'})))
 
 
 @franchisee_bp.route('/franchisees/opportunities', methods=['GET', 'POST'])
 def opportunities():
     area = request.args.get('area', '')
-    if area not in {'', 'register', 'clients', 'earnings', 'protrade'}:
+    if area not in {'', 'register', 'clients', 'earnings', 'protrade', 'programmes'}:
         abort(400)
     registration = current_registration()
+    if request.method == 'GET' and not area and not (registration and registration.franchisee_number):
+        area = 'register'
     error, status, errors = None, 200, {}
     if request.method == 'POST':
         area = 'register'
@@ -155,6 +177,8 @@ def opportunities():
         if registration.status not in {'Invited', 'Submitted'}:
             return dashboard_response(registration, area, 'This registration has already been completed or reviewed.', 409)
         try:
+            if request.form.get('accept_terms') != 'yes':
+                raise RegistrationValidationError({'accept_terms':'Accept the AIT terms and Franchise participation conditions to register.'})
             if registration.status == 'Submitted' and request.form.get('action') == 'activate':
                 registration.user_id = current_user.id
                 activate_registration(registration, current_user.id, automatic=True)
@@ -305,7 +329,8 @@ def activate_registration(row, actor, automatic=False):
         row.franchisee_number = f'FR-{number:04d}'
     row.status, row.reviewed_at = 'Approved', now()
     row.reviewed_by = None if automatic else actor
-    audit(row, 'automatically_activated' if automatic else 'approved', actor)
+    audit(row, 'automatically_activated' if automatic else 'approved', actor,
+          **({'terms_version':TERMS_VERSION, 'terms_accepted':True} if automatic else {}))
 
 
 def save_registration(row, activate=False):
@@ -336,8 +361,7 @@ def save_registration(row, activate=False):
         raise RegistrationValidationError(errors)
     # HMAC, rather than a dictionary-attackable plain hash, identifies duplicates.
     user_id = linked_user(row.email)  # Resolve before mutations can trigger autoflush.
-    key = current_app.config['FRANCHISEE_PII_KEY']
-    row.identity_digest = hmac.new(base64.urlsafe_b64decode(key), b'franchisee-identity-v1:' + identity.encode(), hashlib.sha256).hexdigest()
+    row.identity_digest = hmac.new(identity_key(), b'franchisee-identity-v1:' + identity.encode(), hashlib.sha256).hexdigest()
     row.identity_ciphertext = encryption.encrypt(identity.encode()).decode()
     row.address_ciphertext = encryption.encrypt(address.encode()).decode()
     row.full_name, row.cellphone, row.occupation = name, phone, occupation or None

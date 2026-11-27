@@ -253,9 +253,13 @@
       {% endif %}
     {% endif %}
     {% endfor %}
+    {% include 'franchisees/_bridge_tile.html' %}
   </div>
   {% endif %}
 
+  {% endif %}
+  {% if single_budget or platform_admin_bridge %}
+  <div class="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">{% include 'franchisees/_bridge_tile.html' %}</div>
   {% endif %}
 </div>
 

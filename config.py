@@ -128,6 +128,7 @@ class Config:
 
     # ------------ Core / Security ------------
     SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret")
+    # Optional compatibility for existing encrypted Franchise records, not activation.
     FRANCHISEE_PII_KEY = os.getenv("FRANCHISEE_PII_KEY")
     FRANCHISEE_PUBLIC_ORIGIN = os.getenv("FRANCHISEE_PUBLIC_ORIGIN")
     MAINTENANCE_MODE = int(os.getenv("MAINTENANCE_MODE", "0"))

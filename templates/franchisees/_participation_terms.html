@@ -1,0 +1,7 @@
+<div class="mt-4 rounded-lg border border-slate-300 bg-white p-4">
+  <h3 class="font-semibold">Franchise participation conditions</h3>
+  <p>Participation is voluntary. Provide accurate profile information and respect client ownership and confidentiality. AIT Admin may suspend or reinstate Franchise access for accountability.</p>
+  <p>Registration does not grant professional accreditation, regulatory approval or authority to deliver SACE-endorsed activities. Each programme retains its own participation, access and regulatory requirements.</p>
+  <label><input type="checkbox" name="accept_terms" value="yes" required {% if request.form.get('accept_terms')=='yes' %}checked{% endif %}> I accept the <a href="/terms" class="underline" target="_blank" rel="noopener">AIT terms and conditions</a> and these Franchise participation conditions (27 November 2026).</label>
+  {% if errors.get('accept_terms') %}<p role="alert" class="franchisee-error">{{ errors['accept_terms'] }}</p>{% endif %}
+</div>

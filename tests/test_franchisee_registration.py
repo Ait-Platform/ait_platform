@@ -145,7 +145,7 @@ class FranchiseeTests(unittest.TestCase):
         return token
 
     def fields(self,email='happiness@example.org',**changes):
-        values=dict(full_name='Happiness Example',cellphone='082 123 4567',email=email,address='12 Synthetic Test Street',sa_id=valid_id(),occupation='Contractor')
+        values=dict(full_name='Happiness Example',cellphone='082 123 4567',email=email,address='12 Synthetic Test Street',sa_id=valid_id(),occupation='Contractor',accept_terms='yes')
         values.update(changes);return values
 
     def submit(self,token,**fields):
@@ -188,8 +188,8 @@ class FranchiseeTests(unittest.TestCase):
             response=self.client.get('/franchisees/opportunities')
             self.assertEqual(response.status_code,200)
             page=html.fromstring(response.text)
-            self.assertEqual(page.xpath('//nav[@aria-label="Franchisee working areas"]/a/text()'),['Register','Clients','Earnings','ProTrade'])
-            self.assertEqual(len(page.xpath('//section[@id="working-area"][@hidden]')),1)
+            self.assertEqual(page.xpath('//nav[@aria-label="Franchisee working areas"]/a/text()'),['Register','Available Programmes','Client Register','Earnings','ProTrade'])
+            self.assertEqual(len(page.xpath('//section[@id="working-area"][@hidden]')),0)
         self.assertEqual(self.Registration.query.count(),0)
         token=self.invite()
         self.login(2)
@@ -232,8 +232,8 @@ class FranchiseeTests(unittest.TestCase):
         self.assertEqual(self.client.post('/franchisees/opportunities',data=self.fields(email='other@example.org')).status_code,400)
         self.app.config['WTF_CSRF_ENABLED']=False
         self.app.config['FRANCHISEE_PII_KEY']=None
-        self.assertEqual(self.client.post('/franchisees/opportunities',data=self.fields(email='other@example.org')).status_code,503)
-        self.assertEqual(self.Registration.query.count(),1)
+        self.assertEqual(self.client.post('/franchisees/opportunities',data=self.fields(email='other@example.org',sa_id=valid_id('800102500908'))).status_code,302)
+        self.assertEqual(self.Registration.query.count(),2)
 
     def test_clients_and_historical_earnings_are_readonly_and_user_scoped(self):
         self.login(2)
@@ -341,14 +341,14 @@ class FranchiseeTests(unittest.TestCase):
         page=self.client.get('/franchisees/opportunities?area=register')
         self.assertIn('Complete Registration',page.text)
         self.assertNotIn('awaiting AIT Admin approval',page.text)
-        self.assertEqual(self.client.post('/franchisees/opportunities',data={'action':'activate'}).status_code,302)
+        self.assertEqual(self.client.post('/franchisees/opportunities',data={'action':'activate','accept_terms':'yes'}).status_code,302)
         row=self.Registration.query.one()
         self.assertTrue(row.is_active)
         self.assertEqual(row.franchisee_number,'FR-0001')
         self.assertEqual(row.user_id,2)
         self.assertEqual((row.identity_ciphertext,row.address_ciphertext),(identity,address))
         self.assertEqual(row.history[:-1],history)
-        self.assertEqual(self.client.post('/franchisees/opportunities',data={'action':'activate'}).status_code,409)
+        self.assertEqual(self.client.post('/franchisees/opportunities',data={'action':'activate','accept_terms':'yes'}).status_code,409)
 
     def test_committed_registration_survives_fresh_session_and_dashboard_reload(self):
         self.login(2)
@@ -443,7 +443,7 @@ class FranchiseeTests(unittest.TestCase):
         self.assertEqual(set(page.xpath('//*[@aria-invalid="true"]/@name')),{'full_name','sa_id','cellphone','address','occupation'})
         self.assertEqual(self.Registration.query.count(),0)
 
-    def test_bridge_franchisee_entry_is_paused_for_ordinary_users_and_admins(self):
+    def test_bridge_franchise_entry_is_available_for_users_admins_and_budget_only(self):
         for endpoint in ['admin_bp.global_settings','admin_bp.programs_index','admin_bp.security_dashboard']:
             self.app.add_url_rule('/test/'+endpoint,endpoint=endpoint,view_func=lambda:'Existing admin destination')
         for admin in [False,True]:
@@ -451,10 +451,19 @@ class FranchiseeTests(unittest.TestCase):
                 markup=render_template('auth/bridge_dashboard.html',user=self.User(id=99,name='Example'),
                                        subjects=[],platform_admin_bridge=admin)
             page=html.fromstring(markup)
-            links=page.xpath('//a[normalize-space(.)="AIT Franchise Opportunities"]')
-            self.assertEqual(len(links),0)
+            links=page.xpath('//a[normalize-space(.)="Open Franchise"]')
+            self.assertEqual(len(links),1)
+            self.assertEqual(links[0].get('href'),'/franchisees/opportunities/register')
+        self.app.add_url_rule('/budget',endpoint='budget_bp.dashboard',view_func=lambda:'BudgetCash')
+        with self.app.test_request_context('/bridge'):
+            markup=render_template('auth/bridge_dashboard.html',user=self.User(id=99,name='Example'),
+                subjects=[{'slug':'budget'}],platform_admin_bridge=False,is_single_budget=True,budget_wallet_balance=20)
+        page=html.fromstring(markup)
+        self.assertEqual(len(page.xpath('//a[normalize-space(.)="Open Franchise"]')),1)
+        self.assertIn('Open BudgetCash',page.text_content())
 
     def test_browser_opportunities_and_compact_admin_register(self):
+        self.app.view_functions['bridge_bp.bridge']=lambda:render_template('auth/bridge_dashboard.html',user=self.User(id=3,name='Other User'),subjects=[],platform_admin_bridge=False,hide_navbar=True)
         import threading
         from playwright.sync_api import sync_playwright
         from werkzeug.serving import make_server, WSGIRequestHandler
@@ -484,16 +493,19 @@ class FranchiseeTests(unittest.TestCase):
                         cookie=self.app.session_interface.get_signing_serializer(self.app).dumps({'_user_id':str(uid),'_fresh':True})
                         page.context.add_cookies([{'name':self.app.config['SESSION_COOKIE_NAME'],'value':cookie,'url':origin}])
                     login(3)
-                    page.goto(origin+'/franchisees/opportunities')
+                    page.goto(origin+'/bridge')
+                    page.get_by_role('link',name='Open Franchise',exact=True).click()
+                    page.wait_for_url('**/franchisees/opportunities?area=register')
                     menu=page.get_by_role('navigation',name='Franchisee working areas')
                     positions=menu.locator('a').evaluate_all('(links) => links.map(link => link.getBoundingClientRect().top)')
                     self.assertEqual(len(set(positions)),1)
-                    self.assertFalse(page.locator('#working-area').is_visible())
+                    self.assertTrue(page.locator('#working-area').is_visible())
                     menu.get_by_role('link',name='Register',exact=True).click()
                     self.assertTrue(page.locator('#working-area').is_visible())
                     entered=self.fields(email='other@example.org',full_name='Bill',sa_id=valid_id('800102500908'))
                     for field,value in entered.items():
-                        if field!='email':page.locator('[name='+field+']').fill(value)
+                        if field=='accept_terms':page.locator('[name='+field+']').check()
+                        elif field!='email':page.locator('[name='+field+']').fill(value)
                     page.locator('[name=cellphone]').fill('invalid')
                     page.get_by_role('button',name='Submit registration',exact=True).click()
                     page.locator('#franchisee-cellphone-error').wait_for()
@@ -536,6 +548,34 @@ class FranchiseeTests(unittest.TestCase):
                 finally:browser.close()
         finally:
             server.shutdown();thread.join(timeout=5);server.server_close()
+
+    def test_open_registration_without_franchise_environment_and_terms_audit(self):
+        self.app.config.pop('FRANCHISEE_PII_KEY',None)
+        self.app.config.pop('FRANCHISEE_PUBLIC_ORIGIN',None)
+        self.login(2)
+        start=self.client.get('/franchisees/opportunities/register')
+        self.assertEqual(start.location,'/franchisees/opportunities?area=register')
+        profile=self.client.get(start.location)
+        self.assertIn('Existing Happiness',profile.text)
+        rejected=self.client.post('/franchisees/opportunities',data=self.fields(accept_terms=''))
+        self.assertEqual(rejected.status_code,400)
+        self.assertEqual(self.Registration.query.count(),0)
+        registered=self.client.post('/franchisees/opportunities',data=self.fields())
+        self.assertEqual(registered.status_code,302)
+        row=self.Registration.query.one()
+        self.assertTrue(row.is_active)
+        self.assertEqual(row.history[-1]['terms_version'],self.flow.TERMS_VERSION)
+        self.assertTrue(row.history[-1]['terms_accepted'])
+        before=(row.id,row.franchisee_number,list(row.history))
+        self.assertEqual(self.client.get('/franchisees/opportunities/register').location,'/franchisees/opportunities')
+        self.assertIn(row.franchisee_number,self.client.get('/franchisees/opportunities').text)
+        programmes=self.client.get('/franchisees/opportunities?area=programmes')
+        for label in ('ProTrade','Educational programmes','Property Management','SACE'):
+            self.assertIn(label,programmes.text)
+        self.assertEqual(self.client.post('/franchisees/opportunities',data=self.fields()).status_code,409)
+        self.assertEqual(self.Registration.query.count(),1)
+        self.assertEqual((row.id,row.franchisee_number,row.history),before)
+        self.assertEqual(self.messages,[])
 
     def test_required_fields_and_identity_validation(self):
         token=self.invite()
@@ -589,7 +629,7 @@ class FranchiseeTests(unittest.TestCase):
 
     def test_missing_key_and_delivery_failure_are_safe(self):
         self.app.config['FRANCHISEE_PII_KEY']=None
-        self.assertEqual(self.client.post('/admin/franchisees',data={'email':'happiness@example.org'}).status_code,503)
+        self.assertEqual(self.client.get('/franchisees/opportunities?area=register').status_code,200)
         self.assertEqual(self.Registration.query.count(),0);self.assertEqual(self.messages,[])
         self.app.config['FRANCHISEE_PII_KEY']=Fernet.generate_key().decode()
         with patch.object(self.mail,'send',side_effect=RuntimeError('Do not log recipient or token')):
@@ -636,7 +676,9 @@ class FranchiseeTests(unittest.TestCase):
                     page=browser.new_page(viewport={'width':1280,'height':900})
                     errors=[];page.on('pageerror',lambda error:errors.append(str(error)))
                     page.goto(origin+'/franchisees/register/'+token)
-                    for field,value in self.fields().items():page.locator('[name='+field+']').fill(value)
+                    for field,value in self.fields().items():
+                        if field=='accept_terms':continue
+                        page.locator('[name='+field+']').fill(value)
                     page.get_by_role('button',name='Submit registration').click()
                     page.wait_for_url('**/franchisees/submitted')
                     self.assertIn('Registration submitted',page.locator('h1').inner_text())

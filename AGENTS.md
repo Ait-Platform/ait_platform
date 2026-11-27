@@ -8,8 +8,9 @@ Production database verification and migrations across all AIT programmes must
 follow [AIT Production Database — Verified Identity and Migration Protocol](AGENT.md#ait-production-database--verified-identity-and-migration-protocol).
 Keep verified identity details in that section rather than duplicating them here.
 
-**Folder Management and Franchise remain on HOLD.** The historical rollout
-notes below do not lift these holds.
+**Folder Management remains on HOLD.** Franchise Management was separately
+authorised on 27 November 2026; follow the Global Franchise Management standard
+in AGENT.md. The historical folder rollout notes below do not lift the folder HOLD.
 
 ## ProTrade local-folder rollout
 

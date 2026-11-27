@@ -167,7 +167,7 @@ Never store database passwords, complete connection strings or other credentials
 in repository documentation. Do not print credentials into reports or logs.
 
 This protocol does not authorise production writes or lift programme scope holds.
-**Folder Management and Franchise remain on HOLD.**
+**Folder Management remains on HOLD.**
 
 
 ## Mandatory Global Output and Global Email architecture
@@ -234,13 +234,59 @@ common Output interface and action handling and reusable Email invocation,
 validation, duplicate-send/status lifecycle, while retaining program-specific
 report adapters, permissions, snapshots and durable receipt associations.
 Preserve the working ProTrade and PM workflows; this documentation does not
-authorise broad refactoring, PM changes or Folder Management/Franchise development.
+authorise broad refactoring, PM changes or Folder Management development.
 
 AIT token charges must ultimately be configurable through Admin Hub. Consultants
 remain responsible for setting their own customer charges. Do not publish fixed
 AIT charges, suggested customer prices or operator remuneration arrangements in
 ProTrade Help. This rule does not authorise changing the token charging engine,
 wallet functionality or Paystack integration.
+
+## Mandatory Global Franchise Management standard
+
+Franchise Management is a global AIT module alongside Global Output, Global Email
+and Global Folder Management. Franchise development and rollout are authorised
+from 27 November 2026. Folder Management remains on HOLD; this authorisation does
+not change any programme's financial, professional or regulatory permissions.
+
+- Participation is open and voluntary for every registered AIT user. The Bridge
+  Franchise tile opens registration for a new participant and the existing
+  Franchise Dashboard for an existing participant.
+- Register once using the existing AIT account, a simple profile and explicit
+  acceptance of the applicable AIT terms and Franchise participation conditions.
+  Record acceptance version, actor and timestamp in the existing audit history.
+  Allocate the existing unique registration number and activate immediately.
+- No invitation, applicant screening, Admin approval or manual activation is a
+  prerequisite. Legacy invitation and review records remain preserved; historical
+  decisions, issued numbers and audit history must never be rewritten on entry.
+- One franchisee identity may participate across ProTrade, educational programmes,
+  Property Management and future programmes. Reuse existing programme entry and
+  licensing mechanisms; registration does not automatically grant programme
+  enrolment, professional accreditation, regulatory approval or SACE delivery
+  authority. SACE application outcomes do not govern Franchise registration.
+- Administration is database-driven: retain one registration per account, unique
+  numbers, client ownership and isolation. Admin Hub provides visibility of profile,
+  status and history, with audited suspension and reinstatement as exceptions.
+  Suspended participants must not reactivate themselves by submitting Register.
+- Use trust-based registration with administrative accountability. Do not create
+  Franchise-specific environment activation switches. New self-registration works
+  with AIT's existing shared secure application configuration; no Franchise-specific
+  Render setting is required. Preserve optional legacy PII decryption keys for
+  existing ciphertext and legacy invitation configuration where still retained;
+  these are compatibility/security data, not activation switches. Never remove
+  keys required to read existing encrypted records.
+- Reuse `ait_franchisee_registration`, its number sequence and audited status
+  model. Internal legacy `Approved` represents active registration, not a manual
+  approval prerequisite. Suspension/reinstatement remain audited history events.
+  Preserve existing educational `FranchiseLicense` records and programme access.
+- Do not introduce fixed franchise fees, commissions or remuneration. Future
+  commercial controls must be configurable through authorised administration.
+  Existing historical earnings remain read-only at their original saved values.
+
+Current integration reuses the existing Franchise hub and ProTrade client/earnings
+adapters. Available Programmes links to ProTrade and to the AIT Bridge for existing
+educational and PM entry/enrolment. It does not manufacture new programme licences,
+copy PM client records or implement new commission/payment processing.
 
 ## Deferred centralised Folder Management
 
@@ -251,7 +297,7 @@ menus and Save Report in Output. Preview, Print, Download PDF and the standardis
 email sender operate independently of local folder registration or authorisation.
 Preserve existing folder code, records, registered handles and historical documents.
 Property Management and its existing Folder Management remain unchanged.
-Folder Management development and Franchise remain on HOLD; this requirement
+Folder Management development remains on HOLD; this requirement
 does not authorise implementation of the centralised module.
 
 **Historical exception (revoked 27 November 2026; retained for reference):** ProTrade may provide Main
@@ -280,7 +326,7 @@ return to its normal workflow without directory selection or authorisation.
 Retain Preview, Print, Download PDF and Email independently. Preserve all folder
 code, diagnostic findings, records, registered browser handles and historical
 files. Do not clear registrations or delete, migrate or rewrite existing folders.
-Property Management is unchanged. Folder Management and Franchise remain on
+Property Management is unchanged. Folder Management remains on
 HOLD until explicitly authorised to resume; the historical exception above no
 longer authorises execution or development.
 

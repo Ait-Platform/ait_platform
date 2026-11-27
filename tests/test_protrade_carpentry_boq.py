@@ -74,7 +74,7 @@ class CarpentryBoqTests(unittest.TestCase):
         self.assertEqual((item.user_id, item.shop_id, item.trade), (1, self.carpentry.id, 'carpentry'))
         self.assertEqual(item.total_rate, Decimal('1850.00'))
         page = self.page().get_data(as_text=True)
-        self.assertIn('Construction Price List', page)
+        self.assertIn('Unified Price List', page)
         self.assertIn('Install wooden door', page)
         self.assertIn('1850.00', page)
         self.assertNotIn('Brake Pads', page)
@@ -130,7 +130,7 @@ class CarpentryBoqTests(unittest.TestCase):
             self.save(code=f'CAR-{index}',description=f'Custom work {index}',unit=unit,material_rate='0',labour_rate='0')
         self.assertEqual(ProTradeBoqItem.query.count(), 4)
 
-    def test_mechanic_pricing_unchanged_and_boq_actions_unavailable(self):
+    def test_mechanic_uses_unified_prices_without_changing_legacy_records(self):
         self.save()
         page = self.page(self.mechanic).get_data(as_text=True)
         self.assertIn('Manage Price List', page)
@@ -140,7 +140,7 @@ class CarpentryBoqTests(unittest.TestCase):
         self.assertNotIn('Install wooden door', page)
         self.assertEqual(self.snapshot(), self.original)
         self.save(self.mechanic)
-        self.assertEqual(ProTradeBoqItem.query.count(), 1)
+        self.assertEqual(ProTradeBoqItem.query.count(), 2)
         self.assertEqual(self.snapshot(), self.original)
 
     def test_migration_preserves_mechanic_rows_and_enforces_constraints(self):

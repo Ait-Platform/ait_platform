@@ -63,8 +63,52 @@ BOQ_WORK_ITEMS.update({
         ('GEN-004','Clean work area','m\u00b2'),
     ),
 })
-BOQ_CODE_PREFIXES = dict(CONSTRUCTION_TRADES, boq='BOQ')
+# All registered profiles consume the same interface and shop-owned rate store.
+TRADE_CATALOGUES = dict(CONSTRUCTION_TRADES, mechanic='MECH', panel='PANEL', auto_elec='AUTO', generic='WORK', protrade='PRO', boq='BOQ')
+CATEGORY_LABELS.update(mechanic='General Mechanic', panel='Panel Beater', auto_elec='Auto Electrician', generic='Generic Business', protrade='ProTrade Default', boq='Bill of Quantities')
+BOQ_WORK_ITEMS.update({
+    'mechanic': (
+        ('MECH-STD-001','Vehicle diagnostic inspection','Hour'),
+        ('MECH-STD-002','Replace engine oil and filter','Each'),
+        ('MECH-STD-003','Replace brake pads','Each'),
+        ('MECH-STD-004','Replace spark plugs','Each'),
+        ('MECH-STD-005','General mechanical work','Hour'),
+    ),
+    'auto_elec': (
+        ('AUTO-STD-001','Vehicle electrical diagnostic inspection','Hour'),
+        ('AUTO-STD-002','Test battery and charging system','Each'),
+        ('AUTO-STD-003','Supply and replace vehicle battery','Each'),
+        ('AUTO-STD-004','Repair starter motor','Each'),
+        ('AUTO-STD-005','Repair alternator','Each'),
+        ('AUTO-STD-006','Repair vehicle wiring harness','Hour'),
+        ('AUTO-STD-007','Supply and replace vehicle light','Each'),
+        ('AUTO-STD-008','General auto electrical work','Hour'),
+    ),
+    'panel': (
+        ('PANEL-STD-001','Inspect vehicle body damage','Each'),
+        ('PANEL-STD-002','Repair damaged body panel','Each'),
+        ('PANEL-STD-003','Supply and replace body panel','Each'),
+        ('PANEL-STD-004','Prepare and refinish body panel','Each'),
+        ('PANEL-STD-005','General panel beating work','Hour'),
+    ),
+    'generic': (
+        ('WORK-STD-001','General service work','Hour'),
+        ('WORK-STD-002','Supply and install client item','Each'),
+        ('WORK-STD-003','Inspect and assess work','Each'),
+    ),
+    'protrade': (
+        ('PRO-STD-001','General trade work','Hour'),
+        ('PRO-STD-002','Supply and install trade item','Each'),
+        ('PRO-STD-003','Inspect and assess trade work','Each'),
+    ),
+    'boq': (('BOQ-STD-001','Measured work allowance','Each'),),
+})
+BOQ_CODE_PREFIXES = dict(TRADE_CATALOGUES)
 UNITS = ('Each','m','m\u00b2','m\u00b3','Hour')
+
+
+def unified_shop(shop):
+    return (shop.trade or 'mechanic') in TRADE_CATALOGUES
 
 
 def construction_shop(shop):
@@ -72,12 +116,12 @@ def construction_shop(shop):
 
 
 def categories_for(shop):
-    return list(CONSTRUCTION_TRADES) if shop.trade == 'boq' else list(dict.fromkeys([shop.trade, 'general']))
+    return list(CONSTRUCTION_TRADES) if shop.trade == 'boq' else list(dict.fromkeys([shop.trade or 'mechanic', 'general']))
 
 
 def default_category(shop):
     # Keep earlier BOQ custom rows and their codes in their original category.
-    return 'boq' if shop.trade == 'boq' else shop.trade
+    return shop.trade or 'mechanic'
 
 
 def category_options(shop):
@@ -97,7 +141,34 @@ def custom_boq_code(trade):
     return f'{BOQ_CODE_PREFIXES[trade]}-C-{uuid4().hex.upper()}'
 
 
-def quotation_catalogue(user_id, shop, item_model, shop_model, part_model=None):
+def client_price_rows(user_id,shop,category,item_model,legacy_parts=()):
+    """Read canonical rates plus eligible legacy rows without migrating source records."""
+    from decimal import Decimal
+    from types import SimpleNamespace
+    if shop.user_id!=user_id:
+        raise ValueError('Catalogue owner does not match client.')
+    saved=item_model.query.filter_by(user_id=user_id,shop_id=shop.id,trade=category).order_by(item_model.id).all()
+    codes={item.code for item in saved}
+    names={item.description.strip().casefold() for item in saved}
+    linked={item.legacy_part_id for item in saved if item.legacy_part_id is not None}
+    if category!=(shop.trade or 'mechanic'):
+        return saved
+    for part in legacy_parts:
+        code=part.item_code or f'{BOQ_CODE_PREFIXES[category]}-LEGACY-{part.id}'
+        if code in codes or part.id in linked or part.part_name.strip().casefold() in names:
+            continue
+        # Legacy selection is scoped by the caller. Never infer a component split.
+        rate=Decimal(str(part.default_price or 0))
+        if rate.is_finite() and rate.as_tuple().exponent > -2:
+            rate=rate.quantize(Decimal('0.01'))
+        saved.append(SimpleNamespace(id='legacy:'+str(part.id),code=code,description=part.part_name,unit='Each',quantity=Decimal(1),
+            material_rate=None,labour_rate=None,combined_rate=rate,total_rate=rate,total_amount=rate,
+            legacy_part_id=part.id if part.shop_id==shop.id and part.user_id==user_id else None))
+        codes.add(code)
+    return saved
+
+
+def quotation_catalogue(user_id, shop, item_model, shop_model, part_model=None, legacy_parts=()):
     """One client owns all category rates. Never discover prices in other shops."""
     from types import SimpleNamespace
     if shop.user_id != user_id:
@@ -105,7 +176,7 @@ def quotation_catalogue(user_id, shop, item_model, shop_model, part_model=None):
     items, catalogues = [], category_options(shop)
     for category in catalogues:
         trade = category['key']
-        saved = item_model.query.filter_by(user_id=user_id,shop_id=shop.id,trade=trade).order_by(item_model.id).all()
+        saved = client_price_rows(user_id,shop,trade,item_model,legacy_parts)
         by_code = {item.code:item for item in saved}
         definitions = work_items_for(trade)
         definitions += [dict(code=item.code,description=item.description,unit=item.unit) for item in saved if item.code not in {entry['code'] for entry in definitions}]
@@ -118,6 +189,17 @@ def quotation_catalogue(user_id, shop, item_model, shop_model, part_model=None):
                 labour_rate=item.labour_rate if item else None,combined_rate=combined,
                 rate_basis='combined' if combined is not None else 'split',catalogue_key=trade,catalogue_trade=trade))
     return items,catalogues
+
+
+def mechanic_quote_catalogue(user_id,shop,item_model,shop_model,part_model,legacy_parts):
+    """Adapt the same rate choices to existing Mechanic part/labour controls."""
+    from types import SimpleNamespace
+    items,_=quotation_catalogue(user_id,shop,item_model,shop_model,part_model,legacy_parts)
+    from collections import Counter
+    names=Counter(item.description.casefold().strip() for item in items)
+    return [SimpleNamespace(part_name=item.description if names[item.description.casefold().strip()]==1 else f'{CATEGORY_LABELS[item.catalogue_key]} / {item.code} / {item.description}',
+        default_price=item.combined_rate if item.combined_rate is not None else item.material_rate,
+        labour_rate=item.labour_rate,code=item.code,unit=item.unit) for item in items]
 
 
 def decimal_value(value, quantity=False, combined=False):

@@ -1459,9 +1459,9 @@ def carpentry_quote_form(shop, customer, debtor, editing_quote=None):
         from app.models.mechanic import MechInvoice
         if MechInvoice.query.filter_by(boq_quote_id=draft.id).filter(MechInvoice.source_data.isnot(None)).first():
             abort(409,description='This quotation has been invoiced. Create a new quotation for changes.')
-    from app.protrade_boq_catalog import quotation_catalogue, construction_shop
-    if construction_shop(shop):
-        items, catalogues = quotation_catalogue(current_user.id, shop, ProTradeBoqItem, MechShop, MechCatalogPart)
+    from app.protrade_boq_catalog import quotation_catalogue, unified_shop
+    if unified_shop(shop):
+        items, catalogues = quotation_catalogue(current_user.id, shop, ProTradeBoqItem, MechShop, MechCatalogPart, legacy_parts=selected_price_list(shop))
     else:
         from types import SimpleNamespace
         items = [SimpleNamespace(id='template:WORK-001',code='WORK-001',description='General services',unit='Each',material_rate=None,labour_rate=None)]
@@ -1747,19 +1747,23 @@ def carpentry_boq_price_list(shop):
     from sqlalchemy.exc import IntegrityError
     from app.models.mechanic import ProTradeBoqItem, ProTradeBoqQuote
     from app.protrade_boq_catalog import (category_options, default_category, work_items_for,
-        custom_boq_code, decimal_value, UNITS)
+        custom_boq_code, decimal_value, client_price_rows, UNITS)
     options = category_options(shop)
     category = request.values.get('category',default_category(shop))
-    if request.method=='GET' and 'category' not in request.args and shop.trade=='boq' and not ProTradeBoqItem.query.filter_by(user_id=current_user.id,shop_id=shop.id,trade='boq').first():
-        category = 'carpentry'
     if category not in {option['key'] for option in options}:
         abort(404)
     query = ProTradeBoqItem.query.filter_by(user_id=current_user.id,shop_id=shop.id,trade=category)
+    legacy_rows = client_price_rows(current_user.id,shop,category,ProTradeBoqItem,selected_price_list(shop))
     raw_id = request.values.get('item_id') if request.method=='POST' else request.args.get('edit_id')
     item = None
+    legacy_item = False
     if raw_id is not None:
         try:
-            item = query.filter_by(id=int(raw_id)).first()
+            if str(raw_id).startswith('legacy:'):
+                item = next((row for row in legacy_rows if str(row.id)==str(raw_id)),None)
+                legacy_item = item is not None
+            else:
+                item = query.filter_by(id=int(raw_id)).first()
         except (ValueError,TypeError):
             abort(404)
         if item is None:
@@ -1798,19 +1802,20 @@ def carpentry_boq_price_list(shop):
             else:
                 rates = dict(material_rate=decimal_value(values['material_rate']),labour_rate=decimal_value(values['labour_rate']),combined_rate=None)
             duplicate = query.filter_by(code=code)
-            if item is not None:
+            if item is not None and not legacy_item:
                 duplicate = duplicate.filter(ProTradeBoqItem.id!=item.id)
             if duplicate.first() is not None:
                 error,status = 'That catalogue code already exists. Edit the existing item.',409
             else:
                 from sqlalchemy import func
                 named = query.filter(func.lower(func.trim(ProTradeBoqItem.description))==values['description'].lower())
-                if item is not None:
+                if item is not None and not legacy_item:
                     named = named.filter(ProTradeBoqItem.id!=item.id)
                 if named.first() is not None:
                     raise ValueError('That description already exists in this category. Edit the existing item.')
-                if item is None:
-                    item = ProTradeBoqItem(user_id=current_user.id,shop_id=shop.id,trade=category,code=code)
+                if item is None or legacy_item:
+                    source_id = item.legacy_part_id if legacy_item else None
+                    item = ProTradeBoqItem(user_id=current_user.id,shop_id=shop.id,trade=category,code=code,legacy_part_id=source_id)
                     db.session.add(item)
                 item.description,item.unit,item.quantity = values['description'],values['unit'],quantity
                 for key,value in rates.items():
@@ -1823,7 +1828,7 @@ def carpentry_boq_price_list(shop):
         except IntegrityError:
             db.session.rollback()
             error,status = 'This item could not be saved. Check for an existing code and try again.',409
-    saved = query.order_by(ProTradeBoqItem.code).all()
+    saved = client_price_rows(current_user.id,shop,category,ProTradeBoqItem,selected_price_list(shop))
     by_code = {entry.code:entry for entry in saved}
     rows = [by_code.get(entry['code']) or dict(entry,material_rate=None,labour_rate=None,total_rate=None,combined_rate=None) for entry in definitions]
     rows += [entry for entry in saved if entry.code not in {definition['code'] for definition in definitions}]
@@ -1839,8 +1844,9 @@ def catalog_manage():
         flash('You must complete your shop setup first.', 'warning')
         return redirect(url_for('mechanic_bp.mechanic_dashboard'))
 
-    from app.protrade_boq_catalog import construction_shop
-    if construction_shop(active_shop):
+    from app.protrade_boq_catalog import unified_shop, construction_shop
+    # Preserve legacy POST contracts for already-open old forms; every GET uses the unified interface.
+    if unified_shop(active_shop) and (construction_shop(active_shop) or request.method=='GET' or request.form.get('action')=='save_boq'):
         return carpentry_boq_price_list(active_shop)
 
     if request.method == 'POST':
@@ -2011,7 +2017,9 @@ def edit_quote(id):
             flash(f"An error occurred while updating the quote. Error: {str(e)[:100]}", "danger")
             
     # GET Request: render form
-    catalog_parts = selected_price_list(active_shop)
+    from app.protrade_boq_catalog import mechanic_quote_catalogue
+    from app.models.mechanic import ProTradeBoqItem
+    catalog_parts = mechanic_quote_catalogue(current_user.id,active_shop,ProTradeBoqItem,MechShop,MechCatalogPart,selected_price_list(active_shop))
     
     return render_template("program_mechanic/quote_form.html", catalog_parts=catalog_parts, shop=active_shop, edit_card=job_card)
 
@@ -2052,7 +2060,9 @@ def new_quote():
         from types import SimpleNamespace
         quote_client = SimpleNamespace(name=active_shop.business_name, phone=active_shop.phone,
                                        email=active_shop.email, address=active_shop.address)
-    catalog_parts = selected_price_list(active_shop)
+    from app.protrade_boq_catalog import mechanic_quote_catalogue
+    from app.models.mechanic import ProTradeBoqItem
+    catalog_parts = mechanic_quote_catalogue(current_user.id,active_shop,ProTradeBoqItem,MechShop,MechCatalogPart,selected_price_list(active_shop))
     
     if request.method == "POST":
         vehicle_reg = request.form.get("vehicle_reg", "Unknown")

@@ -21,7 +21,7 @@
     try{result=work();}
     catch(error){log('EXCEPTION #'+id+' '+label+' - '+errorText(error));throw error;}
     if(!result || typeof result.then!=='function'){log('DONE #'+id+' '+label);return result;}
-    const timer=setInterval(()=>log('WAIT #'+id+' '+label+' - unresolved for '+Math.floor((performance.now()-time)/1000)+'s; no timeout, retry or cancellation applied.'),5000);
+    const timer=setInterval(()=>log('WAIT #'+id+' '+label+' - unresolved for '+Math.floor((performance.now()-time)/1000)+'s; stage-specific permission deadlines remain active; no automatic retry.'),5000);
     return Promise.resolve(result).then(value=>{
       log('DONE #'+id+' '+label+(typeof value==='string'?' -> '+value.slice(0,100):''));return value;
     },error=>{log('EXCEPTION #'+id+' '+label+' - '+errorText(error));throw error;}).finally(()=>clearInterval(timer));

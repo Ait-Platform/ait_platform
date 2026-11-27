@@ -13,8 +13,8 @@
 <pre id="directory-diagnostic-log" role="log" aria-live="polite" class="mt-4 max-h-56 overflow-auto whitespace-pre-wrap rounded border border-slate-300 bg-slate-50 p-3 text-xs text-slate-900"></pre>
 {% with directory_modal_browse=true, directory_modal_diagnostics=true %}{% include 'partials/directory_selection_modal.html' %}{% endwith %}
 <script id="main-directory-setup" type="application/json">{{ directory_setup|tojson }}</script>
-<script src="{{ url_for('static',filename='js/protrade_directory_diagnostics.js',v='20261127-stage-trace') }}" defer></script>
-<script src="{{ url_for('static',filename='js/pm_local_directories.js',v='20261127-stage-trace') }}" defer></script>
-<script src="{{ url_for('static',filename='js/protrade_main_directory.js',v='20261127-stage-trace') }}" defer></script>
+<script src="{{ url_for('static',filename='js/protrade_directory_diagnostics.js',v='20261127-permission-timeout') }}" defer></script>
+<script src="{{ url_for('static',filename='js/pm_local_directories.js',v='20261127-permission-timeout') }}" defer></script>
+<script src="{{ url_for('static',filename='js/protrade_main_directory.js',v='20261127-permission-timeout') }}" defer></script>
 </div></div></div>
 {% endblock %}

@@ -136,9 +136,9 @@
     },
     supported:()=>window.isSecureContext && typeof window.showDirectoryPicker==='function' && !!window.indexedDB,
     async get(scope,observer){check(scope);observe(observer,'indexeddb-read-key',{key:key(scope)});return operation('readonly',store=>store.get(key(scope)),observer);},
-    async set(scope,handle,observer,diagnostic){
+    async set(scope,handle,observer,diagnostic,permissionTimeoutMs=0){
       check(scope);if(!handle || handle.kind!=='directory')throw new Error('Select a folder.');
-      if(!await api.permission(handle,diagnostic))throw new Error('Folder permission was not granted. The previous main folder is unchanged.');
+      if(!await api.permission(handle,diagnostic,permissionTimeoutMs))throw new Error('Folder permission was not granted. The previous main folder is unchanged.');
       observe(observer,'indexeddb-write-key',{key:key(scope)});
       const result=await operation('readwrite',store=>{
         observe(observer,'indexeddb-put-start');
@@ -151,10 +151,10 @@
       if(!await api.permission(row.handle))throw new Error('Folder permission was not granted.');
       return row.handle.name;
     },
-    async permission(handle,diagnostic){
+    async permission(handle,diagnostic,permissionTimeoutMs=0){
       const options={mode:'readwrite'};
-      if(await diagnosticStep(diagnostic,'Permission: queryPermission(readwrite)',()=>handle.queryPermission(options))==='granted')return true;
-      return await diagnosticStep(diagnostic,'Permission: requestPermission(readwrite)',()=>handle.requestPermission(options))==='granted';
+      if(await diagnosticStep(diagnostic,'Permission: queryPermission(readwrite)',()=>permissionTimeoutMs?boundedDirectoryPermission(handle,'queryPermission',diagnostic,permissionTimeoutMs):handle.queryPermission(options))==='granted')return true;
+      return await diagnosticStep(diagnostic,'Permission: requestPermission(readwrite)',()=>permissionTimeoutMs?boundedDirectoryPermission(handle,'requestPermission',diagnostic,permissionTimeoutMs):handle.requestPermission(options))==='granted';
     }
   };
 
@@ -225,10 +225,32 @@
     });
   };
 
+  // Only the opt-in ProTrade registration flow uses these bounded checks.
+  // A timeout stops the caller, not the browser operation. Late responses never
+  // resume registration or creation and never imply that permission was granted.
+  function boundedDirectoryPermission(handle,method,diagnostic,milliseconds=10000){
+    if(handle?.kind!=='directory' || typeof handle[method]!=='function')return Promise.reject(new Error('The stored directory handle is invalid. Select and authorise a fresh main directory.'));
+    return new Promise((resolve,reject)=>{
+      let settled=false;
+      const timer=setTimeout(()=>{
+        settled=true;
+        diagnostic?.log('PERMISSION TIMEOUT: '+method+' after '+milliseconds/1000+'s. Native operation is not cancelled; this attempt cannot continue.');
+        reject(new DOMException('Directory '+method+' did not respond within '+milliseconds/1000+' seconds. Select Replace Main Directory and authorise a fresh folder. Existing files and registration are unchanged.','TimeoutError'));
+      },milliseconds);
+      function finish(error,value){
+        if(settled){diagnostic?.log('LATE PERMISSION RESPONSE IGNORED: '+method+(error?' rejected: '+error.name:' -> '+value));return;}
+        settled=true;clearTimeout(timer);if(error)reject(error);else resolve(value);
+      }
+      try{Promise.resolve(handle[method]({mode:'readwrite'})).then(value=>finish(null,value),error=>finish(error));}
+      catch(error){finish(error);}
+    });
+  }
+  api.queryMainDirectoryPermission=(handle,diagnostic)=>boundedDirectoryPermission(handle,'queryPermission',diagnostic);
+
   // Opt-in main-directory registration. Existing PM registration is unchanged.
   async function verifyWritableDirectory(handle,diagnostic){
     const run=(label,work)=>diagnosticStep(diagnostic,'Accessibility: '+label,work);
-    if(await run('query read/write permission',()=>handle.queryPermission({mode:'readwrite'}))!=='granted')throw new Error('Read/write access is not granted.');
+    if(await run('query read/write permission',()=>api.queryMainDirectoryPermission(handle,diagnostic))!=='granted')throw new Error('Read/write access is not granted.');
     const name='.ait-access-'+crypto.randomUUID()+'.tmp',value=crypto.randomUUID();
     let created=false;
     try{
@@ -247,7 +269,7 @@
     check(scope);
     if(!navigator.locks)throw new Error('Directory registration requires browser Web Locks.');
     // Request any needed permission in the selection gesture, before network waits.
-    if(!await api.permission(handle,d))throw new Error('Read/write access was denied. The previous registration is unchanged.');
+    if(!await api.permission(handle,d,10000))throw new Error('Read/write access was denied. The previous registration is unchanged.');
     return run('Registration: origin-wide lock request (includes time held)',()=>navigator.locks.request('ait-pm-local-report-save',async()=>{
       d?.log('LOCK ACQUIRED: main-directory registration');
       await run('Server: validate consultant before registration (no handle upload)',()=>options.authorise());
@@ -257,7 +279,7 @@
       const program=await run('Program directory: getDirectoryHandle(create)',()=>handle.getDirectoryHandle(safeSegment(options.programName),{create:true}));
       await run('Program directory: verify actual read/write access',()=>verifyWritableDirectory(program,d));
       await run('Server: revalidate consultant before IndexedDB storage',()=>options.authorise());
-      await run('IndexedDB: store directory handle and commit transaction',()=>api.set(scope,handle,observer,d));
+      await run('IndexedDB: store directory handle and commit transaction',()=>api.set(scope,handle,observer,d,10000));
       const saved=await run('IndexedDB: read back stored directory handle',()=>api.get(scope,observer));
       if(!saved || !await run('IndexedDB: verify stored handle isSameEntry',()=>saved.handle.isSameEntry(handle)))throw new Error('Registration could not be verified. Reload before continuing.');
       await run('Program directory: verify physical existence',()=>saved.handle.getDirectoryHandle(options.programName,{create:false}));
@@ -268,13 +290,20 @@
     const d=options.diagnostic,run=(label,work)=>diagnosticStep(d,label,work);
     check(scope);
     if(!navigator.locks)throw new Error('Directory creation requires browser Web Locks.');
+    // Verify the stored handle before entering the write lock: a stale browser
+    // permission query must not block fresh authorisation in this or other tabs.
+    const initialContext=await run('Server: validate signed new-shop event',()=>options.authorise());
+    if(!initialContext.shop)throw new Error('No newly registered shop is authorised for folder creation.');
+    const row=await run('IndexedDB: read main directory for new shop',()=>api.get(scope,d?.event));
+    if(!row)throw new Error('Shop registered. Select and authorise a main directory to create its folders.');
+    d?.log('STORED HANDLE: kind='+row.handle?.kind+'; queryPermission='+typeof row.handle?.queryPermission+'; directory='+row.handle?.name);
+    if(await run('Shop creation: query main-directory permission',()=>api.queryMainDirectoryPermission(row.handle,d))!=='granted')throw new Error('Shop registered. Main directory access is unavailable. Authorise or replace it before creating folders.');
     return run('Shop creation: origin-wide lock request (includes time held)',()=>navigator.locks.request('ait-pm-local-report-save',async()=>{
       d?.log('LOCK ACQUIRED: new-shop directory creation');
-      const context=await run('Server: validate signed new-shop event',()=>options.authorise());
-      if(!context.shop)throw new Error('No newly registered shop is authorised for folder creation.');
-      const row=await run('IndexedDB: read main directory for new shop',()=>api.get(scope,d?.event));
-      if(!row)throw new Error('Shop registered. Select and authorise a main directory to create its folders.');
-      if(await run('Shop creation: query main-directory permission',()=>row.handle.queryPermission({mode:'readwrite'}))!=='granted')throw new Error('Shop registered. Main directory access is unavailable. Authorise or replace it before creating folders.');
+      const context=await run('Server: revalidate signed new-shop event inside lock',()=>options.authorise());
+      if(!context.shop || context.shop.id!==initialContext.shop.id)throw new Error('The authorised shop changed. Reopen Main Directory.');
+      const current=await run('IndexedDB: recheck registration inside creation lock',()=>api.get(scope,d?.event));
+      if(!current || !await run('Shop creation: compare registered handle after permission check',()=>current.handle.isSameEntry(row.handle)))throw new Error('Main directory registration changed during permission verification. Reopen Main Directory.');
       const program=await run('Shop creation: open program directory',()=>row.handle.getDirectoryHandle(safeSegment(context.program),{create:true}));
       await verifyWritableDirectory(program,d);
       const owner={program:context.programKey,user:String(scope.user)};
@@ -341,7 +370,7 @@
       // Keep the registered label unchanged until verification succeeds in the
       // opt-in browse workflow. Legacy adapters retain their selection display.
       if(!browse)options.label.textContent=handle.name;
-      const permission=await run('Selection: queryPermission(readwrite)',()=>handle.queryPermission({mode:'readwrite'}));
+      const permission=await run('Selection: queryPermission(readwrite)',()=>options.permissionTimeoutMs?boundedDirectoryPermission(handle,'queryPermission',d,options.permissionTimeoutMs):handle.queryPermission({mode:'readwrite'}));
       d?.log('PERMISSION RESPONSE: '+permission+'; user activation='+!!navigator.userActivation?.isActive);
       if(current!==version || !dialog.open)return;
       if(permission==='granted' || navigator.userActivation?.isActive)await connect();

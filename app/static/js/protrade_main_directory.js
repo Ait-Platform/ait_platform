@@ -6,7 +6,7 @@
   const run=(label,work)=>d?d.run(label,work):work();
   const button=document.getElementById('directory-select'),label=document.getElementById('directory-folder');
   const message=document.getElementById('directory-message');
-  let loaded=false,previous=null,metadata=null;
+  let loaded=false,previous=null,metadata=null,generation=0;
   async function authorise(){
     const response=await run('Server context: GET consultant/new-shop authorisation (no directory registration endpoint)',()=>fetch(config.url,{credentials:'same-origin',cache:'no-store',redirect:'error'}));
     d?.log('SERVER RESPONSE: HTTP '+response.status);
@@ -21,7 +21,8 @@
     message.textContent='Verified directories: '+path+'/Invoice and Statement.';
   }
   const registration={authorise,previous:null,programName:'',diagnostic:d};
-  api.bindSelection({scope,button,label,message,registration,register:api.registerMainDirectory,diagnostic:d,
+  api.bindSelection({scope,button,label,message,registration,register:api.registerMainDirectory,diagnostic:d,permissionTimeoutMs:10000,
+    inspect(){generation++;},
     ready:()=>loaded,
     async success(row){
       previous=row;registration.previous=row;label.textContent=row.handle.name;button.textContent='Replace Main Directory';
@@ -30,6 +31,7 @@
     }
   });
   (async()=>{
+    const initialGeneration=generation;
     try{
       metadata=await authorise();registration.programName=metadata.program;
       previous=await run('Initialisation: restore registration from IndexedDB',()=>api.get(scope,d?.event));registration.previous=previous;
@@ -38,12 +40,12 @@
       loaded=true;button.disabled=false;
       if(metadata.shop){await createShop();}
       else if(previous){
-        const permission=await run('Restoration: query read/write permission',()=>previous.handle.queryPermission({mode:'readwrite'}));
+        const permission=await run('Restoration: query read/write permission',()=>api.queryMainDirectoryPermission(previous.handle,d));
         if(permission!=='granted')throw new Error('The registered directory is inaccessible or needs authorisation. Replace it to verify access.');
         // Read existing entries without creating directories or requesting permission.
         await run('Restoration: enumerate registered main directory',async()=>{for await(const entry of previous.handle.entries()){break;}});
         message.textContent='Registration restored. Select Replace Main Directory to authorise a new destination.';
       }else message.textContent='Select and authorise a main directory. No existing shop directories will be created.';
-    }catch(error){d?.log('INITIALISATION EXCEPTION: '+error.name+': '+error.message);message.textContent=(metadata?.shop?'Shop registered; directory creation failed: ':'')+error.message;if(!loaded)button.disabled=true;}
+    }catch(error){if(initialGeneration!==generation){d?.log('STALE initialisation outcome ignored after a fresh directory selection.');return;}d?.log('INITIALISATION EXCEPTION: '+error.name+': '+error.message);message.textContent=(metadata?.shop?'Shop registered; directory creation failed: ':'')+error.message;if(!loaded)button.disabled=true;}
   })();
 })();

@@ -284,6 +284,61 @@ class MainDirectoryTests(unittest.TestCase):
                 self.assertTrue(page.locator('#directory-modal').is_visible())
             finally:browser.close()
 
+    def test_obsolete_handle_with_unresolved_permission_times_out_and_fresh_selection_recovers(self):
+        with sync_playwright() as runtime:
+            browser,page=self.browser(runtime)
+            try:
+                page.goto('https://ait.test/mechanic/main-directory');self.drop(page)
+                page.wait_for_function("document.getElementById('directory-message').textContent.includes('read/write access verified')")
+                # Delete only this test's isolated directory to reproduce an obsolete registration.
+                page.evaluate("async()=> (await navigator.storage.getDirectory()).removeEntry('Main',{recursive:true})")
+                page.add_init_script("""window.latePermission=[];window.freshAllowed=false;window.permissionActions=[];
+                    const query=FileSystemDirectoryHandle.prototype.queryPermission;
+                    FileSystemDirectoryHandle.prototype.queryPermission=function(options){
+                        if(this.name==='Main')return new Promise(resolve=>latePermission.push(resolve));
+                        if(this.name==='Fresh' && !freshAllowed)return Promise.resolve('prompt');
+                        return query.call(this,options);
+                    };
+                    FileSystemDirectoryHandle.prototype.requestPermission=async function(options){permissionActions.push({mode:options.mode,active:navigator.userActivation.isActive});freshAllowed=true;return 'granted';};
+                    window.showDirectoryPicker=async()=> (await navigator.storage.getDirectory()).getDirectoryHandle('Fresh',{create:true});""")
+                page.clock.install()
+                page.goto('https://ait.test'+self.new_shop())
+                page.wait_for_function("document.getElementById('directory-diagnostic-log').textContent.includes('Shop creation: query main-directory permission')")
+                self.assertTrue(page.evaluate("async()=>navigator.locks.request('ait-pm-local-report-save',{ifAvailable:true},lock=>!!lock)"))
+                page.clock.fast_forward(11000)
+                page.wait_for_function("document.getElementById('directory-message').textContent.includes('did not respond within 10 seconds')")
+                self.assertTrue(page.locator('#directory-select').is_enabled())
+                self.assertEqual(page.evaluate("async()=> (await AITDirectories.get({user:'1',property:'protrade'})).handle.name"),'Main')
+                page.locator('#directory-select').click();page.locator('#directory-browse').click()
+                page.wait_for_function("document.getElementById('directory-message').textContent.startsWith('Verified directories:')")
+                self.assertEqual(self.tree(page,'Fresh'),{'ProTrade':{'Owner':{'Happy Shop':{'Invoice':{},'Statement':{}}}}})
+                self.assertEqual(page.evaluate('permissionActions'),[dict(mode='readwrite',active=True)])
+                # A late response from the obsolete handle cannot restart its stopped attempt.
+                page.evaluate("() => {latePermission.forEach(resolve=>resolve('granted'));}")
+                page.wait_for_function("document.getElementById('directory-diagnostic-log').textContent.includes('LATE PERMISSION RESPONSE IGNORED')")
+                self.assertEqual(page.evaluate("async()=> (await AITDirectories.get({user:'1',property:'protrade'})).handle.name"),'Fresh')
+                self.assertTrue(page.locator('#directory-message').text_content().startswith('Verified directories:'))
+                self.assertTrue(page.evaluate("async()=>navigator.locks.request('ait-pm-local-report-save',{ifAvailable:true},lock=>!!lock)"))
+            finally:browser.close()
+
+    def test_permission_query_inside_accessibility_verification_cannot_hold_lock_indefinitely(self):
+        with sync_playwright() as runtime:
+            browser,page=self.browser(runtime)
+            try:
+                page.goto('https://ait.test/mechanic/main-directory');self.drop(page)
+                page.wait_for_function("document.getElementById('directory-message').textContent.includes('read/write access verified')")
+                page.add_init_script("""const query=FileSystemDirectoryHandle.prototype.queryPermission;
+                    FileSystemDirectoryHandle.prototype.queryPermission=function(options){return this.name==='ProTrade'?new Promise(()=>{}):query.call(this,options);};""")
+                page.clock.install();page.goto('https://ait.test'+self.new_shop())
+                page.wait_for_function("document.getElementById('directory-diagnostic-log').textContent.includes('Accessibility: query read/write permission')")
+                self.assertFalse(page.evaluate("async()=>navigator.locks.request('ait-pm-local-report-save',{ifAvailable:true},lock=>!!lock)"))
+                page.clock.fast_forward(11000)
+                page.wait_for_function("document.getElementById('directory-message').textContent.includes('did not respond within 10 seconds')")
+                self.assertTrue(page.evaluate("async()=>navigator.locks.request('ait-pm-local-report-save',{ifAvailable:true},lock=>!!lock)"))
+                self.assertEqual(self.tree(page),{'ProTrade':{}})
+                self.assertTrue(page.locator('#directory-select').is_enabled())
+            finally:browser.close()
+
     def test_signed_event_owner_expiry_and_existing_shop_exclusion(self):
         location=self.new_shop()
         query=urlsplit(location).query

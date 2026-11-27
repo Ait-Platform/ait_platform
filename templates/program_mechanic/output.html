@@ -5,19 +5,37 @@
 <div class="mx-auto max-w-6xl px-4 py-10"><div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow"><div class="h-2 bg-slate-700"></div><div class="p-6">
 {% include 'partials/flash_messages.html' %}
 <div class="output-controls flex items-center justify-between gap-4"><div><h1 class="text-2xl font-semibold">ProTrade Output</h1><p class="mt-1 text-sm text-slate-700">Preview and export existing shop documents.</p></div><a href="{{ url_for('mechanic_bp.mechanic_dashboard',shop_id=shop.id if shop else none) }}" class="rounded-lg bg-slate-100 px-4 py-2 font-semibold">Back</a></div>
-{% set protrade_menu_active='output' %}{% include 'program_mechanic/menu.html' %}
 {% if error %}<p role="alert" class="output-controls mt-3 rounded-lg bg-red-50 p-3 text-red-800">{{ error }}</p>{% endif %}
-<form id="protrade-output-select" method="GET" class="output-controls mt-4 flex flex-wrap items-end gap-3">
-<label class="text-sm font-semibold">Shop<select id="output-shop" name="shop_id" required autofocus class="mt-1 block rounded-lg border border-slate-300 bg-white px-3 py-2"><option value="">Choose a shop</option>{% for candidate in shops %}<option value="{{ candidate.id }}" {% if shop and candidate.id==shop.id %}selected{% endif %}>{{ candidate.business_name }} ({{ candidate.trade }})</option>{% endfor %}</select></label>
-{% if shop %}<label class="min-w-0 flex-1 text-sm font-semibold">Report / Document<select id="output-selection" name="selection" required class="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2"><option value="">Choose an available document</option>{% for kind,label in labels.items() %}{% set group=choices|selectattr('kind','equalto',kind)|list %}{% if group %}<optgroup label="{{ label }}">{% for item in group %}<option value="{{ item.key }}" {% if selection==item.key %}selected{% endif %}>{{ item.label }}</option>{% endfor %}</optgroup>{% endif %}{% endfor %}</select></label>
-<label class="text-sm font-semibold">Email debtor (Price List only)<select id="output-recipient" name="recipient_id" class="mt-1 block rounded-lg border border-slate-300 bg-white px-3 py-2"><option value="">Use document's linked debtor</option>{% for debtor in debtors %}<option value="{{ debtor.id }}" {% if recipient_id==debtor.id|string %}selected{% endif %}>{{ debtor.name }}</option>{% endfor %}</select></label>{% endif %}
-<div class="ml-auto flex flex-wrap justify-end gap-2"><button name="preview" value="1" class="rounded-lg bg-blue-100 px-4 py-2 font-semibold" {% if not choices %}disabled{% endif %}>Preview</button><button id="output-print" type="button" {% if not report_data %}disabled{% endif %} class="rounded-lg bg-yellow-100 px-4 py-2 font-semibold">Print</button>{% if report_data %}<a id="output-download" href="{{ pdf_url }}" class="rounded-lg bg-blue-100 px-4 py-2 font-semibold">Download PDF</a>{% else %}<button type="button" disabled class="rounded-lg bg-blue-100 px-4 py-2 font-semibold">Download PDF</button>{% endif %}{# Temporarily suspended; preserve the existing save control for future development.
-<button id="output-save" type="button" {% if not report_data or not local_save_code %}disabled{% endif %} class="rounded-lg bg-blue-100 px-4 py-2 font-semibold">Save Report</button>
-#}<button id="output-email" type="button" {% if not report_data or not report_data.email_recipient %}disabled{% endif %} class="rounded-lg bg-green-100 px-4 py-2 font-semibold">Email</button></div>
+<form id="protrade-output-select" method="GET" class="output-controls mt-4 space-y-4">
+<div id="output-document-controls" class="grid grid-cols-1 items-end gap-3 sm:grid-cols-3">
+<label for="output-shop" class="text-sm font-semibold">Shop<select id="output-shop" name="shop_id" required autofocus class="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2"><option value="">Choose a shop</option>{% for candidate in shops %}<option value="{{ candidate.id }}" {% if shop and candidate.id==shop.id %}selected{% endif %}>{{ candidate.business_name }} ({{ candidate.trade }})</option>{% endfor %}</select></label>
+<label for="output-category" class="text-sm font-semibold">Category<select id="output-category" name="category" {% if not shop %}disabled{% endif %} class="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2">{% for kind,label in labels.items() %}{% if choices|selectattr('kind','equalto',kind)|list %}<option value="{{ kind }}" {% if category==kind %}selected{% endif %}>{{ label }}</option>{% endif %}{% endfor %}</select></label>
+<label for="output-selection" class="text-sm font-semibold">Report / Document<select id="output-selection" name="selection" required {% if not shop %}disabled{% endif %} class="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2"><option value="">Choose an available document</option>{% for item in period_choices %}<option value="{{ item.key }}" {% if selection==item.key %}selected{% endif %}>{{ item.label }}</option>{% endfor %}</select></label>
+</div>
+<div id="output-period-controls" class="flex flex-wrap items-end gap-3">
+<label for="output-month" class="text-sm font-semibold">By Month<input id="output-month" name="by_month" type="month" min="1900-01" value="{{ by_month }}" {% if not shop or category=='price_list' %}disabled{% endif %} class="mt-1 block rounded-lg border border-slate-300 px-3 py-2"></label>
+<label for="output-from" class="text-sm font-semibold">Date From<input id="output-from" name="date_from" type="date" min="1900-01-01" value="{{ date_from }}" {% if not shop or category=='price_list' %}disabled{% endif %} class="mt-1 block rounded-lg border border-slate-300 px-3 py-2"></label>
+<label for="output-to" class="text-sm font-semibold">Date To<input id="output-to" name="date_to" type="date" min="1900-01-01" value="{{ date_to }}" {% if not shop or category=='price_list' %}disabled{% endif %} class="mt-1 block rounded-lg border border-slate-300 px-3 py-2"></label>
+<button id="output-preview-button" name="preview" value="1" class="ml-auto rounded-lg bg-blue-100 px-4 py-2 font-semibold" {% if not choices %}disabled{% endif %}>Preview</button>
+</div>
+<p id="output-period-help" class="text-xs text-slate-600">{% if category=='price_list' %}Price Lists show current configured rates; dates do not apply.{% else %}Filter saved documents by issue date. Saved financial records and statement periods remain unchanged.{% endif %}</p>
 </form>
+<div id="output-actions" class="output-controls mt-4 flex flex-wrap justify-end gap-2">
+<button id="output-print" type="button" {% if not report_data %}disabled{% endif %} class="rounded-lg bg-yellow-100 px-4 py-2 font-semibold">Print</button>
+{% if report_data %}<a id="output-download" href="{{ pdf_url }}" class="rounded-lg bg-blue-100 px-4 py-2 font-semibold">Download PDF</a>{% else %}<button id="output-download" type="button" disabled class="rounded-lg bg-blue-100 px-4 py-2 font-semibold">Download PDF</button>{% endif %}
+<button id="output-email" type="button" {% if not report_data or (not report_data.email_recipient and not (report_data.document.kind=='price_list' and debtors)) %}disabled{% endif %} aria-controls="output-email-form" aria-expanded="false" class="rounded-lg bg-green-100 px-4 py-2 font-semibold">Email</button>
+</div>
+{# Folder Management remains suspended. Preserve the dormant save control for future authorised work.
+<button id="output-save" type="button" {% if not report_data or not local_save_code %}disabled{% endif %} class="rounded-lg bg-blue-100 px-4 py-2 font-semibold">Save Report</button>
+#}
 {% if report_data %}
 <form id="output-email-form" method="POST" {% if request.method != 'POST' %}hidden{% endif %} class="output-controls mt-4 rounded-lg border border-slate-200 p-4"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="shop_id" value="{{ shop.id }}"><input type="hidden" name="selection" value="{{ selection }}"><input type="hidden" name="recipient_id" value="{{ recipient_id }}"><input type="hidden" name="preview_token" value="{{ preview_token }}"><input type="hidden" name="action" value="email">
 <input type="hidden" name="confirm_email" value="yes">
+{% for name,value in dict(category=category,by_month=by_month,date_from=date_from,date_to=date_to).items() %}<input type="hidden" name="{{ name }}" value="{{ value }}">{% endfor %}
+{% if report_data.document.kind=='price_list' %}
+<label for="email-debtor" class="mb-3 block text-sm font-semibold">Registered recipient<select id="email-debtor" name="email_debtor_id" required class="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2"><option value="">Select a registered debtor</option>{% for debtor in debtors %}<option value="{{ debtor.id }}" data-email="{{ debtor.email or '' }}" {% if (request.form.get('email_debtor_id') or recipient_id)==debtor.id|string %}selected{% endif %}>{{ debtor.name }}</option>{% endfor %}</select></label>
+{% endif %}
+
 {% with default_email=request.form.get('to_email', report_data.email_recipient.email if report_data.email_recipient else ''), default_subject=request.form.get('subject', shop.business_name ~ ' - ' ~ report_data.document.title ~ ' - ' ~ report_data.document.reference), default_body=request.form.get('body_text', 'Please find attached ' ~ report_data.document.title ~ ' ' ~ report_data.document.reference ~ '.') %}
 {% include 'partials/email_composer_fields.html' %}{% endwith %}
 <p class="mt-3 text-sm">Attachment: {{ report_data.filename }}. The selected PDF is attached automatically. Changing this recipient applies to this email only.</p>
@@ -32,7 +50,8 @@
 <script src="{{ url_for('static',filename='js/pm_local_directories.js',v='20261122-template-modal') }}" defer></script>
 {% if report_data %}<script src="{{ url_for('static',filename='js/pm_output_save.js',v='20261127-protrade-save') }}" defer></script>{% endif %}
 #}
-<script src="{{ url_for('static',filename='js/protrade_output.js',v='20261127-folders-suspended') }}" defer></script>
+<script id="output-choices" type="application/json">{{ choices|tojson }}</script>
+<script src="{{ url_for('static',filename='js/protrade_output.js',v='20261127-standard-output') }}" defer></script>
 </div></div></div>
-<style>{% include 'program_mechanic/output_styles.html' %}@media print{body *{visibility:hidden}#protrade-output-document,#protrade-output-document *{visibility:visible}#protrade-output-document{position:absolute;left:0;top:0;width:100%;padding:0}.output-controls{display:none!important}}</style>
+<style>#output-download[aria-disabled="true"]{opacity:.5;cursor:not-allowed}{% include 'program_mechanic/output_styles.html' %}@media print{body *{visibility:hidden}#protrade-output-document,#protrade-output-document *{visibility:visible}#protrade-output-document{position:absolute;left:0;top:0;width:100%;padding:0}.output-controls{display:none!important}}</style>
 {% endblock %}

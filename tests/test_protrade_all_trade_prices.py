@@ -38,6 +38,8 @@ class AllTradePriceTests(unittest.TestCase):
                         self.assertEqual(tree.xpath('//select[@id="price-category"]/option[@selected]/@value'),[trade])
                         self.assertIn('General Works',tree.text_content())
                         self.assertIn('Client-specific item',tree.text_content())
+                        self.assertEqual(len(tree.xpath('//form[@id="boq-form"]//button[@type="submit"]')),1)
+                        self.assertTrue(tree.xpath('//input[@id="labour-rate"]/../following-sibling::button[normalize-space()="Save Item"]'))
                         self.assertTrue(work_items_for(trade))
                         self.assertEqual(base.ProTradeBoqItem.query.filter_by(shop_id=shop.id).count(),0)
                         page.set_content(response.text)

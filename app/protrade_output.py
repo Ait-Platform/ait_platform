@@ -76,8 +76,6 @@ def catalog(shop):
                 client=MechClient.query.filter_by(id=quote.client_id,user_id=current_user.id).first()
                 if not client or client.shop_id not in (None,shop.id):continue
             entries.append(dict(key=f'quote:boq-{quote.id}',kind='quote',label=quote.display_quote_number+' — '+quote.client_name,source=quote))
-        if ProTradeBoqItem.query.filter_by(shop_id=shop.id,user_id=current_user.id).first():
-            entries.append(dict(key='price_list:all',kind='price_list',label='Price List',source=None))
     else:
         if (shop.trade or 'mechanic')=='mechanic':
             jobs=MechJobCard.query.join(MechVehicle).join(MechClient).filter(MechJobCard.shop_id==shop.id,MechClient.user_id==current_user.id).order_by(MechJobCard.id.desc()).all()
@@ -90,7 +88,6 @@ def catalog(shop):
                 for invoice in invoices:
                     if invoice.source_data:continue
                     entries.append(dict(key=f'invoice:stored-{invoice.id}',kind='invoice',label=job.job_number+f' — Invoice record {invoice.id}',source=(invoice,job)))
-        if price_items(shop):entries.append(dict(key='price_list:all',kind='price_list',label='Price List',source=None))
     from sqlalchemy import or_
     quote_ids=ProTradeBoqQuote.query.filter_by(shop_id=shop.id,user_id=current_user.id).with_entities(ProTradeBoqQuote.id)
     job_ids=MechJobCard.query.filter_by(shop_id=shop.id).with_entities(MechJobCard.id)
@@ -104,6 +101,9 @@ def catalog(shop):
     for debtor in Debtor.query.filter_by(shop_id=shop.id,user_id=current_user.id).order_by(Debtor.name,Debtor.id).all():
         if DebtorLedger.query.filter_by(debtor_id=debtor.id).first():
             entries.append(dict(key=f'statement:debtor-{debtor.id}',kind='statement',label=debtor.name+' — Saved ledger',source=debtor))
+    from app.protrade_boq_catalog import unified_shop
+    if unified_shop(shop) or price_items(shop):
+        entries.append(dict(key='price_list:all',kind='price_list',label='Price List',source=None))
     return entries
 
 
@@ -172,15 +172,18 @@ def report_data(shop,entry,recipient_id=None):
     elif kind=='statement':
         abort(409,description='Generate and save this debtor statement first using Generate SOA in the debtor ledger.')
     else:
-        from app.protrade_boq_catalog import construction_shop,category_options,CATEGORY_LABELS
-        if construction_shop(shop):
-            allowed = [option['key'] for option in category_options(shop)]
-            saved = ProTradeBoqItem.query.filter_by(shop_id=shop.id,user_id=current_user.id).filter(ProTradeBoqItem.trade.in_(allowed)).order_by(ProTradeBoqItem.trade,ProTradeBoqItem.code).all()
-            data.update(reference='Price-List',numeric_columns=[4,5,6],columns=['Category','Item Code','Description','Unit','Material Rate','Labour Rate','Total Rate'],
-                rows=[[CATEGORY_LABELS.get(item.trade,'BOQ custom items'),item.code,item.description,item.unit,
-                    format(item.material_rate,'.2f') if item.material_rate is not None else '—',
-                    format(item.labour_rate,'.2f') if item.labour_rate is not None else '—',
+        from app.protrade_boq_catalog import unified_shop,category_options,client_price_rows
+        if unified_shop(shop):
+            legacy=price_items(shop)
+            saved=[item for option in category_options(shop)
+                for item in client_price_rows(current_user.id,shop,option['key'],ProTradeBoqItem,legacy)]
+            data.update(reference='Price-List',numeric_columns=[3,4,5],columns=['Item Code','Description','Unit','Material Rate','Labour Rate','Total Rate'],
+                rows=[[item.code,item.description,item.unit,
+                    format(item.material_rate,'.2f') if item.material_rate is not None else '\u2014',
+                    format(item.labour_rate,'.2f') if item.labour_rate is not None else '\u2014',
                     str(item.total_rate)+(' (combined)' if item.combined_rate is not None else '')] for item in saved])
+            if not saved:
+                data['empty_message']='No rates have been configured for this shop. Set the client rates in Manage Price List, then Preview again.'
         else:
             data.update(reference='Price-List',columns=['Item','Category','Unit Price (R)'],rows=[[item.part_name,item.category or '',format(item.default_price or 0,'.2f')] for item in price_items(shop)])
         if recipient_id:debtor=owned_debtor(shop,recipient_id)
@@ -239,6 +242,9 @@ def dispatch_once(shop,selection,data,claim,pdf):
     from email_validator import validate_email,EmailNotValidError
     from app.utils.mailer import send_pdf_email
     recipient=data['email_recipient']
+    if data['document'].get('kind')=='price_list' and request.form.get('email_debtor_id'):
+        debtor=owned_debtor(shop,request.form['email_debtor_id'])
+        recipient=dict(id=debtor.id,**contact(debtor))
     if not recipient:abort(400,description='Select the linked debtor for this document.')
     try:address=validate_email(request.form.get('to_email',recipient['email']),check_deliverability=False).normalized
     except EmailNotValidError:abort(400,description='Enter a valid recipient email address.')
@@ -290,6 +296,32 @@ def deferred_output_folder_context(shops,shop,selected,data):
     return dict(local_directory_reports=local_directory_reports,local_save_code=local_save_code)
 
 
+def output_period(args,category):
+    from datetime import date
+    import calendar
+    if category=='price_list':return '', '', ''
+    month=args.get('by_month','').strip()
+    start=args.get('date_from','').strip();end=args.get('date_to','').strip()
+    try:
+        if month:
+            parsed=datetime.strptime(month,'%Y-%m')
+            if parsed.strftime('%Y-%m')!=month:raise ValueError()
+            start=parsed.date().replace(day=1).isoformat()
+            end=parsed.date().replace(day=calendar.monthrange(parsed.year,parsed.month)[1]).isoformat()
+        for value in (start,end):
+            if value and (date.fromisoformat(value).isoformat()!=value or date.fromisoformat(value).year<1900):raise ValueError()
+        if start and end and start>end:raise ValueError()
+    except (ValueError,OverflowError):
+        abort(400,description='Select a valid month or date range with Date From before Date To.')
+    return month,start,end
+
+
+def output_entry_date(entry):
+    source=entry['source']
+    if isinstance(source,tuple):source=source[0]
+    return document_date(getattr(source,'created_at',None))
+
+
 def output_page():
     args=request.form if request.method=='POST' else request.args
     shops=MechShop.query.filter_by(user_id=current_user.id).order_by(MechShop.business_name,MechShop.id).all()
@@ -303,13 +335,23 @@ def output_page():
     choices=catalog(shop) if shop else []
     public_choices=[{key:item[key] for key in ('key','kind','label')} for item in choices]
     selected=args.get('selection','');recipient_id=args.get('recipient_id','')
+    selected_entry=next((entry for entry in choices if entry['key']==selected),None)
+    category=args.get('category') or (selected_entry['kind'] if selected_entry else next((entry['kind'] for entry in choices),'price_list'))
+    if category not in LABELS:abort(400,description='Select a supported report category.')
+    by_month,date_from,date_to=output_period(args,category)
+    public_choices=[dict(item,date=output_entry_date(entry)) for item,entry in zip(public_choices,choices)]
+    def in_period(entry):
+        date=output_entry_date(entry)
+        return (not date_from and not date_to) or bool(date and (not date_from or date>=date_from) and (not date_to or date<=date_to))
+    period_choices=[entry for entry in choices if entry['kind']==category and in_period(entry)]
+
     debtors=Debtor.query.filter_by(shop_id=shop.id,user_id=current_user.id).order_by(Debtor.name,Debtor.id).all() if shop else []
     data=None;token='';claim=None;error=None;status=200
     wanted=args.get('preview')=='1' or args.get('format')=='pdf' or request.method=='POST'
     if wanted:
         try:
             if not shop:abort(400,description='Select a shop first.')
-            entry=next((item for item in choices if item['key']==selected),None)
+            entry=next((item for item in period_choices if item['key']==selected),None)
             if not entry:abort(404)
             if entry['kind']=='statement' and entry['key'].startswith('statement:debtor-') and args.get('format')!='pdf' and request.method=='GET':
                 return redirect(url_for('debtors_bp.generate_soa',debtor_id=entry['source'].id))
@@ -349,10 +391,10 @@ def output_page():
             error,status=exc.description,exc.code
             if claim is None:
                 data=None;token=''
-    pdf_url=url_for('mechanic_bp.protrade_output',shop_id=shop.id,selection=selected,recipient_id=recipient_id,format='pdf',preview_token=token) if data else ''
+    pdf_url=url_for('mechanic_bp.protrade_output',shop_id=shop.id,selection=selected,recipient_id=recipient_id,category=category,by_month=by_month,date_from=date_from,date_to=date_to,format='pdf',preview_token=token) if data else ''
     return render_template('program_mechanic/output.html',shop=shop,shops=shops,choices=public_choices,labels=LABELS,selection=selected,
                            debtors=debtors,recipient_id=recipient_id,report_data=data,preview_token=token,generated=claim['generated'] if claim else '',
-                           pdf_url=pdf_url,error=error),status
+                           pdf_url=pdf_url,error=error,category=category,by_month=by_month,date_from=date_from,date_to=date_to,period_choices=period_choices),status
 
 
 def support_page(page):

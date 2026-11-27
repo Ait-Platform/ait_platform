@@ -28,7 +28,6 @@
           <h2 class="text-lg font-semibold text-slate-800">{{ 'Edit Price List Item' if edit_item else 'Add Price List Item' }}</h2>
           <div class="flex justify-end gap-3">
             {% if edit_item %}<a href="{{ url_for('mechanic_bp.catalog_manage', shop_id=shop.id, category=category) }}" class="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold">Cancel</a>{% endif %}
-            <button type="submit" class="rounded-lg bg-slate-800 px-4 py-2 text-sm font-semibold text-white">Save Item</button>
           </div>
         </div>
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -73,9 +72,12 @@
             <label for="material-rate" class="mb-1 block text-sm font-semibold">Material Rate (R per unit)</label>
             <input id="material-rate" name="material_rate" {% if edit_item and edit_item.combined_rate is not none %}disabled{% endif %} type="number" min="0" max="999999999999.99" step="0.01" value="{{ values.get('material_rate') if values.get('material_rate') is not none else '' }}" required class="w-full rounded-lg border border-slate-300 px-3 py-2">
           </div>
-          <div>
+          <div class="flex items-end gap-3 sm:col-span-2">
+            <div class="min-w-0 flex-1">
             <label for="labour-rate" class="mb-1 block text-sm font-semibold">Labour Rate (R per unit)</label>
             <input id="labour-rate" name="labour_rate" {% if edit_item and edit_item.combined_rate is not none %}disabled{% endif %} type="number" min="0" max="999999999999.99" step="0.01" value="{{ values.get('labour_rate') if values.get('labour_rate') is not none else '' }}" required class="w-full rounded-lg border border-slate-300 px-3 py-2">
+            </div>
+            <button type="submit" class="ml-auto shrink-0 rounded-lg bg-slate-800 px-4 py-2 font-semibold text-white">Save Item</button>
           </div>
         </div>
         <p class="mt-4 text-sm font-semibold text-slate-800">Total Rate: R <output id="total-rate" for="material-rate labour-rate">0.00</output> &middot; Amount at this quantity: R <output id="total-amount">0.00</output></p>

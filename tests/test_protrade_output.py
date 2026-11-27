@@ -97,7 +97,7 @@ class ProTradeOutputTests(unittest.TestCase):
         tree=html.fromstring(response.data)
         report=tree.get_element_by_id('protrade-output-document').text_content()
         self.assertIn('Happy Shop',report);self.assertIn('Debtor Jane',report);self.assertIn('325.00',report)
-        choices=tree.xpath('//select[@id="output-selection"]/optgroup/@label')
+        choices=tree.xpath('//select[@id="output-category"]/option/text()')
         self.assertEqual(choices,['Quotations','Debtor Statements','Price Lists'])
         self.assertNotIn('CAR-Q-OTHER',response.get_data(as_text=True));self.assertNotIn('CAR-Q-FOREIGN',response.get_data(as_text=True))
         self.assertEqual(self.preview(shop=self.second).status_code,404)
@@ -277,6 +277,102 @@ class ProTradeOutputTests(unittest.TestCase):
                         self.assertTrue(page.locator('#output-email-form').is_hidden())
             finally:browser.close()
 
+    def test_auto_electrician_unified_report_same_in_preview_pdf_print_and_email(self):
+        import fitz
+        from urllib.parse import urlencode
+        from playwright.sync_api import sync_playwright
+        shop=self.shop(name='Short Circuit',trade='auto_elec',status='active')
+        debtor=self.contact(shop,'Auto customer','auto@example.com')
+        item=base.ProTradeBoqItem(user_id=1,shop_id=shop.id,trade='auto_elec',code='AUTO-STD-004',description='Repair starter motor',unit='Each',material_rate=Decimal('123.45'),labour_rate=Decimal('67.89'))
+        self.db_session.add(item);self.db_session.commit()
+        preview=self.preview('price_list:all',shop)
+        tree=html.fromstring(preview.data);report=tree.get_element_by_id('protrade-output-document')
+        self.assertEqual(report.xpath('.//th/text()'),['Item Code','Description','Unit','Material Rate','Labour Rate','Total Rate'])
+        self.assertEqual(report.xpath('.//tbody/tr/td/text()'),['AUTO-STD-004','Repair starter motor','Each','123.45','67.89','191.34'])
+        self.assertEqual(report.xpath('.//tbody/tr/td[position()>3]/@style'),['text-align:right']*3)
+        self.assertFalse(tree.xpath('//nav[@aria-label="ProTrade"]|//select[@id="output-recipient"]'))
+        fields=self.fields(preview)
+        download=self.client.get('/mechanic/output',query_string=dict(fields,format='pdf'))
+        self.assertEqual(download.status_code,200)
+        def pdf_text(pdf):
+            with fitz.open(stream=pdf,filetype='pdf') as document:return ''.join(page.get_text() for page in document)
+        downloaded_text=pdf_text(download.data)
+        for value in ['AUTO-STD-004','Repair starter motor','123.45','67.89','191.34']:self.assertIn(value,downloaded_text)
+        with patch('app.utils.mailer.send_pdf_email',return_value=True) as sender:
+            self.email(fields,expected=404,email_debtor_id=str(self.other_debtor.id),to_email='once@example.com')
+            sender.assert_not_called()
+            self.email(fields,email_debtor_id=str(debtor.id),to_email='once@example.com',subject='Selected price list',body_text='Auto price list attached')
+            self.assertEqual(pdf_text(sender.call_args.args[3]),downloaded_text)
+            self.assertEqual(debtor.email,'auto@example.com')
+        with sync_playwright() as runtime:
+            browser=runtime.chromium.launch(headless=True)
+            try:
+                page=browser.new_page();page.route('http://localhost/**',self.browser_route)
+                page.add_init_script("window.print=()=>{window.printedContent=document.getElementById('protrade-output-document').innerText;};")
+                page.goto('http://localhost/mechanic/output?'+urlencode(dict(shop_id=shop.id,selection='price_list:all',preview='1')))
+                page.locator('#output-print').click()
+                self.assertIn('191.34',page.evaluate('printedContent'))
+                page.locator('#output-email').click()
+                page.locator('#email-debtor').select_option(str(debtor.id))
+                self.assertEqual(page.locator('[name=to_email]').input_value(),'auto@example.com')
+                self.assertTrue(page.locator('#output-month').is_disabled())
+                self.assertTrue(page.locator('#output-from').is_disabled())
+                self.assertTrue(page.locator('#output-to').is_disabled())
+            finally:browser.close()
+
+    def test_price_list_report_uses_unified_rate_columns_for_every_registered_trade(self):
+        from app.protrade_boq_catalog import TRADE_CATALOGUES
+        for trade in TRADE_CATALOGUES:
+            with self.subTest(trade=trade):
+                shop=self.shop(name='Report '+trade,trade=trade,status='active')
+                self.db_session.add(base.ProTradeBoqItem(user_id=1,shop_id=shop.id,trade=trade,code='OWN-'+trade.upper(),description='Configured '+trade,unit='Each',material_rate=Decimal('10.25'),labour_rate=Decimal('5.75')))
+                self.db_session.commit()
+                response=self.preview('price_list:all',shop)
+                self.assertEqual(response.status_code,200)
+                report=html.fromstring(response.data).get_element_by_id('protrade-output-document')
+                self.assertEqual(report.xpath('.//th/text()'),['Item Code','Description','Unit','Material Rate','Labour Rate','Total Rate'])
+                rows=report.xpath('.//tbody/tr[td[1]="OWN-'+trade.upper()+'"]')
+                self.assertEqual(len(rows),1)
+                self.assertEqual(rows[0].xpath('./td/text()')[-3:],['10.25','5.75','16.00'])
+                self.assertNotIn('Install skirting',report.text_content())
+
+    def test_unconfigured_price_list_shows_actionable_message(self):
+        shop=self.shop(name='New Auto shop',trade='auto_elec',status='active')
+        response=self.preview('price_list:all',shop)
+        self.assertEqual(response.status_code,200)
+        report=html.fromstring(response.data).get_element_by_id('protrade-output-document')
+        self.assertIn('No rates have been configured for this shop',report.text_content())
+        self.assertFalse(report.xpath('.//table'))
+        self.assertNotIn('Unit Price (R)',report.text_content())
+
+    def test_category_and_period_controls_filter_saved_documents_without_changing_them(self):
+        from datetime import datetime
+        from urllib.parse import urlencode
+        from playwright.sync_api import sync_playwright
+        self.quote.created_at=datetime(2026,11,10);self.db_session.commit()
+        before=self.quote.items.copy()
+        response=self.client.get('/mechanic/output',query_string=dict(shop_id=self.carpentry.id,category='quote',by_month='2026-10'))
+        tree=html.fromstring(response.data)
+        self.assertEqual(tree.xpath('//select[@id="output-selection"]/option/@value'),[''])
+        self.assertEqual(self.client.get('/mechanic/output',query_string=dict(shop_id=self.carpentry.id,category='quote',date_from='2026-12-01',date_to='2026-11-01')).status_code,400)
+        with sync_playwright() as runtime:
+            browser=runtime.chromium.launch(headless=True)
+            try:
+                page=browser.new_page();page.route('http://localhost/**',self.browser_route)
+                page.goto('http://localhost/mechanic/output?'+urlencode(dict(shop_id=self.carpentry.id,selection=f'quote:boq-{self.quote.id}',preview='1')))
+                self.assertTrue(page.locator('#output-month').is_enabled())
+                page.locator('#output-month').fill('2026-10');page.locator('#output-month').dispatch_event('change')
+                self.assertEqual(page.locator('#output-selection option').count(),1)
+                self.assertTrue(page.locator('#output-print').is_disabled())
+                page.locator('#output-category').select_option('price_list')
+                self.assertTrue(page.locator('#output-month').is_disabled())
+                self.assertEqual(page.locator('#output-selection option').count(),2)
+                self.assertEqual(page.locator('#output-document-controls select').count(),3)
+                self.assertEqual(page.locator('#output-period-controls input').count(),3)
+                self.assertEqual(page.locator('#output-actions').inner_text().split(),['Print','Download','PDF','Email'])
+            finally:browser.close()
+        self.assertEqual(self.quote.items,before)
+
     def browser_route(self,route):
         from urllib.parse import urlsplit
         url=urlsplit(route.request.url)
@@ -326,7 +422,7 @@ class ProTradeOutputTests(unittest.TestCase):
                     self.assertIn('CAR-Q-OTHER',page.locator('#output-selection').inner_text())
                     self.assertNotIn('CAR-Q-OUR',page.locator('#output-selection').inner_text())
                     self.assertNotIn('CAR-Q-FOREIGN',page.content())
-                    self.assertEqual(page.locator('#output-download').count(),0)
+                    self.assertTrue(page.locator('#output-download').is_disabled())
             finally:browser.close()
 
     def test_output_does_not_change_documents_ledgers_prices_or_debtors(self):

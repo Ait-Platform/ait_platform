@@ -145,9 +145,9 @@ class UnifiedPricesTests(unittest.TestCase):
         with self.app.test_request_context():
             login_user(self.db_session.get(base.models.User,1))
             report=output.report_data(shop,dict(key='price_list:all',kind='price_list',label='Price List',source=None))
-        old_row=next(row for row in report['document']['rows'] if row[1]=='PAINT-OLD')
-        self.assertEqual(old_row[4:6],[chr(8212),chr(8212)])
-        self.assertIn('19.995 (combined)',old_row[6])
+        old_row=next(row for row in report['document']['rows'] if row[0]=='PAINT-OLD')
+        self.assertEqual(old_row[3:5],[chr(8212),chr(8212)])
+        self.assertIn('19.995 (combined)',old_row[5])
         item_id=self.ns['carpentry_quote_item_id'](quote,quote.items[0])
         url=f'/mechanic/shop/{shop.id}/debtor/{debtor.id}/quotes/{quote.id}/items'
         response=self.client.get(url,query_string={'item_id':item_id})

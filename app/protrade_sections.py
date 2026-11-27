@@ -7,6 +7,7 @@ from uuid import uuid4
 from flask import abort, request, render_template, redirect, url_for, send_file
 from flask_login import current_user
 from app.extensions import db
+from app.protrade_boq_catalog import snapshot_columns
 from app.models.mechanic import MechShop, ProTradeBoqQuote, ProTradeDocument
 from app.protrade_documents import charge_document
 
@@ -43,7 +44,7 @@ def section_data(shop, quote, section):
     data = report_data(shop, dict(kind='quote', key=f'quote:boq-{quote.id}', label=quote.display_quote_number, source=quote))
     lines = section_lines(quote, section)
     data['document'].update(title='BOQ Section', reference=quote.display_quote_number + ' - ' + section['name'],
-        rows=[[line['code'], line['description'], line['unit'], line['quantity'], line['material_rate'], line['labour_rate'], line['total']] for line in lines],
+        rows=[snapshot_columns(line) for line in lines],
         totals=[('Total (R)', format(sum(Decimal(line['total']) for line in lines), '.2f'))])
     if quote.tax_snapshot:
         from app.protrade_vat import refresh_snapshot

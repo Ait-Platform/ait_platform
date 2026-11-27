@@ -1,4 +1,4 @@
-﻿"""Reusable trade work-item definitions; no shop prices or database writes."""
+"""Reusable trade work-item definitions; no shop prices or database writes."""
 BOQ_WORK_ITEMS = {
     'carpentry': (
         ('CAR-001', 'Supply and install wooden door', 'Each'),
@@ -18,25 +18,78 @@ BOQ_WORK_ITEMS = {
         ('CAR-015', 'General carpentry work', 'Hour'),
     ),
 }
-BOQ_CODE_PREFIXES = {'carpentry': 'CAR', 'boq': 'BOQ'}
-CONSTRUCTION_TRADES = {'carpentry':'CAR','plumbing':'PLUM','electrical':'ELEC','painting':'PAINT','building':'BUILD'}
+# Definitions carry no selling prices. Extend this registry for another construction trade.
+CONSTRUCTION_TRADES = {'carpentry':'CAR','plumbing':'PLUM','electrical':'ELEC','painting':'PAINT','building':'BUILD','general':'GEN'}
+CATEGORY_LABELS = {key: key.title() for key in CONSTRUCTION_TRADES}
+CATEGORY_LABELS['general'] = 'General Works'
+BOQ_WORK_ITEMS.update({
+    'plumbing': (
+        ('PLUM-STD-001','Repair leaking pipe','m'),
+        ('PLUM-STD-002','Supply and install water pipe','m'),
+        ('PLUM-STD-003','Supply and install tap','Each'),
+        ('PLUM-STD-004','Supply and install wash basin','Each'),
+        ('PLUM-STD-005','Supply and install toilet','Each'),
+        ('PLUM-STD-006','General plumbing work','Hour'),
+    ),
+    'electrical': (
+        ('ELEC-STD-001','Supply and install electrical conduit','m'),
+        ('ELEC-STD-002','Supply and install electrical cable','m'),
+        ('ELEC-STD-003','Supply and install socket outlet','Each'),
+        ('ELEC-STD-004','Supply and install light fitting','Each'),
+        ('ELEC-STD-005','Supply and install light switch','Each'),
+        ('ELEC-STD-006','General electrical work','Hour'),
+    ),
+    'painting': (
+        ('PAINT-STD-001','Prepare wall surface for painting','m\u00b2'),
+        ('PAINT-STD-002','Apply wall primer','m\u00b2'),
+        ('PAINT-STD-003','Paint internal walls','m\u00b2'),
+        ('PAINT-STD-004','Paint external walls','m\u00b2'),
+        ('PAINT-STD-005','Paint ceiling','m\u00b2'),
+        ('PAINT-STD-006','Paint door','Each'),
+        ('PAINT-STD-007','General painting work','Hour'),
+    ),
+    'building': (
+        ('BUILD-STD-001','Excavate foundations','m\u00b3'),
+        ('BUILD-STD-002','Place concrete','m\u00b3'),
+        ('BUILD-STD-003','Build brick wall','m\u00b2'),
+        ('BUILD-STD-004','Plaster wall','m\u00b2'),
+        ('BUILD-STD-005','Lay floor screed','m\u00b2'),
+        ('BUILD-STD-006','General building work','Hour'),
+    ),
+    'general': (
+        ('GEN-001','General works','Hour'),
+        ('GEN-002','Site preparation','m\u00b2'),
+        ('GEN-003','Remove rubble','m\u00b3'),
+        ('GEN-004','Clean work area','m\u00b2'),
+    ),
+})
+BOQ_CODE_PREFIXES = dict(CONSTRUCTION_TRADES, boq='BOQ')
+UNITS = ('Each','m','m\u00b2','m\u00b3','Hour')
 
 
-def next_catalogue_code(shop, part_model, item_model, quote_model, shop_model):
-    """Serialize allocation and reserve codes appearing in existing quote snapshots."""
-    import re
-    shop_model.query.filter_by(id=shop.id,user_id=shop.user_id).with_for_update().one()
-    prefix=CONSTRUCTION_TRADES[shop.trade]
-    codes=[row.item_code for row in part_model.query.filter_by(user_id=shop.user_id,shop_id=shop.id,trade=shop.trade).all()]
-    codes.extend(row.code for row in item_model.query.filter_by(user_id=shop.user_id,shop_id=shop.id,trade=shop.trade).all())
-    codes.extend(line.get('code') for quote in quote_model.query.filter_by(user_id=shop.user_id,shop_id=shop.id).all() for line in quote.items)
-    last=max([int(match.group(1)) for code in codes if (match:=re.fullmatch(re.escape(prefix)+r'-(\d+)',code or ''))]+[len(BOQ_WORK_ITEMS.get(shop.trade,()))])
-    return f'{prefix}-{last+1:03d}'
+def construction_shop(shop):
+    return shop.trade in CONSTRUCTION_TRADES or shop.trade == 'boq'
+
+
+def categories_for(shop):
+    return list(CONSTRUCTION_TRADES) if shop.trade == 'boq' else list(dict.fromkeys([shop.trade, 'general']))
+
+
+def default_category(shop):
+    # Keep earlier BOQ custom rows and their codes in their original category.
+    return 'boq' if shop.trade == 'boq' else shop.trade
+
+
+def category_options(shop):
+    keys = categories_for(shop)
+    if shop.trade == 'boq':
+        keys = ['boq'] + keys
+    return [dict(key=key,label=CATEGORY_LABELS.get(key,'BOQ custom items')) for key in keys]
 
 
 def work_items_for(trade):
-    return [dict(code=code, description=description, unit=unit)
-            for code, description, unit in BOQ_WORK_ITEMS.get(trade, ())]
+    return [dict(code=code,description=description,unit=unit)
+            for code,description,unit in BOQ_WORK_ITEMS.get(trade,())]
 
 
 def custom_boq_code(trade):
@@ -45,36 +98,54 @@ def custom_boq_code(trade):
 
 
 def quotation_catalogue(user_id, shop, item_model, shop_model, part_model=None):
-    """Read existing owned trade catalogues; never copy or change their prices."""
+    """One client owns all category rates. Never discover prices in other shops."""
     from types import SimpleNamespace
-    items, catalogues = [], []
-    # Each additional supported trade can use the same adapter and selector.
-    for trade,prefix in CONSTRUCTION_TRADES.items():
-        sources = shop_model.query.filter_by(user_id=user_id, trade=trade).order_by(shop_model.id).all()
-        for source in sources or [None]:
-            key = f'{trade}:{source.id}' if source else trade
-            catalogues.append(dict(key=key, label=trade.title() + (f' — {source.business_name}' if source else '')))
-            saved = item_model.query.filter_by(user_id=user_id, shop_id=source.id, trade=trade).all() if source else []
-            by_code = {item.code:item for item in saved}
-            definitions = work_items_for(trade)
-            definitions += [dict(code=item.code, description=item.description, unit=item.unit) for item in saved if item.code not in {row['code'] for row in definitions}]
-            for definition in definitions:
-                item = by_code.get(definition['code'])
-                items.append(SimpleNamespace(id=item.id if item else f'template:{key}:{definition["code"]}',
-                    code=definition['code'], description=item.description if item else definition['description'],
-                    unit=item.unit if item else definition['unit'], material_rate=item.material_rate if item else None,
-                    labour_rate=item.labour_rate if item else None, catalogue_key=key,catalogue_trade=trade))
-            if source and part_model is not None:
-                # Generic construction price lists already store a combined unit rate.
-                # Read them directly; no catalogue rows or prices are copied/changed.
-                from decimal import Decimal
-                for part in part_model.query.filter_by(user_id=user_id,shop_id=source.id,trade=trade).order_by(part_model.id).all():
-                    items.append(SimpleNamespace(id=f'part:{part.id}',code=getattr(part,'item_code',None) or f'{prefix}-CAT-{part.id}',
-                        description=part.part_name,unit='Each',material_rate=Decimal(str(part.default_price or 0)),
-                        labour_rate=Decimal('0'),catalogue_key=key,catalogue_trade=trade,rate_basis='combined'))
-    own = item_model.query.filter_by(user_id=user_id, shop_id=shop.id, trade='boq').all()
-    if own:
-        catalogues.append(dict(key='boq', label='BOQ custom items'))
-        items.extend(SimpleNamespace(id=item.id,code=item.code,description=item.description,unit=item.unit,
-            material_rate=item.material_rate,labour_rate=item.labour_rate,catalogue_key='boq',catalogue_trade='boq') for item in own)
-    return items, catalogues
+    if shop.user_id != user_id:
+        raise ValueError('Catalogue owner does not match client.')
+    items, catalogues = [], category_options(shop)
+    for category in catalogues:
+        trade = category['key']
+        saved = item_model.query.filter_by(user_id=user_id,shop_id=shop.id,trade=trade).order_by(item_model.id).all()
+        by_code = {item.code:item for item in saved}
+        definitions = work_items_for(trade)
+        definitions += [dict(code=item.code,description=item.description,unit=item.unit) for item in saved if item.code not in {entry['code'] for entry in definitions}]
+        for definition in definitions:
+            item = by_code.get(definition['code'])
+            combined = item.combined_rate if item else None
+            items.append(SimpleNamespace(id=item.id if item else ('template:'+definition['code'] if trade==shop.trade else f'template:{trade}:{definition["code"]}'),
+                code=definition['code'],description=item.description if item else definition['description'],
+                unit=item.unit if item else definition['unit'],material_rate=item.material_rate if item else None,
+                labour_rate=item.labour_rate if item else None,combined_rate=combined,
+                rate_basis='combined' if combined is not None else 'split',catalogue_key=trade,catalogue_trade=trade))
+    return items,catalogues
+
+
+def decimal_value(value, quantity=False, combined=False):
+    from decimal import Decimal, InvalidOperation
+    try:
+        number = Decimal(str(value))
+        limit = Decimal('99999999999.999' if quantity else '999999999999.99')
+        step = Decimal('0.001' if quantity else '0.01')
+        if not number.is_finite() or number < 0 or (quantity and number == 0) or number > limit:
+            raise ValueError('Enter a positive quantity and valid non-negative rates.')
+        if not combined and number != number.quantize(step):
+            raise ValueError('Use up to three decimal places for quantities and two for split rates.')
+        return number
+    except (InvalidOperation, TypeError):
+        raise ValueError('Enter valid quantities and rates.') from None
+
+
+def line_amount(quantity, material_rate=None, labour_rate=None, combined_rate=None):
+    from decimal import Decimal, ROUND_HALF_UP, localcontext
+    with localcontext() as ctx:
+        ctx.prec = 60
+        rate = Decimal(str(combined_rate)) if combined_rate is not None else Decimal(str(material_rate)) + Decimal(str(labour_rate))
+        return (Decimal(str(quantity))*rate).quantize(Decimal('0.01'),rounding=ROUND_HALF_UP)
+
+
+def snapshot_columns(line):
+    """Render old snapshots unchanged and explicitly label new combined-only rates."""
+    if line.get('combined_rate') is not None:
+        return [line['code'],line['description'],line['unit'],line['quantity'],
+                'Combined: '+str(line['combined_rate']),'—',line['total']]
+    return [line[key] for key in ('code','description','unit','quantity','material_rate','labour_rate','total')]

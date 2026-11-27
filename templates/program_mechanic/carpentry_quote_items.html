@@ -15,11 +15,11 @@
         <label class="text-sm font-semibold">Item Code<input readonly value="{{ line.code }}" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"></label>
         <label class="text-sm font-semibold">Description<input name="description" required maxlength="4000" value="{{ values.description }}" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"></label>
         <label class="text-sm font-semibold">Unit<select name="unit" aria-label="Unit" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2">{% for unit in ['Each','m','m²','m³','Hour'] %}<option {% if values.unit==unit %}selected{% endif %}>{{ unit }}</option>{% endfor %}</select></label>
-        {% for key,label in [('quantity','Quantity'),('material_rate','Material Rate'),('labour_rate','Labour Rate')] %}<label class="text-sm font-semibold">{{ label }}<input name="{{ key }}" type="number" required min="{{ '0.001' if key=='quantity' else '0' }}" step="{{ '0.001' if key=='quantity' else '0.01' }}" max="{{ '99999999999.999' if key=='quantity' else '999999999999.99' }}" value="{{ values[key] }}" {% if key=='quantity' %}autofocus{% endif %} class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"></label>{% endfor %}
+        {% for key,label in ([('quantity','Quantity'),('combined_rate','Combined Rate (legacy; no split supplied)')] if line.combined_rate is defined else [('quantity','Quantity'),('material_rate','Material Rate'),('labour_rate','Labour Rate')]) %}<label class="text-sm font-semibold">{{ label }}<input name="{{ key }}" type="number" required min="{{ '0.001' if key=='quantity' else '0' }}" step="{{ '0.001' if key=='quantity' else ('any' if key=='combined_rate' else '0.01') }}" max="{{ '99999999999.999' if key=='quantity' else '999999999999.99' }}" value="{{ values[key] }}" {% if key=='quantity' %}autofocus{% endif %} class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"></label>{% endfor %}
       </div>
       <p class="mt-4 font-semibold">Line Total: R<output id="quote-item-line-total">{{ line.total }}</output></p>
     </form>
-    <script src="{{ url_for('static',filename='js/carpentry_quote_builder.js',v='20261114-simple-item-5') }}" defer></script>
+    <script src="{{ url_for('static',filename='js/carpentry_quote_builder.js',v='20261127-unified') }}" defer></script>
     {% else %}
     {% include 'program_mechanic/_quote_saved_items.html' %}
     {% endif %}

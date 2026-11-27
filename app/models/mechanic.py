@@ -40,7 +40,7 @@ class MechCatalogPart(db.Model):
 
 
 class ProTradeBoqItem(db.Model):
-    """Reusable per-unit BOQ pricing; enabled for Carpentry first."""
+    """Canonical client/category construction prices, including unsplit legacy rates."""
     __tablename__ = 'protrade_boq_items'
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
@@ -49,19 +49,23 @@ class ProTradeBoqItem(db.Model):
     code = db.Column(db.String(50), nullable=False)
     description = db.Column(db.Text, nullable=False)
     unit = db.Column(db.String(8), nullable=False)
-    material_rate = db.Column(db.Numeric(14, 2), nullable=False)
-    labour_rate = db.Column(db.Numeric(14, 2), nullable=False)
-    total_rate = db.Column(db.Numeric(15, 2), db.Computed('material_rate + labour_rate', persisted=True))
+    material_rate = db.Column(db.Numeric(14, 2), nullable=True)
+    labour_rate = db.Column(db.Numeric(14, 2), nullable=True)
+    combined_rate = db.Column(db.Numeric(), nullable=True)
+    legacy_part_id = db.Column(db.Integer, db.ForeignKey('mech_catalog_parts.id'))
+    total_rate = db.Column(db.Numeric(), db.Computed('coalesce(combined_rate, material_rate + labour_rate)', persisted=True))
     quantity = db.Column(db.Numeric(14, 3), nullable=False, default=1, server_default='1')
-    total_amount = db.Column(db.Numeric(28, 2), db.Computed('quantity * (material_rate + labour_rate)', persisted=True))
+    total_amount = db.Column(db.Numeric(28, 2), db.Computed('round(quantity * coalesce(combined_rate, material_rate + labour_rate), 2)', persisted=True))
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     __table_args__ = (
         db.UniqueConstraint('shop_id', 'trade', 'code', name='uq_protrade_boq_shop_trade_code'),
+        db.UniqueConstraint('legacy_part_id', name='uq_protrade_legacy_part'),
         db.CheckConstraint('quantity > 0 AND quantity <= 99999999999.999', name='ck_protrade_boq_quantity'),
         db.CheckConstraint("unit <> 'Each' OR quantity = trunc(quantity)", name='ck_protrade_boq_each_quantity'),
         db.CheckConstraint("code = upper(trim(code)) AND length(code) > 0", name='ck_protrade_boq_code'),
         db.CheckConstraint("length(trim(description)) > 0", name='ck_protrade_boq_description'),
         db.CheckConstraint("unit IN ('Each', 'm', 'm\u00b2', 'm\u00b3', 'Hour')", name='ck_protrade_boq_unit'),
+        db.CheckConstraint("(combined_rate IS NOT NULL AND combined_rate >= 0 AND combined_rate <= 999999999999.99 AND material_rate IS NULL AND labour_rate IS NULL) OR (combined_rate IS NULL AND material_rate IS NOT NULL AND labour_rate IS NOT NULL)", name='ck_protrade_price_basis'),
         db.CheckConstraint('material_rate BETWEEN 0 AND 999999999999.99 AND labour_rate BETWEEN 0 AND 999999999999.99', name='ck_protrade_boq_rates'),
     )
 

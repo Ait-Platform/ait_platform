@@ -228,7 +228,7 @@ class CarpentryQuoteHubTests(unittest.TestCase):
                 self.assertEqual(page.locator('.quote-line').count(),3)
                 for index,line in enumerate(self.first.items):
                     saved_row=page.locator('.quote-line').nth(index)
-                    self.assertIn(line['description'],saved_row.text_content())
+                    self.assertEqual(saved_row.locator('input[name^="description_"]').input_value(),line['description'])
                     self.assertIn(line['code'],saved_row.text_content());self.assertIn(line['unit'],saved_row.text_content())
                     for field in ('quantity','material_rate','labour_rate'):
                         self.assertEqual(saved_row.locator('input[name^="'+field+'_"]').input_value(),line[field])

@@ -156,6 +156,8 @@ class ShopRegisterTests(unittest.TestCase):
         models.Base.query = self.db_session.query_property()
         self.app = Flask(__name__, template_folder=str(ROOT / 'templates'))
         self.app.config.update(SECRET_KEY='stage1-test', TESTING=True)
+        # Operational Alembic tests reconfigure logging; each fixture restores its logger.
+        self.app.logger.disabled = False
         self.app.jinja_loader = ChoiceLoader([DictLoader({
             'layout.html': '{% block content %}{% endblock %}',
             'partials/flash_messages.html': '', 'program_mechanic/menu.html': ''

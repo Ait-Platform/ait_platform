@@ -254,7 +254,7 @@ class TradeQuoteTests(unittest.TestCase):
                 page.locator('#quote-work-quantity').fill('2.5')
                 page.locator('#quote-add-item').click()
                 self.assertEqual(page.locator('#quote-grand-total').text_content(), '325.00')
-                page.locator('#quote-work-select').fill('CAR-001 \u2014 Supply and install wooden door')
+                page.locator('#quote-work-select').fill('CAR-001 \u2014 Wooden door')
                 page.locator('#quote-work-quantity').fill('2')
                 page.locator('#quote-add-item').click()
                 self.assertEqual(page.locator('#quote-grand-total').text_content(), '4025.00')

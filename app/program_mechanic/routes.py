@@ -16,6 +16,7 @@ AVAILABLE_TRADES = [
     ('electrical', 'Electrical'),
     ('painting', 'Painting'),
     ('building', 'Building'),
+    ('general', 'General Works'),
     ('panel', 'Panel Beater'),
     ('auto_elec', 'Auto Electrician'),
     ('generic', 'Generic Business'),
@@ -1457,27 +1458,13 @@ def carpentry_quote_form(shop, customer, debtor, editing_quote=None):
         from app.models.mechanic import MechInvoice
         if MechInvoice.query.filter_by(boq_quote_id=draft.id).filter(MechInvoice.source_data.isnot(None)).first():
             abort(409,description='This quotation has been invoiced. Create a new quotation for changes.')
-    items = ProTradeBoqItem.query.filter_by(user_id=current_user.id, shop_id=shop.id, trade=shop.trade).order_by(ProTradeBoqItem.code).all()
-    catalogues = []
-    if shop.trade == 'boq':
-        from app.protrade_boq_catalog import quotation_catalogue
+    from app.protrade_boq_catalog import quotation_catalogue, construction_shop
+    if construction_shop(shop):
         items, catalogues = quotation_catalogue(current_user.id, shop, ProTradeBoqItem, MechShop, MechCatalogPart)
-    elif shop.trade in ('plumbing','electrical','painting','building'):
-        from app.protrade_boq_catalog import quotation_catalogue,CONSTRUCTION_TRADES
-        available,_=quotation_catalogue(current_user.id,shop,ProTradeBoqItem,MechShop,MechCatalogPart)
-        items=[item for item in available if item.catalogue_key==f'{shop.trade}:{shop.id}']
-        if not items:
-            from types import SimpleNamespace
-            code=CONSTRUCTION_TRADES[shop.trade]+'-001'
-            items=[SimpleNamespace(id='template:'+code,code=code,description=registered_trade_name(shop.trade)+' work',unit='Each',material_rate=None,labour_rate=None,catalogue_trade=shop.trade)]
-    from app.protrade_boq_catalog import work_items_for
-    from types import SimpleNamespace
-    priced_codes = {item.code for item in items}
-    items += [SimpleNamespace(id='template:'+work['code'],code=work['code'],description=work['description'],unit=work['unit'],material_rate=None,labour_rate=None)
-              for work in work_items_for(shop.trade) if work['code'] not in priced_codes]
-    if shop.trade not in ('carpentry','boq','plumbing','electrical','painting','building') and 'WORK-001' not in priced_codes:
-        # A quotation-only template: no invented prices or Price List writes.
-        items.append(SimpleNamespace(id='template:WORK-001',code='WORK-001',description='General services',unit='Each',material_rate=None,labour_rate=None))
+    else:
+        from types import SimpleNamespace
+        items = [SimpleNamespace(id='template:WORK-001',code='WORK-001',description='General services',unit='Each',material_rate=None,labour_rate=None)]
+        catalogues = []
     fresh_items = list(items)
     details = dict(name=debtor.name,phone=debtor.phone,email=debtor.email,address=debtor.address)
     if draft:
@@ -1485,8 +1472,9 @@ def carpentry_quote_form(shop, customer, debtor, editing_quote=None):
         by_id = {str(item.id):item for item in items}
         for line in draft.items:
             by_id[str(line['source_item_id'])] = SimpleNamespace(id=line['source_item_id'], code=line['code'], description=line['description'],
-                unit=line['unit'], material_rate=Decimal(line['material_rate']), labour_rate=Decimal(line['labour_rate']),
-                catalogue_key=getattr(by_id.get(str(line['source_item_id'])), 'catalogue_key', 'saved'),
+                unit=line['unit'], material_rate=Decimal(line['material_rate']) if line.get('material_rate') not in (None,'') else None,
+                labour_rate=Decimal(line['labour_rate']) if line.get('labour_rate') not in (None,'') else None,combined_rate=line.get('combined_rate'),
+                catalogue_key=line.get('catalogue_key',getattr(by_id.get(str(line['source_item_id'])), 'catalogue_key', 'saved')),
                 catalogue_trade=line.get('trade',shop.trade),rate_basis=line.get('rate_basis','split'))
         items = sorted(by_id.values(),key=lambda item:item.code)
     selected_ids = {line['source_item_id'] for line in draft.items} if draft else set()
@@ -1520,40 +1508,30 @@ def carpentry_quote_form(shop, customer, debtor, editing_quote=None):
             if len({allowed[identifier].code for identifier in selected_ids}) != len(selected_ids):
                 raise ValueError('Select each work item only once.')
             quantities = {identifier: request.form.get(f'quantity_{identifier}', '').strip() for identifier in selected_ids}
-            quoted_rates = {identifier: {kind: request.form.get(f'{kind}_{identifier}',(format(getattr(allowed[identifier],kind),'.2f') if getattr(allowed[identifier],kind) is not None else '')).strip() for kind in ('material_rate','labour_rate')} for identifier in selected_ids}
+            from app.protrade_boq_catalog import decimal_value, line_amount
+            quoted_rates = {}
             lines, grand_total = [], Decimal('0.00')
             for identifier in sorted(selected_ids,key=lambda value:(isinstance(value,str),value)):
                 item = allowed[identifier]
-                raw = quantities[identifier]
-                try:
-                    quantity = Decimal(raw)
-                except InvalidOperation:
-                    raise ValueError('Enter valid quantities.') from None
-                if not quantity.is_finite() or quantity <= 0 or quantity > Decimal('99999999999.999'):
-                    raise ValueError('Quantities must be positive and at most 99999999999.999.')
-                if quantity != quantity.quantize(Decimal('0.001')):
-                    raise ValueError('Quantities may have at most three decimal places.')
+                quantity = decimal_value(quantities[identifier], quantity=True)
+                combined = getattr(item,'combined_rate',None)
+                fields = ('combined_rate',) if combined is not None else ('material_rate','labour_rate')
                 rates = {}
-                for kind, entered in quoted_rates[identifier].items():
-                    try:
-                        rate = Decimal(entered)
-                    except InvalidOperation:
-                        raise ValueError('Enter valid material and labour rates.') from None
-                    if not rate.is_finite() or rate < 0 or rate > Decimal('999999999999.99'):
-                        raise ValueError('Rates must be non-negative and at most 999999999999.99.')
-                    if rate != rate.quantize(Decimal('0.01')):
-                        raise ValueError('Rates may have at most two decimal places.')
-                    rates[kind] = rate
-                with localcontext() as decimal_context:
-                    decimal_context.prec = 50
-                    amount = (quantity * (rates['material_rate'] + rates['labour_rate'])).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
-                description = request.form.get(f'description_{identifier}',item.description).strip() if shop.trade!='carpentry' else item.description
+                for kind in fields:
+                    default = getattr(item,kind,None)
+                    entered = request.form.get(f'{kind}_{identifier}',str(default) if default is not None else '').strip()
+                    rates[kind] = decimal_value(entered,combined=kind=='combined_rate')
+                quoted_rates[identifier] = {key:format(value,'f') for key,value in rates.items()}
+                amount = line_amount(quantity,**rates)
+                description = request.form.get(f'description_{identifier}',item.description).strip()
                 if not description or len(description)>4000:
                     raise ValueError('Enter a work description (up to 4000 characters).')
-                lines.append(dict(source_item_id=item.id, code=item.code, description=description, unit=item.unit,
-                                  trade=getattr(item,'catalogue_trade',shop.trade),catalogue_key=getattr(item,'catalogue_key',''),rate_basis=getattr(item,'rate_basis','split'),
-                                  quantity=str(quantity), material_rate=format(rates['material_rate'],'.2f'),
-                                  labour_rate=format(rates['labour_rate'],'.2f'), total=str(amount)))
+                lines.append(dict(source_item_id=item.id,code=item.code,description=description,unit=item.unit,
+                    trade=getattr(item,'catalogue_trade',shop.trade),catalogue_key=getattr(item,'catalogue_key',''),
+                    rate_basis='combined' if combined is not None else 'split',quantity=format(quantity,'f'),
+                    material_rate=format(rates['material_rate'],'.2f') if 'material_rate' in rates else '',
+                    labour_rate=format(rates['labour_rate'],'.2f') if 'labour_rate' in rates else '',
+                    **({'combined_rate':format(rates['combined_rate'],'f')} if combined is not None else {}),total=str(amount)))
                 grand_total += amount
             if grand_total > Decimal('99999999999999999999999999.99'):
                 raise ValueError('Quotation total is too large to save.')
@@ -1603,7 +1581,9 @@ def carpentry_quote_form(shop, customer, debtor, editing_quote=None):
             error, status = 'This quote could not be saved. Reopen the form and try again.', 409
     from app.protrade_boq_catalog import work_items_for
     def work_choice(spec, item=None):
-        return dict(label=spec['code']+' \u2014 '+spec['description'], code=spec['code'],
+        return dict(label=spec['code']+' \u2014 '+(item.description if item else spec['description']), code=spec['code'],
+                    aliases=[spec['code']+' \u2014 '+spec['description'],spec['description']],
+                    combined_rate=str(item.combined_rate) if item and getattr(item,'combined_rate',None) is not None else '',
                     description=item.description if item else spec['description'],
                     unit=item.unit if item else spec['unit'], source_id=item.id if item else 'template:'+spec['code'],
                     catalogue_key=getattr(item,'catalogue_key',''),
@@ -1639,7 +1619,7 @@ def carpentry_quote_form(shop, customer, debtor, editing_quote=None):
         # The current Price List provides choices for additions, not replacement values.
         initial_lines = [dict(source_id=line['source_item_id'], code=line['code'], description=line['description'],
                               catalogue_trade=line.get('trade',shop.trade),catalogue_key=line.get('catalogue_key',''),
-                              unit=line['unit'], quantity=line['quantity'], material_rate=line['material_rate'],
+                              unit=line['unit'], quantity=line['quantity'], combined_rate=line.get('combined_rate',''),rate_basis=line.get('rate_basis','split'),material_rate=line['material_rate'],
                               labour_rate=line['labour_rate']) for line in draft.items]
     return render_template('program_mechanic/carpentry_quote.html', shop=shop, customer=customer,
                            details=details, debtor=debtor, draft=draft, boq_items=items, quote_key=quote_key, selected_ids=selected_ids,
@@ -1694,6 +1674,8 @@ def carpentry_quote_items(shop_id, debtor_id, quote_id):
     line = quote.items[index] if index is not None else None
     token = sha256(json.dumps(line,sort_keys=True,separators=(',',':')).encode()).hexdigest() if line else ''
     values = {key:str(line[key]) for key in ('description','unit','quantity','material_rate','labour_rate')} if line else {}
+    if line and line.get('combined_rate') is not None:
+        values['combined_rate'] = str(line['combined_rate'])
     error,status = None,200
     if request.method=='POST':
         values = {key:request.form.get(key,'').strip() for key in values}
@@ -1706,20 +1688,14 @@ def carpentry_quote_items(shop_id, debtor_id, quote_id):
                 raise ValueError('This item has changed. Cancel and reopen it before saving.')
             if not values['description'] or len(values['description'])>4000 or values['unit'] not in ('Each','m','m\u00b2','m\u00b3','Hour'):
                 raise ValueError('Enter a description and select a valid unit.')
-            numbers={}
-            for key in ('quantity','material_rate','labour_rate'):
-                value=Decimal(values[key])
-                quantity=key=='quantity'
-                limit=Decimal('99999999999.999' if quantity else '999999999999.99')
-                precision=Decimal('0.001' if quantity else '0.01')
-                if not value.is_finite() or value<0 or (quantity and value==0) or value>limit or value!=value.quantize(precision):
-                    raise ValueError('Enter a positive quantity (up to three decimals) and non-negative rates (up to two decimals).')
-                numbers[key]=value
+            from app.protrade_boq_catalog import decimal_value, line_amount
+            fields = ('combined_rate',) if line.get('combined_rate') is not None else ('material_rate','labour_rate')
+            numbers = {key:decimal_value(values[key],quantity=key=='quantity',combined=key=='combined_rate') for key in ('quantity',)+fields}
             with localcontext() as ctx:
-                ctx.prec=50
-                total=(numbers['quantity']*(numbers['material_rate']+numbers['labour_rate'])).quantize(Decimal('0.01'),rounding=ROUND_HALF_UP)
-                updated=dict(line,quote_item_id=item_id,description=values['description'],unit=values['unit'],quantity=str(numbers['quantity']),
-                             material_rate=format(numbers['material_rate'],'.2f'),labour_rate=format(numbers['labour_rate'],'.2f'),total=str(total))
+                ctx.prec=60
+                total=line_amount(**numbers)
+                updated=dict(line,quote_item_id=item_id,description=values['description'],unit=values['unit'],quantity=format(numbers['quantity'],'f'),total=str(total))
+                updated.update({key:format(numbers[key],'f' if key=='combined_rate' else '.2f') for key in fields})
                 lines=list(quote.items)
                 lines[index]=updated
                 grand_total=sum((Decimal(item['total']) for item in lines),Decimal('0.00'))
@@ -1765,99 +1741,93 @@ def carpentry_quote_view(shop_id, quote_id):
 
 
 def carpentry_boq_price_list(shop):
-    """Carpentry adapter for the shared, shop-scoped BOQ price-item model."""
-    from decimal import Decimal, InvalidOperation
+    """Shared construction Price List: one owned client, one selected category."""
     from flask import abort
     from sqlalchemy.exc import IntegrityError
-    from app.models.mechanic import ProTradeBoqItem
-
-    from app.protrade_boq_catalog import work_items_for, custom_boq_code
-
-    work_items = work_items_for(shop.trade)
-    units = ('Each', 'm', 'm\u00b2', 'm\u00b3', 'Hour')
-    query = ProTradeBoqItem.query.filter_by(user_id=current_user.id, shop_id=shop.id, trade=shop.trade)
+    from app.models.mechanic import ProTradeBoqItem, ProTradeBoqQuote
+    from app.protrade_boq_catalog import (category_options, default_category, work_items_for,
+        custom_boq_code, decimal_value, UNITS)
+    options = category_options(shop)
+    category = request.values.get('category',default_category(shop))
+    if request.method=='GET' and 'category' not in request.args and shop.trade=='boq' and not ProTradeBoqItem.query.filter_by(user_id=current_user.id,shop_id=shop.id,trade='boq').first():
+        category = 'carpentry'
+    if category not in {option['key'] for option in options}:
+        abort(404)
+    query = ProTradeBoqItem.query.filter_by(user_id=current_user.id,shop_id=shop.id,trade=category)
+    raw_id = request.values.get('item_id') if request.method=='POST' else request.args.get('edit_id')
     item = None
-    raw_id = request.form.get('item_id') if request.method == 'POST' else request.args.get('edit_id')
-    if raw_id:
+    if raw_id is not None:
         try:
-            identifier = int(raw_id)
-        except (TypeError, ValueError):
+            item = query.filter_by(id=int(raw_id)).first()
+        except (ValueError,TypeError):
             abort(404)
-        item = query.filter_by(id=identifier).first()
-        if not item:
+        if item is None:
             abort(404)
-    fields = ('code', 'description', 'unit', 'material_rate', 'labour_rate', 'quantity')
-    values = {field: getattr(item, field) for field in fields} if item else {}
-    error = None
-    status = 200
-    if request.method == 'POST':
+    fields = ('code','description','unit','material_rate','labour_rate','quantity','combined_rate')
+    values = {key:getattr(item,key) for key in fields} if item else {}
+    error,status = None,200
+    definitions = work_items_for(category)
+    if request.method=='POST':
         if request.form.get('action') != 'save_boq':
             abort(400)
-        values = {field: request.form.get(field, '').strip() for field in fields}
-        values['quantity'] = request.form.get('quantity', str(item.quantity) if item else '1').strip()
+        values = {key:request.form.get(key,'').strip() for key in fields}
+        values['quantity'] = request.form.get('quantity',str(item.quantity) if item else '1').strip()
         try:
-            preset_code = request.form.get('preset_code', '').strip()
-            selected = next((entry for entry in work_items if entry['code'] == preset_code), None)
-            if preset_code and selected is None:
-                raise ValueError('Select a valid work item or enter a custom description.')
-            # Do not reinterpret or renumber an unchanged legacy description.
-            if selected is None and (item is None or values['description'] != item.description):
-                selected = next((entry for entry in work_items
-                                 if entry['description'].casefold() == values['description'].casefold()), None)
-            if selected:
-                values.update(code=selected['code'], description=selected['description'])
-                values['unit'] = values['unit'] or selected['unit']
-            else:
-                values['code'] = item.code if item else custom_boq_code(shop.trade)
-            if not values['description'] or len(values['description']) > 4000:
-                raise ValueError('Enter a description of up to 4000 characters.')
-            if values['unit'] not in units:
-                raise ValueError('Select Each, m, m\u00b2, m\u00b3 or Hour.')
-            try:
-                quantity = Decimal(values['quantity'])
-            except InvalidOperation:
-                raise ValueError('Enter a valid quantity.') from None
-            if not quantity.is_finite() or quantity <= 0 or quantity > Decimal('99999999999.999'):
-                raise ValueError('Quantity must be greater than zero and at most 99999999999.999.')
-            if quantity != quantity.quantize(Decimal('0.001')):
-                raise ValueError('Quantity may have at most three decimal places.')
-            if values['unit'] == 'Each' and quantity != quantity.to_integral_value():
+            # Serialise first-save and duplicate checks on this authenticated client.
+            MechShop.query.filter_by(id=shop.id,user_id=current_user.id).with_for_update().one()
+            selected = next((entry for entry in definitions if entry['code']==request.form.get('preset_code')),None)
+            if request.form.get('preset_code') and selected is None:
+                raise ValueError('Select a valid catalogue item.')
+            if not selected and item is None:
+                selected = next((entry for entry in definitions if entry['description'].casefold()==values['description'].casefold()),None)
+            if selected and item is not None and selected['code'] != item.code:
+                status = 409
+                raise ValueError('An existing item keeps its catalogue code. Edit the matching item instead.')
+            if selected and not values['unit']:
+                values['unit'] = selected['unit']
+            # Codes identify definitions permanently, including when descriptions are edited.
+            code = item.code if item else selected['code'] if selected else custom_boq_code(category)
+            if not values['description'] or len(values['description'])>4000 or values['unit'] not in UNITS:
+                raise ValueError('Enter a description and select a valid unit.')
+            quantity = decimal_value(values['quantity'],quantity=True)
+            if values['unit']=='Each' and quantity!=quantity.to_integral_value():
                 raise ValueError('Each requires a whole-number quantity.')
-            rates = {'quantity': quantity}
-            for field in ('material_rate', 'labour_rate'):
-                try:
-                    rate = Decimal(values[field])
-                except InvalidOperation:
-                    raise ValueError('Enter valid material and labour rates.') from None
-                if not rate.is_finite() or rate < 0 or rate > Decimal('999999999999.99'):
-                    raise ValueError('Rates must be between 0 and 999999999999.99.')
-                if rate != rate.quantize(Decimal('0.01')):
-                    raise ValueError('Rates may have at most two decimal places.')
-                rates[field] = rate
-            duplicate = query.filter_by(code=values['code'])
-            if item:
-                duplicate = duplicate.filter(ProTradeBoqItem.id != item.id)
-            if duplicate.first():
-                error, status = 'That BOQ code already exists in this shop. Edit the existing item.', 409
+            if item is not None and item.combined_rate is not None and request.form.get('replace_combined')!='yes':
+                rates = dict(material_rate=None,labour_rate=None,combined_rate=decimal_value(values['combined_rate'],combined=True))
             else:
+                rates = dict(material_rate=decimal_value(values['material_rate']),labour_rate=decimal_value(values['labour_rate']),combined_rate=None)
+            duplicate = query.filter_by(code=code)
+            if item is not None:
+                duplicate = duplicate.filter(ProTradeBoqItem.id!=item.id)
+            if duplicate.first() is not None:
+                error,status = 'That catalogue code already exists. Edit the existing item.',409
+            else:
+                from sqlalchemy import func
+                named = query.filter(func.lower(func.trim(ProTradeBoqItem.description))==values['description'].lower())
+                if item is not None:
+                    named = named.filter(ProTradeBoqItem.id!=item.id)
+                if named.first() is not None:
+                    raise ValueError('That description already exists in this category. Edit the existing item.')
                 if item is None:
-                    item = ProTradeBoqItem(user_id=current_user.id, shop_id=shop.id, trade=shop.trade)
+                    item = ProTradeBoqItem(user_id=current_user.id,shop_id=shop.id,trade=category,code=code)
                     db.session.add(item)
-                for field in ('code', 'description', 'unit'):
-                    setattr(item, field, values[field])
-                for field, rate in rates.items():
-                    setattr(item, field, rate)
+                item.description,item.unit,item.quantity = values['description'],values['unit'],quantity
+                for key,value in rates.items():
+                    setattr(item,key,value)
                 db.session.commit()
-                flash('BOQ item saved.', 'success')
-                return redirect(url_for('mechanic_bp.catalog_manage', shop_id=shop.id))
+                flash('Price List item saved.','success')
+                return redirect(url_for('mechanic_bp.catalog_manage',shop_id=shop.id,category=category))
         except ValueError as exc:
-            error, status = str(exc), 400
+            error,status = str(exc),409 if status==409 else 400
         except IntegrityError:
             db.session.rollback()
-            error, status = 'This BOQ code could not be saved. Check for an existing item and try again.', 409
-    return render_template('program_mechanic/boq_price_list.html', shop=shop,
-                           boq_items=query.order_by(ProTradeBoqItem.code).all(),
-                           edit_item=item, values=values, units=units, work_items=work_items, error=error), status
+            error,status = 'This item could not be saved. Check for an existing code and try again.',409
+    saved = query.order_by(ProTradeBoqItem.code).all()
+    by_code = {entry.code:entry for entry in saved}
+    rows = [by_code.get(entry['code']) or dict(entry,material_rate=None,labour_rate=None,total_rate=None,combined_rate=None) for entry in definitions]
+    rows += [entry for entry in saved if entry.code not in {definition['code'] for definition in definitions}]
+    return render_template('program_mechanic/boq_price_list.html',shop=shop,category=category,categories=options,
+        boq_items=rows,edit_item=item,values=values,units=UNITS,work_items=definitions,error=error),status
 
 
 @mechanic_bp.route('/mechanic/catalog', methods=['GET', 'POST'])
@@ -1868,17 +1838,14 @@ def catalog_manage():
         flash('You must complete your shop setup first.', 'warning')
         return redirect(url_for('mechanic_bp.mechanic_dashboard'))
 
-    if active_shop.trade in ('carpentry', 'boq'):
+    from app.protrade_boq_catalog import construction_shop
+    if construction_shop(active_shop):
         return carpentry_boq_price_list(active_shop)
 
     if request.method == 'POST':
         action = request.form.get('action')
         own_parts = price_list_query(active_shop).filter(MechCatalogPart.user_id == current_user.id)
         if action == 'add':
-            from app.protrade_boq_catalog import CONSTRUCTION_TRADES,next_catalogue_code
-            from app.models.mechanic import ProTradeBoqItem,ProTradeBoqQuote
-            if active_shop.trade in CONSTRUCTION_TRADES:
-                MechShop.query.filter_by(id=active_shop.id,user_id=current_user.id).with_for_update().one()
             part_name = (request.form.get('part_name') or '').strip()
             category = request.form.get('category', 'Custom')
             price = request.form.get('price', type=float, default=0.0)
@@ -1888,15 +1855,12 @@ def catalog_manage():
                 if existing:
                     existing.default_price = price
                     existing.category = category
-                    if active_shop.trade in CONSTRUCTION_TRADES and not existing.item_code:
-                        existing.item_code=next_catalogue_code(active_shop,MechCatalogPart,ProTradeBoqItem,ProTradeBoqQuote,MechShop)
                     flash(f'Updated price for {part_name}', 'success')
                 else:
                     db.session.add(MechCatalogPart(
                         user_id=current_user.id, shop_id=active_shop.id,
                         trade=active_shop.trade or 'mechanic', part_name=part_name,
-                        category=category, default_price=price,
-                        item_code=next_catalogue_code(active_shop,MechCatalogPart,ProTradeBoqItem,ProTradeBoqQuote,MechShop) if active_shop.trade in CONSTRUCTION_TRADES else None))
+                        category=category, default_price=price))
                     flash(f'Added {part_name} to your price list', 'success')
                 db.session.commit()
         elif action == 'delete':

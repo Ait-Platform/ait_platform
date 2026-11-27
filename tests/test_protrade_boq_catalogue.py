@@ -1,4 +1,4 @@
-"""BOQ reads owned existing Carpentry prices without changing their source."""
+"""BOQ reads only its own client category prices without changing their source."""
 import json
 from decimal import Decimal
 from uuid import uuid4
@@ -20,39 +20,40 @@ class BoqCatalogueTests(unittest.TestCase):
 
     def test_carpentry_and_plumbing_share_one_boq_without_copying_catalogues(self):
         shop,debtor=self.fixtures()
-        plumbing=self.shop(name='Plumbing price list',trade='plumbing')
-        part=base.MechCatalogPart(user_id=1,shop_id=plumbing.id,trade='plumbing',part_name='Repair leaking pipe',default_price=80)
-        wood=base.ProTradeBoqItem(user_id=1,shop_id=self.carpentry.id,trade='carpentry',code='CAR-TEST',description='Timber work',unit='Each',material_rate=20,labour_rate=10)
+        plumbing=shop
+        part=base.ProTradeBoqItem(user_id=1,shop_id=shop.id,trade='plumbing',code='PLUM-TEST',description='Repair leaking pipe',unit='Each',combined_rate=80,material_rate=None,labour_rate=None)
+        wood=base.ProTradeBoqItem(user_id=1,shop_id=shop.id,trade='carpentry',code='CAR-TEST',description='Timber work',unit='Each',material_rate=20,labour_rate=10)
         self.db_session.add_all([part,wood]);self.db_session.commit()
         before=(base.MechCatalogPart.query.count(),base.ProTradeBoqItem.query.count())
         response=self.client.get(self.quote_url(debtor),query_string={'area':'new'})
         tree=html.fromstring(response.data);data=json.loads(tree.get_element_by_id('quote-builder-data').text)
         wood_choice=next(row for row in data['choices'] if row['source_id']==wood.id)
-        pipe_choice=next(row for row in data['choices'] if row['source_id']==f'part:{part.id}')
-        self.assertEqual(pipe_choice['material_rate'],'80.00')
+        pipe_choice=next(row for row in data['choices'] if row['source_id']==part.id)
+        self.assertEqual(pipe_choice['material_rate'],'')
+        self.assertEqual(Decimal(pipe_choice['combined_rate']),Decimal('80'))
         from playwright.sync_api import sync_playwright
         with sync_playwright() as runtime:
             browser=runtime.chromium.launch(headless=True)
             try:
                 page=browser.new_page();page.set_content(response.get_data(as_text=True));page.add_script_tag(path=str(base.ROOT/'app/static/js/carpentry_quote_builder.js'))
-                page.locator('#quote-catalogue').select_option([f'carpentry:{self.carpentry.id}',f'plumbing:{plumbing.id}'])
+                page.locator('#quote-catalogue').select_option(['carpentry','plumbing'])
                 for choice,quantity in [(wood_choice,'2'),(pipe_choice,'3')]:
                     page.locator('#quote-work-select').fill(choice['label']);page.locator('#quote-work-quantity').fill(quantity);page.locator('#quote-add-item').click()
                 self.assertEqual(page.locator('[data-trade=carpentry]').inner_text(),'Carpentry subtotal: R60.00')
                 self.assertEqual(page.locator('[data-trade=plumbing]').inner_text(),'Plumbing subtotal: R240.00')
                 self.assertEqual(page.locator('#quote-grand-total').text_content(),'300.00')
             finally:browser.close()
-        payload={'area':'new','quote_key':uuid4().hex,'item_id[]':[str(wood.id),f'part:{part.id}'],f'quantity_{wood.id}':'2',f'quantity_part:{part.id}':'3'}
+        payload={'area':'new','quote_key':uuid4().hex,'item_id[]':[str(wood.id),str(part.id)],f'quantity_{wood.id}':'2',f'quantity_{part.id}':'3'}
         self.assertEqual(self.client.post(self.quote_url(debtor),data=payload).status_code,302)
         quote=base.ProTradeBoqQuote.query.filter_by(shop_id=shop.id).one()
         self.assertEqual(quote.grand_total,Decimal('300.00'))
         self.assertEqual({line['trade'] for line in quote.items},{'carpentry','plumbing'})
         self.assertEqual((base.MechCatalogPart.query.count(),base.ProTradeBoqItem.query.count()),before)
-        self.assertEqual(part.default_price,80)
+        self.assertEqual(part.combined_rate,80)
 
     def test_existing_carpentry_rates_snapshots_isolation_and_timer(self):
         shop, debtor = self.fixtures()
-        source = self.shop(name='Existing Carpentry', trade='carpentry')
+        source = shop
         foreign = self.shop(owner=2, name='Private Carpentry', trade='carpentry')
         first = base.ProTradeBoqItem(user_id=1, shop_id=source.id, trade='carpentry', code='CAR-001', description='Owned wooden door', unit='Each', material_rate=20, labour_rate=10)
         second = base.ProTradeBoqItem(user_id=1, shop_id=source.id, trade='carpentry', code='CAR-002', description='Owned frame', unit='Each', material_rate=30, labour_rate=10)
@@ -62,7 +63,7 @@ class BoqCatalogueTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         tree = html.fromstring(response.data)
         data = json.loads(tree.get_element_by_id('quote-builder-data').text)
-        self.assertIn('Carpentry — Existing Carpentry', tree.text_content())
+        self.assertIn('Carpentry', tree.text_content())
         self.assertNotIn('Private pricing', response.get_data(as_text=True))
         self.assertFalse(any(choice['code']=='WORK-001' for choice in data['choices']))
         choice = next(row for row in data['choices'] if row['source_id']==first.id)
@@ -73,7 +74,7 @@ class BoqCatalogueTests(unittest.TestCase):
             try:
                 page=browser.new_page();page.set_content(response.get_data(as_text=True))
                 page.add_script_tag(path=str(base.ROOT/'app/static/js/carpentry_quote_builder.js'))
-                page.locator('#quote-catalogue').select_option(f'carpentry:{source.id}')
+                page.locator('#quote-catalogue').select_option('carpentry')
                 page.locator('#quote-work-select').fill(choice['label'])
                 self.assertEqual(page.locator('#quote-work-code').input_value(),'CAR-001')
                 self.assertEqual(page.locator('#quote-work-unit').input_value(),'Each')

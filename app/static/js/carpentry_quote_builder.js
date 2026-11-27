@@ -4,13 +4,21 @@
     const match = /^(?:(\d+)(?:\.(\d{0,3}))?|\.(\d{1,3}))$/.exec(value);
     if (!match || !rate) return 0n;
     const millis = BigInt(match[1] || '0') * 1000n + BigInt((match[2] || match[3] || '').padEnd(3, '0'));
+    if (typeof rate==='object') {
+      const parts=/^(?:(\d+)(?:\.(\d*))?|\.(\d+))$/.exec(rate.combined);
+      if(!parts) return 0n;
+      const fraction=parts[2] || parts[3] || '', denominator=1000n*10n**BigInt(fraction.length);
+      const numerator=millis*BigInt((parts[1] || '0')+fraction)*100n;
+      return (numerator+denominator/2n)/denominator;
+    }
     return (millis * BigInt(rate) + 500n) / 1000n;
   }
   function rateCents(value) {
     const match = /^(?:(\d+)(?:\.(\d{0,2}))?|\.(\d{1,2}))$/.exec(value);
     return match ? BigInt(match[1] || '0')*100n+BigInt((match[2] || match[3] || '').padEnd(2,'0')) : null;
   }
-  function combinedRate(materialValue,labourValue) {
+  function combinedRate(materialValue,labourValue,combinedValue='') {
+    if(combinedValue!=='') return {combined:combinedValue};
     const m=rateCents(materialValue), l=rateCents(labourValue);
     return m===null || l===null ? '' : String(m+l);
   }
@@ -20,7 +28,7 @@
     const preview=()=>{
       document.getElementById('quote-item-line-total').textContent=money(amount(
         itemForm.elements.quantity.value,
-        combinedRate(itemForm.elements.material_rate.value,itemForm.elements.labour_rate.value)));
+        combinedRate(itemForm.elements.material_rate?.value || '',itemForm.elements.labour_rate?.value || '',itemForm.elements.combined_rate?.value || '')));
     };
     itemForm.addEventListener('input',preview);
     itemForm.addEventListener('change',preview);
@@ -37,6 +45,7 @@
   const message = document.getElementById('quote-work-message');
   const material = document.getElementById('quote-work-material');
   const labour = document.getElementById('quote-work-labour');
+  const combined = document.getElementById('quote-work-combined');
   const selected = new Map();
   const catalogue = document.getElementById('quote-catalogue');
   const availableChoices = () => data.choices.filter(item => !catalogue || Array.from(catalogue.selectedOptions).some(option=>option.value===item.catalogue_key));
@@ -47,43 +56,50 @@
   }
   catalogue?.addEventListener('change',catalogueOptions);
   let choice = null;
-  function validValues(materialInput,labourInput,quantityInput) {
+  function validValues(materialInput,labourInput,quantityInput,combinedInput=null) {
+    if(combinedInput && !combinedInput.disabled) return [quantityInput,combinedInput].every(field=>field.value!=='' && field.checkValidity()) && /^(?:\d+(?:\.\d*)?|\.\d+)$/.test(combinedInput.value);
     return [materialInput,labourInput,quantityInput].every(field=>field.value!=='' && field.checkValidity()) &&
-      combinedRate(materialInput.value,labourInput.value)!=='' && /^(?:\d+(?:\.\d{0,3})?|\.\d{1,3})$/.test(quantityInput.value);
+      combinedRate(materialInput.value,labourInput.value,combinedInput?.value || '')!=='' && /^(?:\d+(?:\.\d{0,3})?|\.\d{1,3})$/.test(quantityInput.value);
   }
   const normalize = value => String(value || '').trim().replace(/\s+/g,' ').toLowerCase();
   function preview() {
     const query = normalize(search.value);
     const matches = query ? availableChoices().filter(item => [item.label,item.code,item.description,
-      item.label.slice(item.label.indexOf('\u2014')+1)].some(value => normalize(value)===query)) : [];
+      item.label.slice(item.label.indexOf('\u2014')+1),...(item.aliases || [])].some(value => normalize(value)===query)) : [];
     // Accept a native-list selection or an exact typed code/description, never an ambiguous match.
     const nextChoice = matches.length===1 ? matches[0] : null;
     if (nextChoice !== choice) {
       choice = nextChoice;
-    for (const [field,key] of [['code','code'],['description','description'],['unit','unit'],['material','material_rate'],['labour','labour_rate']]) {
+    for (const [field,key] of [['code','code'],['description','description'],['unit','unit'],['material','material_rate'],['labour','labour_rate'],['combined','combined_rate']]) {
       document.getElementById(`quote-work-${field}`).value = choice?.[key] || '';
     }
+    }
+    const unsplit=choice?.combined_rate!==undefined && choice.combined_rate!=='';
+    if(combined) {
+      combined.disabled=!unsplit;
+      document.getElementById('quote-combined-field').hidden=!unsplit;
+      material.disabled=labour.disabled=unsplit;
     }
     quantity.min = '0.001';
     quantity.step = '0.001';
     const duplicate = choice && selected.has(String(choice.source_id));
-    add.disabled = !choice || duplicate || !validValues(material,labour,quantity);
-    message.textContent = !choice ? (query ? 'Choose a matching item from the list, or enter its full code or description.' : '') : duplicate ? 'This item is already listed. Use Include or edit its quantity below.' : !validValues(material,labour,quantity) ? 'Enter valid non-negative rates and a positive quantity to add this item.' : '';
-    document.getElementById('quote-work-total').value = money(choice ? amount(quantity.value,combinedRate(material.value,labour.value)) : 0n);
+    add.disabled = !choice || duplicate || !validValues(material,labour,quantity,combined);
+    message.textContent = !choice ? (query ? 'Choose a matching item from the list, or enter its full code or description.' : '') : duplicate ? 'This item is already listed. Use Include or edit its quantity below.' : !validValues(material,labour,quantity,combined) ? 'Enter valid non-negative rates and a positive quantity to add this item.' : '';
+    document.getElementById('quote-work-total').value = money(choice ? amount(quantity.value,combinedRate(material.value,labour.value,combined && !combined.disabled ? combined.value : '')) : 0n);
   }
   function calculate() {
     let total = 0n;
     let included = 0;
     let invalidIncluded = false;
     const tradeTotals=new Map();
-    selected.forEach(({row,input,materialInput,labourInput,include,identity}) => {
+    selected.forEach(({row,input,materialInput,labourInput,combinedInput,include,identity}) => {
       identity.disabled = !include.checked;
-      for (const field of [input,materialInput,labourInput]) {field.disabled=false;field.required=include.checked;}
+      for (const field of [input,materialInput,labourInput,combinedInput].filter(Boolean)) {field.required=include.checked && !field.disabled;}
       if (include.checked) {
-        if (validValues(materialInput,labourInput,input)) included += 1;
+        if (validValues(materialInput,labourInput,input,combinedInput)) included += 1;
         else invalidIncluded = true;
       }
-      const cents = include.checked ? amount(input.value,combinedRate(materialInput.value,labourInput.value)) : 0n;
+      const cents = include.checked ? amount(input.value,combinedRate(materialInput.value,labourInput.value,combinedInput?.value || '')) : 0n;
       row.querySelector('.line-total').textContent = money(cents);
       total += cents;
       if(include.checked){const trade=selected.get(row.dataset.sourceId).item.catalogue_trade || 'boq';tradeTotals.set(trade,(tradeTotals.get(trade)||0n)+cents);}
@@ -136,33 +152,43 @@
     const rateInput=(kind,label)=>{
       const field=document.createElement('input');field.type='number';field.name=`${kind}_${key}`;
       field.value=item[kind];field.min='0';field.max='999999999999.99';field.step='0.01';field.required=true;
-      field.className=input.className;field.setAttribute('aria-label',`${label} ${item.code}`);cell('').append(field);
+      field.className=input.className+' text-right';field.setAttribute('aria-label',`${label} ${item.code}`);cell('').append(field);
       field.addEventListener('input',calculate);field.addEventListener('change',calculate);return field;
     };
     const materialInput=rateInput('material_rate','Material Rate'),labourInput=rateInput('labour_rate','Labour Rate');
+    let combinedInput=null;
+    if(item.combined_rate!==undefined && item.combined_rate!=='') {
+      materialInput.disabled=labourInput.disabled=true;
+      materialInput.required=labourInput.required=false;
+      combinedInput=document.createElement('input');combinedInput.type='number';combinedInput.step='any';combinedInput.min='0';combinedInput.max='999999999999.99';
+      combinedInput.name=`combined_rate_${key}`;combinedInput.value=item.combined_rate;combinedInput.required=true;
+      combinedInput.className=input.className+' text-right';combinedInput.setAttribute('aria-label',`Combined Rate ${item.code}`);
+      const label=document.createElement('label');label.textContent='Combined rate (no split supplied)';label.append(combinedInput);
+      materialInput.parentElement.append(label);combinedInput.addEventListener('input',calculate);
+    }
     cell('0.00').classList.add('line-total');
     const remove=document.createElement('button');remove.type='button';remove.textContent='Remove Item';
     remove.className='quote-remove mt-1 block rounded-lg bg-red-50 px-2 py-1 text-xs';remove.setAttribute('aria-label',`Remove ${item.code}`);
     code.append(remove);
-    selected.set(key,{item,row,input,materialInput,labourInput,include,identity});
+    selected.set(key,{item,row,input,materialInput,labourInput,combinedInput,include,identity});
     include.addEventListener('change',calculate);
     input.addEventListener('input',calculate);
     input.addEventListener('change',calculate);
     remove.addEventListener('click',()=>{selected.delete(key);row.remove();calculate();});
   }
-  search.addEventListener('input',()=>{quantity.value='';preview();});
+  search.addEventListener('input',()=>{quantity.value='1';preview();});
   search.addEventListener('change',preview);
   quantity.addEventListener('input',preview);
   quantity.addEventListener('change',preview);
-  for (const field of [material,labour]) {field.addEventListener('input',preview);field.addEventListener('change',preview);}
+  for (const field of [material,labour,combined].filter(Boolean)) {field.addEventListener('input',preview);field.addEventListener('change',preview);}
   add.addEventListener('click',()=>{
     preview();
     if (add.disabled) return;
-    const invalid=[material,labour,quantity].find(field=>!field.value || !field.checkValidity());
+    const invalid=[material,labour,combined,quantity].filter(field=>field && !field.disabled).find(field=>!field.value || !field.checkValidity());
     if (invalid) {
       message.textContent='Enter non-negative rates (up to two decimals) and a positive quantity (up to three decimals).';invalid.focus();return;
     }
-    addLine({...choice,material_rate:material.value,labour_rate:labour.value},quantity.value);search.value='';quantity.value='';calculate();
+    addLine({...choice,material_rate:material.value,labour_rate:labour.value,combined_rate:combined && !combined.disabled ? combined.value : ''},quantity.value);search.value='';quantity.value='';calculate();
   });
   function restoreServerState() {
     const options=document.getElementById('quote-work-options');
@@ -194,9 +220,9 @@
     restoreServerState();search.focus();
   });
   document.getElementById('carpentry-quote-form').addEventListener('submit',event=>{
-    for (const {input,materialInput,labourInput,include} of selected.values()) {
+    for (const {input,materialInput,labourInput,combinedInput,include} of selected.values()) {
       if (!include.checked) continue;
-      const invalid=[input,materialInput,labourInput].find(field=>!field.checkValidity());
+      const invalid=[input,materialInput,labourInput,combinedInput].filter(field=>field && !field.disabled).find(field=>!field.checkValidity());
       if(invalid) {event.preventDefault();invalid.reportValidity();return;}
     }
   });

@@ -20,7 +20,7 @@ class CarpentryCatalogTests(unittest.TestCase):
         self.assertEqual(entries[3], dict(code='CAR-004', description='Install skirting', unit='m'))
         self.assertEqual(entries[-1], dict(code='CAR-015', description='General carpentry work', unit='Hour'))
         for entry in entries:
-            self.save(preset_code=entry['code'], description='forged', code='FORGED', unit='')
+            self.save(preset_code=entry['code'], description=entry['description'], code='FORGED', unit='')
             item = base.ProTradeBoqItem.query.filter_by(code=entry['code']).one()
             self.assertEqual((item.description, item.unit), (entry['description'], entry['unit']))
             self.assertEqual(item.total_rate, Decimal('1850.00'))
@@ -38,11 +38,11 @@ class CarpentryCatalogTests(unittest.TestCase):
         # Works without JavaScript too: description match resolves the preset.
         self.save(description=' install skirting ', unit='', code='MANUAL')
         item = base.ProTradeBoqItem.query.one()
-        self.assertEqual((item.code, item.description, item.unit), ('CAR-004', 'Install skirting', 'm'))
+        self.assertEqual((item.code, item.description, item.unit), ('CAR-004', 'install skirting', 'm'))
 
     def test_custom_codes_are_generated_unique_and_existing_edits_keep_codes(self):
-        for _ in range(5):
-            self.save(description='Custom bespoke joinery', code='CAR-004', unit='m\u00b3')
+        for index in range(5):
+            self.save(description=f'Custom bespoke joinery {index}', code='CAR-004', unit='m\u00b3')
         items = base.ProTradeBoqItem.query.all()
         self.assertEqual(len({item.code for item in items}), 5)
         self.assertTrue(all(item.code.startswith('CAR-C-') for item in items))
@@ -95,6 +95,7 @@ class CarpentryCatalogTests(unittest.TestCase):
                 self.assertEqual(page.locator('#total-rate').text_content(), '0.30')
                 page.locator('#boq-description').fill('General carpentry work')
                 self.assertEqual(page.locator('#boq-unit').input_value(), 'Hour')
+                page.locator('#price-item-select').select_option('')
                 page.locator('#boq-description').fill('Bespoke custom work')
                 self.assertEqual(page.locator('#preset-code').input_value(), '')
                 self.assertEqual(page.locator('#boq-code').input_value(), '')

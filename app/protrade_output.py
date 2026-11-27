@@ -13,6 +13,7 @@ from sqlalchemy.exc import IntegrityError
 from werkzeug.exceptions import HTTPException
 from werkzeug.utils import secure_filename
 from app.extensions import db
+from app.protrade_boq_catalog import snapshot_columns
 from app.models.mechanic import (MechShop,MechClient,MechVehicle,MechJobCard,MechInvoice,
                                 MechLaborLine,MechPartLine,MechCatalogPart,ProTradeBoqItem,
                                 ProTradeBoqQuote,ProTradeOutputEmail,ProTradeDocument)
@@ -75,8 +76,8 @@ def catalog(shop):
                 client=MechClient.query.filter_by(id=quote.client_id,user_id=current_user.id).first()
                 if not client or client.shop_id not in (None,shop.id):continue
             entries.append(dict(key=f'quote:boq-{quote.id}',kind='quote',label=quote.display_quote_number+' — '+quote.client_name,source=quote))
-        if ProTradeBoqItem.query.filter_by(shop_id=shop.id,user_id=current_user.id,trade=shop.trade).first():
-            entries.append(dict(key='price_list:all',kind='price_list',label=('Carpentry BOQ Price List' if shop.trade=='carpentry' else 'BOQ Price List'),source=None))
+        if ProTradeBoqItem.query.filter_by(shop_id=shop.id,user_id=current_user.id).first():
+            entries.append(dict(key='price_list:all',kind='price_list',label='Price List',source=None))
     else:
         if (shop.trade or 'mechanic')=='mechanic':
             jobs=MechJobCard.query.join(MechVehicle).join(MechClient).filter(MechJobCard.shop_id==shop.id,MechClient.user_id==current_user.id).order_by(MechJobCard.id.desc()).all()
@@ -140,7 +141,7 @@ def report_data(shop,entry,recipient_id=None):
         data.update(reference=source.display_quote_number,date=document_date(source.created_at),
                     recipient=dict(name=source.client_name,phone=source.client_phone or '',email=source.client_email or '',address=source.client_address or ''),
                     columns=['BOQ Code','Description','Unit','Quantity','Material R/unit','Labour R/unit','Total R'],
-                    rows=[[line['code'],line['description'],line['unit'],line['quantity'],line['material_rate'],line['labour_rate'],line['total']] for line in source.items],
+                    rows=[snapshot_columns(line) for line in source.items],
                     totals=[('Total (R)',format(source.grand_total,'.2f'))])
     elif kind in ('quote','invoice'):
         invoice,job=source if isinstance(source,tuple) else (None,source)
@@ -171,10 +172,15 @@ def report_data(shop,entry,recipient_id=None):
     elif kind=='statement':
         abort(409,description='Generate and save this debtor statement first using Generate SOA in the debtor ledger.')
     else:
-        if shop.trade in ('carpentry','boq'):
-            data.update(reference=('Carpentry-BOQ' if shop.trade=='carpentry' else 'BOQ'),columns=['BOQ Code','Description','Unit','Material R/unit','Labour R/unit','Unit Rate (R)'],
-                        rows=[[item.code,item.description,item.unit,format(item.material_rate,'.2f'),format(item.labour_rate,'.2f'),format(item.total_rate,'.2f')]
-                              for item in ProTradeBoqItem.query.filter_by(shop_id=shop.id,user_id=current_user.id,trade=shop.trade).order_by(ProTradeBoqItem.code).all()])
+        from app.protrade_boq_catalog import construction_shop,category_options,CATEGORY_LABELS
+        if construction_shop(shop):
+            allowed = [option['key'] for option in category_options(shop)]
+            saved = ProTradeBoqItem.query.filter_by(shop_id=shop.id,user_id=current_user.id).filter(ProTradeBoqItem.trade.in_(allowed)).order_by(ProTradeBoqItem.trade,ProTradeBoqItem.code).all()
+            data.update(reference='Price-List',numeric_columns=[4,5,6],columns=['Category','Item Code','Description','Unit','Material Rate','Labour Rate','Total Rate'],
+                rows=[[CATEGORY_LABELS.get(item.trade,'BOQ custom items'),item.code,item.description,item.unit,
+                    format(item.material_rate,'.2f') if item.material_rate is not None else '—',
+                    format(item.labour_rate,'.2f') if item.labour_rate is not None else '—',
+                    str(item.total_rate)+(' (combined)' if item.combined_rate is not None else '')] for item in saved])
         else:
             data.update(reference='Price-List',columns=['Item','Category','Unit Price (R)'],rows=[[item.part_name,item.category or '',format(item.default_price or 0,'.2f')] for item in price_items(shop)])
         if recipient_id:debtor=owned_debtor(shop,recipient_id)

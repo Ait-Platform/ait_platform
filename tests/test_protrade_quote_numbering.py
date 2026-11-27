@@ -157,7 +157,7 @@ class QuoteNumberDocumentTests(unittest.TestCase):
         document=tree.get_element_by_id('protrade-output-document').text_content()
         self.assertIn('Q-0001',document);self.assertNotIn(self.quote.quote_number,document)
         import json
-        url=json.loads(tree.get_element_by_id('output-directory-context').text)['pdf_url']
+        url=tree.get_element_by_id('output-download').get('href')
         pdf=self.client.get(url);self.assertEqual(pdf.status_code,200)
         import fitz
         with fitz.open(stream=pdf.data,filetype='pdf') as rendered:

@@ -41,6 +41,12 @@ class CarpentryBoqTests(unittest.TestCase):
         spec.loader.exec_module(self.quantity_migration)
         self.quantity_migration.op = Operations(MigrationContext.configure(self.conn))
         self.quantity_migration.upgrade()
+        spec = importlib.util.spec_from_file_location('unified_price_migration', ROOT / 'migrations/versions/protrade_unified_prices_021.py')
+        unified = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(unified)
+        unified.op = Operations(MigrationContext.configure(self.conn))
+        unified.upgrade()
+
 
     def snapshot(self):
         return self.conn.exec_driver_sql('SELECT * FROM mech_catalog_parts ORDER BY id').all()
@@ -50,6 +56,11 @@ class CarpentryBoqTests(unittest.TestCase):
         data = dict(shop_id=shop.id, action='save_boq', code='CAR-001', description='Install wooden door',
                     unit='Each', material_rate='1200.00', labour_rate='650.00')
         data.update(changes)
+        if changes.get('preset_code') and 'description' not in changes:
+            from app.protrade_boq_catalog import work_items_for
+            definition = next((row for row in work_items_for(shop.trade) if row['code']==changes['preset_code']),None)
+            if definition:
+                data['description'] = definition['description']
         result = self.client.post('/mechanic/catalog', data=data)
         self.assertEqual(result.status_code, expected, result.get_data(as_text=True)[:300])
         return result
@@ -63,7 +74,7 @@ class CarpentryBoqTests(unittest.TestCase):
         self.assertEqual((item.user_id, item.shop_id, item.trade), (1, self.carpentry.id, 'carpentry'))
         self.assertEqual(item.total_rate, Decimal('1850.00'))
         page = self.page().get_data(as_text=True)
-        self.assertIn('Carpentry BOQ', page)
+        self.assertIn('Construction Price List', page)
         self.assertIn('Install wooden door', page)
         self.assertIn('1850.00', page)
         self.assertNotIn('Brake Pads', page)
@@ -116,7 +127,7 @@ class CarpentryBoqTests(unittest.TestCase):
                 self.assertIn('role="alert"', response.get_data(as_text=True))
         self.assertEqual(ProTradeBoqItem.query.count(), 0)
         for index, unit in enumerate(('Each', 'm', 'm\u00b2', 'm\u00b3')):
-            self.save(code=f'CAR-{index}', unit=unit, material_rate='0', labour_rate='0')
+            self.save(code=f'CAR-{index}',description=f'Custom work {index}',unit=unit,material_rate='0',labour_rate='0')
         self.assertEqual(ProTradeBoqItem.query.count(), 4)
 
     def test_mechanic_pricing_unchanged_and_boq_actions_unavailable(self):

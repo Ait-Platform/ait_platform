@@ -1,5 +1,5 @@
 {% extends 'layout.html' %}
-{% block title %}ProTrade - {{ 'Carpentry BOQ' if shop.trade=='carpentry' else 'Bill of Quantities' }}{% endblock %}
+{% block title %}ProTrade - Manage Price List{% endblock %}
 {% block flashes %}{% endblock %}
 {% block content %}
 <div class="mx-auto max-w-6xl px-4 py-10">
@@ -9,27 +9,42 @@
       {% include 'partials/flash_messages.html' %}
       <div class="flex items-center justify-between gap-4">
         <div>
-          <h1 class="text-2xl font-semibold text-slate-900">{{ 'Carpentry BOQ' if shop.trade=='carpentry' else 'Bill of Quantities' }}</h1>
-          <p class="mt-1 text-sm text-slate-700">{{ shop.business_name }} &middot; {{ 'Carpentry Price List' if shop.trade=='carpentry' else 'BOQ Price List' }}</p>
+          <h1 class="text-2xl font-semibold text-slate-900">Manage Price List</h1>
+          <p class="mt-1 text-sm text-slate-700">{{ shop.business_name }} &middot; Construction Price List</p>
         </div>
         <a href="{{ url_for('mechanic_bp.mechanic_dashboard', shop_id=shop.id) }}" class="rounded-lg bg-slate-100 px-4 py-2 font-semibold text-slate-700">Back</a>
       </div>
+      <form method="GET" class="mt-5">
+        <input type="hidden" name="shop_id" value="{{ shop.id }}">
+        <label for="price-category" class="block text-sm font-semibold">Trade Category</label>
+        <select id="price-category" name="category" onchange="this.form.submit()" class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2">
+          {% for option in categories %}<option value="{{ option.key }}" {% if option.key==category %}selected{% endif %}>{{ option.label }}</option>{% endfor %}
+        </select>
+        <noscript><button type="submit">Select Category</button></noscript>
+      </form>
+      <p class="mt-2 text-sm text-slate-700">Definitions are shared. Rates belong only to {{ shop.business_name }}. Select an item below to set this client's rates.</p>
       <form id="boq-form" method="POST" action="{{ url_for('mechanic_bp.catalog_manage', shop_id=shop.id) }}" class="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-5">
         <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <h2 class="text-lg font-semibold text-slate-800">{{ 'Edit BOQ Item' if edit_item else 'Add BOQ Item' }}</h2>
+          <h2 class="text-lg font-semibold text-slate-800">{{ 'Edit Price List Item' if edit_item else 'Add Price List Item' }}</h2>
           <div class="flex justify-end gap-3">
-            {% if edit_item %}<a href="{{ url_for('mechanic_bp.catalog_manage', shop_id=shop.id) }}" class="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold">Cancel</a>{% endif %}
-            <button type="submit" class="rounded-lg bg-slate-800 px-4 py-2 text-sm font-semibold text-white">Save BOQ Item</button>
+            {% if edit_item %}<a href="{{ url_for('mechanic_bp.catalog_manage', shop_id=shop.id, category=category) }}" class="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold">Cancel</a>{% endif %}
+            <button type="submit" class="rounded-lg bg-slate-800 px-4 py-2 text-sm font-semibold text-white">Save Item</button>
           </div>
         </div>
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="shop_id" value="{{ shop.id }}">
+        <input type="hidden" name="category" value="{{ category }}">
         <input type="hidden" name="action" value="save_boq">
         {% if edit_item and edit_item.id %}<input type="hidden" name="item_id" value="{{ edit_item.id }}">{% endif %}
         {% if error %}<p role="alert" class="mb-4 text-sm font-semibold text-red-700">{{ error }}</p>{% endif %}
+        <label for="price-item-select" class="mb-1 block text-sm font-semibold">Catalogue Item</label>
+        <select id="price-item-select" class="mb-4 w-full rounded-lg border border-slate-300 bg-white px-3 py-2">
+          <option value="">Client-specific item</option>
+          {% for entry in work_items %}<option value="{{ entry.code }}" {% if values.get('code')==entry.code %}selected{% endif %}>{{ entry.code }} &middot; {{ entry.description }}</option>{% endfor %}
+        </select>
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <div>
-            <label for="boq-code" class="mb-1 block text-sm font-semibold">BOQ Code</label>
+            <label for="boq-code" class="mb-1 block text-sm font-semibold">Item Code</label>
             <input id="boq-code" name="code" value="{{ values.get('code', '') }}" maxlength="50" readonly class="w-full rounded-lg border border-slate-300 px-3 py-2" placeholder="Assigned automatically">
           </div>
           <div class="sm:col-span-2">
@@ -47,32 +62,37 @@
               {% for unit in units %}<option value="{{ unit }}" {% if values.get('unit') == unit %}selected{% endif %}>{{ unit }}</option>{% endfor %}
             </select>
           </div>
-          <div>
-            <label for="boq-quantity" class="mb-1 block text-sm font-semibold">Quantity</label>
-            <input id="boq-quantity" name="quantity" type="number" min="0.001" max="99999999999.999" step="0.001" value="{{ values.get('quantity', 1) }}" required class="w-full rounded-lg border border-slate-300 px-3 py-2">
-          </div>
+          <label class="text-sm font-semibold" for="boq-quantity">Quantity
+            <input id="boq-quantity" name="quantity" type="number" min="0.001" max="99999999999.999" step="0.001" value="{{ values.get('quantity', 1) }}" required class="w-full rounded-lg border border-slate-300 px-3 py-2 text-right">
+          </label>
+          {% if edit_item and edit_item.combined_rate is not none %}
+          <label class="text-sm font-semibold">Combined Rate (legacy; split not supplied)<input id="combined-rate" name="combined_rate" type="number" min="0" step="any" value="{{ values.get('combined_rate', edit_item.combined_rate) }}" required class="w-full rounded-lg border border-slate-300 px-3 py-2 text-right"></label>
+          <label class="text-sm font-semibold"><input id="split-legacy" type="checkbox" name="replace_combined" value="yes" {% if request.form.get('replace_combined')=='yes' %}checked{% endif %}> Enter an explicit material/labour split for this client. No split is inferred.</label>
+          {% endif %}
           <div>
             <label for="material-rate" class="mb-1 block text-sm font-semibold">Material Rate (R per unit)</label>
-            <input id="material-rate" name="material_rate" type="number" min="0" max="999999999999.99" step="0.01" value="{{ values.get('material_rate', '') }}" required class="w-full rounded-lg border border-slate-300 px-3 py-2">
+            <input id="material-rate" name="material_rate" {% if edit_item and edit_item.combined_rate is not none %}disabled{% endif %} type="number" min="0" max="999999999999.99" step="0.01" value="{{ values.get('material_rate') if values.get('material_rate') is not none else '' }}" required class="w-full rounded-lg border border-slate-300 px-3 py-2">
           </div>
           <div>
             <label for="labour-rate" class="mb-1 block text-sm font-semibold">Labour Rate (R per unit)</label>
-            <input id="labour-rate" name="labour_rate" type="number" min="0" max="999999999999.99" step="0.01" value="{{ values.get('labour_rate', '') }}" required class="w-full rounded-lg border border-slate-300 px-3 py-2">
+            <input id="labour-rate" name="labour_rate" {% if edit_item and edit_item.combined_rate is not none %}disabled{% endif %} type="number" min="0" max="999999999999.99" step="0.01" value="{{ values.get('labour_rate') if values.get('labour_rate') is not none else '' }}" required class="w-full rounded-lg border border-slate-300 px-3 py-2">
           </div>
         </div>
-        <p class="mt-4 text-sm font-semibold text-slate-800">Unit Rate: R <output id="total-rate" for="material-rate labour-rate">0.00</output> &middot; Total: R <output id="total-amount" for="boq-quantity material-rate labour-rate" aria-live="polite">0.00</output></p>
+        <p class="mt-4 text-sm font-semibold text-slate-800">Total Rate: R <output id="total-rate" for="material-rate labour-rate">0.00</output> &middot; Amount at this quantity: R <output id="total-amount">0.00</output></p>
       </form>
       <div class="mt-6 overflow-x-auto rounded-lg border border-slate-200">
         <table id="boq-items" class="w-full text-left text-sm">
           <thead class="bg-slate-50"><tr>
-            {% for heading in ['BOQ Code', 'Description', 'Unit', 'Quantity', 'Material R/unit', 'Labour R/unit', 'Unit Rate R', 'Total R', 'Action'] %}<th class="p-3 font-semibold text-slate-700">{{ heading }}</th>{% endfor %}
+            {% for heading in ['Item Code','Description','Unit','Material Rate','Labour Rate','Total Rate','Action'] %}<th class="p-3 font-semibold text-slate-700 {{ 'text-right' if loop.index in [4,5,6] else '' }}">{{ heading }}</th>{% endfor %}
           </tr></thead>
           <tbody>
-            {% for item in boq_items %}<tr class="border-t border-slate-200">
-              <td class="p-3 font-semibold">{{ item.code }}</td><td class="p-3">{{ item.description }}</td><td class="p-3 whitespace-nowrap">{{ item.unit }}</td><td class="p-3">{{ item.quantity }}</td>
-              <td class="p-3">{{ '%.2f'|format(item.material_rate) }}</td><td class="p-3">{{ '%.2f'|format(item.labour_rate) }}</td><td class="p-3 font-semibold">{{ '%.2f'|format(item.total_rate) }}</td><td class="p-3 font-semibold">{{ '{:.2f}'.format(item.total_amount) }}</td>
-              <td class="p-3"><a href="{{ url_for('mechanic_bp.catalog_manage', shop_id=shop.id, edit_id=item.id) }}" class="font-semibold text-blue-700 underline" aria-label="Edit {{ item.code }}">Edit</a></td>
-            </tr>{% else %}<tr><td colspan="9" class="p-6 text-center text-slate-700">No BOQ items yet. Add your first item above.</td></tr>{% endfor %}
+            {% for item in boq_items %}<tr class="border-t border-slate-200" data-code="{{ item.code }}">
+              <td class="p-3 font-semibold">{{ item.code }}</td><td class="p-3">{{ item.description }}</td><td class="p-3 whitespace-nowrap">{{ item.unit }}</td>
+              <td class="p-3 text-right">{{ '%.2f'|format(item.material_rate) if item.material_rate is not none else '—' }}</td>
+              <td class="p-3 text-right">{{ '%.2f'|format(item.labour_rate) if item.labour_rate is not none else '—' }}</td>
+              <td class="p-3 text-right font-semibold">{{ item.total_rate if item.total_rate is not none else '—' }}{% if item.combined_rate is not none %}<span class="block text-xs font-normal">Combined legacy rate</span>{% endif %}</td>
+              <td class="p-3">{% if item.id is defined %}<a href="{{ url_for('mechanic_bp.catalog_manage',shop_id=shop.id,category=category,edit_id=item.id) }}" class="font-semibold text-blue-700 underline" aria-label="Edit {{ item.code }}">Edit</a>{% else %}<button type="button" class="set-price font-semibold text-blue-700 underline" data-code="{{ item.code }}">Set Rates</button>{% endif %}</td>
+            </tr>{% else %}<tr><td colspan="7" class="p-6 text-center text-slate-700">Add a client-specific item above.</td></tr>{% endfor %}
           </tbody>
         </table>
       </div>
@@ -86,19 +106,33 @@
   const code = document.getElementById('boq-code');
   const unit = document.getElementById('boq-unit');
   const preset = document.getElementById('preset-code');
+  const itemSelect = document.getElementById('price-item-select');
   const originalCode = {{ (edit_item.code if edit_item else '')|tojson }};
   description.addEventListener('input', () => {
     const selected = workItems.find(item => item.description.toLowerCase() === description.value.trim().toLowerCase());
-    preset.value = selected ? selected.code : '';
-    code.value = selected ? selected.code : originalCode;
+    if (selected) {preset.value=selected.code;itemSelect.value=selected.code;}
+    code.value = originalCode || preset.value;
     if (selected) unit.value = selected.unit;
     updateQuantityStep();
+  });
+  itemSelect.addEventListener('change', () => {
+    const selected=workItems.find(item=>item.code===itemSelect.value);
+    preset.value=selected ? selected.code : '';
+    code.value=originalCode || preset.value;
+    description.value=selected ? selected.description : '';
+    if(selected) unit.value=selected.unit;
+    updateQuantityStep();description.focus();
   });
   const material = document.getElementById('material-rate');
   const labour = document.getElementById('labour-rate');
   const total = document.getElementById('total-rate');
   const quantity = document.getElementById('boq-quantity');
+  const combined = document.getElementById('combined-rate');
   const amount = document.getElementById('total-amount');
+  document.querySelectorAll('.set-price').forEach(button => button.addEventListener('click', () => {
+    const item = workItems.find(entry => entry.code===button.dataset.code);
+    description.value=item.description;description.dispatchEvent(new Event('input'));material.focus();
+  }));
   function updateQuantityStep() {
     quantity.step = unit.value === 'Each' ? '1' : '0.001';
     quantity.min = unit.value === 'Each' ? '1' : '0.001';
@@ -107,16 +141,29 @@
   function updateTotal() {
     const cents = [material, labour].map(input => Math.round(Number(input.value || 0) * 100));
     const rateCents = cents[0] + cents[1];
-    const quantityMillis = Math.round(Number(quantity.value || 0) * 1000);
-    total.value = cents.every(Number.isFinite) ? (rateCents / 100).toFixed(2) : '0.00';
-    // Integer arithmetic preserves decimal rounding for the displayed amount.
-    if (cents.every(Number.isSafeInteger) && Number.isSafeInteger(quantityMillis) && rateCents >= 0 && quantityMillis >= 0) {
-      const amountCents = (BigInt(rateCents) * BigInt(quantityMillis) + 500n) / 1000n;
-      amount.value = `${amountCents / 100n}.${String(amountCents % 100n).padStart(2, '0')}`;
-    } else {
-      amount.value = '0.00';
-    }
+    total.value = combined && !combined.disabled ? combined.value : cents.every(Number.isFinite) ? (rateCents / 100).toFixed(2) : '0.00';
+    const rate=/^(\d+)(?:\.(\d*))?$/.exec(total.value);
+    const qty=/^(\d+)(?:\.(\d{0,3}))?$/.exec(quantity.value);
+    if(rate && qty) {
+      const decimal=rate[2] || '';
+      const divisor=1000n*10n**BigInt(decimal.length);
+      const millis=BigInt(qty[1])*1000n+BigInt((qty[2] || '').padEnd(3,'0'));
+      const numerator=millis*BigInt(rate[1]+decimal)*100n;
+      const result=(numerator+divisor/2n)/divisor;
+      amount.value=`${result/100n}.${String(result%100n).padStart(2,'0')}`;
+    } else amount.value='0.00';
   }
+  const split=document.getElementById('split-legacy');
+  function setBasis() {
+    if(!split) return;
+    combined.disabled=split.checked;combined.required=!split.checked;
+    material.disabled=labour.disabled=!split.checked;
+    material.required=labour.required=split.checked;
+    updateTotal();
+  }
+  split?.addEventListener('change',setBasis);
+  setBasis();
+  combined?.addEventListener('input', updateTotal);
   material.addEventListener('input', updateTotal);
   labour.addEventListener('input', updateTotal);
   quantity.addEventListener('input', updateTotal);

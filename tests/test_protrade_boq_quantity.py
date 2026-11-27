@@ -23,8 +23,9 @@ class BoqQuantityTests(unittest.TestCase):
         self.assertEqual(item.total_rate, Decimal('1850.00'))
         self.assertEqual(item.total_amount, Decimal('1850.00'))
         tree = html.fromstring(self.page().data)
-        self.assertIn('Quantity', tree.get_element_by_id('boq-items').text_content())
-        self.assertIn('1.000', tree.get_element_by_id('boq-items').text_content())
+        self.assertNotIn('Quantity',tree.get_element_by_id('boq-items').xpath('./thead')[0].text_content())
+        edit=html.fromstring(self.page(edit_id=item.id).data)
+        self.assertEqual(edit.xpath('//input[@name="quantity"]/@value'),['1.000'])
 
     def test_measured_units_accept_decimals_and_edit_recalculates_amount(self):
         for index, unit in enumerate(('m', 'm\u00b2', 'm\u00b3')):
@@ -33,8 +34,9 @@ class BoqQuantityTests(unittest.TestCase):
             self.assertEqual(item.total_rate, Decimal('130.00'))
             self.assertEqual(item.total_amount, Decimal('325.00'))
             register = html.fromstring(self.page().data).get_element_by_id('boq-items').text_content()
-            self.assertIn('2.500', register)
-            self.assertIn('325.00', register)
+            edit=html.fromstring(self.page(edit_id=item.id).data)
+            self.assertEqual(edit.xpath('//input[@name="quantity"]/@value'),['2.500'])
+            self.assertEqual(item.total_amount,Decimal('325.00'))
             self.save(item_id=item.id, description=item.description, unit=unit, quantity='3.125', material_rate='85', labour_rate='45')
             self.db_session.refresh(item)
             self.assertEqual(item.total_amount, Decimal('406.25'))

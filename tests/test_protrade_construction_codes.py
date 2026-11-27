@@ -41,23 +41,13 @@ class ConstructionCodeTests(unittest.TestCase):
         self.assertEqual(historic.items,old_items)
         parts=base.MechCatalogPart.query.filter_by(shop_id=plumbing.id).order_by(base.MechCatalogPart.id).all()
         self.assertEqual([part.item_code for part in parts],['PLUM-001','PLUM-002','PLUM-003'])
-        url=f'/mechanic/catalog?shop_id={plumbing.id}'
-        self.assertEqual(self.client.post(url,data=dict(shop_id=plumbing.id,action='add',part_name='Valve repair',price='50')).status_code,302)
-        fourth=base.MechCatalogPart.query.filter_by(shop_id=plumbing.id,part_name='Valve repair').one()
-        self.assertEqual(fourth.item_code,'PLUM-004')
-        response=self.client.get(self.quote_url(debtor),query_string={'area':'new'})
-        self.assertEqual(response.status_code,200)
-        self.assertIn('PLUM-004',response.get_data(as_text=True))
-        self.assertNotIn('WORK-001',response.get_data(as_text=True).split('quote-builder-data')[1])
-        payload={'area':'new','quote_key':uuid4().hex,'item_id[]':[f'part:{fourth.id}'],f'quantity_part:{fourth.id}':'2',f'description_part:{fourth.id}':'Adjusted plumbing description'}
-        self.assertEqual(self.client.post(self.quote_url(debtor),data=payload).status_code,302)
-        saved=base.ProTradeBoqQuote.query.filter_by(shop_id=plumbing.id,is_draft=True).one()
-        self.assertEqual(saved.items[0]['code'],'PLUM-004')
-        self.assertEqual(saved.items[0]['description'],'Adjusted plumbing description')
-        self.assertEqual(saved.items[0]['source_item_id'],f'part:{fourth.id}')
-        self.assertEqual(fourth.part_name,'Valve repair')
-        self.assertEqual(saved.grand_total,100)
+        # New construction items are managed in the canonical price list (021),
+        # rather than mutating or deleting the retained legacy flat rows.
+        self.assertEqual(self.client.post('/mechanic/catalog',data=dict(shop_id=plumbing.id,category='plumbing',action='save_boq',description='Valve repair',unit='Each',material_rate='30',labour_rate='20')).status_code,302)
+        canonical=base.ProTradeBoqItem.query.filter_by(shop_id=plumbing.id).one()
+        code=canonical.code
+        self.assertTrue(code.startswith('PLUM-C-'))
+        self.assertEqual(self.client.post('/mechanic/catalog',data=dict(shop_id=plumbing.id,category='plumbing',action='save_boq',item_id=canonical.id,description='Valve repair updated',unit='Each',material_rate='40',labour_rate='20')).status_code,302)
+        self.assertEqual(canonical.code,code)
         self.assertEqual(historic.items,old_items)
-        self.assertEqual(self.client.post(url,data=dict(shop_id=plumbing.id,action='delete',part_id=fourth.id)).status_code,302)
-        self.assertEqual(self.client.post(url,data=dict(shop_id=plumbing.id,action='add',part_name='New plumbing work',price='70')).status_code,302)
-        self.assertEqual(base.MechCatalogPart.query.filter_by(shop_id=plumbing.id,part_name='New plumbing work').one().item_code,'PLUM-005')
+        self.assertEqual([part.item_code for part in parts],['PLUM-001','PLUM-002','PLUM-003'])

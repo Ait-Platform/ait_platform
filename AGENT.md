@@ -170,6 +170,78 @@ This protocol does not authorise production writes or lift programme scope holds
 **Folder Management and Franchise remain on HOLD.**
 
 
+## Mandatory Global Output and Global Email architecture
+
+### Global Output
+
+Global Output must provide a common, reusable interface for generating, viewing
+and distributing current documents across all AIT programs.
+
+The mandatory interface is:
+
+- Header: Program Output with a Back button.
+- Row 1: Program-specific entity selection, Category and Report/Document.
+- Row 2: By Month, Date From, Date To and Preview, with Preview right-aligned.
+- Row 3: Print, Download PDF and Email, right-aligned.
+- Document preview immediately below these controls.
+
+Selection fields must adapt to the calling program. Disable irrelevant date
+controls. Preview, Print, Download PDF and Email must use the same document
+content. Download PDF must use normal browser downloads without directory
+authorisation. Email must invoke the Global Email module. Historical financial
+documents must retain their original values. Right-align numeric columns and
+preserve program-specific permissions and data isolation.
+
+Use one reusable Output framework across AIT. Individual programs supply their
+own document types, selection parameters, data and report-generation logic.
+Avoid duplicating Output interfaces and common processing logic. Global Output
+must remain independent of Global Folder Management and Franchise. Future folder
+integration must not interfere with existing Output functionality.
+
+### Global Email
+
+The successfully live-tested ProTrade Email behaviour is the mandatory functional
+standard for all AIT programs. The Global Email module must provide:
+
+- An editable default recipient, subject and message.
+- The selected PDF attachment, Send and Cancel buttons.
+- Duplicate-send protection and clear success and failure messages.
+- Support for documents that do not require a debtor.
+- Reusable invocation from Global Output and, eventually, Global Folder Management.
+
+A recipient override applies only to that email; it must not change the registered
+contact. Preserve authentication, ownership, CSRF validation, attachment validation
+and truthful uncertain-delivery messages. Individual programs must not develop
+separate email senders where the Global Email module can be used.
+
+### Current implementation and deferred centralisation (27 November 2026)
+
+The standard above is mandatory architecture, not a claim that full centralisation
+already exists. ProTrade currently owns `templates/program_mechanic/output.html`,
+`app/static/js/protrade_output.js` and `app/protrade_output.py`. PM owns its separate
+`templates/program_billing/utilities_output.html`, `pm_utilities_output.js` and
+utilities Output/report adapters. Their selection, preview, printing, download,
+email invocation and receipt orchestration remain program-specific.
+
+Already shared are `templates/partials/email_composer_fields.html` (used by
+ProTrade and other email pages), `app/utils/mailer.py` including
+`send_standard_report_email`, and the HTML-to-PDF renderer in
+`app/utils/pdf_render.py`. PM Utilities Output currently calls `send_pdf_email`;
+ProTrade calls `send_standard_report_email` from that shared mailer module.
+These shared pieces are not yet one complete Global
+Output/Email controller. Future authorised centralisation should extract the
+common Output interface and action handling and reusable Email invocation,
+validation, duplicate-send/status lifecycle, while retaining program-specific
+report adapters, permissions, snapshots and durable receipt associations.
+Preserve the working ProTrade and PM workflows; this documentation does not
+authorise broad refactoring, PM changes or Folder Management/Franchise development.
+
+AIT token charges must ultimately be configurable through Admin Hub. Consultants
+remain responsible for setting their own customer charges. Do not publish fixed
+AIT charges, suggested customer prices or operator remuneration arrangements in
+ProTrade Help. This rule does not authorise changing the token charging engine,
+wallet functionality or Paystack integration.
+
 ## Deferred centralised Folder Management
 
 AIT must have a centralised Folder Management module responsible for folder selection, authorisation, accessibility verification, replacement, automatic subfolder creation, document saving and historical document retrieval. Individual AIT programs must consume this shared module rather than maintain independent implementations.

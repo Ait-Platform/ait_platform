@@ -38,7 +38,34 @@ class DashboardCleanupTests(unittest.TestCase):
         source=(base.ROOT/'templates/program_mechanic/menu.html').read_text(encoding='utf-8')
         with self.app.test_request_context('/'):
             menu=self.app.jinja_env.from_string(source).render(protrade_menu_active='dashboard',active_shop=carpentry)
-        self.assertEqual(html.fromstring(menu).xpath('//a/text()'),['Debtor','Tokens','Output','Folders','Help'])
+        self.assertEqual(html.fromstring(menu).xpath('//a/text()'),['Tokens','Output','Help'])
+        with sync_playwright() as playwright:
+            browser=playwright.chromium.launch(headless=True)
+            try:
+                page=browser.new_page()
+                for width in (320,768,1280):
+                    page.set_viewport_size(dict(width=width,height=600))
+                    page.set_content(menu)
+                    boxes=[link.bounding_box() for link in page.locator('nav a').all()]
+                    self.assertEqual(len(boxes),3)
+                    for box in boxes[1:]:
+                        self.assertAlmostEqual(box['y'],boxes[0]['y'],delta=1)
+                        self.assertAlmostEqual(box['width'],boxes[0]['width'],delta=1)
+            finally:
+                browser.close()
+
+    def test_help_keeps_workflow_without_fixed_prices_or_token_deductions(self):
+        self.fixtures()
+        response=self.client.get('/mechanic/help')
+        self.assertEqual(response.status_code,200)
+        tree=html.fromstring(response.data)
+        self.assertFalse(tree.xpath('//table'))
+        guide=tree.text_content()
+        for obsolete in ('AIT charge','Suggested customer price','operator retains','AIT deduction','tokens;','R1.00'):
+            self.assertNotIn(obsolete,guide)
+        for required in ('Admin Hub','Consultants determine their own customer charges','Download PDF','recipient, subject and message','Debtor Register'):
+            self.assertIn(required,guide)
+
 
     def test_row_actions_stay_together_without_horizontal_scrolling(self):
         carpentry,_,_=self.fixtures()

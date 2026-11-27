@@ -665,6 +665,7 @@ def onboarding_process():
     # An edited register row must keep its identity and owner. Switching trade
     # in setup retains the existing per-trade creation/selection behavior.
     shop = None
+    created_shop = False
     shop_id = request.form.get("shop_id", type=int)
     if request.form.get("shop_id"):
         from flask import abort
@@ -681,6 +682,7 @@ def onboarding_process():
             (MechShop.trade.is_(None)) | (MechShop.trade == '')
         ).first()
     if not shop:
+        created_shop = True
         shop = MechShop(
             user_id=current_user.id,
             trade=trade,
@@ -758,6 +760,9 @@ def onboarding_process():
     trade_name = dict(AVAILABLE_TRADES).get(trade, trade)
     flash(f"Shop profile for {trade_name} successfully saved!", "success")
 
+    if created_shop:
+        from app.protrade_directory_setup import registration_token
+        return redirect(url_for('mechanic_bp.protrade_main_directory', registration=registration_token(shop)))
     return redirect(url_for("mechanic_bp.mechanic_dashboard", trade=trade))
 
 
@@ -3169,3 +3174,17 @@ def work_activity(shop_id, debtor_id):
 def marketing_samples():
     from app.protrade_samples import samples_page
     return samples_page()
+
+
+@mechanic_bp.route('/mechanic/main-directory')
+@login_required
+def protrade_main_directory():
+    from app.protrade_directory_setup import setup_page
+    return setup_page()
+
+
+@mechanic_bp.route('/mechanic/main-directory/context')
+@login_required
+def protrade_directory_context():
+    from app.protrade_directory_setup import setup_context
+    return setup_context()

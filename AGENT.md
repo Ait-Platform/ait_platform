@@ -182,6 +182,14 @@ Property Management and its existing Folder Management remain unchanged.
 Folder Management development and Franchise remain on HOLD; this requirement
 does not authorise implementation of the centralised module.
 
+**Focused exception authorised 27 November 2026:** ProTrade may provide Main
+Directory selection, read/write verification and explicit replacement, and create
+`registered program / consultant / newly registered shop / Invoice, Statement`
+through the existing shared directory store and owner markers after successful
+shop registration. Do not backfill existing shops or create Quotes separately.
+Output saving and broader Folder Management remain suspended. Do not modify PM
+workflows, PDF operations, email or historical retrieval for this exception.
+
 ## Permanent filesystem and template naming conventions
 - Legacy subjects use the `subject_` filesystem/template prefix.
 - Programs use the `program_` filesystem/template prefix.

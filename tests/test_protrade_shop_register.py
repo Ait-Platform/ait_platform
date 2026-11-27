@@ -171,7 +171,7 @@ class ShopRegisterTests(unittest.TestCase):
                  'marketing_samples', 'work_activity', 'boq_sections', 'registered_trade_name', 'price_list_shop', 'price_list_query',
                  'selected_price_list', 'catalog_manage', 'carpentry_boq_price_list', 'client_register_quote', 'shop_register_quote',
                  'public_job_card','approve_quote','accept_quote','record_deposit','mark_billed','mechanic_quote_items','job_card_detail','download_document','email_document','register_trade_quote', 'carpentry_quote_form', 'carpentry_quote_item_id', 'carpentry_quote_items', 'carpentry_quote_view', 'new_quote', 'quote_invoice_register', 'edit_quote',
-                 'protrade_folders', 'protrade_help', 'debtor_register_entry', 'shop_debtor_register', 'debtor_quote', 'new_debtor_quote','protrade_output','client_ledger','client_ledger_add_payment'}
+                 'protrade_main_directory', 'protrade_directory_context', 'protrade_folders', 'protrade_help', 'debtor_register_entry', 'shop_debtor_register', 'debtor_quote', 'new_debtor_quote','protrade_output','client_ledger','client_ledger_add_payment'}
         nodes = [n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name in names or isinstance(n, ast.Assign) and any(isinstance(t, ast.Name) and t.id == 'AVAILABLE_TRADES' for t in n.targets)]
         catalogue = MechCatalogPart
         self.ns = dict(vars(models), db=SimpleNamespace(session=self.db_session, engine=self.conn),

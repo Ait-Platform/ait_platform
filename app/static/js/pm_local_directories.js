@@ -167,7 +167,7 @@
     if(!context.reports?.length)throw new Error('The PM report catalogue is unavailable.');
     return context.reports.filter(report=>!report.create_on_save);
   }});
-  api.registerTemplate('protrade',{initial:context=>[
+  api.registerTemplate('protrade',{shopDirectories:()=>['Invoice','Statement'],initial:context=>[
     {owned:{name:context.consultant,kind:'user',id:String(context.scope.user)}}
   ]});
   api.initialise=async(scope,handle,options)=>{
@@ -212,6 +212,69 @@
     });
   };
 
+  // Opt-in main-directory registration. Existing PM registration is unchanged.
+  async function verifyWritableDirectory(handle){
+    if(await handle.queryPermission({mode:'readwrite'})!=='granted')throw new Error('Read/write access is not granted.');
+    const name='.ait-access-'+crypto.randomUUID()+'.tmp',value=crypto.randomUUID();
+    let created=false;
+    try{
+      const file=await handle.getFileHandle(name,{create:true});created=true;
+      const writer=await file.createWritable();
+      try{await writer.write(value);await writer.close();}catch(error){try{await writer.abort();}catch(_){}throw error;}
+      if(await(await file.getFile()).text()!==value)throw new Error('Directory read/write verification failed.');
+      for await(const entry of handle.entries()){break;}
+    }finally{if(created)await handle.removeEntry(name);}
+  }
+  api.registerMainDirectory=async(scope,handle,options)=>{
+    check(scope);
+    if(!navigator.locks)throw new Error('Directory registration requires browser Web Locks.');
+    // Request any needed permission in the selection gesture, before network waits.
+    if(!await api.permission(handle))throw new Error('Read/write access was denied. The previous registration is unchanged.');
+    return navigator.locks.request('ait-pm-local-report-save',async()=>{
+      await options.authorise();
+      const previous=await api.get(scope);
+      const expected=options.previous;
+      if(!!previous!==!!expected || (previous && !await previous.handle.isSameEntry(expected.handle)))throw new Error('The registration changed in another tab. Reload before replacing it.');
+      const program=await handle.getDirectoryHandle(safeSegment(options.programName),{create:true});
+      await verifyWritableDirectory(program);
+      await options.authorise();
+      await api.set(scope,handle);
+      const saved=await api.get(scope);
+      if(!saved || !await saved.handle.isSameEntry(handle))throw new Error('Registration could not be verified. Reload before continuing.');
+      await saved.handle.getDirectoryHandle(options.programName,{create:false});
+      return saved;
+    });
+  };
+  api.createRegisteredShopDirectories=async(scope,options)=>{
+    check(scope);
+    if(!navigator.locks)throw new Error('Directory creation requires browser Web Locks.');
+    return navigator.locks.request('ait-pm-local-report-save',async()=>{
+      // The server returns only the newly committed shop named by a signed event.
+      const context=await options.authorise();
+      if(!context.shop)throw new Error('No newly registered shop is authorised for folder creation.');
+      const row=await api.get(scope);
+      if(!row)throw new Error('Shop registered. Select and authorise a main directory to create its folders.');
+      if(await row.handle.queryPermission({mode:'readwrite'})!=='granted')throw new Error('Shop registered. Main directory access is unavailable. Authorise or replace it before creating folders.');
+      const program=await row.handle.getDirectoryHandle(safeSegment(context.program),{create:true});
+      await verifyWritableDirectory(program);
+      const owner={program:context.programKey,user:String(scope.user)};
+      const consultant=await ownedFolder(program,safeSegment(context.consultant),owner,'user',scope.user,true);
+      const shop=await ownedFolder(consultant,safeSegment(context.shop.name),owner,'client',context.shop.id,true);
+      const template=templates.get(context.programKey);
+      if(!template?.shopDirectories)throw new Error('The registered program directory template is unavailable.');
+      for(const name of template.shopDirectories(context)){
+        const child=await shop.getDirectoryHandle(name,{create:true});
+        await verifyWritableDirectory(child);
+        await shop.getDirectoryHandle(name,{create:false});
+      }
+      await options.authorise();
+      await row.handle.getDirectoryHandle(program.name,{create:false});
+      await program.getDirectoryHandle(consultant.name,{create:false});
+      await consultant.getDirectoryHandle(shop.name,{create:false});
+      return program.name+'/'+consultant.name+'/'+shop.name;
+    });
+  };
+
   api.bindSelection=options=>{
     const dialog=document.getElementById('directory-modal'),zone=document.getElementById('directory-drop-zone');
     const status=document.getElementById('directory-modal-message'),close=document.getElementById('directory-modal-close');
@@ -222,7 +285,7 @@
       if(!pending || busy || !options.ready())return;
       busy=true;zone.setAttribute('aria-disabled','true');close.disabled=true;
       try{
-        const saved=await api.register(options.scope,pending,options.registration);
+        const saved=await (options.register || api.register)(options.scope,pending,options.registration);
         pending=null;options.success(saved);dialog.close();
       }catch(error){
         if(error.name==='SecurityError' && !error.registrationStage){

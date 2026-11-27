@@ -1,0 +1,18 @@
+{% extends 'layout.html' %}
+{% block title %}ProTrade Main Directory{% endblock %}
+{% block flashes %}{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-4xl px-4 py-10"><div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow"><div class="h-2 bg-slate-700"></div><div class="p-6">
+{% include 'partials/flash_messages.html' %}
+<div class="flex items-center justify-between gap-3"><h1 class="text-2xl font-semibold">Main Directory</h1><a href="{{ url_for('mechanic_bp.mechanic_dashboard') }}" class="rounded-lg bg-slate-100 px-4 py-2 font-semibold">Back</a></div>
+<div class="mt-4 flex justify-end"><button id="directory-select" type="button" disabled class="rounded-lg border border-slate-300 bg-blue-100 px-4 py-2 font-semibold">Select Main Directory</button></div>
+<p class="mt-4">Registered main directory: <strong id="directory-folder">Checking registration...</strong></p>
+<p class="mt-3 text-sm">Choose a main directory for {{ directory_metadata.program }}. Replacing its registration leaves all files in the previous directory unchanged. Existing shops are not processed.</p>
+{% if directory_metadata.shop %}<p class="mt-3">Shop registered: {{ directory_metadata.shop.name }}. Its Invoice and Statement directories will be verified below.</p>{% endif %}
+<p id="directory-message" role="status" aria-live="polite" class="mt-4 text-sm text-slate-700"></p>
+{% include 'partials/directory_selection_modal.html' %}
+<script id="main-directory-setup" type="application/json">{{ directory_setup|tojson }}</script>
+<script src="{{ url_for('static',filename='js/pm_local_directories.js',v='20261127-main-directory') }}" defer></script>
+<script src="{{ url_for('static',filename='js/protrade_main_directory.js',v='20261127-main-directory') }}" defer></script>
+</div></div></div>
+{% endblock %}

@@ -234,6 +234,56 @@ class MainDirectoryTests(unittest.TestCase):
                 self.assertEqual(self.tree(page,'Drop fallback'),{'ProTrade':{}})
             finally:browser.close()
 
+    def test_diagnostics_show_exact_pending_operations_without_aborting_them(self):
+        cases=[
+            ("FileSystemDirectoryHandle.prototype.queryPermission=()=>new Promise(()=>{});",'Selection: queryPermission(readwrite)'),
+            ("window.allowed=false;FileSystemDirectoryHandle.prototype.queryPermission=async()=>allowed?'granted':'prompt';FileSystemDirectoryHandle.prototype.requestPermission=async()=>{allowed=true;return 'granted';};FileSystemFileHandle.prototype.createWritable=()=>new Promise(()=>{});",'Accessibility: createWritable(probe)'),
+            ("AITDirectories.set=()=>new Promise(()=>{});",'IndexedDB: store directory handle and commit transaction'),
+            ("navigator.locks.request('ait-pm-local-report-save',()=>new Promise(()=>{}));",'Registration: origin-wide lock request (includes time held)')]
+        with sync_playwright() as runtime:
+            for injected,stage in cases:
+                with self.subTest(stage=stage):
+                    browser,page=self.browser(runtime)
+                    try:
+                        page.goto('https://ait.test/mechanic/main-directory')
+                        page.wait_for_function("!document.getElementById('directory-select').disabled")
+                        page.clock.install()
+                        page.evaluate("""() => {window.showDirectoryPicker=async()=> (await navigator.storage.getDirectory()).getDirectoryHandle('Diagnostic folder',{create:true});}""")
+                        page.evaluate('() => {'+injected+'}')
+                        page.locator('#directory-select').click();page.locator('#directory-browse').click()
+                        page.wait_for_function("stage=>document.getElementById('directory-modal-diagnostics').textContent.includes(stage)",arg=stage)
+                        page.clock.fast_forward(6000)
+                        log=page.locator('#directory-modal-diagnostics').text_content()
+                        self.assertTrue(any('WAIT #' in line and stage in line for line in log.splitlines()),log)
+                        if stage=='Accessibility: createWritable(probe)':
+                            self.assertIn('Permission: requestPermission(readwrite) -> granted',log)
+                        self.assertTrue(page.locator('#directory-modal').is_visible())
+                        self.assertNotIn('Main directory authorised.',page.locator('#directory-message').text_content())
+                    finally:browser.close()
+
+    def test_diagnostics_record_indexeddb_events_exceptions_and_completion(self):
+        with sync_playwright() as runtime:
+            browser,page=self.browser(runtime)
+            try:
+                page.goto('https://ait.test/mechanic/main-directory');self.drop(page)
+                page.wait_for_function("document.getElementById('directory-message').textContent.includes('read/write access verified')")
+                log=page.locator('#directory-diagnostic-log').text_content()
+                for stage in ('HANDLE RECEIVED','PERMISSION RESPONSE: granted','LOCK ACQUIRED','SERVER RESPONSE: HTTP 200','Accessibility: close probe writer','INDEXEDDB indexeddb-put-start','INDEXEDDB indexeddb-transaction-complete','Completion callback','Modal closure'):
+                    self.assertIn(stage,log)
+                self.assertFalse(page.locator('#directory-modal').is_visible())
+                page.evaluate("""() => {
+                    window.dispatchEvent(new ErrorEvent('error',{error:new TypeError('Diagnostic JavaScript exception')}));
+                    window.dispatchEvent(new PromiseRejectionEvent('unhandledrejection',{promise:Promise.resolve(),reason:new Error('Diagnostic rejected promise')}));
+                }""")
+                log=page.locator('#directory-diagnostic-log').text_content()
+                self.assertIn('TypeError: Diagnostic JavaScript exception',log)
+                self.assertIn('UNHANDLED PROMISE REJECTION: Error: Diagnostic rejected promise',log)
+                page.evaluate("() => {FileSystemFileHandle.prototype.createWritable=async()=>{throw new DOMException('Diagnostic write denial','NotAllowedError');};}")
+                self.drop(page,'Diagnostic failure')
+                page.wait_for_function("document.getElementById('directory-modal-diagnostics').textContent.includes('NotAllowedError: Diagnostic write denial')")
+                self.assertTrue(page.locator('#directory-modal').is_visible())
+            finally:browser.close()
+
     def test_signed_event_owner_expiry_and_existing_shop_exclusion(self):
         location=self.new_shop()
         query=urlsplit(location).query

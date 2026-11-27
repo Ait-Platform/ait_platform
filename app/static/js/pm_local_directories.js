@@ -2,6 +2,12 @@
 (() => {
   'use strict';
   const templates=new Map();
+  const diagnosticStep=(diagnostic,label,work)=>diagnostic?diagnostic.run(label,work):work();
+  async function* diagnosticEntries(handle,diagnostic,label){
+    const iterator=handle.entries()[Symbol.asyncIterator]();
+    try{while(true){const result=await diagnosticStep(diagnostic,label,()=>iterator.next());if(result.done)return;yield result.value;}}
+    finally{if(iterator.return)await diagnosticStep(diagnostic,label+' (close iterator)',()=>iterator.return());}
+  }
   const key=scope=>JSON.stringify([String(scope.user),String(scope.property),'__main__']);
   function reports(){
     const configured=document.getElementById('directory-reports');
@@ -22,26 +28,33 @@
     if(typeof name!=='string' || !name || name==='.' || name==='..' || /[<>:"/\\|?*\x00-\x1f]/.test(name))throw new Error('Invalid document directory.');
     return name;
   }
-  async function ownership(handle){
-    try{return JSON.parse(await(await(await handle.getFileHandle(marker)).getFile()).text());}
-    catch(error){if(error.name==='NotFoundError')return null;throw error;}
+  async function ownership(handle,diagnostic){
+    try{
+      const file=await diagnosticStep(diagnostic,'Owner marker: getFileHandle',()=>handle.getFileHandle(marker));
+      const data=await diagnosticStep(diagnostic,'Owner marker: getFile',()=>file.getFile());
+      return JSON.parse(await diagnosticStep(diagnostic,'Owner marker: read text',()=>data.text()));
+    }catch(error){if(error.name==='NotFoundError')return null;throw error;}
   }
-  async function ownedFolder(parent,name,owner,kind,id,create){
+  async function ownedFolder(parent,name,owner,kind,id,create,diagnostic){
+    const run=(label,work)=>diagnosticStep(diagnostic,kind+' directory: '+label,work);
     const expected={program:owner.program,user:String(owner.user),kind,id:String(id)};
     const matches=value=>value && Object.entries(expected).every(([key,item])=>value[key]===item);
     // Find by stable identity, including after a display-name change. Never rename files.
-    try{const candidate=await parent.getDirectoryHandle(safeSegment(name));if(matches(await ownership(candidate)))return candidate;}
+    try{const candidate=await run('open named directory',()=>parent.getDirectoryHandle(safeSegment(name)));if(matches(await ownership(candidate,diagnostic)))return candidate;}
     catch(error){if(error.name!=='NotFoundError' && error.name!=='TypeMismatchError')throw error;}
-    for await(const [,candidate] of parent.entries())if(candidate.kind==='directory' && matches(await ownership(candidate)))return candidate;
+    const entries=diagnostic?diagnosticEntries(parent,diagnostic,kind+' directory: enumerate next entry'):parent.entries();
+    for await(const [,candidate] of entries)if(candidate.kind==='directory' && matches(await ownership(candidate,diagnostic)))return candidate;
     if(!create)return null;
     let index=0,folder;
     while(true){
       const candidate=index===0?name:name+' ('+owner.program+'-'+id+(index===1?'':'-'+index)+')';
-      try{await parent.getDirectoryHandle(safeSegment(candidate));index++;}
-      catch(error){if(error.name!=='NotFoundError' && error.name!=='TypeMismatchError')throw error;if(error.name==='TypeMismatchError'){index++;continue;}folder=await parent.getDirectoryHandle(candidate,{create:true});break;}
+      try{await run('check name collision',()=>parent.getDirectoryHandle(safeSegment(candidate)));index++;}
+      catch(error){if(error.name!=='NotFoundError' && error.name!=='TypeMismatchError')throw error;if(error.name==='TypeMismatchError'){index++;continue;}folder=await run('create directory',()=>parent.getDirectoryHandle(candidate,{create:true}));break;}
     }
-    const writer=await(await folder.getFileHandle(marker,{create:true})).createWritable({mode:'exclusive'});
-    try{await writer.write(JSON.stringify(expected));await writer.close();}catch(error){try{await writer.abort();}catch(_){}throw error;}
+    const file=await run('open owner marker',()=>folder.getFileHandle(marker,{create:true}));
+    const writer=await run('create owner-marker writer',()=>file.createWritable({mode:'exclusive'}));
+    try{await run('write owner marker',()=>writer.write(JSON.stringify(expected)));await run('close owner-marker writer',()=>writer.close());}
+    catch(error){try{await run('abort owner-marker writer',()=>writer.abort());}catch(_){}throw error;}
     return folder;
   }
   async function resolve(handle,entry,scope,create){
@@ -123,9 +136,9 @@
     },
     supported:()=>window.isSecureContext && typeof window.showDirectoryPicker==='function' && !!window.indexedDB,
     async get(scope,observer){check(scope);observe(observer,'indexeddb-read-key',{key:key(scope)});return operation('readonly',store=>store.get(key(scope)),observer);},
-    async set(scope,handle,observer){
+    async set(scope,handle,observer,diagnostic){
       check(scope);if(!handle || handle.kind!=='directory')throw new Error('Select a folder.');
-      if(!await api.permission(handle))throw new Error('Folder permission was not granted. The previous main folder is unchanged.');
+      if(!await api.permission(handle,diagnostic))throw new Error('Folder permission was not granted. The previous main folder is unchanged.');
       observe(observer,'indexeddb-write-key',{key:key(scope)});
       const result=await operation('readwrite',store=>{
         observe(observer,'indexeddb-put-start');
@@ -138,10 +151,10 @@
       if(!await api.permission(row.handle))throw new Error('Folder permission was not granted.');
       return row.handle.name;
     },
-    async permission(handle){
+    async permission(handle,diagnostic){
       const options={mode:'readwrite'};
-      if(await handle.queryPermission(options)==='granted')return true;
-      return await handle.requestPermission(options)==='granted';
+      if(await diagnosticStep(diagnostic,'Permission: queryPermission(readwrite)',()=>handle.queryPermission(options))==='granted')return true;
+      return await diagnosticStep(diagnostic,'Permission: requestPermission(readwrite)',()=>handle.requestPermission(options))==='granted';
     }
   };
 
@@ -213,72 +226,80 @@
   };
 
   // Opt-in main-directory registration. Existing PM registration is unchanged.
-  async function verifyWritableDirectory(handle){
-    if(await handle.queryPermission({mode:'readwrite'})!=='granted')throw new Error('Read/write access is not granted.');
+  async function verifyWritableDirectory(handle,diagnostic){
+    const run=(label,work)=>diagnosticStep(diagnostic,'Accessibility: '+label,work);
+    if(await run('query read/write permission',()=>handle.queryPermission({mode:'readwrite'}))!=='granted')throw new Error('Read/write access is not granted.');
     const name='.ait-access-'+crypto.randomUUID()+'.tmp',value=crypto.randomUUID();
     let created=false;
     try{
-      const file=await handle.getFileHandle(name,{create:true});created=true;
-      const writer=await file.createWritable();
-      try{await writer.write(value);await writer.close();}catch(error){try{await writer.abort();}catch(_){}throw error;}
-      if(await(await file.getFile()).text()!==value)throw new Error('Directory read/write verification failed.');
-      for await(const entry of handle.entries()){break;}
-    }finally{if(created)await handle.removeEntry(name);}
+      const file=await run('getFileHandle(create probe)',()=>handle.getFileHandle(name,{create:true}));created=true;
+      const writer=await run('createWritable(probe)',()=>file.createWritable());
+      try{await run('write probe',()=>writer.write(value));await run('close probe writer',()=>writer.close());}
+      catch(error){try{await run('abort probe writer',()=>writer.abort());}catch(_){}throw error;}
+      const readback=await run('getFile(probe)',()=>file.getFile());
+      if(await run('read probe text',()=>readback.text())!==value)throw new Error('Directory read/write verification failed.');
+      const entries=diagnostic?diagnosticEntries(handle,diagnostic,'Accessibility: enumerate next entry'):handle.entries();
+      for await(const entry of entries){break;}
+    }finally{if(created)await run('remove temporary probe',()=>handle.removeEntry(name));}
   }
   api.registerMainDirectory=async(scope,handle,options)=>{
+    const d=options.diagnostic,run=(label,work)=>diagnosticStep(d,label,work),observer=d?.event;
     check(scope);
     if(!navigator.locks)throw new Error('Directory registration requires browser Web Locks.');
     // Request any needed permission in the selection gesture, before network waits.
-    if(!await api.permission(handle))throw new Error('Read/write access was denied. The previous registration is unchanged.');
-    return navigator.locks.request('ait-pm-local-report-save',async()=>{
-      await options.authorise();
-      const previous=await api.get(scope);
+    if(!await api.permission(handle,d))throw new Error('Read/write access was denied. The previous registration is unchanged.');
+    return run('Registration: origin-wide lock request (includes time held)',()=>navigator.locks.request('ait-pm-local-report-save',async()=>{
+      d?.log('LOCK ACQUIRED: main-directory registration');
+      await run('Server: validate consultant before registration (no handle upload)',()=>options.authorise());
+      const previous=await run('IndexedDB: read previous registration',()=>api.get(scope,observer));
       const expected=options.previous;
-      if(!!previous!==!!expected || (previous && !await previous.handle.isSameEntry(expected.handle)))throw new Error('The registration changed in another tab. Reload before replacing it.');
-      const program=await handle.getDirectoryHandle(safeSegment(options.programName),{create:true});
-      await verifyWritableDirectory(program);
-      await options.authorise();
-      await api.set(scope,handle);
-      const saved=await api.get(scope);
-      if(!saved || !await saved.handle.isSameEntry(handle))throw new Error('Registration could not be verified. Reload before continuing.');
-      await saved.handle.getDirectoryHandle(options.programName,{create:false});
+      if(!!previous!==!!expected || (previous && !await run('Registration: compare previous handle',()=>previous.handle.isSameEntry(expected.handle))))throw new Error('The registration changed in another tab. Reload before replacing it.');
+      const program=await run('Program directory: getDirectoryHandle(create)',()=>handle.getDirectoryHandle(safeSegment(options.programName),{create:true}));
+      await run('Program directory: verify actual read/write access',()=>verifyWritableDirectory(program,d));
+      await run('Server: revalidate consultant before IndexedDB storage',()=>options.authorise());
+      await run('IndexedDB: store directory handle and commit transaction',()=>api.set(scope,handle,observer,d));
+      const saved=await run('IndexedDB: read back stored directory handle',()=>api.get(scope,observer));
+      if(!saved || !await run('IndexedDB: verify stored handle isSameEntry',()=>saved.handle.isSameEntry(handle)))throw new Error('Registration could not be verified. Reload before continuing.');
+      await run('Program directory: verify physical existence',()=>saved.handle.getDirectoryHandle(options.programName,{create:false}));
       return saved;
-    });
+    }));
   };
   api.createRegisteredShopDirectories=async(scope,options)=>{
+    const d=options.diagnostic,run=(label,work)=>diagnosticStep(d,label,work);
     check(scope);
     if(!navigator.locks)throw new Error('Directory creation requires browser Web Locks.');
-    return navigator.locks.request('ait-pm-local-report-save',async()=>{
-      // The server returns only the newly committed shop named by a signed event.
-      const context=await options.authorise();
+    return run('Shop creation: origin-wide lock request (includes time held)',()=>navigator.locks.request('ait-pm-local-report-save',async()=>{
+      d?.log('LOCK ACQUIRED: new-shop directory creation');
+      const context=await run('Server: validate signed new-shop event',()=>options.authorise());
       if(!context.shop)throw new Error('No newly registered shop is authorised for folder creation.');
-      const row=await api.get(scope);
+      const row=await run('IndexedDB: read main directory for new shop',()=>api.get(scope,d?.event));
       if(!row)throw new Error('Shop registered. Select and authorise a main directory to create its folders.');
-      if(await row.handle.queryPermission({mode:'readwrite'})!=='granted')throw new Error('Shop registered. Main directory access is unavailable. Authorise or replace it before creating folders.');
-      const program=await row.handle.getDirectoryHandle(safeSegment(context.program),{create:true});
-      await verifyWritableDirectory(program);
+      if(await run('Shop creation: query main-directory permission',()=>row.handle.queryPermission({mode:'readwrite'}))!=='granted')throw new Error('Shop registered. Main directory access is unavailable. Authorise or replace it before creating folders.');
+      const program=await run('Shop creation: open program directory',()=>row.handle.getDirectoryHandle(safeSegment(context.program),{create:true}));
+      await verifyWritableDirectory(program,d);
       const owner={program:context.programKey,user:String(scope.user)};
-      const consultant=await ownedFolder(program,safeSegment(context.consultant),owner,'user',scope.user,true);
-      const shop=await ownedFolder(consultant,safeSegment(context.shop.name),owner,'client',context.shop.id,true);
+      const consultant=await run('Consultant directory: resolve stable owner',()=>ownedFolder(program,safeSegment(context.consultant),owner,'user',scope.user,true,d));
+      const shop=await run('Shop directory: resolve stable owner',()=>ownedFolder(consultant,safeSegment(context.shop.name),owner,'client',context.shop.id,true,d));
       const template=templates.get(context.programKey);
       if(!template?.shopDirectories)throw new Error('The registered program directory template is unavailable.');
       for(const name of template.shopDirectories(context)){
-        const child=await shop.getDirectoryHandle(name,{create:true});
-        await verifyWritableDirectory(child);
-        await shop.getDirectoryHandle(name,{create:false});
+        const child=await run(name+': create or reuse directory',()=>shop.getDirectoryHandle(name,{create:true}));
+        await run(name+': verify read/write access',()=>verifyWritableDirectory(child,d));
+        await run(name+': verify physical existence',()=>shop.getDirectoryHandle(name,{create:false}));
       }
-      await options.authorise();
-      await row.handle.getDirectoryHandle(program.name,{create:false});
-      await program.getDirectoryHandle(consultant.name,{create:false});
-      await consultant.getDirectoryHandle(shop.name,{create:false});
+      await run('Server: revalidate new-shop ownership',()=>options.authorise());
+      await run('Verify program directory exists',()=>row.handle.getDirectoryHandle(program.name,{create:false}));
+      await run('Verify consultant directory exists',()=>program.getDirectoryHandle(consultant.name,{create:false}));
+      await run('Verify shop directory exists',()=>consultant.getDirectoryHandle(shop.name,{create:false}));
       return program.name+'/'+consultant.name+'/'+shop.name;
-    });
+    }));
   };
 
   api.bindSelection=options=>{
     const dialog=document.getElementById('directory-modal'),zone=document.getElementById('directory-drop-zone');
     const status=document.getElementById('directory-modal-message'),close=document.getElementById('directory-modal-close');
     const browse=document.getElementById('directory-browse');
+    const d=options.diagnostic,run=(label,work)=>diagnosticStep(d,label,work);
     let pending=null,busy=false,version=0;
     const notice=text=>{status.textContent=text;options.message.textContent=text;};
     function dismiss(){if(busy)return;version++;pending=null;dialog.close();}
@@ -286,9 +307,13 @@
       if(!pending || busy || !options.ready())return;
       busy=true;zone.setAttribute('aria-disabled','true');close.disabled=true;if(browse)browse.disabled=true;
       try{
-        const saved=await (options.register || api.register)(options.scope,pending,options.registration);
-        pending=null;options.success(saved);dialog.close();
+        const saved=await run('Registration pipeline',()=>(options.register || api.register)(options.scope,pending,options.registration));
+        pending=null;
+        const completion=run('Completion callback',()=>options.success(saved));
+        if(d && completion?.catch)completion.catch(error=>d.log('Completion exception: '+error.name+': '+error.message));
+        run('Modal closure',()=>dialog.close());
       }catch(error){
+        d?.log('REGISTRATION EXCEPTION: '+error.name+': '+error.message);
         if(error.name==='SecurityError' && !error.registrationStage){
           notice('Folder received. Click here to allow saving, then approve the browser permission prompt.');zone.focus();
         }else{
@@ -309,13 +334,15 @@
     async function accept(handle,current){
       if(current!==version || !dialog.open)return;
       if(handle?.kind!=='directory')throw new Error('Select a directory, not a file.');
-      await options.inspect?.(handle);
+      d?.log('HANDLE RECEIVED: kind='+handle.kind+'; directory='+handle.name);
+      await run('Selection: inspect directory handle',()=>options.inspect?.(handle));
       if(current!==version || !dialog.open)return;
       pending=handle;
       // Keep the registered label unchanged until verification succeeds in the
       // opt-in browse workflow. Legacy adapters retain their selection display.
       if(!browse)options.label.textContent=handle.name;
-      const permission=await handle.queryPermission({mode:'readwrite'});
+      const permission=await run('Selection: queryPermission(readwrite)',()=>handle.queryPermission({mode:'readwrite'}));
+      d?.log('PERMISSION RESPONSE: '+permission+'; user activation='+!!navigator.userActivation?.isActive);
       if(current!==version || !dialog.open)return;
       if(permission==='granted' || navigator.userActivation?.isActive)await connect();
       else notice('Folder received. Click here to allow saving, then approve the browser permission prompt.');
@@ -329,11 +356,12 @@
       browse.disabled=true;
       try{
         // Invoke directly in the user click, before any asynchronous work.
-        const handle=await window.showDirectoryPicker({mode:'readwrite'});
+        const handle=await run('Selection: showDirectoryPicker(readwrite)',()=>window.showDirectoryPicker({mode:'readwrite'}));
         await accept(handle,current);
       }catch(error){
         if(current===version && dialog.open){
           pending=null;
+          d?.log('PICKER EXCEPTION: '+error.name+': '+error.message);
           notice(error.name==='AbortError'?'Folder selection cancelled. The registered main directory is unchanged.':api.folderError(error,'picker'));
         }
       }finally{browse.disabled=busy;}
@@ -342,8 +370,8 @@
     zone.ondrop=async event=>{
       event.preventDefault();if(!dialog.open || busy || !options.ready())return;
       const current=++version;pending=null;
-      try{await accept(await api.droppedDirectory(event),current);}
-      catch(error){if(current===version)notice(error.message);}
+      try{await accept(await run('Selection: getAsFileSystemHandle from drop',()=>api.droppedDirectory(event)),current);}
+      catch(error){d?.log('DROP EXCEPTION: '+error.name+': '+error.message);if(current===version)notice(error.message);}
     };
     zone.onclick=()=>connect();
     zone.onkeydown=event=>{if(event.key==='Enter' || event.key===' '){event.preventDefault();connect();}};

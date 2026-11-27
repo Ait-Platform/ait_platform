@@ -239,10 +239,18 @@ def dispatch_once(shop,selection,data,claim,pdf):
     from email_validator import validate_email,EmailNotValidError
     from app.utils.mailer import send_pdf_email
     recipient=data['email_recipient']
-    if not recipient or not recipient['email']:abort(400,description='This document needs a linked debtor with a saved email address.')
-    try:address=validate_email(recipient['email'],check_deliverability=False).normalized
-    except EmailNotValidError:abort(400,description='Update the debtor with a valid saved email address first.')
-    key=hashlib.sha256(f'{current_user.id}:{shop.id}:{selection}:{claim["nonce"]}:{address}'.encode()).hexdigest()
+    if not recipient:abort(400,description='Select the linked debtor for this document.')
+    try:address=validate_email(request.form.get('to_email',recipient['email']),check_deliverability=False).normalized
+    except EmailNotValidError:abort(400,description='Enter a valid recipient email address.')
+    subject=request.form.get('subject',shop.business_name+' - '+data['document']['title']).strip()
+    body=request.form.get('body_text','Please find the requested document attached.').strip()
+    if not subject or len(subject)>200 or any(c in subject for c in '\r\n') or not body or len(body)>5000 or len(address)>150:
+        abort(400,description='Enter a subject up to 200 characters and a message up to 5000 characters.')
+    key=hashlib.sha256(f'{current_user.id}:{shop.id}:{selection}:{claim["nonce"]}'.encode()).hexdigest()
+    # Honour confirmations recorded before recipient overrides were introduced.
+    legacy_key=hashlib.sha256(f'{current_user.id}:{shop.id}:{selection}:{claim["nonce"]}:{recipient["email"]}'.encode()).hexdigest()
+    if ProTradeOutputEmail.query.filter_by(request_key=legacy_key,user_id=current_user.id,shop_id=shop.id).first():
+        abort(409,description='This preview was already submitted. Check its previous email outcome.')
     receipt=ProTradeOutputEmail(request_key=key,user_id=current_user.id,shop_id=shop.id,debtor_id=recipient['id'],selection=selection,recipient=address,status='attempted')
     try:
         db.session.add(receipt);db.session.commit()
@@ -256,7 +264,7 @@ def dispatch_once(shop,selection,data,claim,pdf):
     try:
         transport=current_app.extensions.get('mail')
         if current_app.config.get('MAIL_SUPPRESS_SEND') or getattr(transport,'suppress',False):raise RuntimeError('Mail is suppressed')
-        sent=send_pdf_email(address,shop.business_name+' — '+data['document']['title'],'Please find the requested document attached.',pdf,data['filename'])
+        sent=send_pdf_email(address,subject,body,pdf,data['filename'])
         if not sent:raise RuntimeError('SMTP acceptance not confirmed')
     except Exception:
         try:
@@ -301,7 +309,7 @@ def output_page():
                 token=make_token(shop,selected,recipient_id,data);claim=signer().loads(token)
             data['filename']=f'{claim["generated"][:10]}_Shop-{shop.id}_{entry["kind"]}_{secure_filename(data["document"]["reference"])[:70]}_{claim["nonce"][:10]}.pdf'
             if request.method=='POST' and (args.get('action')!='email' or args.get('confirm_email')!='yes'):
-                abort(400,description='Confirm sending to the saved debtor email address before sending.')
+                abort(400,description='Use Send Email to send the selected PDF.')
             if request.method=='POST' or args.get('format')=='pdf':
                 if shop.trade=='boq' and entry['key'].startswith('quote:boq-'):
                     from app.protrade_sections import require_paid_sections
@@ -333,7 +341,7 @@ def output_page():
     pdf_url=url_for('mechanic_bp.protrade_output',shop_id=shop.id,selection=selected,recipient_id=recipient_id,format='pdf',preview_token=token) if data else ''
     from app.protrade_folders import local_reports
     local_directory_reports=local_reports(shops)
-    local_save_code=str(shop.id)+':'+selected.split(':',1)[0] if shop and selected.split(':',1)[0] in ('quote','invoice','statement') else ''
+    local_save_code=str(shop.id)+':'+selected.split(':',1)[0] if shop and selected.split(':',1)[0] in ('quote','invoice','statement','price_list') else ''
     if data and local_save_code:
         for destination in local_directory_reports:
             if destination['code']==local_save_code:destination['title']=secure_filename(data['document']['reference']) or destination['title']

@@ -7,7 +7,7 @@ from sqlalchemy.exc import IntegrityError
 from app.extensions import db
 from app.models.mechanic import MechShop,ProTradeOutputEmail
 
-TYPES={'quote':'Quotes','invoice':'Invoices','statement':'Statements'}
+TYPES={'quote':'Quotes','invoice':'Invoices','statement':'Statements','price_list':'Price Lists'}
 LEGACY={'legacy_quotes':'Quotes & Invoices','legacy_boq':'BOQ','legacy_soa':'SOA'}
 
 def local_reports(shops):

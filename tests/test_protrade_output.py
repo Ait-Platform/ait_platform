@@ -201,11 +201,44 @@ class ProTradeOutputTests(unittest.TestCase):
             sender.assert_not_called()
         self.debtor.email='';self.db_session.commit()
         preview=self.preview()
-        self.assertTrue(html.fromstring(preview.data).xpath('//button[@id="output-email" and @disabled]'))
+        self.assertFalse(html.fromstring(preview.data).xpath('//button[@id="output-email" and @disabled]'))
         with patch.object(output,'pdf_bytes',return_value=b'%PDF-test'),patch('app.utils.mailer.send_pdf_email') as sender:
             self.email(self.fields(preview),expected=400)
             sender.assert_not_called()
         self.assertEqual(base.ProTradeOutputEmail.query.count(),0)
+
+    def test_composer_overrides_and_duplicate_nonce_across_document_types(self):
+        selections=[(f'quote:boq-{self.quote.id}',self.carpentry,''),
+                    (f'invoice:stored-{self.invoice.id}',self.mechanic,''),
+                    (f'statement:debtor-{self.debtor.id}',self.carpentry,''),
+                    ('price_list:all',self.carpentry,str(self.debtor.id))]
+        snapshot=lambda: {table:self.conn.exec_driver_sql(f'SELECT * FROM {table} ORDER BY id').all() for table in ('debtor','mech_clients','protrade_boq_items','debtor_ledger')}
+        before=snapshot()
+        with patch.object(output,'pdf_bytes',return_value=b'%PDF-selected'),patch('app.utils.mailer.send_pdf_email',return_value=True) as sender:
+            for selection,shop,recipient in selections:
+                fields=self.fields(self.preview(selection,shop,recipient))
+                self.email(fields,to_email='override@example.com',subject='Selected document',body_text='Custom message')
+                self.assertEqual(sender.call_args.args[:4],('override@example.com','Selected document','Custom message',b'%PDF-selected'))
+                calls=sender.call_count
+                self.email(fields,expected=409,to_email='another@example.com')
+                self.assertEqual(sender.call_count,calls)
+        self.assertEqual(before,snapshot())
+
+    def test_email_validation_and_previous_receipts_are_preserved(self):
+        import hashlib
+        fields=self.fields(self.preview())
+        with patch.object(output,'pdf_bytes',return_value=b'%PDF-selected'),patch('app.utils.mailer.send_pdf_email',return_value=True) as sender:
+            for changes in ({'to_email':'invalid'}, {'subject':'bad\r\nheader'}, {'body_text':'x'*5001}):
+                self.email(fields,expected=400,**changes)
+            sender.assert_not_called()
+            self.email(fields)
+            with self.app.test_request_context('/'):
+                claim=output.signer().loads(fields['preview_token'])
+            receipt=base.ProTradeOutputEmail.query.one()
+            receipt.request_key=hashlib.sha256(f'1:{self.carpentry.id}:{fields["selection"]}:{claim["nonce"]}:{self.debtor.email}'.encode()).hexdigest()
+            self.db_session.commit()
+            self.email(fields,expected=409,to_email='override@example.com')
+            self.assertEqual(sender.call_count,1)
 
     def browser_route(self,route):
         from urllib.parse import urlsplit
@@ -233,7 +266,20 @@ class ProTradeOutputTests(unittest.TestCase):
                     self.assertEqual(page.get_by_text('Shop Setup',exact=True).count(),0)
                     page.locator('#output-email').click()
                     self.assertTrue(page.locator('#output-email-form').is_visible())
-                    self.assertFalse(page.locator('[name=confirm_email]').is_checked())
+                    self.assertEqual(page.locator('[name=to_email]').input_value(),self.debtor.email)
+                    self.assertIn(self.quote.display_quote_number,page.locator('[name=subject]').input_value())
+                    page.locator('[name=to_email]').fill('override@example.com')
+                    page.locator('#output-email-cancel').click()
+                    self.assertTrue(page.locator('#output-email-form').is_hidden())
+                    page.locator('#output-email').click()
+                    self.assertEqual(page.locator('[name=to_email]').input_value(),'override@example.com')
+                    page.evaluate("""() => {
+                        const form=document.getElementById('output-email-form');window.submissions=0;
+                        form.addEventListener('submit',e=>{if(!e.defaultPrevented)window.submissions++;e.preventDefault();});
+                        form.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));
+                        form.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));
+                    }""")
+                    self.assertEqual(page.evaluate('submissions'),1)
                     page.locator('#output-print').click();self.assertTrue(page.evaluate('window.didPrint'))
                     with page.expect_download() as downloaded:page.locator('#output-download').click()
                     self.assertTrue(downloaded.value.suggested_filename.endswith('.pdf'))

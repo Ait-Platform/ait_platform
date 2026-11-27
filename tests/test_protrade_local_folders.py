@@ -124,6 +124,43 @@ class ProTradeLocalFoldersTests(unittest.TestCase):
                     self.assertIn(self.pdf,sent[0])
                 self.assertEqual(before,self.snapshot())
             finally:browser.close()
+    def test_output_save_buttons_use_shared_saver_for_all_document_types(self):
+        from urllib.parse import urlencode
+        selections=[(f'quote:boq-{self.o.quote.id}',self.o.carpentry,'Quotes'),
+                    (f'invoice:stored-{self.o.invoice.id}',self.o.mechanic,'Invoices'),
+                    (f'statement:debtor-{self.o.debtor.id}',self.o.carpentry,'Statements'),
+                    ('price_list:all',self.o.carpentry,'Price Lists')]
+        with sync_playwright() as runtime:
+            browser,page=self.browser(runtime)
+            try:
+                page.goto('https://ait.test/mechanic/folders');self.drop(page)
+                with patch.object(fixture.output,'pdf_bytes',return_value=self.pdf):
+                    for selection,shop,destination in selections:
+                        fields=self.o.fields(self.o.preview(selection,shop))
+                        page.goto('https://ait.test/mechanic/output?'+urlencode(dict(fields,preview='1')))
+                        page.wait_for_function('window.AITDirectories !== undefined')
+                        self.assertTrue(page.locator('#output-save').is_enabled())
+                        page.locator('#output-save').click()
+                        page.wait_for_function("document.getElementById('output-save-message').textContent.startsWith('Saved ')")
+                        first=page.locator('#output-save-message').text_content()
+                        page.locator('#output-save').click()
+                        page.wait_for_function("document.getElementById('output-save-message').textContent.includes('(1).pdf')")
+                        self.assertNotIn('(1).pdf',first)
+                        files=page.evaluate("""async () => {
+                            const scope=JSON.parse(document.getElementById('output-directory-context').textContent);
+                            return await Promise.all((await AITDirectories.list(scope,scope.report,{prompt:false})).map(async file=>({
+                                folder:file.folder,bytes:Array.from(new Uint8Array(await(await file.handle.getFile()).arrayBuffer()))
+                            })));
+                        }""")
+                        self.assertEqual(len(files),2)
+                        self.assertTrue(all(file['folder'].endswith('/'+destination) for file in files))
+                        self.assertTrue(all(bytes(file['bytes'])==self.pdf for file in files))
+                        # Force a write failure; a successful save must never be claimed.
+                        page.evaluate("() => {FileSystemFileHandle.prototype.createWritable=async()=>{throw new Error('Disk write failed');};}")
+                        page.locator('#output-save').click()
+                        page.wait_for_function("document.getElementById('output-save-message').textContent.includes('Disk write failed')")
+            finally:browser.close()
+
     def test_denied_permission_creates_no_assignment_or_directories(self):
         with sync_playwright() as runtime:
             browser,page=self.browser(runtime)

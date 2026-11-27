@@ -11,7 +11,7 @@
 - **Two Database Environment**: The project uses two distinct databases:
   - Remote (Render): it_platform_db (Live tests and real users).
   - Local (Desktop): it_local_db (Where AI agent test scripts execute).
-  - *CRITICAL RULE (UPDATED):* The agent is authorized to use the Render connection string (if available in .env or context) to run Python SQL scripts directly against the live remote database when executing migrations, injecting pricing data, or making structural changes. Always ensure both local and remote DBs are kept in sync.
+  - **Production changes require explicit authorisation.** Follow [AIT Production Database — Verified Identity and Migration Protocol](#ait-production-database--verified-identity-and-migration-protocol) before production migrations or other database writes. This instruction file does not itself grant production-write approval.
 - The connection is managed via the DATABASE_URL environment variable.
 
 ## 3. Persistent Disk vs Static Assets
@@ -89,26 +89,85 @@ AIT contains legacy and cross-program technical debt. Keep program work focused 
 
 ### Database Credential Source of Truth
 
-AIT has historical maintenance/diagnostic scripts containing old or hard-coded PostgreSQL usernames and connection details. These are NOT authoritative credentials.
+- Use the Render service's assigned `DATABASE_URL` for production work. The current
+  Render PostgreSQL resource configuration is the authority for credentials.
+- Never obtain production credentials from maintenance or diagnostic scripts,
+  scratch files, Git history or hard-coded connection strings.
+- Local `.env` is intentionally local and points to `ait_local_db`. Do not replace
+  it with the production URL or permanently store production credentials there.
+- If external production access is separately required and authorised, obtain
+  its connection configuration from the current Render PostgreSQL resource.
+- If authoritative connection configuration is unavailable, stop and access the
+  current Render resource configuration; do not fall back to historical scripts
+  or repeatedly request the identity parameters already recorded here.
+- Historical retirement preflight notes recorded a failed login using an obsolete
+  connection configuration. Those historical login assumptions must not override
+  the verified session/login and effective-role identities recorded below.
+- Legacy credential references in maintenance, diagnostic and scratch scripts
+  remain PARKED debt. They are not credential sources; their cleanup is separate.
 
-Known obsolete production username: `ait_platform_db_user`.
-Current Render PostgreSQL username: `aitplatformdb_7r78_user`.
+## AIT Production Database — Verified Identity and Migration Protocol
 
-- NEVER obtain production database credentials from maintenance scripts, diagnostic scripts, scratch files, old code, Git history or hard-coded connection strings.
-- NEVER assume a credential found in source code is current.
-- Local `.env` is intentionally LOCAL and its `DATABASE_URL` points to `ait_local_db`. Do not replace it with the Render production URL.
-- For LOCAL database work, use the current local `.env` / explicitly verified `ait_local_db`.
-- For PRODUCTION database work, the source of truth is the current Render PostgreSQL resource configuration.
-- When external production access is required, use the current **Render External Database URL** obtained from Render > PostgreSQL resource > Connect > External.
-- When running inside Render, use the production connection configuration assigned to the running service rather than an old hard-coded URL.
-- Before ANY production database write, independently verify `current_database()` and `current_user`.
-- Production credentials must not be printed into reports, logs, prompts or committed files.
-- Do not permanently store the Render production `DATABASE_URL` in the local `.env`.
-- If the authoritative production credential is unavailable, STOP and request/access the current Render configuration. Do not fall back to credentials discovered in source files.
+Verified on **27 November 2026**. This protocol applies across **all AIT
+programmes**. These are verified identity parameters, not credentials or standing
+permission to modify production.
 
-Reason: During Retirement deployment preflight, an obsolete hard-coded maintenance-script username `ait_platform_db_user` was used and PostgreSQL returned `role is not permitted to log in`. The current Render database uses `aitplatformdb_7r78_user`. This was a credential-source mistake, not a Retirement application failure.
+| Parameter | Verified value |
+| --- | --- |
+| Hosting platform | Render |
+| Database hostname | `dpg-d4bkqsf5r7bs73989ia0-a` |
+| Database name | `ait_platform_db` |
+| Session/login user | `aitplatformdb_retirement` |
+| Effective database role | `ait_platform_db_user` |
+| Active role | `ait_platform_db_user` |
+| Schema | `public` |
+| Port | `5432` |
+| PostgreSQL version at verification | 18.3 |
 
-**PARKED LEGACY CREDENTIAL REFERENCES:** Maintenance, diagnostic and scratch scripts still contain obsolete connection references. They are not authoritative and must not be used as credential sources. Leave their cleanup to a separately scoped task.
+### Mandatory migration protocol
+
+1. Use the Render service's assigned `DATABASE_URL`.
+2. Do not request database identity details repeatedly when the verified
+   information is already recorded here. Use read-only runtime checks to verify
+   the recorded identity. A mismatch must stop the operation for review; do not
+   silently substitute another identity or weaken a guard.
+3. Independently verify `session_user` and `current_user`. Their difference is
+   expected: the session/login user and effective role have distinct identities.
+   Also verify the database, active role, schema and port against the recorded
+   values. Do not issue `SET ROLE` merely to make an identity guard pass.
+4. Verify both the configured hostname and the actual driver connection hostname.
+5. Treat differences between DNS addresses and PostgreSQL backend IP addresses
+   as informational diagnostics. Render's private network addresses may differ;
+   IP equality must not be a blocking identity assertion. When parsing PostgreSQL
+   inet text containing a prefix, use `ipaddress.ip_interface(value).ip`.
+6. Do not hardcode transient IP addresses as permanent identity guards.
+7. Verify migration ancestry across all existing Alembic heads, including
+   `down_revision`, `depends_on` and merge ancestry. A programme's applied
+   revisions can be ancestors of a head named for another programme. Do not
+   infer unapplied migrations merely from the absence of a programme-named head.
+8. Verify the effective role's necessary migration permissions and physical
+   schema compatibility. Check ownership rights where DDL requires them, plus
+   relevant table, reference and sequence privileges. Permission or schema
+   failures stop execution; changes to roles, grants or Render configuration
+   require separate authorisation.
+9. Confirm a recoverable production backup before executing migrations.
+10. Obtain explicit authorisation for the production migration plan, including
+    every outstanding prerequisite, before executing production migrations.
+11. Preserve unrelated migration heads. Use the explicitly authorised target;
+    do not use a blanket `upgrade heads` or stamp past an unexplained mismatch.
+12. Execute migrations transactionally where supported and verify the results,
+    including the resulting heads, required schema and preservation of existing
+    data. Avoid application startup maintenance when running migration tooling.
+
+The PostgreSQL version above records the verification date's version; evaluate
+compatibility if it changes rather than treating that snapshot as a permanent
+version pin.
+
+Never store database passwords, complete connection strings or other credentials
+in repository documentation. Do not print credentials into reports or logs.
+
+This protocol does not authorise production writes or lift programme scope holds.
+**Folder Management and Franchise remain on HOLD.**
 
 
 ## Permanent filesystem and template naming conventions

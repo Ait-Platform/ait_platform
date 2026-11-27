@@ -4,6 +4,13 @@ Read and follow [AGENT.md](AGENT.md) for the established repository, application
 database and UI rules. This standard does not authorise production migrations,
 financial changes or rollout to another program.
 
+Production database verification and migrations across all AIT programmes must
+follow [AIT Production Database — Verified Identity and Migration Protocol](AGENT.md#ait-production-database--verified-identity-and-migration-protocol).
+Keep verified identity details in that section rather than duplicating them here.
+
+**Folder Management and Franchise remain on HOLD.** The historical rollout
+notes below do not lift these holds.
+
 ## ProTrade local-folder rollout
 
 ProTrade local folders are explicitly authorised (22 November 2026). Reuse the

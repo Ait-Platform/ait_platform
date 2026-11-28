@@ -52,9 +52,3 @@ def decrypt_private(value):
         except InvalidToken:
             continue
     raise InvalidToken()
-
-
-def identity_digests(value):
-    # Retain duplicate-ID detection across the old and new encryption versions.
-    keys = [shared_key()] + legacy_keys()
-    return [hmac.new(base64.urlsafe_b64decode(key),b'franchisee-identity-v1:'+value.encode(),hashlib.sha256).hexdigest() for key in keys]

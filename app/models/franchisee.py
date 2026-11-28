@@ -27,13 +27,12 @@ class FranchiseeRegistration(db.Model):
     __table_args__ = (
         db.UniqueConstraint('email',name='ait_franchisee_registration_email_key'),
         db.UniqueConstraint('user_id',name='ait_franchisee_registration_user_id_key'),
-        db.UniqueConstraint('identity_digest',name='ait_franchisee_registration_identity_digest_key'),
         db.UniqueConstraint('invitation_digest',name='ait_franchisee_registration_invitation_digest_key'),
         db.UniqueConstraint('franchisee_number',name='ait_franchisee_registration_franchisee_number_key'),
         db.CheckConstraint("status IN ('Invited','Submitted','Approved','Rejected')", name='ck_franchisee_status'),
         db.CheckConstraint('email = lower(email)', name='ck_franchisee_email'),
         db.CheckConstraint("(status='Approved') = (franchisee_number IS NOT NULL)", name='ck_franchisee_approved_number'),
-        db.CheckConstraint("status='Invited' OR (full_name IS NOT NULL AND cellphone IS NOT NULL AND identity_ciphertext IS NOT NULL AND address_ciphertext IS NOT NULL AND identity_digest IS NOT NULL AND submitted_at IS NOT NULL AND invitation_digest IS NULL)", name='ck_franchisee_submitted'),
+        db.CheckConstraint("status='Invited' OR (full_name IS NOT NULL AND cellphone IS NOT NULL AND address_ciphertext IS NOT NULL AND submitted_at IS NOT NULL AND invitation_digest IS NULL)", name='ck_franchisee_submitted'),
     )
 
     @property

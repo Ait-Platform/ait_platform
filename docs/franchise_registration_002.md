@@ -1,5 +1,7 @@
 # Franchise registration persistence and forward rename
 
+> The simplified no-ID/no-email-input workflow is now governed by [revision 003](franchise_registration_003.md). The 002 rename remains unchanged and must precede 003. New registrations wait for the approved 003 schema; historical identity storage is preserved.
+
 ## Production evidence (28 November 2026)
 
 The user confirmed one production row, FR-0001 / user 644 (Bill), and no row for

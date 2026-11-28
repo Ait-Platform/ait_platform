@@ -298,12 +298,42 @@ variable is required for new registration. Original untagged ciphertext remains
 readable with its original legacy key; preserve that key for legacy reads and
 never silently replace it, rotate existing ciphertext or claim encrypted data can
 be recovered without the key. Malformed legacy configuration must not gate a new
-shared-key registration. Retain duplicate identity/email/account constraints and
+shared-key registration. Retain duplicate email/account/number protection and
 report field, terms, CSRF, duplicate or database-permission errors clearly. Do not
 announce registration success before commit. Trust first, accountability
 thereafter: one registration per AIT user, automatic activation and audited
 administrative suspension/reinstatement; programme-specific regulatory
 requirements remain separate.
+
+### Simplified Franchise registration and editing (28 November 2026)
+
+- Do not collect an SA ID number in registration or editing. There is no identity
+  checksum validation, mandatory identity value, identity digest generation or
+  duplicate identity check. Never fabricate placeholder identity data.
+- Do not display an email textbox or accept an email value from a posted form.
+  On every successful registration/profile Save, use the authenticated user's
+  existing normalised AIT account email and stable user ID. Changes to that AIT
+  account itself remain outside the Franchise form.
+- Retain full name, cellphone, encrypted residential address, optional occupation
+  and explicit terms acceptance for once-off registration. Activate automatically,
+  allocate a unique franchisee number, enforce one registration per AIT user and
+  show the committed record immediately in the Franchise Register.
+- Preserve historical encrypted identity data and digests byte-for-byte. Keep the
+  historical columns and authorised administrative viewing; neither registration
+  nor editing may decrypt, clear, replace or validate those identity values.
+  Preserve numbers, original registration dates, history, ownership and suspension.
+- The approved forward migration `franchise_registration_003` removes the
+  identity NOT NULL conditions from `ck_franchisee_submitted` and removes only the
+  obsolete identity-digest unique constraint/index. User/email/number uniqueness,
+  foreign keys and all other constraints remain. No existing record is rewritten.
+- Revision 003 follows the separately authorised 002 rename. Do not modify the
+  published migrations or execute either in production without explicit approval
+  and the recorded identity/backup/transaction protocol. Until the required schema
+  is present, show a clear pending-migration message and prevent a new registration
+  from submitting values that the old identity constraint would reject.
+- Preserve old invitation records/URLs, but direct profile entry through the
+  authenticated account-based form. No anonymous form or posted email may choose
+  the account receiving a registration.
 
 No franchise licence, invitation, allocated seat or prior approval is required
 for Global Franchise registration. `franchise_license` currently has a separate

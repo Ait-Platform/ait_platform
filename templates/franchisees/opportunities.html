@@ -46,7 +46,8 @@
             </form>
           {% elif registration.is_suspended %}<p>Your franchisee access has been suspended by AIT Admin.</p>{% endif %}
         {% else %}
-          <p>Registration is once-off. Your SA ID number and address are stored encrypted for authorised administration. <a href="/privacy-policy">Privacy policy</a></p>
+          {% if not simplified_ready %}<p class="franchisee-error" role="alert">New registrations await the approved franchise_registration_003 database migration. No records have been changed; Save will be available after that migration.</p>{% endif %}
+          <p>Registration is once-off. Your address is stored encrypted for authorised administration. <a href="/privacy-policy">Privacy policy</a></p>
           {% set registration_action = url_for('franchisee_bp.opportunities',area='register') %}
           {% set registration_self_service = true %}
           {% set registration_name = current_user.name or '' %}

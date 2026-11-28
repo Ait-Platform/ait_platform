@@ -39,13 +39,6 @@ def module(name, path):
     return result
 
 
-def valid_id(prefix='800101500908'):
-    for digit in '0123456789':
-        numbers = list(map(int, prefix + digit))
-        if (sum(numbers[::2]) + sum(2*n//10+2*n % 10 for n in numbers[1::2])) % 10 == 0:
-            return prefix + digit
-
-
 class FranchiseeTests(unittest.TestCase):
     def setUp(self):
         raw = dotenv_values(ROOT / '.env')['DATABASE_URL']
@@ -70,6 +63,9 @@ class FranchiseeTests(unittest.TestCase):
             config.attributes['franchise_registration_rename_approved']=True
             rename=module('franchise_rename_setup','migrations/versions/franchise_registration_002.py')
             rename.op=Operations(environment.get_context());rename.upgrade()
+            config.attributes['franchise_registration_simplify_approved']=True
+            simplify=module('franchise_simplify_setup','migrations/versions/franchise_registration_003.py')
+            simplify.op=Operations(environment.get_context());simplify.upgrade()
         for name in ['franchise_registration','ait_franchisee_number_seq']:
             self.assertEqual(self.conn.execute(sa.text('SELECT relpersistence FROM pg_class WHERE oid=to_regclass(:name)'),{'name':name}).scalar(),'t')
         self.conn.commit()
@@ -175,814 +171,310 @@ class FranchiseeTests(unittest.TestCase):
         token=re.search(r'/franchisees/register/([A-Za-z0-9_-]+)',self.messages[-1].body).group(1)
         return token
 
-    def fields(self,email='happiness@example.org',**changes):
-        values=dict(full_name='Happiness Example',cellphone='082 123 4567',email=email,address='12 Synthetic Test Street',sa_id=valid_id(),occupation='Contractor',accept_terms='yes')
-        values.update(changes);return values
+    def fields(self,**changes):
+        values=dict(full_name='Happiness Example',cellphone='0821234567',address='12 Synthetic Test Street',occupation='Contractor',accept_terms='yes')
+        values.update(changes)
+        return values
 
-    def submit(self,token,**fields):
-        self.login(None)
-        return self.client.post('/franchisees/register/'+token,data=self.fields(**fields))
+    def register_self(self,uid=2,**changes):
+        self.login(uid)
+        result=self.client.post('/franchisees/opportunities?area=register',data=self.fields(**changes))
+        self.assertEqual(result.status_code,302,result.text)
+        return self.Registration.query.filter_by(user_id=uid).one()
 
-    def test_complete_workflow_links_existing_user_and_protects_details(self):
-        before=self.session.execute(sa.text('SELECT * FROM "user" ORDER BY id')).all()
-        token=self.invite()
-        row=self.Registration.query.one();self.assertEqual(row.user_id,2)
-        self.assertNotEqual(row.invitation_digest,token);self.assertEqual(row.status,'Invited')
-        self.assertNotIn(token,json.dumps(row.history))
-        self.login(None)
-        form=self.client.get('/franchisees/register/'+token)
-        self.assertEqual(form.status_code,200)
-        self.assertIn('no-store',form.headers['Cache-Control'])
-        self.assertIn("script-src 'none'",form.headers['Content-Security-Policy'])
-        self.assertNotIn('Existing Happiness',form.text)
-        self.assertEqual(self.submit(token,user_id='1',status='Approved',franchisee_number='FR-FAKE').status_code,302)
-        row=self.Registration.query.one();self.assertEqual(row.status,'Submitted')
-        self.assertIsNone(row.history[-1]['actor_id'])  # Anonymous bearer is not an authenticated login.
-        self.assertIsNone(row.invitation_digest);self.assertIsNone(row.franchisee_number)
-        self.assertNotIn(valid_id(),row.identity_ciphertext);self.assertNotIn('Test Street',row.address_ciphertext)
-        self.assertEqual(self.submit(token).status_code,400)
-        self.login(1)
-        listing=self.client.get('/admin/franchisees');self.assertNotIn(valid_id(),listing.text);self.assertNotIn('Test Street',listing.text)
-        detail=self.client.get('/admin/franchisees/'+str(row.id));self.assertIn(valid_id(),detail.text);self.assertIn('Test Street',detail.text)
-        self.assertEqual(self.client.post('/admin/franchisees/'+str(row.id),data={'action':'approve'}).status_code,302)
-        row=self.Registration.query.one();self.assertEqual(row.franchisee_number,'FR-0001');self.assertEqual(row.reviewed_by,1)
-        self.assertEqual(row.user_id,2);self.assertIsNotNone(row.submitted_at)
-        self.assertEqual(self.client.post('/admin/franchisees/'+str(row.id),data={'action':'approve'}).status_code,409)
-        self.assertEqual(self.session.execute(sa.text('SELECT * FROM "user" ORDER BY id')).all(),before)
+    def legacy(self,uid=2,number='FR-0001'):
+        user=self.session.get(self.User,uid)
+        key=self.app.config['FRANCHISEE_PII_KEY'].encode()
+        old=Fernet(key)
+        row=self.Registration(email=user.email,user_id=uid,status='Approved',full_name='Historical Profile',cellphone='0821234567',
+            identity_ciphertext=old.encrypt(b'HISTORICAL-ID-DATA').decode(),identity_digest='unchanged-historical-digest',
+            address_ciphertext=old.encrypt(b'12 Original Test Street').decode(),created_at=self.flow.now(),submitted_at=self.flow.now(),
+            created_by=uid,franchisee_number=number,history=[{'action':'approved','actor_id':1,'at':self.flow.now().isoformat()}])
+        self.session.add(row);self.session.commit()
+        self.session.execute(sa.text("SELECT setval('ait_franchisee_number_seq',1,true)"));self.session.commit()
+        return row
 
-    def test_opportunities_navigation_is_scoped_and_activates_automatically(self):
-        for path in ['/franchisees/opportunities','/franchisees/opportunities/register']:
-            self.login(None)
-            self.assertEqual(self.client.get(path).status_code,401)
-        for uid in [1,2,3]:
-            self.login(uid)
-            response=self.client.get('/franchisees/opportunities')
+    def test_form_has_no_identity_or_email_input_and_uses_account_email(self):
+        self.login(2)
+        for area in ('register',):
+            response=self.client.get('/franchisees/opportunities?area='+area)
             self.assertEqual(response.status_code,200)
-            page=html.fromstring(response.text)
-            self.assertEqual(page.xpath('//nav[@aria-label="Franchisee working areas"]/a/text()'),['Available Programmes','Client Register','Earnings','ProTrade','Register'])
-            self.assertEqual(len(page.xpath('//section[@id="working-area"][@hidden]')),0)
-        self.assertEqual(self.Registration.query.count(),0)
-        token=self.invite()
-        self.login(2)
-        self.assertEqual(self.client.get('/franchisees/opportunities/register').location,'/franchisees/opportunities?area=register')
-        response=self.client.get('/franchisees/opportunities?area=register')
-        self.assertIn('name="sa_id"',response.text)
-        self.assertNotIn(token,response.text)
-        self.assertEqual(self.client.post('/franchisees/opportunities',data=self.fields()).status_code,302)
-        self.assertEqual(self.client.get('/franchisees/register/'+token).status_code,400)
-        profile=self.client.get('/franchisees/opportunities?area=register')
-        self.assertIn('Register',profile.text)
-        self.assertNotIn('awaiting AIT Admin approval',profile.text)
-        self.assertIn('Open ProTrade',self.client.get('/franchisees/opportunities?area=protrade').text)
-        self.login(3)
-        response=self.client.get('/franchisees/opportunities?area=register')
-        self.assertIn('name="sa_id"',response.text)
-        self.assertNotIn('Happiness',response.text)
-        self.assertEqual(self.Registration.query.count(),1)
-
-    def test_dashboard_registration_validates_encrypts_and_prevents_duplicate_submission(self):
-        self.login(2)
-        for field in ['full_name','cellphone','email','address','sa_id']:
-            with self.subTest(field=field):
-                self.assertEqual(self.client.post('/franchisees/opportunities',data=self.fields(**{field:''})).status_code,400)
-        self.assertEqual(self.Registration.query.count(),0)
-        self.assertEqual(self.client.post('/franchisees/opportunities',data=self.fields(email='other@example.org')).status_code,400)
-        self.assertEqual(self.client.post('/franchisees/opportunities',data=self.fields()).status_code,302)
-        row=self.Registration.query.one()
-        self.assertEqual((row.user_id,row.created_by,row.status),(2,2,'Approved'))
-        self.assertEqual(row.franchisee_number,'FR-0001')
-        self.assertIsNone(row.reviewed_by)
+            tree=html.fromstring(response.text)
+            self.assertFalse(tree.xpath('//*[@name="sa_id" or @name="email"]'))
+            self.assertNotIn('SA ID',response.text)
+            self.assertIn('signed-in AIT account',response.text)
+        row=self.register_self(email='attacker@example.org',sa_id='invalid',identity_digest='forged')
+        self.assertEqual(row.email,'happiness@example.org')
+        self.assertIsNone(row.identity_ciphertext)
+        self.assertIsNone(row.identity_digest)
         self.assertTrue(row.is_active)
-        self.assertNotIn(valid_id(),row.identity_ciphertext)
-        self.assertEqual(row.history[-1]['actor_id'],2)
-        self.assertEqual(self.client.post('/franchisees/opportunities',data=self.fields()).status_code,409)
-        self.login(3)
-        self.assertEqual(self.client.post('/franchisees/opportunities',data=self.fields(email='other@example.org')).status_code,400)
-        self.assertEqual(self.Registration.query.count(),1)
-        self.app.config['WTF_CSRF_ENABLED']=True
-        self.assertEqual(self.client.post('/franchisees/opportunities',data=self.fields(email='other@example.org')).status_code,400)
-        self.app.config['WTF_CSRF_ENABLED']=False
-        self.app.config['FRANCHISEE_PII_KEY']=None
-        self.assertEqual(self.client.post('/franchisees/opportunities',data=self.fields(email='other@example.org',sa_id=valid_id('800102500908'))).status_code,302)
+        self.assertEqual(row.franchisee_number,'FR-0001')
+        fresh=self.app.test_client()
+        with fresh.session_transaction() as values:values['_user_id']='2';values['_fresh']=True
+        page=html.fromstring(fresh.get('/franchisees/opportunities').text)
+        table=page.get_element_by_id('franchise-register-table')
+        self.assertIn('FR-0001',table.text_content())
+        self.assertIn('happiness@example.org',table.text_content())
+        self.assertFalse(page.xpath('//input[@name="full_name"]'))
+
+    def test_new_users_register_without_any_franchise_specific_settings(self):
+        self.app.config.pop('FRANCHISEE_PII_KEY',None)
+        self.app.config.pop('FRANCHISEE_PUBLIC_ORIGIN',None)
+        first=self.register_self()
+        second=self.register_self(3,full_name='Other profile')
+        self.assertEqual((first.franchisee_number,second.franchisee_number),('FR-0001','FR-0002'))
+        self.assertEqual(second.email,'other@example.org')
+        self.assertIsNone(second.identity_ciphertext)
+        self.assertIsNone(second.identity_digest)
         self.assertEqual(self.Registration.query.count(),2)
+        self.assertEqual(self.messages,[])
 
-    def test_clients_and_historical_earnings_are_readonly_and_user_scoped(self):
-        self.login(2)
-        self.assertEqual(self.client.post('/franchisees/opportunities',data=self.fields()).status_code,302)
-        row=self.Registration.query.one()
-        self.login(1)
-        self.client.post(f'/admin/franchisees/{row.id}',data={'action':'approve'})
-        self.session.add_all([self.Shop(id=11,user_id=2,business_name='Own business',trade='boq'),
-                              self.Shop(id=12,user_id=3,business_name='Private other business',trade='boq')])
-        for identifier,user,shop,amount in [(1,2,11,3700),(2,3,12,9900),(3,2,12,8800)]:
-            self.session.add(self.Document(id=identifier,user_id=user,shop_id=shop,kind='boq_section',document_key=f'section-{identifier}',
-                                          snapshot={'commercial_terms':{'operator_retains_cents':amount}},created_at=self.flow.now()))
-        self.session.add(self.Document(id=4,user_id=2,shop_id=11,kind='boq_section',document_key='legacy-section',snapshot={},created_at=self.flow.now()))
+    def test_historical_644_preserved_and_645_can_save_without_identity(self):
+        self.session.add_all([self.User(id=644,email='bill-fixture@example.org',name='Bill fixture',role='learner'),
+                              self.User(id=645,email='pro-fixture@example.org',name='PRO fixture',role='learner')])
         self.session.commit()
-        before=self.session.execute(sa.text('SELECT id,snapshot::text FROM protrade_document ORDER BY id')).all()
-        self.login(2)
-        response=self.client.get('/franchisees/opportunities?area=clients')
-        self.assertIn('Own business',response.text)
-        self.assertNotIn('Private other business',response.text)
-        response=self.client.get('/franchisees/opportunities?area=earnings')
-        self.assertIn('R37.00',response.text)
-        self.assertIn('Terms not recorded',response.text)
-        for private in ['Private other business','R99.00','R88.00']:
-            self.assertNotIn(private,response.text)
-        self.assertEqual(before,self.session.execute(sa.text('SELECT id,snapshot::text FROM protrade_document ORDER BY id')).all())
+        original=self.legacy(644)
+        before=self.session.execute(sa.text('SELECT to_jsonb(r)::text FROM franchise_registration r WHERE user_id=644')).scalar()
+        registered=self.register_self(645,full_name='PRO fixture')
+        self.assertEqual(registered.franchisee_number,'FR-0002')
+        self.assertIsNone(registered.identity_digest)
+        self.assertIsNone(registered.identity_ciphertext)
+        self.assertEqual(before,self.session.execute(sa.text('SELECT to_jsonb(r)::text FROM franchise_registration r WHERE user_id=644')).scalar())
+        self.assertNotIn('Historical Profile',self.client.get('/franchisees/opportunities').text)
+        self.login(644)
+        self.assertIn('FR-0001',self.client.get('/franchisees/opportunities').text)
+        self.assertNotIn('PRO fixture',self.client.get('/franchisees/opportunities').text)
+        self.login(1)
+        detail=self.client.get(f'/admin/franchisees/{original.id}')
+        self.assertIn('HISTORICAL-ID-DATA',detail.text)
+        self.assertIn('12 Original Test Street',detail.text)
 
-    def test_https_csrf_and_validation_errors_stay_inside_dashboard(self):
+    def test_edit_preserves_historical_identity_number_dates_and_history(self):
+        row=self.legacy()
+        original=(row.id,row.franchisee_number,row.created_at,row.submitted_at,row.reviewed_at,row.identity_ciphertext,row.identity_digest)
+        history=list(row.history)
         self.login(2)
-        self.app.config['WTF_CSRF_ENABLED']=True
-        url='/franchisees/opportunities?area=register'
-        origin='https://localhost'
-        page=self.client.get(url,base_url=origin)
-        self.assertEqual(page.headers['Referrer-Policy'],'strict-origin')
-        token=html.fromstring(page.text).xpath('//input[@name="csrf_token"]/@value')[0]
-        data=self.fields(csrf_token=token)
-        for fields,headers in [(self.fields(),{'Referer':origin+'/'}),(data,{}),(data,{'Referer':'https://other.example/'})]:
-            response=self.client.post(url,base_url=origin,data=fields,headers=headers)
-            self.assertEqual(response.status_code,400)
-            self.assertIn('Franchise Dashboard',response.text)
-            self.assertIn('Your form security check failed',response.text)
-            self.assertEqual(self.Registration.query.count(),0)
-        self.app.config['WTF_CSRF_TIME_LIMIT']=-1
-        response=self.client.post(url,base_url=origin,data=data,headers={'Referer':origin+'/'})
-        self.assertEqual(response.status_code,400)
-        self.assertIn('Reload Register',response.text)
-        self.app.config['WTF_CSRF_TIME_LIMIT']=3600
-        response=self.client.post(url,base_url=origin,data=self.fields(csrf_token=token,full_name=' '),headers={'Referer':origin+'/'})
-        self.assertEqual(response.status_code,400)
-        self.assertIn('Enter your full name',response.text)
-        self.assertIn('role="alert"',response.text)
-        response=self.client.post(url,base_url=origin,data=data,headers={'Referer':origin+'/'})
+        edit=html.fromstring(self.client.get('/franchisees/opportunities?area=edit').text)
+        self.assertFalse(edit.xpath('//*[@name="sa_id" or @name="email"]'))
+        self.assertNotIn('HISTORICAL-ID-DATA',edit.text_content())
+        self.assertEqual(edit.xpath('//input[@name="full_name"]/@value'),['Historical Profile'])
+        self.assertEqual(edit.xpath('//textarea[@name="address"]/text()'),['12 Original Test Street'])
+        self.session.get(self.User,2).email='updated-login@example.org';self.session.commit()
+        response=self.client.post('/franchisees/opportunities?area=edit',data=self.fields(action='save_profile',full_name='Updated',address='34 Updated Test Street',email='forged@example.org',sa_id='not-an-id'))
+        self.assertEqual(response.status_code,302,response.text)
+        row=self.Registration.query.one()
+        self.assertEqual((row.id,row.franchisee_number,row.created_at,row.submitted_at,row.reviewed_at,row.identity_ciphertext,row.identity_digest),original)
+        self.assertEqual(row.history[:-1],history)
+        self.assertEqual(row.history[-1]['action'],'profile_updated')
+        self.assertEqual(row.email,'updated-login@example.org')
+        with self.app.app_context():self.assertEqual(self.flow.decrypt_private(row.address_ciphertext),'34 Updated Test Street')
+
+    def test_saved_submitted_profile_activation_uses_current_account_email(self):
+        with self.app.app_context():address=self.flow.encrypt_private('12 Previously Saved Street')
+        date=self.flow.now()
+        row=self.Registration(email='happiness@example.org',user_id=2,status='Submitted',full_name='Saved Profile',cellphone='0821234567',
+            address_ciphertext=address,created_at=date,submitted_at=date,created_by=2,history=[])
+        self.session.add(row);self.session.commit()
+        self.session.get(self.User,2).email='updated-login@example.org';self.session.commit()
+        self.login(2)
+        response=self.client.post('/franchisees/opportunities',data={'action':'activate','accept_terms':'yes','email':'forged@example.org'})
+        self.assertEqual(response.status_code,302,response.text)
+        row=self.Registration.query.one()
+        self.assertTrue(row.is_active)
+        self.assertEqual(row.email,'updated-login@example.org')
+        self.assertEqual(row.submitted_at,date)
+        self.assertEqual(row.address_ciphertext,address)
+        self.assertEqual(row.franchisee_number,'FR-0001')
+
+    def test_new_profile_without_identity_can_be_reopened_and_edited(self):
+        row=self.register_self()
+        stable=(row.id,row.franchisee_number,row.created_at,row.submitted_at)
+        response=self.client.get('/franchisees/opportunities?area=edit')
+        self.assertEqual(response.status_code,200)
+        self.assertIn('12 Synthetic Test Street',response.text)
+        saved=self.client.post('/franchisees/opportunities?area=edit',data=self.fields(action='save_profile',full_name='Edited'))
+        self.assertEqual(saved.status_code,302)
+        row=self.Registration.query.one()
+        self.assertEqual((row.id,row.franchisee_number,row.created_at,row.submitted_at),stable)
+        self.assertIsNone(row.identity_ciphertext)
+        self.assertIsNone(row.identity_digest)
+
+    def test_historical_identity_cannot_block_edit_if_its_ciphertext_is_unreadable(self):
+        row=self.register_self()
+        row.identity_ciphertext='unreadable-historical-ciphertext';row.identity_digest='historical-digest';self.session.commit()
+        self.assertEqual(self.client.get('/franchisees/opportunities?area=edit').status_code,200)
+        response=self.client.post('/franchisees/opportunities?area=edit',data=self.fields(action='save_profile',full_name='Saved Without Reading ID'))
         self.assertEqual(response.status_code,302)
         row=self.Registration.query.one()
-        self.assertTrue(row.is_active)
-        self.assertEqual(row.franchisee_number,'FR-0001')
+        self.assertEqual((row.identity_ciphertext,row.identity_digest),('unreadable-historical-ciphertext','historical-digest'))
 
-    def test_unique_numbers_admin_visibility_and_audited_suspension(self):
-        before=self.session.execute(sa.text('SELECT * FROM "user" ORDER BY id')).all()
-        for uid,email,identity in [(2,'happiness@example.org',valid_id()),(3,'other@example.org',valid_id('800102500908'))]:
-            self.login(uid)
-            response=self.client.post('/franchisees/opportunities',data=self.fields(email=email,sa_id=identity,user_id='1',status='Submitted',franchisee_number='FR-FAKE'))
-            self.assertEqual(response.status_code,302)
-        rows=self.Registration.query.order_by(self.Registration.id).all()
-        self.assertEqual([row.franchisee_number for row in rows],['FR-0001','FR-0002'])
-        identifier=rows[0].id
-        original_history=list(rows[0].history)
-        self.login(1)
-        listing=self.client.get('/admin/franchisees')
-        self.assertIn('FR-0001',listing.text)
-        self.assertIn('FR-0002',listing.text)
-        self.assertIn('Suspend franchisee',self.client.get(f'/admin/franchisees/{identifier}').text)
-        self.assertEqual(self.client.post(f'/admin/franchisees/{identifier}',data={'action':'suspend'}).status_code,302)
-        row=self.Registration.query.get(identifier)
-        self.assertTrue(row.is_suspended)
-        self.assertFalse(row.is_active)
-        self.assertEqual(row.franchisee_number,'FR-0001')
-        self.assertEqual(row.history[:-1],original_history)
-        self.assertEqual(row.history[-1]['actor_id'],1)
-        self.assertEqual(self.client.post(f'/admin/franchisees/{identifier}',data={'action':'suspend'}).status_code,409)
+    def test_remaining_field_and_terms_validation_is_visible_without_partial_save(self):
         self.login(2)
-        for area in ['register','clients','earnings','protrade']:
-            response=self.client.get('/franchisees/opportunities?area='+area)
-            self.assertIn('suspended by AIT Admin',response.text)
-            self.assertNotIn('Open ProTrade',response.text)
+        for field in ('full_name','cellphone','address','accept_terms'):
+            response=self.client.post('/franchisees/opportunities',data=self.fields(**{field:''}))
+            self.assertEqual(response.status_code,400,(field,response.text))
+            self.assertIn('Registration was not saved.',response.text)
+            self.assertEqual(self.Registration.query.count(),0)
+        self.assertEqual(self.client.post('/franchisees/opportunities',data=self.fields(occupation='x'*161)).status_code,400)
+        row=self.register_self(sa_id='anything',email='ignored')
+        self.assertTrue(row.is_active)
+
+    def test_duplicate_registration_and_database_user_uniqueness_are_retained(self):
+        row=self.register_self()
+        number,history=row.franchisee_number,list(row.history)
         self.assertEqual(self.client.post('/franchisees/opportunities',data=self.fields()).status_code,409)
-        self.assertEqual(self.client.post(f'/admin/franchisees/{identifier}',data={'action':'reinstate'}).status_code,403)
-        self.login(1)
-        self.assertEqual(self.client.post(f'/admin/franchisees/{identifier}',data={'action':'reinstate'}).status_code,302)
-        row=self.Registration.query.get(identifier)
-        self.assertTrue(row.is_active)
-        self.assertEqual(row.franchisee_number,'FR-0001')
-        self.assertEqual(row.history[-1]['action'],'reinstated')
-        self.login(2)
-        self.assertIn('Open ProTrade',self.client.get('/franchisees/opportunities?area=protrade').text)
-        self.assertEqual(before,self.session.execute(sa.text('SELECT * FROM "user" ORDER BY id')).all())
+        self.assertEqual(self.Registration.query.count(),1)
+        self.assertEqual((row.franchisee_number,row.history),(number,history))
+        with self.assertRaises(sa.exc.IntegrityError):
+            self.session.execute(sa.text("""INSERT INTO franchise_registration
+              (id,email,user_id,status,full_name,cellphone,address_ciphertext,created_at,submitted_at,created_by,franchisee_number,history)
+              SELECT 999,'different@example.org',user_id,status,full_name,cellphone,address_ciphertext,created_at,submitted_at,created_by,'FR-9999',history
+              FROM franchise_registration LIMIT 1"""))
+        self.session.rollback()
+        self.assertEqual(self.Registration.query.count(),1)
 
-    def test_previously_submitted_registration_can_activate_without_reentry(self):
-        token=self.invite()
-        self.assertEqual(self.submit(token).status_code,302)
-        row=self.Registration.query.one()
-        identity,address,history=row.identity_ciphertext,row.address_ciphertext,list(row.history)
-        row.user_id=None  # A legacy submission made before its AIT account was linked.
+    def test_csrf_and_account_isolation_protect_save_and_edit(self):
+        self.register_self()
+        self.app.config['WTF_CSRF_ENABLED']=True
+        self.assertEqual(self.client.post('/franchisees/opportunities?area=edit',data=self.fields(action='save_profile')).status_code,400)
+        self.app.config['WTF_CSRF_ENABLED']=False
+        self.login(3)
+        self.assertEqual(self.client.get('/franchisees/opportunities?area=edit').status_code,409)
+        self.assertEqual(self.client.post('/franchisees/opportunities',data=self.fields(action='save_profile',user_id='2')).status_code,409)
+        self.assertNotIn('Happiness Example',self.client.get('/franchisees/opportunities').text)
+        self.login(None)
+        self.assertEqual(self.client.post('/franchisees/opportunities',data=self.fields()).status_code,401)
+        self.assertEqual(self.Registration.query.count(),1)
+
+    def test_admin_suspension_and_reinstatement_keep_identity_and_number(self):
+        row=self.register_self();number=row.franchisee_number
+        self.login(1)
+        self.assertEqual(self.client.post(f'/admin/franchisees/{row.id}',data={'action':'suspend'}).status_code,302)
+        self.login(2)
+        self.assertEqual(self.client.post('/franchisees/opportunities?area=edit',data=self.fields(action='save_profile',full_name='Suspended Profile')).status_code,302)
+        self.assertTrue(self.Registration.query.one().is_suspended)
+        self.assertEqual(self.client.post('/franchisees/opportunities',data=self.fields()).status_code,409)
+        self.login(1)
+        self.assertEqual(self.client.post(f'/admin/franchisees/{row.id}',data={'action':'reinstate'}).status_code,302)
+        self.assertTrue(self.Registration.query.one().is_active)
+        self.assertEqual(self.Registration.query.one().franchisee_number,number)
+
+    def test_commit_failure_rolls_back_without_announcing_success(self):
+        self.login(2)
+        failure=sa.exc.OperationalError('private statement',{},types.SimpleNamespace(pgcode='42501'))
+        with patch.object(self.session,'commit',side_effect=failure):
+            response=self.client.post('/franchisees/opportunities',data=self.fields())
+        self.assertEqual(response.status_code,503)
+        self.assertIn('lacks a required registration permission',response.text)
+        self.assertNotIn('private statement',response.text)
+        self.assertEqual(self.Registration.query.count(),0)
+
+    def test_existing_clients_earnings_and_programme_records_are_readonly(self):
+        self.register_self()
+        self.session.add_all([self.Shop(id=11,user_id=2,business_name='Own business',trade='boq'),self.Shop(id=12,user_id=3,business_name='Private business',trade='boq'),
+            self.Subject(id=1,slug='reading',name='Reading',is_active=1,is_hidden_on_bridge=False),self.Enrollment(id=1,user_id=2,subject_id=1,status='active'),
+            self.License(id=1,user_id=2,subject_id=1,total_seats=10,used_seats=3),
+            self.Document(id=1,user_id=2,shop_id=11,kind='boq_section',document_key='own-section',snapshot={'commercial_terms':{'operator_retains_cents':3700}},created_at=self.flow.now()),
+            self.Document(id=2,user_id=3,shop_id=12,kind='boq_section',document_key='foreign-section',snapshot={'commercial_terms':{'operator_retains_cents':9900}},created_at=self.flow.now())])
         self.session.commit()
+        before=self.session.execute(sa.text('SELECT to_jsonb(d)::text FROM protrade_document d ORDER BY id')).all()
+        for area in ('clients','protrade'):
+            page=self.client.get('/franchisees/opportunities?area='+area)
+            self.assertIn('Own business',page.text);self.assertNotIn('Private business',page.text)
+        page=self.client.get('/franchisees/opportunities?area=earnings')
+        self.assertIn('R37.00',page.text);self.assertNotIn('R99.00',page.text)
+        self.assertIn('Reading',self.client.get('/franchisees/opportunities?area=programmes').text)
+        self.assertEqual(before,self.session.execute(sa.text('SELECT to_jsonb(d)::text FROM protrade_document d ORDER BY id')).all())
+        self.assertEqual(self.Shop.query.count(),2);self.assertEqual(self.License.query.count(),1)
+
+    def test_legacy_invitation_requires_ait_login_and_uses_same_simplified_form(self):
+        token=self.invite()
+        row=self.Registration.query.one();identifier=row.id
+        self.login(None)
+        self.assertEqual(self.client.get('/franchisees/register/'+token).status_code,401)
+        self.login(2)
+        self.assertEqual(self.client.get('/franchisees/register/'+token).status_code,302)
+        self.register_self()
+        self.assertEqual(self.Registration.query.one().id,identifier)
+        self.assertIsNone(self.Registration.query.one().identity_ciphertext)
+
+    def test_schema_pending_prevents_failed_insert_and_never_fabricates_identity(self):
+        self.session.execute(sa.text("ALTER TABLE franchise_registration DROP CONSTRAINT ck_franchisee_submitted"))
+        self.session.execute(sa.text("ALTER TABLE franchise_registration ADD CONSTRAINT ck_franchisee_submitted CHECK (status='Invited' OR (full_name IS NOT NULL AND cellphone IS NOT NULL AND identity_ciphertext IS NOT NULL AND address_ciphertext IS NOT NULL AND identity_digest IS NOT NULL AND submitted_at IS NOT NULL AND invitation_digest IS NULL))"));self.session.commit()
         self.login(2)
         page=self.client.get('/franchisees/opportunities?area=register')
-        self.assertIn('Complete Registration',page.text)
-        self.assertNotIn('awaiting AIT Admin approval',page.text)
-        self.assertEqual(self.client.post('/franchisees/opportunities',data={'action':'activate','accept_terms':'yes'}).status_code,302)
-        row=self.Registration.query.one()
-        self.assertTrue(row.is_active)
-        self.assertEqual(row.franchisee_number,'FR-0001')
-        self.assertEqual(row.user_id,2)
-        self.assertEqual((row.identity_ciphertext,row.address_ciphertext),(identity,address))
-        self.assertEqual(row.history[:-1],history)
-        self.assertEqual(self.client.post('/franchisees/opportunities',data={'action':'activate','accept_terms':'yes'}).status_code,409)
-
-    def test_committed_registration_survives_fresh_session_and_dashboard_reload(self):
-        self.login(2)
-        commits=[]
-        def committed(connection):commits.append(True)
-        sa.event.listen(self.conn,'commit',committed)
-        try:
-            response=self.client.post('/franchisees/opportunities?area=register',data=self.fields())
-        finally:
-            sa.event.remove(self.conn,'commit',committed)
-        self.assertEqual(response.status_code,302)
-        self.assertTrue(commits)
-        self.session.remove()
-        with sa.orm.Session(bind=self.conn) as reader:
-            saved=reader.execute(sa.text('SELECT user_id,status,franchisee_number,identity_ciphertext,address_ciphertext FROM franchise_registration')).one()
-            self.assertEqual((saved.user_id,saved.status,saved.franchisee_number),(2,'Approved','FR-0001'))
-            with self.app.app_context():
-                self.assertEqual(self.flow.decrypt_private(saved.identity_ciphertext),valid_id())
-                self.assertEqual(self.flow.decrypt_private(saved.address_ciphertext),'12 Synthetic Test Street')
-        fresh=self.app.test_client()
-        with fresh.session_transaction() as values:
-            values['_user_id']='2';values['_fresh']=True
-        dashboard=fresh.get('/franchisees/opportunities')
-        self.assertIn('Register',dashboard.text)
-        profile=fresh.get('/franchisees/opportunities?area=edit')
-        self.assertEqual(profile.status_code,200)
-        self.assertIn('FR-0001',profile.text)
-        for value in ['Happiness Example','0821234567','happiness@example.org','Contractor','12 Synthetic Test Street',valid_id()]:
-            self.assertIn(value,profile.text)
-        for area in ['clients','earnings','protrade']:
-            response=fresh.get('/franchisees/opportunities?area='+area)
-            self.assertEqual(response.status_code,200)
-            self.assertNotIn('Complete Register to activate',response.text)
-        self.assertEqual(self.Registration.query.count(),1)
-
-    def test_failed_commit_never_announces_success_and_rolls_back(self):
-        self.login(2)
-        failure=sa.exc.OperationalError('COMMIT',{},Exception('private database details'))
-        with patch.object(self.session,'commit',side_effect=failure):
-            response=self.client.post('/franchisees/opportunities?area=register',data=self.fields())
+        self.assertIn('franchise_registration_003',page.text)
+        self.assertTrue(html.fromstring(page.text).xpath('//button[@type="submit"][@disabled]'))
+        response=self.client.post('/franchisees/opportunities',data=self.fields())
         self.assertEqual(response.status_code,503)
-        self.assertIn('Registration could not be confirmed',response.text)
-        self.assertNotIn('Your franchisee account is active',response.text)
-        self.assertNotIn('private database details',response.text)
         self.assertEqual(self.Registration.query.count(),0)
+        self.assertFalse(self.session.execute(sa.text('SELECT is_called FROM ait_franchisee_number_seq')).scalar())
 
-    def test_validation_retains_values_and_marks_only_incorrect_fields(self):
-        self.login(2)
-        entered=self.fields(full_name=' ',cellphone='082 123 4567',address='12 Test Street & Flat <3>\nSecond line',occupation='Builder & carpenter')
-        response=self.client.post('/franchisees/opportunities?area=register',data=entered)
-        self.assertEqual(response.status_code,400)
-        self.assertNotIn('Location',response.headers)
-        page=html.fromstring(response.text)
-        for name,value in entered.items():
-            element=page.xpath('//*[@name="'+name+'"]')[0]
-            self.assertEqual(element.text if element.tag=='textarea' else element.get('value'),value)
-        self.assertEqual(page.xpath('//*[@aria-invalid="true"]/@name'),['full_name'])
-        error=page.xpath('//*[@id="franchisee-full_name-error"]')[0]
-        self.assertIn('Enter your full name',error.text_content())
-        self.assertEqual(error.getparent().tag,'label')
-        self.assertEqual(self.Registration.query.count(),0)
-        with self.client.session_transaction() as values:
-            for private in [valid_id(),entered['address'],entered['cellphone']]:
-                self.assertNotIn(private,json.dumps(dict(values)))
-        entered['full_name']='Bill'
-        self.assertEqual(self.client.post('/franchisees/opportunities?area=register',data=entered).status_code,302)
-        self.session.remove()
-        profile=self.client.get('/franchisees/opportunities?area=edit')
-        self.assertIn('FR-0001',profile.text)
-        self.assertIn('Register',profile.text)
-        text=html.fromstring(profile.text).text_content()
-        for value in ['Bill','0821234567',entered['address'],entered['occupation']]:
-            self.assertIn(value,__import__('html').unescape(profile.text))
-        self.login(1)
-        row=self.Registration.query.one()
-        detail=self.client.get(f'/admin/franchisees/{row.id}')
-        self.assertIn('Bill',detail.text)
-        self.assertIn(entered['address'],html.fromstring(detail.text).text_content())
+    def test_migration_003_preserves_history_and_other_constraints_and_rolls_back(self):
+        row=self.legacy();before=self.session.execute(sa.text('SELECT to_jsonb(r)::text FROM franchise_registration r')).scalar()
+        self.session.execute(sa.text('ALTER TABLE franchise_registration DROP CONSTRAINT ck_franchisee_submitted'))
+        self.session.execute(sa.text("ALTER TABLE franchise_registration ADD CONSTRAINT ck_franchisee_submitted CHECK (status='Invited' OR (full_name IS NOT NULL AND cellphone IS NOT NULL AND identity_ciphertext IS NOT NULL AND address_ciphertext IS NOT NULL AND identity_digest IS NOT NULL AND submitted_at IS NOT NULL AND invitation_digest IS NULL))"))
+        self.session.execute(sa.text('ALTER TABLE franchise_registration ADD CONSTRAINT ait_franchisee_registration_identity_digest_key UNIQUE(identity_digest)'));self.session.commit()
+        constraints=self.conn.execute(sa.text("SELECT oid,conname,contype,pg_get_constraintdef(oid) FROM pg_constraint WHERE conrelid='franchise_registration'::regclass AND conname NOT IN ('ck_franchisee_submitted','ait_franchisee_registration_identity_digest_key') ORDER BY oid")).all();self.conn.rollback()
+        revision=module('simplify_migration_test','migrations/versions/franchise_registration_003.py')
+        revision.op=Operations(MigrationContext.configure(self.conn))
+        with self.assertRaisesRegex(RuntimeError,'explicit migration authorisation'):revision.upgrade()
+        self.conn.rollback()
+        with self.assertRaisesRegex(RuntimeError,'rollback test'):
+            with self.conn.begin():
+                revision.op=Operations(MigrationContext.configure(self.conn,opts={'franchise_registration_simplify_approved':True}));revision.upgrade()
+                raise RuntimeError('rollback test')
+        self.assertEqual(self.conn.scalar(sa.text("SELECT count(*) FROM pg_constraint WHERE conrelid='franchise_registration'::regclass AND conname='ait_franchisee_registration_identity_digest_key'")),1)
+        self.conn.rollback()
+        with self.conn.begin():
+            revision.op=Operations(MigrationContext.configure(self.conn,opts={'franchise_registration_simplify_approved':True}));revision.upgrade()
+        self.assertEqual(before,self.conn.scalar(sa.text('SELECT to_jsonb(r)::text FROM franchise_registration r')))
+        self.assertEqual(constraints,self.conn.execute(sa.text("SELECT oid,conname,contype,pg_get_constraintdef(oid) FROM pg_constraint WHERE conrelid='franchise_registration'::regclass AND conname NOT IN ('ck_franchisee_submitted','ait_franchisee_registration_identity_digest_key') ORDER BY oid")).all())
+        self.assertEqual(self.conn.scalar(sa.text("SELECT count(*) FROM pg_constraint WHERE conrelid='franchise_registration'::regclass AND conname='ait_franchisee_registration_identity_digest_key'")),0)
+        self.conn.rollback()
+        new=self.register_self(3,full_name='No ID Profile')
+        self.assertIsNone(new.identity_digest)
 
-    def test_names_follow_existing_ait_required_value_pattern(self):
-        self.login(2)
-        for name in ['Bill',"Jean-Luc O?Neill",'??','  Nandi   Dlamini  ']:
-            with self.subTest(name=name):
-                response=self.client.post('/franchisees/opportunities?area=register',data=self.fields(full_name=name,cellphone='invalid'))
-                self.assertEqual(response.status_code,400)
-                page=html.fromstring(response.text)
-                self.assertEqual(page.xpath('//*[@aria-invalid="true"]/@name'),['cellphone'])
-                self.assertEqual(page.xpath('//input[@name="full_name"]/@value'),[name])
-        response=self.client.post('/franchisees/opportunities?area=register',data=self.fields(full_name='x'*161,sa_id='bad',cellphone='bad',address='x',occupation='x'*161))
-        self.assertEqual(response.status_code,400)
-        page=html.fromstring(response.text)
-        self.assertEqual(set(page.xpath('//*[@aria-invalid="true"]/@name')),{'full_name','sa_id','cellphone','address','occupation'})
-        self.assertEqual(self.Registration.query.count(),0)
-
-    def test_bridge_franchise_entry_is_available_for_users_admins_and_budget_only(self):
-        for endpoint in ['admin_bp.global_settings','admin_bp.programs_index','admin_bp.security_dashboard']:
-            self.app.add_url_rule('/test/'+endpoint,endpoint=endpoint,view_func=lambda:'Existing admin destination')
-        for admin in [False,True]:
-            with self.app.test_request_context('/bridge'):
-                markup=render_template('auth/bridge_dashboard.html',user=self.User(id=99,name='Example'),
-                                       subjects=[],platform_admin_bridge=admin)
-            page=html.fromstring(markup)
-            links=page.xpath('//a[normalize-space(.)="Open Franchise"]')
-            self.assertEqual(len(links),1)
-            self.assertEqual(links[0].get('href'),'/franchisees/opportunities/register')
-        self.app.add_url_rule('/budget',endpoint='budget_bp.dashboard',view_func=lambda:'BudgetCash')
-        with self.app.test_request_context('/bridge'):
-            markup=render_template('auth/bridge_dashboard.html',user=self.User(id=99,name='Example'),
-                subjects=[{'slug':'budget'}],platform_admin_bridge=False,is_single_budget=True,budget_wallet_balance=20)
-        page=html.fromstring(markup)
-        self.assertEqual(len(page.xpath('//a[normalize-space(.)="Open Franchise"]')),1)
-        self.assertIn('Open BudgetCash',page.text_content())
-
-    def test_browser_opportunities_and_compact_admin_register(self):
-        self.app.view_functions['bridge_bp.bridge']=lambda:render_template('auth/bridge_dashboard.html',user=self.User(id=3,name='Other User'),subjects=[],platform_admin_bridge=False,hide_navbar=True)
+    def test_browser_save_edit_cancel_and_fresh_visit_without_id_or_email_fields(self):
         import threading
         from playwright.sync_api import sync_playwright
-        from werkzeug.serving import make_server, WSGIRequestHandler
-        class QuietHandler(WSGIRequestHandler):
+        from werkzeug.serving import make_server,WSGIRequestHandler
+        class Quiet(WSGIRequestHandler):
             def log_request(self,*args,**kwargs):pass
-        token=self.invite()
-        self.assertEqual(self.submit(token).status_code,302)
-        self.login(1)
-        row_id=self.Registration.query.one().id
-        self.assertEqual(self.client.post(f'/admin/franchisees/{row_id}',data={'action':'approve'}).status_code,302)
-        self.session.rollback()
-        self.app.jinja_loader=FileSystemLoader(ROOT/'templates')
-        self.app.jinja_env.cache.clear()
+        self.login(2);self.app.jinja_loader=FileSystemLoader(ROOT/'templates');self.app.jinja_env.cache.clear()
         self.app.config['WTF_CSRF_ENABLED']=True
-        server=make_server('127.0.0.1',0,self.app,request_handler=QuietHandler,ssl_context='adhoc')
+        server=make_server('127.0.0.1',0,self.app,request_handler=Quiet,ssl_context='adhoc')
         origin=f'https://127.0.0.1:{server.server_port}'
         thread=threading.Thread(target=server.serve_forever,daemon=True);thread.start()
         try:
             with sync_playwright() as runtime:
                 browser=runtime.chromium.launch(headless=True)
                 try:
-                    page=browser.new_page(viewport={'width':1280,'height':900},ignore_https_errors=True)
-                    referrers=[]
-                    page.on('request',lambda req:referrers.append(req.headers.get('referer')) if req.method=='POST' and '/franchisees/opportunities' in req.url else None)
-                    page.route('https://**/*',lambda route:route.continue_() if route.request.url.startswith(origin+'/') else route.abort())
-                    def login(uid):
-                        cookie=self.app.session_interface.get_signing_serializer(self.app).dumps({'_user_id':str(uid),'_fresh':True})
-                        page.context.add_cookies([{'name':self.app.config['SESSION_COOKIE_NAME'],'value':cookie,'url':origin}])
-                    login(3)
-                    page.goto(origin+'/bridge')
-                    page.get_by_role('link',name='Open Franchise',exact=True).click()
-                    page.wait_for_url('**/franchisees/opportunities?area=register')
-                    menu=page.get_by_role('navigation',name='Franchisee working areas')
-                    positions=menu.locator('a').evaluate_all('(links) => links.map(link => link.getBoundingClientRect().top)')
-                    self.assertEqual(len(set(positions)),1)
-                    self.assertTrue(page.locator('#working-area').is_visible())
-                    menu.get_by_role('link',name='Register',exact=True).click()
-                    self.assertTrue(page.locator('#working-area').is_visible())
-                    entered=self.fields(email='other@example.org',full_name='Bill',sa_id=valid_id('800102500908'))
-                    for field,value in entered.items():
-                        if field=='accept_terms':page.locator('[name='+field+']').check()
-                        elif field!='email':page.locator('[name='+field+']').fill(value)
-                    page.locator('[name=cellphone]').fill('invalid')
-                    page.get_by_role('button',name='Save',exact=True).click()
-                    page.locator('#franchisee-cellphone-error').wait_for()
-                    for field,value in entered.items():
-                        expected='invalid' if field=='cellphone' else value
-                        self.assertEqual(page.locator('[name='+field+']').input_value(),expected)
-                    page.screenshot(path=str(ROOT/'tmp/franchisee-validation.png'),full_page=True)
-                    page.locator('[name=cellphone]').fill(entered['cellphone'])
-                    page.get_by_role('button',name='Save',exact=True).click()
-                    page.wait_for_url('**/franchisees/opportunities?area=register')
-                    self.assertEqual(referrers,[origin+'/',origin+'/'])
-                    self.assertIn('Register',page.locator('main').inner_text())
-                    self.assertNotIn('Admin approval',page.locator('main').inner_text())
-                    register=page.locator('#franchise-register-table')
-                    self.assertNotIn(entered['sa_id'],register.inner_text())
-                    register.get_by_role('link',name='Edit',exact=True).click()
-                    self.assertEqual(page.locator('[name=full_name]').input_value(),'Bill')
-                    self.assertEqual(page.locator('[name=address]').input_value(),entered['address'])
-                    page.locator('[name=full_name]').fill('Cancelled Change')
-                    page.get_by_role('link',name='Cancel',exact=True).click()
-                    self.assertIn('Bill',register.inner_text())
-                    self.assertNotIn('Cancelled Change',register.inner_text())
-                    register.get_by_role('link',name='Edit',exact=True).click()
-                    page.locator('[name=full_name]').fill('Bill Updated')
-                    page.get_by_role('button',name='Save',exact=True).click()
-                    page.wait_for_url('**/franchisees/opportunities?area=register')
-                    self.assertIn('Bill Updated',register.inner_text())
-                    self.assertNotIn(entered['address'],register.inner_text())
-
-                    page.get_by_role('link',name='Close',exact=True).click()
-                    self.assertFalse(page.locator('#working-area').is_visible())
-                    artifact=ROOT/'tmp/franchisee-dashboard.png'
-                    page.screenshot(path=str(artifact),full_page=True)
-                    login(2)
-                    page.goto(origin+'/franchisees/opportunities?area=protrade')
-                    page.get_by_role('link',name='Open ProTrade',exact=True).click()
-                    self.assertIn('Existing ProTrade entry',page.content())
-                    login(1)
-                    page.goto(origin+'/admin/franchisees')
-                    self.assertEqual(page.locator('tbody tr').count(),2)
-                    self.assertEqual(page.locator('h1').inner_text(),'Franchisee Register')
-                    self.assertFalse(page.locator('#bug-modal').is_visible())
-                    self.assertEqual(page.locator('table').evaluate('(table) => getComputedStyle(table).fontSize'),'14px')
-                    self.assertLess(page.locator('tbody tr').first.bounding_box()['height'],150)
-                    artifact=ROOT/'tmp/franchisee-register-compact.png'
-                    artifact.parent.mkdir(exist_ok=True)
-                    page.screenshot(path=str(artifact),full_page=True)
-                    page.locator('tr').filter(has_text='Happiness Example').get_by_role('link',name='View Details',exact=True).click()
-                    self.assertIn('Happiness Example',page.locator('main').inner_text())
-                    page.get_by_role('link',name='Back to Franchisee Register',exact=True).click()
-                    page.set_viewport_size({'width':375,'height':850})
-                    self.assertTrue(page.get_by_role('link',name='View Details',exact=True).first.is_visible())
-                    self.assertTrue(page.evaluate('document.documentElement.scrollWidth <= window.innerWidth'))
-                    page.get_by_role('link',name='Back to Admin Hub',exact=True).click()
-                    self.assertIn('Admin Hub',page.content())
-                finally:browser.close()
-        finally:
-            server.shutdown();thread.join(timeout=5);server.server_close()
-
-    def test_open_registration_without_franchise_environment_and_terms_audit(self):
-        self.app.config.pop('FRANCHISEE_PII_KEY',None)
-        self.app.config.pop('FRANCHISEE_PUBLIC_ORIGIN',None)
-        self.login(2)
-        start=self.client.get('/franchisees/opportunities/register')
-        self.assertEqual(start.location,'/franchisees/opportunities?area=register')
-        profile=self.client.get(start.location)
-        self.assertIn('Existing Happiness',profile.text)
-        rejected=self.client.post('/franchisees/opportunities',data=self.fields(accept_terms=''))
-        self.assertEqual(rejected.status_code,400)
-        self.assertEqual(self.Registration.query.count(),0)
-        registered=self.client.post('/franchisees/opportunities',data=self.fields())
-        self.assertEqual(registered.status_code,302)
-        row=self.Registration.query.one()
-        self.assertTrue(row.is_active)
-        self.assertEqual(row.history[-1]['terms_version'],self.flow.TERMS_VERSION)
-        self.assertTrue(row.history[-1]['terms_accepted'])
-        before=(row.id,row.franchisee_number,list(row.history))
-        self.assertEqual(self.client.get('/franchisees/opportunities/register').location,'/franchisees/opportunities')
-        self.assertIn(row.franchisee_number,self.client.get('/franchisees/opportunities').text)
-        programmes=self.client.get('/franchisees/opportunities?area=programmes')
-        self.assertIn('No programmes are currently available',programmes.text)
-        self.assertIn('SACE',programmes.text)
-        self.assertEqual(self.client.post('/franchisees/opportunities',data=self.fields()).status_code,409)
-        self.assertEqual(self.Registration.query.count(),1)
-        self.assertEqual((row.id,row.franchisee_number,row.history),before)
-        self.assertEqual(self.messages,[])
-
-    def test_persistent_register_and_edit_preserve_identity_dates_and_sequence(self):
-        self.login(2)
-        self.assertEqual(self.client.post('/franchisees/opportunities',data=self.fields()).status_code,302)
-        row=self.Registration.query.one()
-        stable=(row.id,row.franchisee_number,row.created_at,row.submitted_at,row.reviewed_at,row.reviewed_by,row.status)
-        ciphertext=(row.identity_ciphertext,row.address_ciphertext,row.identity_digest)
-        sequence=self.session.execute(sa.text('SELECT last_value FROM ait_franchisee_number_seq')).scalar()
-        dashboard=self.client.get('/franchisees/opportunities')
-        tree=html.fromstring(dashboard.text)
-        table=tree.get_element_by_id('franchise-register-table')
-        self.assertEqual(table.xpath('./thead/tr/th/text()'),['Franchisee Number','Full Name','Cellphone','Email','Status','Action'])
-        self.assertEqual(len(table.xpath('./tbody/tr')),1)
-        self.assertNotIn(valid_id(),dashboard.text)
-        self.assertNotIn('Test Street',dashboard.text)
-        self.assertIn('Happiness Example',table.text_content())
-        self.assertFalse(tree.xpath('//input[@name="full_name"]'))
-        self.assertTrue(table.xpath('.//a[text()="Edit"]'))
-        edit=html.fromstring(self.client.get('/franchisees/opportunities?area=edit').text)
-        for field,value in [('full_name','Happiness Example'),('cellphone','0821234567'),('email','happiness@example.org'),('sa_id',valid_id()),('occupation','Contractor')]:
-            self.assertEqual(edit.xpath('//input[@name="'+field+'"]/@value'),[value])
-        self.assertEqual(edit.xpath('//textarea[@name="address"]/text()'),['12 Synthetic Test Street'])
-        payload=self.fields(action='save_profile',full_name='Updated Name',cellphone='0831234567',email='contact@example.org',occupation='Consultant',user_id='3',franchisee_number='FORGED')
-        self.assertEqual(self.client.post('/franchisees/opportunities?area=edit',data=payload).status_code,302)
-        self.session.expire_all();row=self.Registration.query.one()
-        self.assertEqual((row.id,row.franchisee_number,row.created_at,row.submitted_at,row.reviewed_at,row.reviewed_by,row.status),stable)
-        self.assertEqual((row.identity_ciphertext,row.address_ciphertext,row.identity_digest),ciphertext)
-        self.assertEqual(row.user_id,2)
-        self.assertEqual(row.email,'contact@example.org')
-        self.assertEqual(self.session.get(self.User,2).email,'happiness@example.org')
-        self.assertEqual(row.history[-1]['action'],'profile_updated')
-        self.assertEqual(self.session.execute(sa.text('SELECT last_value FROM ait_franchisee_number_seq')).scalar(),sequence)
-        self.assertIn('Updated Name',self.client.get('/franchisees/opportunities').text)
-        self.assertEqual(self.Registration.query.count(),1)
-        self.assertEqual(self.client.post('/franchisees/opportunities',data=self.fields()).status_code,409)
-        # Database-level user uniqueness remains enforced independently of the route.
-        with self.assertRaises(sa.exc.IntegrityError):
-            self.session.execute(sa.text("""INSERT INTO franchise_registration
-              (id,email,user_id,status,full_name,cellphone,identity_ciphertext,address_ciphertext,
-               identity_digest,created_at,submitted_at,created_by,franchisee_number,history)
-              SELECT 999,'different@example.org',user_id,status,full_name,cellphone,identity_ciphertext,
-              address_ciphertext,'different-digest',created_at,submitted_at,created_by,'FR-9999',history
-              FROM franchise_registration LIMIT 1"""))
-        self.session.rollback()
-        self.assertEqual(self.Registration.query.count(),1)
-
-    def test_private_profile_edits_and_suspension_do_not_reregister_or_reactivate(self):
-        self.login(2);self.client.post('/franchisees/opportunities',data=self.fields())
-        row=self.Registration.query.one();number,created,submitted=row.franchisee_number,row.created_at,row.submitted_at
-        self.login(1);self.client.post(f'/admin/franchisees/{row.id}',data={'action':'suspend'})
-        self.login(2)
-        updated_id=valid_id('800102500908')
-        response=self.client.post('/franchisees/opportunities?area=edit',data=self.fields(action='save_profile',sa_id=updated_id,address='34 Updated Test Street'))
-        self.assertEqual(response.status_code,302)
-        row=self.Registration.query.one()
-        self.assertEqual((row.franchisee_number,row.created_at,row.submitted_at),(number,created,submitted))
-        self.assertTrue(row.is_suspended)
-        self.assertFalse(row.is_active)
-        with self.app.app_context():
-            self.assertEqual(self.flow.decrypt_private(row.identity_ciphertext),updated_id)
-            self.assertEqual(self.flow.decrypt_private(row.address_ciphertext),'34 Updated Test Street')
-        edit=html.fromstring(self.client.get('/franchisees/opportunities?area=edit').text)
-        self.assertEqual(edit.xpath('//input[@name="sa_id"]/@value'),[updated_id])
-        self.assertIn('suspended by AIT Admin',self.client.get('/franchisees/opportunities?area=clients').text)
-        before=list(row.history)
-        self.app.config['WTF_CSRF_ENABLED']=True
-        self.assertEqual(self.client.post('/franchisees/opportunities?area=edit',data=self.fields(action='save_profile')).status_code,400)
-        self.assertEqual(self.Registration.query.one().history,before)
-        self.assertEqual(self.Registration.query.count(),1)
-
-    def test_legacy_unlinked_profile_is_retrieved_and_bound_only_on_explicit_save(self):
-        token=self.invite();self.assertEqual(self.submit(token).status_code,302)
-        self.login(1);row=self.Registration.query.one()
-        self.assertEqual(self.client.post(f'/admin/franchisees/{row.id}',data={'action':'approve'}).status_code,302)
-        row=self.Registration.query.one();stable=(row.id,row.franchisee_number,row.submitted_at)
-        row.user_id=None;self.session.commit()
-        self.login(2)
-        self.assertIn(row.franchisee_number,self.client.get('/franchisees/opportunities').text)
-        self.assertIsNone(self.Registration.query.one().user_id)
-        self.assertEqual(self.client.post('/franchisees/opportunities?area=edit',data=self.fields(action='save_profile')).status_code,302)
-        row=self.Registration.query.one()
-        self.assertEqual((row.id,row.franchisee_number,row.submitted_at),stable)
-        self.assertEqual(row.user_id,2)
-        self.session.get(self.User,2).email='changed-login@example.org';self.session.commit()
-        self.assertIn(row.franchisee_number,self.client.get('/franchisees/opportunities').text)
-
-    def test_menus_read_existing_programmes_clients_and_licences_without_writes(self):
-        self.login(2);self.client.post('/franchisees/opportunities',data=self.fields())
-        self.session.add_all([
-            self.Subject(id=1,slug='reading',name='Reading',is_active=1,is_hidden_on_bridge=False),
-            self.Subject(id=2,slug='billing',name='Property Management',is_active=1,is_hidden_on_bridge=False),
-            self.Subject(id=3,slug='hidden',name='Hidden programme',is_active=1,is_hidden_on_bridge=True),
-            self.Subject(id=4,slug='inactive',name='Inactive programme',is_active=0,is_hidden_on_bridge=False),
-            self.Enrollment(id=1,user_id=2,subject_id=1,status='active'),
-            self.Enrollment(id=2,user_id=3,subject_id=2,status='private-other-state'),
-            self.License(id=1,user_id=2,subject_id=1,total_seats=10,used_seats=3),
-            self.License(id=2,user_id=3,subject_id=2,total_seats=999,used_seats=888),
-            self.Shop(id=11,user_id=2,business_name='Owned ProTrade business',trade='painting'),
-            self.Shop(id=12,user_id=3,business_name='Foreign ProTrade business',trade='boq')])
-        self.session.commit()
-        before=self.session.execute(sa.text('SELECT * FROM mech_shops ORDER BY id')).all()
-        programmes=self.client.get('/franchisees/opportunities?area=programmes')
-        for value in ('Reading','Property Management','Active','/modes/reading'):
-            self.assertIn(value,programmes.text)
-        for value in ('Hidden programme','Inactive programme','private-other-state','888','999'):
-            self.assertNotIn(value,programmes.text)
-        for area in ('clients','protrade'):
-            response=self.client.get('/franchisees/opportunities?area='+area)
-            self.assertIn('Owned ProTrade business',response.text)
-            self.assertNotIn('Foreign ProTrade business',response.text)
-            self.assertIn('shop_id=11',response.text)
-        self.assertIn('No BOQ section earnings recorded',self.client.get('/franchisees/opportunities?area=earnings').text)
-        self.assertEqual(before,self.session.execute(sa.text('SELECT * FROM mech_shops ORDER BY id')).all())
-        self.assertEqual(self.License.query.count(),2)
-        self.assertEqual(self.Enrollment.query.count(),2)
-
-    def test_edit_errors_and_unreadable_private_details_preserve_saved_record(self):
-        self.login(2);self.client.post('/franchisees/opportunities',data=self.fields())
-        row=self.Registration.query.one()
-        original=(row.full_name,row.cellphone,row.identity_ciphertext,row.address_ciphertext,list(row.history))
-        invalid=self.client.post('/franchisees/opportunities?area=edit',data=self.fields(action='save_profile',cellphone='bad'))
-        self.assertEqual(invalid.status_code,400)
-        self.assertIn('name="action" value="save_profile"',invalid.text)
-        failure=sa.exc.OperationalError('COMMIT',{},Exception('private database details'))
-        with patch.object(self.session,'commit',side_effect=failure):
-            failed=self.client.post('/franchisees/opportunities?area=edit',data=self.fields(action='save_profile',full_name='Must Roll Back'))
-        self.assertEqual(failed.status_code,503)
-        self.assertNotIn('private database details',failed.text)
-        row=self.Registration.query.one()
-        self.assertEqual((row.full_name,row.cellphone,row.identity_ciphertext,row.address_ciphertext,row.history),original)
-        self.app.config['SECRET_KEY']='changed-shared-secret-for-unreadable-test'
-        self.login(2)
-        dashboard=self.client.get('/franchisees/opportunities')
-        self.assertEqual(dashboard.status_code,200)
-        self.assertIn('Happiness Example',dashboard.text)
-        edit=self.client.get('/franchisees/opportunities?area=edit')
-        self.assertEqual(edit.status_code,503)
-        self.assertNotIn('name="full_name"',edit.text)
-        self.assertIn('Your registration is saved',edit.text)
-        self.login(3)
-        self.assertEqual(self.client.get('/franchisees/opportunities?area=edit').status_code,409)
-        self.assertEqual(self.client.post('/franchisees/opportunities',data=self.fields(action='save_profile',user_id='2')).status_code,409)
-        self.assertEqual(self.Registration.query.count(),1)
-
-    def test_legacy_644_and_new_645_survive_rename_and_configuration_independence(self):
-        # Synthetic fixtures use the production account IDs; no production data is copied.
-        self.session.add_all([self.User(id=644,email='bill-fixture@example.org',name='Bill fixture',role='learner'),
-                              self.User(id=645,email='pro-fixture@example.org',name='PRO fixture',role='learner')])
-        self.session.flush()
-        legacy_key=self.app.config['FRANCHISEE_PII_KEY'];legacy=Fernet(legacy_key.encode())
-        from app.franchise_crypto import identity_digests
-        with self.app.app_context():digest=identity_digests(valid_id())[1]
-        row=self.Registration(id=1,email='bill-fixture@example.org',user_id=644,status='Approved',full_name='Bill fixture',
-            cellphone='0821234567',identity_ciphertext=legacy.encrypt(valid_id().encode()).decode(),
-            address_ciphertext=legacy.encrypt(b'12 Original Test Street').decode(),identity_digest=digest,
-            created_at=self.flow.now(),submitted_at=self.flow.now(),created_by=644,franchisee_number='FR-0001',history=[])
-        self.session.add(row);self.session.commit()
-        self.session.execute(sa.text("SELECT setval('ait_franchisee_number_seq',1,true)"))
-        self.session.execute(sa.text("SELECT setval(pg_get_serial_sequence('franchise_registration','id'),1,true)"));self.session.commit()
-        before=self.session.execute(sa.text('SELECT to_jsonb(r)::text FROM franchise_registration r WHERE user_id=644')).scalar()
-        # Verify rolling deployment against the physical pre-rename table too.
-        self.session.execute(sa.text('ALTER TABLE franchise_registration RENAME TO ait_franchisee_registration'));self.session.commit()
-        self.login(644)
-        edit=self.client.get('/franchisees/opportunities?area=edit')
-        self.assertEqual(edit.status_code,200)
-        self.assertIn('12 Original Test Street',edit.text)
-        self.assertIn('FR-0001',edit.text)
-        # Corrupt legacy configuration must not prevent a NEW shared-key registration.
-        self.app.config['FRANCHISEE_PII_KEY']='obsolete-invalid-value'
-        self.app.config.pop('FRANCHISEE_PUBLIC_ORIGIN',None)
-        self.login(645)
-        payload=self.fields(email='pro-fixture@example.org',full_name='PRO fixture',sa_id=valid_id('800102500908'))
-        self.assertEqual(self.client.post('/franchisees/opportunities',data=payload).status_code,302)
-        fresh=self.app.test_client()
-        with fresh.session_transaction() as values:values['_user_id']='645';values['_fresh']=True
-        registered=fresh.get('/franchisees/opportunities')
-        self.assertIn('FR-0002',registered.text)
-        self.assertNotIn('Bill fixture',registered.text)
-        self.assertEqual(self.session.execute(sa.text('SELECT count(*) FROM ait_franchisee_registration')).scalar(),2)
-        # Apply the focused forward migration only to local temporary tables.
-        rename=module('franchise_rename_verification','migrations/versions/franchise_registration_002.py')
-        rename.op=Operations(MigrationContext.configure(self.conn,opts={'franchise_registration_rename_approved':True}))
-        rename.upgrade();self.session.commit();self.session.expire_all()
-        after=self.session.execute(sa.text('SELECT to_jsonb(r)::text FROM franchise_registration r WHERE user_id=644')).scalar()
-        self.assertEqual(before,after)
-        self.assertTrue(self.Registration.query.filter_by(user_id=645).one().identity_ciphertext.startswith('ait-shared-v1:'))
-        self.app.config['FRANCHISEE_PII_KEY']=legacy_key
-        self.login(644)
-        self.assertIn('12 Original Test Street',self.client.get('/franchisees/opportunities?area=edit').text)
-        self.assertNotIn('PRO fixture',self.client.get('/franchisees/opportunities').text)
-        self.assertEqual(self.Registration.query.filter_by(user_id=644).one().franchisee_number,'FR-0001')
-
-    def test_registration_validation_and_database_permission_failures_are_visible(self):
-        self.login(2)
-        invalid=self.client.post('/franchisees/opportunities',data=self.fields(sa_id='invalid'))
-        self.assertEqual(invalid.status_code,400)
-        self.assertIn('Registration was not saved.',invalid.text)
-        self.assertIn('13-digit SA ID',invalid.text)
-        self.assertEqual(self.Registration.query.count(),0)
-        origin=types.SimpleNamespace(pgcode='42501')
-        failure=sa.exc.OperationalError('private statement',{},origin)
-        with patch.object(self.session,'commit',side_effect=failure):
-            rejected=self.client.post('/franchisees/opportunities',data=self.fields())
-        self.assertEqual(rejected.status_code,503)
-        self.assertIn('lacks a required registration permission',rejected.text)
-        self.assertNotIn('private statement',rejected.text)
-        self.assertEqual(self.Registration.query.count(),0)
-
-    def test_forward_rename_preserves_oids_constraints_indexes_and_rolls_back(self):
-        self.login(2);self.client.post('/franchisees/opportunities',data=self.fields())
-        self.session.execute(sa.text('ALTER TABLE franchise_registration RENAME TO ait_franchisee_registration'));self.session.commit()
-        def snapshot():
-            return (
-                self.conn.scalar(sa.text("SELECT to_regclass('ait_franchisee_registration')::oid")),
-                self.conn.execute(sa.text("SELECT oid,conname,contype,convalidated FROM pg_constraint WHERE conrelid=to_regclass('ait_franchisee_registration') ORDER BY oid")).all(),
-                self.conn.execute(sa.text("SELECT indexrelid,indisunique,indisvalid FROM pg_index WHERE indrelid=to_regclass('ait_franchisee_registration') ORDER BY indexrelid")).all(),
-                self.conn.scalar(sa.text("SELECT md5(string_agg(to_jsonb(r)::text,'' ORDER BY id)) FROM ait_franchisee_registration r")))
-        before=snapshot();self.conn.rollback()
-        rename=module('rename_atomic_test','migrations/versions/franchise_registration_002.py')
-        rename.op=Operations(MigrationContext.configure(self.conn))
-        with self.assertRaisesRegex(RuntimeError,'explicit production migration authorisation'):
-            rename.upgrade()
-        self.conn.rollback()
-        with self.assertRaisesRegex(RuntimeError,'postcheck failed'):
-            with self.conn.begin():
-                rename.op=Operations(MigrationContext.configure(self.conn,opts={'franchise_registration_rename_approved':True}))
-                rename.upgrade()
-                raise RuntimeError('postcheck failed')
-        self.assertEqual(snapshot(),before)
-        self.assertIsNone(self.conn.scalar(sa.text("SELECT to_regclass('franchise_registration')")))
-        self.conn.rollback()
-        with self.conn.begin():
-            rename.op=Operations(MigrationContext.configure(self.conn,opts={'franchise_registration_rename_approved':True}))
-            rename.upgrade()
-        self.assertEqual(self.conn.scalar(sa.text("SELECT to_regclass('franchise_registration')::oid")),before[0])
-        self.assertEqual(self.conn.execute(sa.text("SELECT oid,conname,contype,convalidated FROM pg_constraint WHERE conrelid=to_regclass('franchise_registration') ORDER BY oid")).all(),before[1])
-        self.assertEqual(self.conn.execute(sa.text("SELECT indexrelid,indisunique,indisvalid FROM pg_index WHERE indrelid=to_regclass('franchise_registration') ORDER BY indexrelid")).all(),before[2])
-        self.assertEqual(self.conn.scalar(sa.text("SELECT md5(string_agg(to_jsonb(r)::text,'' ORDER BY id)) FROM franchise_registration r")),before[3])
-        cfg=Config(str(ROOT/'alembic.ini'));scripts=ScriptDirectory.from_config(cfg)
-        plan=scripts._upgrade_revs('franchise_registration_002',('ait_franchisee_001','protrade_output_email_022','uip_p57'))
-        self.assertEqual([step.revision.revision for step in plan],['franchise_registration_002'])
-
-    def test_required_fields_and_identity_validation(self):
-        token=self.invite()
-        for field in ['full_name','cellphone','email','address','sa_id']:
-            with self.subTest(field=field):self.assertEqual(self.submit(token,**{field:''}).status_code,400)
-        for identity in ['8001325009080','123','8001015009080']:
-            if identity!=valid_id():self.assertEqual(self.submit(token,sa_id=identity).status_code,400)
-        self.assertEqual(self.Registration.query.one().status,'Invited')
-        self.assertEqual(self.submit(token,occupation='').status_code,302)
-
-    def test_duplicates_expiry_resend_and_single_use(self):
-        token=self.invite()
-        self.assertEqual(self.client.post('/admin/franchisees',data={'email':'HAPPINESS@example.org'}).status_code,409)
-        row=self.Registration.query.one();row.invitation_expires_at=self.flow.now()-timedelta(seconds=1);self.session.commit()
-        self.assertEqual(self.submit(token).status_code,400)
-        self.login(1)
-        self.assertEqual(self.client.post(f'/admin/franchisees/{row.id}/resend').status_code,302)
-        fresh=re.search(r'/franchisees/register/([A-Za-z0-9_-]+)',self.messages[-1].body).group(1)
-        self.assertNotEqual(fresh,token);self.assertEqual(self.submit(token).status_code,400)
-        self.assertEqual(self.submit(fresh).status_code,302)
-        second=self.invite('second@example.org')
-        self.assertEqual(self.submit(second,email='second@example.org').status_code,400)
-        self.assertEqual(self.Registration.query.filter_by(email='second@example.org').one().status,'Invited')
-
-    def test_rejection_and_numbers_only_for_approved_records(self):
-        for index,status in enumerate(['reject','approve','approve'],1):
-            email=f'person{index}@example.org';token=self.invite(email)
-            self.assertEqual(self.submit(token,email=email,sa_id=valid_id(f'80010{index}500908')).status_code,302)
-            row=self.Registration.query.filter_by(email=email).one();self.login(1)
-            self.assertEqual(self.client.post(f'/admin/franchisees/{row.id}',data={'action':status}).status_code,302)
-            row=self.Registration.query.filter_by(email=email).one()
-            self.assertEqual(row.status,'Rejected' if status=='reject' else 'Approved')
-            self.assertEqual(row.franchisee_number,None if status=='reject' else f'FR-{index-1:04d}')
-        with self.assertRaises(sa.exc.IntegrityError):
-            self.session.execute(sa.text("UPDATE franchise_registration SET franchisee_number='FR-0001' WHERE franchisee_number='FR-0002'"));self.session.commit()
-        self.session.rollback()
-
-    def test_unauthorised_access_wrong_account_and_csrf(self):
-        token=self.invite();row=self.Registration.query.one()
-        for uid,status in [(None,401),(2,403),(3,403)]:
-            self.login(uid)
-            for path in ['/admin/franchisees',f'/admin/franchisees/{row.id}',f'/admin/franchisees/{row.id}/resend']:
-                method=self.client.post if path.endswith('/resend') else self.client.get
-                response=method(path);self.assertEqual(response.status_code,status)
-                self.assertNotIn('happiness@example.org',response.text)
-        self.login(3);self.assertEqual(self.client.get('/franchisees/register/'+token).status_code,403)
-        self.login(2);self.assertEqual(self.client.get('/franchisees/register/'+token).status_code,200)
-        self.app.config['WTF_CSRF_ENABLED']=True
-        self.assertEqual(self.client.post('/franchisees/register/'+token,data=self.fields()).status_code,400)
-        self.login(1);self.assertEqual(self.client.post('/admin/franchisees',data={'email':'fresh@example.org'}).status_code,400)
-
-    def test_missing_key_and_delivery_failure_are_safe(self):
-        self.app.config['FRANCHISEE_PII_KEY']=None
-        self.assertEqual(self.client.get('/franchisees/opportunities?area=register').status_code,200)
-        self.assertEqual(self.Registration.query.count(),0);self.assertEqual(self.messages,[])
-        self.app.config['FRANCHISEE_PII_KEY']=Fernet.generate_key().decode()
-        with patch.object(self.mail,'send',side_effect=RuntimeError('Do not log recipient or token')):
-            response=self.client.post('/admin/franchisees',data={'email':'happiness@example.org'})
-        self.assertEqual(response.status_code,503);self.assertNotIn('Do not log',response.text)
-        self.assertEqual(self.Registration.query.count(),1)
-        self.assertEqual(self.Registration.query.one().status,'Invited')
-
-    def test_migration_cannot_run_from_unapproved_startup_context(self):
-        migration=module('franchisee_unapproved_test','migrations/versions/ait_franchisee_001.py')
-        migration.op=Operations(MigrationContext.configure(self.conn))
-        with self.assertRaisesRegex(RuntimeError,'explicitly approved'):
-            migration.upgrade()
-        self.session.execute(sa.text('DROP SEQUENCE ait_franchisee_number_seq'));self.session.commit()
-        self.assertEqual(self.client.get('/admin/franchisees').status_code,503)
-
-    def test_existing_log_filter_omits_private_payloads_and_token(self):
-        privacy=module('franchisee_privacy_test','app/logging_security.py')
-        token='sensitive-invitation-token'
-        with self.app.test_request_context('/franchisees/register/'+token,method='POST',data=self.fields()):
-            record=logging.LogRecord('test',logging.ERROR,'test',1,'body=%s', (self.fields(),),None)
-            record.exc_text='secret '+valid_id()+' '+token
-            privacy.RequestSecretFilter().filter(record)
-            message=record.getMessage()
-            for secret in [valid_id(),token,'Test Street','Happiness','happiness@example.org']:self.assertNotIn(secret,message)
-            self.assertIsNone(record.exc_text)
-            self.assertIn('/franchisees/register/<token>',message)
-
-    def test_browser_invitation_form_and_admin_review(self):
-        import threading
-        from playwright.sync_api import sync_playwright
-        from werkzeug.serving import make_server, WSGIRequestHandler
-        class QuietHandler(WSGIRequestHandler):
-            def log_request(self,*args,**kwargs):pass
-        token=self.invite();self.login(None)
-        self.app.config['WTF_CSRF_ENABLED']=True
-        server=make_server('127.0.0.1',0,self.app,request_handler=QuietHandler)
-        origin=f'http://127.0.0.1:{server.server_port}'
-        thread=threading.Thread(target=server.serve_forever,daemon=True);thread.start()
-        try:
-            with sync_playwright() as runtime:
-                browser=runtime.chromium.launch(headless=True)
-                try:
-                    page=browser.new_page(viewport={'width':1280,'height':900})
-                    errors=[];page.on('pageerror',lambda error:errors.append(str(error)))
-                    page.goto(origin+'/franchisees/register/'+token)
-                    for field,value in self.fields().items():
-                        if field=='accept_terms':continue
-                        page.locator('[name='+field+']').fill(value)
-                    page.get_by_role('button',name='Submit registration').click()
-                    page.wait_for_url('**/franchisees/submitted')
-                    self.assertIn('Registration submitted',page.locator('h1').inner_text())
-                    self.assertNotIn(valid_id(),page.content())
-                    row_id=self.Registration.query.one().id;self.session.rollback()
-                    cookie=self.app.session_interface.get_signing_serializer(self.app).dumps({'_user_id':'1','_fresh':True})
+                    page=browser.new_page(ignore_https_errors=True,viewport={'width':1280,'height':900})
+                    cookie=self.app.session_interface.get_signing_serializer(self.app).dumps({'_user_id':'2','_fresh':True})
                     page.context.add_cookies([{'name':self.app.config['SESSION_COOKIE_NAME'],'value':cookie,'url':origin}])
-                    page.goto(f'{origin}/admin/franchisees/{row_id}')
-                    self.assertIn('Happiness Example',page.content())
-                    self.assertIn('SAST',page.content())
-                    artifact=ROOT/'tmp'/'franchisee-review.png';artifact.parent.mkdir(exist_ok=True)
-                    page.screenshot(path=str(artifact),full_page=True)
-                    page.get_by_role('button',name='Approve registration',exact=True).click()
-                    page.wait_for_function("document.body.textContent.includes('FR-0001')")
-                    self.assertEqual(self.Registration.query.one().status,'Approved')
-                    self.assertEqual(errors,[])
+                    page.route('https://**/*',lambda route:route.continue_() if route.request.url.startswith(origin+'/') else route.abort())
+                    page.goto(origin+'/franchisees/opportunities?area=register')
+                    self.assertEqual(page.locator('[name=sa_id],[name=email]').count(),0)
+                    for field,value in self.fields().items():
+                        if field=='accept_terms':page.locator('[name=accept_terms]').check()
+                        else:page.locator('[name='+field+']').fill(value)
+                    page.get_by_role('button',name='Save',exact=True).click()
+                    page.wait_for_url('**/franchisees/opportunities?area=register')
+                    table=page.locator('#franchise-register-table')
+                    self.assertIn('FR-0001',table.inner_text());self.assertIn('happiness@example.org',table.inner_text())
+                    table.get_by_role('link',name='Edit',exact=True).click()
+                    self.assertEqual(page.locator('[name=sa_id],[name=email]').count(),0)
+                    self.assertEqual(page.locator('[name=full_name]').input_value(),'Happiness Example')
+                    page.locator('[name=full_name]').fill('Cancelled')
+                    page.get_by_role('link',name='Cancel',exact=True).click()
+                    self.assertNotIn('Cancelled',table.inner_text())
+                    table.get_by_role('link',name='Edit',exact=True).click()
+                    page.locator('[name=full_name]').fill('Edited Name')
+                    page.get_by_role('button',name='Save',exact=True).click()
+                    page.wait_for_url('**/franchisees/opportunities?area=register')
+                    page.reload()
+                    self.assertIn('Edited Name',table.inner_text());self.assertIn('FR-0001',table.inner_text())
+                    page.screenshot(path=str(ROOT/'tmp/franchise-simplified-registration.png'),full_page=True)
                 finally:browser.close()
-        finally:
-            server.shutdown();thread.join(timeout=5);server.server_close()
+        finally:server.shutdown();thread.join(timeout=5);server.server_close()

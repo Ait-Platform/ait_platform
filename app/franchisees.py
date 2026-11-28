@@ -1,10 +1,8 @@
 """Global account-linked Franchise registration and administrative accountability."""
-import base64
 import hashlib
-import hmac
 import re
 import secrets
-from datetime import date, datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 from cryptography.fernet import Fernet, InvalidToken
@@ -21,7 +19,7 @@ from app.utils.roles import is_admin
 from app.models.auth import User
 from app.models.franchisee import FranchiseeRegistration as CanonicalRegistration
 from app.franchise_crypto import (ProfileProtectionError, shared_key, encrypt_private,
-    decrypt_private, identity_digests)
+    decrypt_private)
 from werkzeug.local import LocalProxy
 from sqlalchemy import MetaData, Table, Column, Integer
 from sqlalchemy.orm import registry
@@ -75,16 +73,8 @@ def now():
 TERMS_VERSION = '2026-11-27'
 
 
-def profile_key():
-    return shared_key()
-
-
 def cipher():
     return Fernet(shared_key())
-
-
-def identity_key():
-    return base64.urlsafe_b64decode(shared_key())
 
 
 def normal_email(raw):
@@ -124,6 +114,11 @@ def guard():
         if not sequence or not (canonical or legacy) or (canonical and legacy):
             abort(503,description='Franchise registration schema is unavailable or ambiguous. Contact AIT Admin; no migration is run automatically.')
         g.franchise_registration_model = CanonicalRegistration if canonical else legacy_model()
+        definition = db.session.execute(text("""SELECT pg_get_constraintdef(oid)
+          FROM pg_constraint WHERE conrelid=to_regclass(:table) AND conname='ck_franchisee_submitted'
+          AND convalidated"""),{'table':'franchise_registration' if canonical else 'ait_franchisee_registration'}).scalar()
+        g.franchise_simplified_ready = bool(definition and 'identity_ciphertext' not in definition and 'identity_digest' not in definition)
+
 
 
 @franchisee_bp.errorhandler(ProfileProtectionError)
@@ -170,6 +165,8 @@ def current_registration(lock=False):
 @franchisee_bp.errorhandler(CSRFError)
 def registration_csrf_error(error):
     if request.endpoint == 'franchisee_bp.opportunities' and current_user.is_authenticated:
+        if not hasattr(g,'franchise_registration_model'):
+            guard()
         registration = current_registration()
         return dashboard_response(registration, 'register',
                                   'Your form security check failed. Reload Register and submit again.', 400)
@@ -229,12 +226,16 @@ def opportunities():
         registration = matches[0] if matches else Registration(
             email=email, user_id=current_user.id, status='Invited', created_at=now(),
             created_by=current_user.id, history=[])
+        if registration.status == 'Invited' and not g.franchise_simplified_ready:
+            return dashboard_response(current_registration(),area,
+                'Simplified registration needs the approved franchise_registration_003 database migration. No registration was saved. Existing records are preserved.',503)
         if registration.status not in {'Invited', 'Submitted'}:
             return dashboard_response(registration, area, 'This registration has already been completed or reviewed.', 409)
         try:
             if request.form.get('accept_terms') != 'yes':
                 raise RegistrationValidationError({'accept_terms':'Accept the AIT terms and Franchise participation conditions to register.'})
             if registration.status == 'Submitted' and request.form.get('action') == 'activate':
+                registration.email = email
                 registration.user_id = current_user.id
                 activate_registration(registration, current_user.id, automatic=True)
                 db.session.commit()
@@ -279,15 +280,14 @@ def dashboard_response(registration, area, error=None, status=200, errors=None):
     identity, address = None, None
     editing = area == 'edit'
     values = {}
-    if editing and registration and registration.identity_ciphertext:
+    if editing and registration and registration.address_ciphertext:
         try:
-            identity = decrypt_private(registration.identity_ciphertext)
             address = decrypt_private(registration.address_ciphertext)
         except InvalidToken:
             error, status = 'Your registration is saved, but its private details could not be read. Contact AIT Admin.', 503
         else:
             values = dict(full_name=registration.full_name,cellphone=registration.cellphone,
-                email=registration.email,occupation=registration.occupation or '',sa_id=identity,address=address)
+                occupation=registration.occupation or '',address=address)
     shops, earnings, programmes = [], [], []
     if registration and registration.is_active:
         if area == 'programmes':
@@ -308,7 +308,8 @@ def dashboard_response(registration, area, error=None, status=200, errors=None):
         shops=shops,earnings=earnings,programmes=programmes,error=error,errors=errors or {},
         identity=identity,address=address,editing=editing,registration_values=values,
         profile_unavailable=editing and registration is not None and not values,
-        registration_unavailable=registration is None and status==503),status
+        registration_unavailable=registration is None and status==503,
+        simplified_ready=getattr(g,'franchise_simplified_ready',False)),status
 
 
 @franchisee_bp.route('/admin/franchisees', methods=['GET', 'POST'])
@@ -384,24 +385,6 @@ def invitation(token):
     return row
 
 
-def identity_number(raw):
-    value = (raw or '').strip()
-    if not re.fullmatch(r'[0-9]{13}', value):
-        raise ValueError('Enter a valid 13-digit SA ID number.')
-    try:
-        year = int(value[:2])
-        year += 2000 if year <= now().year % 100 else 1900
-        if date(year, int(value[2:4]), int(value[4:6])) > now().date():
-            raise ValueError()
-    except ValueError:
-        raise ValueError('Enter a valid SA ID date of birth.') from None
-    digits = [int(digit) for digit in value]
-    checksum = sum(digits[::2]) + sum((2 * digit // 10 + 2 * digit % 10) for digit in digits[1::2])
-    if checksum % 10:
-        raise ValueError('Enter a valid SA ID number checksum.')
-    return value
-
-
 def activate_registration(row, actor, automatic=False):
     if not row.franchisee_number:
         with db.session.no_autoflush:
@@ -414,83 +397,57 @@ def activate_registration(row, actor, automatic=False):
 
 
 def save_registration(row, activate=False, editing=False):
+    if not current_user.is_authenticated:
+        abort(401,description='Sign in to your existing AIT account to register.')
     if editing:
         try:
-            previous_identity = decrypt_private(row.identity_ciphertext)
             previous_address = decrypt_private(row.address_ciphertext)
         except InvalidToken:
-            abort(503, description='Saved private details cannot be read; no changes were saved. Contact AIT Admin.')
+            abort(503,description='Saved address cannot be read; no changes were saved. Contact AIT Admin.')
     name = ' '.join((request.form.get('full_name') or '').split())
-    phone = re.sub(r'[\s()-]', '', request.form.get('cellphone') or '')
+    phone = re.sub(r'[\s()-]','',request.form.get('cellphone') or '')
     address = (request.form.get('address') or '').strip()
     occupation = (request.form.get('occupation') or '').strip()
     errors = {}
-    if not name or len(name) > 160:
-        errors['full_name'] = 'Enter your full name (up to 160 characters).'
-    if not re.fullmatch(r'(?:0[0-9]{9}|\+27[0-9]{9})', phone):
-        errors['cellphone'] = 'Enter a valid SA cellphone number, starting with 0 or +27.'
-    if not 5 <= len(address) <= 1000:
-        errors['address'] = 'Enter a residential address (5?1000 characters).'
-    if len(occupation) > 160:
-        errors['occupation'] = 'Use up to 160 characters for your occupation.'
+    if not name or len(name)>160:
+        errors['full_name']='Enter your full name (up to 160 characters).'
+    if not re.fullmatch(r'(?:0[0-9]{9}|\+27[0-9]{9})',phone):
+        errors['cellphone']='Enter a valid SA cellphone number, starting with 0 or +27.'
+    if not 5<=len(address)<=1000:
+        errors['address']='Enter a residential address (5-1000 characters).'
+    if len(occupation)>160:
+        errors['occupation']='Use up to 160 characters for your occupation.'
     try:
-        email = normal_email(request.form.get('email'))
-        if not editing and email != row.email:
-            errors['email'] = 'Use the email address for this registration account.'
-    except ValueError as exc:
-        errors['email'] = str(exc)
-    try:
-        identity = identity_number(request.form.get('sa_id'))
-    except ValueError as exc:
-        errors['sa_id'] = str(exc)
+        email=normal_email(current_user.email)
+    except ValueError:
+        errors['account']='Your AIT account needs a valid email address. Update your AIT account before saving.'
     if errors:
         raise RegistrationValidationError(errors)
-    digests = identity_digests(identity)
-    duplicate = Registration.query.filter(Registration.identity_digest.in_(digests))
-    if row.id is not None:
-        duplicate = duplicate.filter(Registration.id != row.id)
-    if duplicate.first():
-        raise RegistrationValidationError({'sa_id':'This identity number is already registered. No new registration was saved; contact AIT Admin if another account belongs to you.'})
+    if not editing or address!=previous_address:
+        row.address_ciphertext=encrypt_private(address)
+    # SA ID fields are historical only. Never read, validate, digest, clear or
+    # overwrite them during registration/editing, even if forged fields are posted.
+    row.full_name,row.cellphone,row.occupation,row.email=name,phone,occupation or None,email
+    row.user_id=current_user.id
     if editing:
-        if identity != previous_identity:
-            row.identity_digest = digests[0]
-            row.identity_ciphertext = encrypt_private(identity)
-        if address != previous_address:
-            row.address_ciphertext = encrypt_private(address)
-        row.full_name,row.cellphone,row.occupation,row.email = name,phone,occupation or None,email
-        row.user_id = current_user.id
         audit(row,'profile_updated',current_user.id)
-        db.session.commit()
-        return
-    # HMAC, rather than a dictionary-attackable plain hash, identifies duplicates.
-    user_id = linked_user(row.email)  # Resolve before mutations can trigger autoflush.
-    row.identity_digest = digests[0]
-    row.identity_ciphertext = encrypt_private(identity)
-    row.address_ciphertext = encrypt_private(address)
-    row.full_name, row.cellphone, row.occupation = name, phone, occupation or None
-    row.user_id = user_id
-    row.status, row.submitted_at, row.invitation_digest = 'Submitted', now(), None
-    audit(row, 'submitted', current_user.id if current_user.is_authenticated else None)
-    db.session.add(row)
-    if activate:
-        activate_registration(row, current_user.id, automatic=True)
+    else:
+        row.status,row.submitted_at,row.invitation_digest='Submitted',now(),None
+        audit(row,'submitted',current_user.id)
+        db.session.add(row)
+        if activate:
+            activate_registration(row,current_user.id,automatic=True)
     db.session.commit()
 
 
 @franchisee_bp.route('/franchisees/register/<token>', methods=['GET', 'POST'])
 def register(token):
-    row = invitation(token)
-    cipher()
-    if request.method == 'POST':
-        try:
-            save_registration(row)
-        except ValueError as error:
-            return render_template('franchisees/register.html', error=str(error), errors=getattr(error, 'errors', {})), 400
-        except IntegrityError:
-            db.session.rollback()
-            return render_template('franchisees/register.html', error='A registration already exists for these details. Contact AIT Admin.'), 409
-        return redirect(url_for('franchisee_bp.submitted'))
-    return render_template('franchisees/register.html')
+    # Preserve old invitation URLs/records, but all new profile entry uses the
+    # authenticated, account-email workflow rather than a second public form.
+    if not current_user.is_authenticated:
+        abort(401,description='Sign in to your existing AIT account, then open Franchise Register.')
+    invitation(token)
+    return redirect(url_for('franchisee_bp.opportunities',area='register'))
 
 
 @franchisee_bp.route('/franchisees/submitted')
@@ -502,10 +459,10 @@ def submitted():
 def review(identifier):
     row = Registration.query.filter_by(id=identifier).with_for_update().first_or_404()
     identity = address = None
-    if row.identity_ciphertext:
+    if row.identity_ciphertext or row.address_ciphertext:
         try:
-            identity = decrypt_private(row.identity_ciphertext)
-            address = decrypt_private(row.address_ciphertext)
+            identity = decrypt_private(row.identity_ciphertext) if row.identity_ciphertext else None
+            address = decrypt_private(row.address_ciphertext) if row.address_ciphertext else None
         except InvalidToken:
             abort(503, description='Private registration details cannot be read. Contact AIT Admin.')
     if request.method == 'POST':

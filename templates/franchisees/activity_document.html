@@ -1,0 +1,12 @@
+<article id="ait-output-document">
+<style>
+#ait-output-document{font-family:Arial,sans-serif;color:#0f172a;padding:20px;background:white;font-size:14px}#ait-output-document h2{font-size:20px;margin:0 0 12px}#ait-output-document p{margin:8px 0}#ait-output-document table{width:100%;border-collapse:collapse;margin-top:20px;table-layout:fixed}#ait-output-document th,#ait-output-document td{border:1px solid #cbd5e1;padding:9px 6px;text-align:left;overflow-wrap:anywhere;word-wrap:break-word;font-size:12px}#ait-output-document th{background:#f1f5f9}#ait-output-document .numeric{text-align:right}#ait-output-document tfoot th,#ait-output-document tfoot td{font-weight:700}#ait-output-document thead{display:table-header-group}#ait-output-document tfoot{display:table-row-group}#ait-output-document tr{page-break-inside:avoid}#ait-output-document .activity-note{font-size:12px}
+</style>
+<h2>Client Activity Report</h2>
+<p><strong>Franchisee:</strong> {{ report.name }} &nbsp; <strong>Franchisee number:</strong> {{ report.number }}</p>
+<p><strong>Report date:</strong> {{ generated[:10] }} {{ generated[11:19] }} SAST</p>
+<table><colgroup><col style="width:25%"><col style="width:17%"><col style="width:15%"><col style="width:14%"><col style="width:12%"><col style="width:17%"></colgroup><thead><tr><th>Client / Shop</th><th>Trade</th><th class="numeric">Quotations</th><th class="numeric">Invoices</th><th class="numeric">SOAs</th><th class="numeric">Tokens Used</th></tr></thead><tbody>
+{% for row in report.rows %}<tr><td>{{ row.business_name or 'Business' }}</td><td>{{ (row.trade or 'mechanic')|replace('_',' ')|title }}</td>{% for key in ['quotations','invoices','soas','tokens_used'] %}<td class="numeric">{{ row[key] }}</td>{% endfor %}</tr>{% else %}<tr><td colspan="6">No client businesses saved in ProTrade for your AIT account.</td></tr>{% endfor %}
+</tbody><tfoot><tr><th colspan="2" scope="row">TOTAL</th>{% for key in ['quotations','invoices','soas','tokens_used'] %}<td class="numeric">{{ report.totals[key] }}</td>{% endfor %}</tr></tfoot></table>
+<p class="activity-note">Completed document receipts only; drafts, previews and reprints are excluded. Tokens Used includes recorded BOQ section charges at their original values.</p>
+</article>

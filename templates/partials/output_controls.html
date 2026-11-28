@@ -1,0 +1,18 @@
+{# Reusable AIT Output controls. Calling programme supplies owned entity/options. #}
+<form method="get" class="ait-output-select">
+  <div class="ait-output-row ait-output-selection">
+    <label>{{ entity_label }}<select name="entity" required>{% for value,label in entities %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select></label>
+    <label>Category<select name="category">{% for value,label in categories %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select></label>
+    <label>Report / Document<select name="selection">{% for value,label in documents %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select></label>
+  </div>
+  <div class="ait-output-row ait-output-period">
+    <label>By Month<input type="month" disabled></label><label>Date From<input type="date" disabled></label><label>Date To<input type="date" disabled></label>
+    <button class="franchisee-button" name="preview" value="1">Preview</button>
+  </div>
+  <p>{{ period_help }}</p>
+</form>
+<div class="ait-output-actions">
+  <button class="franchisee-button" id="output-print" type="button" {% if not report %}disabled{% endif %}>Print</button>
+  {% if report %}<a class="franchisee-button" id="output-download" href="{{ pdf_url }}">Download PDF</a>{% else %}<button class="franchisee-button" disabled>Download PDF</button>{% endif %}
+  <button class="franchisee-button" id="output-email" type="button" aria-controls="output-email-form" aria-expanded="false" {% if not report %}disabled{% endif %}>Email</button>
+</div>

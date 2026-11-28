@@ -14,8 +14,8 @@
     {% include 'partials/flash_messages.html' %}
     {% if registration and registration.franchisee_number %}<p>Franchisee number: <strong>{{ registration.franchisee_number }}</strong> &middot; {{ 'Suspended' if registration.is_suspended else 'Active' }}</p>{% endif %}
     <nav aria-label="Franchisee working areas" class="franchisee-menu">
-      {% for key,label,color,border in [('programmes','Available Franchise Programmes','#eff6ff','#93c5fd'),('clients','Client Register','#f5f3ff','#c4b5fd')] + ([('register','Register','#fefce8','#fcd34d')] if not registration or not registration.franchisee_number else []) %}
-      <a href="{{ url_for('franchisee_bp.opportunities',area=key) }}" aria-controls="working-area" aria-expanded="{{ 'true' if area==key or key=='register' and editing else 'false' }}" class="franchisee-button" style="background-color:{{ color }};border-color:{{ border }};{% if area==key or key=='register' and editing %}box-shadow:inset 0 -3px #475569;{% endif %}">{{ label }}</a>
+      {% for key,label,color,border in [('programmes','Available Franchise Programmes','#eff6ff','#93c5fd'),('clients','Client Register','#f5f3ff','#c4b5fd'),('output','Output','#f0fdfa','#5eead4')] + ([('register','Register','#fefce8','#fcd34d')] if not registration or not registration.franchisee_number else []) %}
+      <a href="{{ url_for('franchisee_bp.output') if key=='output' else url_for('franchisee_bp.opportunities',area=key) }}" aria-controls="working-area" aria-expanded="{{ 'true' if area==key or key=='register' and editing else 'false' }}" class="franchisee-button" style="background-color:{{ color }};border-color:{{ border }};{% if area==key or key=='register' and editing %}box-shadow:inset 0 -3px #475569;{% endif %}">{{ label }}</a>
       {% endfor %}
     </nav>
     <section id="working-area" class="franchisee-working-area" {% if not area %}hidden{% endif %} aria-labelledby="working-area-title">

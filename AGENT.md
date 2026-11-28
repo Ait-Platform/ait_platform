@@ -346,7 +346,8 @@ query or require it for registration or its Available Programmes interface.
 ### Franchise dashboard business activity (28 November 2026)
 
 - For registered franchisees the menu contains only **Available Franchise
-  Programmes | Client Register**. Retain Register for unregistered participants
+  Programmes | Client Register | Output** as three equal-width buttons. Retain
+  Register for unregistered participants
   and retain the saved Franchise Register with profile Edit. Remove Earnings and
   ProTrade operational dashboard interfaces, preserving all underlying earnings,
   financial records, registration and administrative functionality.
@@ -369,6 +370,39 @@ query or require it for registration or its Available Programmes interface.
   clients and inactive/suspended registrations show meaningful messages. Viewing
   this summary must never generate documents, debit tokens or write financial data.
 - Folder Management and country-based architecture remain on HOLD.
+
+### Franchise Output (28 November 2026)
+
+- Keep existing Dashboard font sizes; use dark slate text for headings, helper
+  text, form values and tables. Retain semantic error/success indications.
+- Franchise Output follows the AIT three-row standard: owned franchisee, Category,
+  Report / Document; By Month, Date From, Date To and right-aligned Preview; then
+  right-aligned Print, Download PDF and Email. Client Activity Report is cumulative,
+  so date controls are disabled. Preview is immediately below these rows.
+- Use the same `client_activity()` adapter for Client Register and the report,
+  including original token values, exact totals and strict user/shop isolation.
+  Include franchisee name, number and report date; right-align numeric columns
+  and make the TOTAL row bold. Never deduct tokens or change activity records.
+- Reuse `partials/output_controls.html`, `ait_output_actions.js`, the shared
+  `report_output.py` preview/email helpers, existing HTML-to-PDF renderer, shared
+  email composer fields and `send_standard_report_email`. This is incremental
+  shared-component reuse, not a claim that PM and ProTrade controllers are fully
+  centralised. Preserve their workflows; future programme adapters can consume
+  these controls and helpers without duplicating transport code.
+- Bind previews to authenticated user, registration and a signed data digest with
+  a 30-minute expiry. Reject changed report/profile data before export/send and
+  require a new Preview. Render the same report template/date for preview, print,
+  PDF download and attachment. Downloads use the browser normally, with no folder
+  permission requirement. No Folder Management integration is authorised.
+- Reuse the registration's existing append-only audit history to reserve email
+  attempts under a row lock before SMTP. Record nonce and outcome only; preserve
+  all existing history. The durable reservation blocks repeated submissions of
+  that preview across workers, including uncertain delivery or outcome-save
+  failures. Editable recipient, subject and message apply only to the send;
+  never change registered contact details. No new schema is required.
+- Only the Output route permits same-origin action scripts; sensitive profile
+  forms retain their script-disabled CSP. Require current active registration,
+  ownership and CSRF for email. Transport acceptance is not inbox delivery.
 
 ## Deferred centralised Folder Management
 

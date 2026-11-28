@@ -143,6 +143,10 @@ class FranchiseeTests(unittest.TestCase):
         replacements['app.utils.roles'].is_admin=lambda user:user.role=='admin'
         self.modules=patch.dict(sys.modules,replacements);self.modules.start();self.addCleanup(self.modules.stop)
         self.flow=module('franchisee_routes_test','app/franchisees.py')
+        replacements['app.franchisees']=self.flow
+        sys.modules['app.franchisees']=self.flow
+        for fresh in ('app.franchise_output','app.utils.report_output','app.utils.mailer'):
+            sys.modules.pop(fresh,None)
         app=Flask('franchisee-tests');app.secret_key='test-session-key-not-production'
         app.config.update(TESTING=True,WTF_CSRF_ENABLED=False,MAIL_SUPPRESS_SEND=False,MAIL_DEFAULT_SENDER='ait-test@example.org',FRANCHISEE_PII_KEY=Fernet.generate_key().decode(),FRANCHISEE_PUBLIC_ORIGIN='https://ait.test')
         Mail(app)  # Message defaults only; flow.mail.send is the capture stub above.
@@ -373,14 +377,14 @@ class FranchiseeTests(unittest.TestCase):
     def test_dashboard_menu_and_franchise_offerings_ignore_personal_enrolments(self):
         self.login(2)
         page=html.fromstring(self.client.get('/franchisees/opportunities').text)
-        self.assertEqual(page.xpath('//nav/a/text()'),['Available Franchise Programmes','Client Register','Register'])
+        self.assertEqual(page.xpath('//nav/a/text()'),['Available Franchise Programmes','Client Register','Output','Register'])
         self.register_self()
         self.session.add_all([self.Subject(id=1,slug='reading',name='Personal Reading',is_active=1,is_hidden_on_bridge=False),
             self.Enrollment(id=1,user_id=2,subject_id=1,status='active'),
             self.License(id=1,user_id=2,subject_id=1,total_seats=10,used_seats=3)])
         self.session.commit()
         page=html.fromstring(self.client.get('/franchisees/opportunities?area=programmes').text)
-        self.assertEqual(page.xpath('//nav/a/text()'),['Available Franchise Programmes','Client Register'])
+        self.assertEqual(page.xpath('//nav/a/text()'),['Available Franchise Programmes','Client Register','Output'])
         self.assertEqual(page.xpath('//section[@id="working-area"]//tbody/tr/td[1]/text()'),['ProTrade'])
         self.assertNotIn('Personal Reading',page.text_content())
         self.assertFalse(page.xpath('//section[@id="working-area"]//a[contains(@href,"/modes/") or contains(@href,"/mechanic/")]'))
@@ -435,6 +439,181 @@ class FranchiseeTests(unittest.TestCase):
             self.assertIn('suspended by AIT Admin',response.text)
             self.assertNotIn('Empty shop',response.text)
             self.assertNotIn('franchise-activity-table',response.text)
+
+    def output_fixture(self):
+        self.register_self()
+        self.session.add_all([self.Shop(id=11,user_id=2,business_name='Happy Shop',trade='painting'),
+            self.Shop(id=12,user_id=3,business_name='Private Shop',trade='mechanic'),
+            self.Shop(id=13,user_id=2,business_name='Empty Shop',trade='electrician')])
+        for i,kind in enumerate(('quote','invoice','soa','boq_section'),1):
+            self.session.add(self.Document(id=i,user_id=2,shop_id=11,kind=kind,tokens=i*7,document_key='receipt-'+str(i),snapshot={},created_at=self.flow.now()))
+        self.session.add(self.Document(id=9,user_id=3,shop_id=12,kind='quote',tokens=999,document_key='foreign-receipt',snapshot={},created_at=self.flow.now()))
+        self.session.commit()
+
+    def output_preview(self):
+        response=self.client.get('/franchisees/output?preview=1')
+        self.assertEqual(response.status_code,200,response.text)
+        tree=html.fromstring(response.text)
+        return response,tree.xpath('//input[@name="preview_token"]/@value')[0]
+
+    def test_output_matches_register_pdf_and_shared_email_without_financial_changes(self):
+        from io import BytesIO
+        from pypdf import PdfReader
+        self.output_fixture()
+        before=self.session.execute(sa.text('SELECT to_jsonb(r)::text FROM protrade_document r ORDER BY id')).all()
+        registration=self.Registration.query.filter_by(user_id=2).one();history=list(registration.history)
+        response,token=self.output_preview();tree=html.fromstring(response.text)
+        register=html.fromstring(self.client.get('/franchisees/opportunities?area=clients').text)
+        self.assertEqual(tree.xpath('//article//tbody/tr/td/text()'),register.xpath('//table[@id="franchise-activity-table"]/tbody/tr/td/text()'))
+        self.assertEqual(tree.xpath('//article//tfoot/tr/td/text()'),register.xpath('//table[@id="franchise-activity-table"]/tfoot/tr/td/text()'))
+        self.assertIn('Happiness Example',response.text);self.assertIn('FR-0001',response.text);self.assertNotIn('Private Shop',response.text)
+        self.assertEqual(len(tree.xpath('//input[@type="month" or @type="date"][@disabled]')),3)
+        self.assertIn("script-src 'self'",response.headers['Content-Security-Policy'])
+        pdf=self.client.get('/franchisees/output',query_string={'format':'pdf','preview_token':token})
+        self.assertEqual(pdf.status_code,200);self.assertEqual(pdf.mimetype,'application/pdf');self.assertIn('attachment;',pdf.headers['Content-Disposition'])
+        pdf_text=' '.join(page.extract_text() for page in PdfReader(BytesIO(pdf.data)).pages)
+        for value in ('Client Activity Report','Happy Shop','Empty Shop','Happiness Example','FR-0001','70'):
+            self.assertIn(value,pdf_text)
+        self.assertNotIn('Private Shop',pdf_text)
+        (ROOT/'tmp/pdfs').mkdir(exist_ok=True)
+        (ROOT/'tmp/pdfs/franchise-activity-report.pdf').write_bytes(pdf.data)
+        fields=dict(action='email',preview_token=token,to_email='override@example.org',subject='Editable report subject',body_text='Editable message')
+        sent=self.client.post('/franchisees/output',data=fields)
+        self.assertEqual(sent.status_code,302,sent.text)
+        self.assertEqual(len(self.messages),1)
+        message=self.messages[0];self.assertEqual(message.recipients,['override@example.org']);self.assertEqual(message.subject,'Editable report subject');self.assertIn('Editable message',message.body)
+        self.assertEqual(message.attachments[0].content_type,'application/pdf')
+        attachment_text=' '.join(p.extract_text() for p in PdfReader(BytesIO(message.attachments[0].data)).pages)
+        self.assertEqual(pdf_text,attachment_text)
+        self.assertEqual(self.client.post('/franchisees/output',data=dict(fields,to_email='different@example.org')).status_code,409)
+        self.assertEqual(len(self.messages),1)
+        registration=self.Registration.query.filter_by(user_id=2).one()
+        self.assertEqual(registration.email,'happiness@example.org');self.assertEqual(registration.history[:len(history)],history)
+        self.assertEqual(registration.history[-1]['action'],'output_email_accepted')
+        self.assertEqual(before,self.session.execute(sa.text('SELECT to_jsonb(r)::text FROM protrade_document r ORDER BY id')).all())
+
+    def test_output_stale_forged_cross_account_and_inactive_previews_are_blocked(self):
+        self.output_fixture();_,token=self.output_preview()
+        for params,code in (({'preview_token':token+'bad'},400),({'preview_token':token,'entity':'12'},404),({'preview_token':token,'date_from':'2020-01-01'},400)):
+            response=self.client.get('/franchisees/output',query_string=dict(format='pdf',**params));self.assertEqual(response.status_code,code)
+        self.session.add(self.Document(id=10,user_id=2,shop_id=11,kind='quote',tokens=1,document_key='new-receipt',snapshot={},created_at=self.flow.now()));self.session.commit()
+        self.assertEqual(self.client.get('/franchisees/output',query_string={'format':'pdf','preview_token':token}).status_code,409)
+        self.register_self(uid=3)
+        self.assertEqual(self.client.get('/franchisees/output',query_string={'format':'pdf','preview_token':token}).status_code,403)
+        row=self.Registration.query.filter_by(user_id=3).one();self.flow.audit(row,'suspended',1);self.session.commit()
+        self.assertEqual(self.client.get('/franchisees/output?preview=1').status_code,403)
+        self.login(1);self.assertEqual(self.client.get('/franchisees/output').status_code,403)
+        self.login(None);self.assertEqual(self.client.get('/franchisees/output').status_code,401)
+        self.assertFalse(self.messages)
+
+    def test_output_email_errors_csrf_and_uncertain_transport_block_duplicate_send(self):
+        self.output_fixture();_,token=self.output_preview()
+        fields=dict(action='email',preview_token=token,to_email='valid@example.org',subject='Report',body_text='Message')
+        for changes in ({'to_email':'bad'},{'subject':'header\r\ninjection'},{'body_text':''}):
+            self.assertEqual(self.client.post('/franchisees/output',data=dict(fields,**changes)).status_code,400)
+        self.assertFalse(self.messages)
+        self.app.config['WTF_CSRF_ENABLED']=True
+        self.assertEqual(self.client.post('/franchisees/output',data=fields).status_code,400)
+        self.app.config['WTF_CSRF_ENABLED']=False
+        with patch.object(self.flow.mail,'send',side_effect=RuntimeError('private SMTP details')):
+            response=self.client.post('/franchisees/output',data=fields)
+        self.assertEqual(response.status_code,503,response.text);self.assertIn('delivery was not confirmed',response.text);self.assertNotIn('private SMTP details',response.text)
+        self.assertEqual(self.client.post('/franchisees/output',data=fields).status_code,409)
+        self.assertFalse(self.messages)
+        _,token=self.output_preview()
+        with patch('app.franchise_output.html_to_pdf_bytes',side_effect=RuntimeError('renderer error')):
+            response=self.client.get('/franchisees/output',query_string={'format':'pdf','preview_token':token})
+        self.assertEqual(response.status_code,503);self.assertIn('could not be generated',response.text)
+
+    def test_output_email_reservation_and_outcome_failures_cannot_resend(self):
+        self.output_fixture();_,token=self.output_preview()
+        fields=dict(action='email',preview_token=token,to_email='valid@example.org',subject='Report',body_text='Message')
+        failure=sa.exc.OperationalError('private statement',{},types.SimpleNamespace(pgcode='42501'))
+        with patch.object(self.session,'commit',side_effect=failure):
+            response=self.client.post('/franchisees/output',data=fields)
+        self.assertEqual(response.status_code,503);self.assertIn('No email was attempted',response.text);self.assertFalse(self.messages)
+        commit=self.session.commit;calls=[]
+        def fail_outcome():
+            calls.append(True)
+            if len(calls)>1:raise failure
+            commit()
+        with patch.object(self.session,'commit',side_effect=fail_outcome):
+            response=self.client.post('/franchisees/output',data=fields)
+        self.assertEqual(response.status_code,503);self.assertIn('Retry is blocked',response.text);self.assertEqual(len(self.messages),1)
+        self.assertEqual(self.client.post('/franchisees/output',data=fields).status_code,409);self.assertEqual(len(self.messages),1)
+
+    def test_output_preview_expiry_and_profile_change_require_new_preview(self):
+        import time
+        self.output_fixture();_,token=self.output_preview()
+        future=time.time()+1900
+        with patch('itsdangerous.timed.time.time',return_value=future):
+            response=self.client.get('/franchisees/output',query_string={'format':'pdf','preview_token':token})
+        self.assertEqual(response.status_code,400)
+        row=self.Registration.query.filter_by(user_id=2).one();row.full_name='Updated franchisee';self.session.commit()
+        self.assertEqual(self.client.get('/franchisees/output',query_string={'format':'pdf','preview_token':token}).status_code,409)
+
+    def test_output_browser_preview_download_print_and_editable_email(self):
+        import threading
+        from playwright.sync_api import sync_playwright
+        from werkzeug.serving import make_server,WSGIRequestHandler
+        class Quiet(WSGIRequestHandler):
+            def log_request(self,*args,**kwargs):pass
+        self.output_fixture()
+        self.app.static_folder=str(ROOT/'app/static')
+        self.app.jinja_loader=FileSystemLoader(ROOT/'templates');self.app.jinja_env.cache.clear()
+        self.app.config['WTF_CSRF_ENABLED']=True
+        server=make_server('127.0.0.1',0,self.app,request_handler=Quiet,ssl_context='adhoc')
+        origin=f'https://127.0.0.1:{server.server_port}'
+        thread=threading.Thread(target=server.serve_forever,daemon=True);thread.start()
+        try:
+            with sync_playwright() as runtime:
+                browser=runtime.chromium.launch(headless=True)
+                try:
+                    page=browser.new_page(ignore_https_errors=True,viewport={'width':1280,'height':1000})
+                    cookie=self.app.session_interface.get_signing_serializer(self.app).dumps({'_user_id':'2','_fresh':True})
+                    page.context.add_cookies([{'name':self.app.config['SESSION_COOKIE_NAME'],'value':cookie,'url':origin}])
+                    page.route('https://**/*',lambda route:route.continue_() if route.request.url.startswith(origin+'/') else route.abort())
+                    page.goto(origin+'/franchisees/opportunities?area=clients')
+                    widths=page.locator('.franchisee-menu a').evaluate_all('(els)=>els.map(el=>el.getBoundingClientRect().width)')
+                    self.assertLess(max(widths)-min(widths),1)
+                    self.assertEqual(page.locator('#franchise-activity-table tbody td').first.evaluate('(el)=>getComputedStyle(el).color'),'rgb(15, 23, 42)')
+                    self.assertEqual(page.locator('#franchise-activity-table tbody td').first.evaluate('(el)=>getComputedStyle(el).fontSize'),'14px')
+                    page.get_by_role('link',name='Output',exact=True).click()
+                    self.assertTrue(page.get_by_role('button',name='Print',exact=True).is_disabled())
+                    page.get_by_role('button',name='Preview',exact=True).click()
+                    self.assertIn('Happy Shop',page.locator('#output-preview').inner_text())
+                    self.assertEqual(page.locator('.ait-output-period input:disabled').count(),3)
+                    self.assertEqual(page.locator('#ait-output-document td.numeric').first.evaluate('(el)=>getComputedStyle(el).textAlign'),'right')
+                    self.assertEqual(page.locator('#ait-output-document tfoot th').evaluate('(el)=>getComputedStyle(el).fontWeight'),'700')
+                    page.screenshot(path=str(ROOT/'tmp/franchise-output-preview.png'),full_page=True)
+                    with page.expect_download() as download:
+                        page.get_by_role('link',name='Download PDF',exact=True).click()
+                    self.assertIn('FR-0001_Client-Activity-Report.pdf',download.value.suggested_filename)
+                    self.assertIsNone(download.value.failure())
+                    page.evaluate("window.print=()=>document.body.dataset.printCalled='yes'")
+                    page.get_by_role('button',name='Print',exact=True).click()
+                    self.assertEqual(page.locator('body').get_attribute('data-print-called'),'yes')
+                    page.emulate_media(media='print')
+                    self.assertEqual(page.locator('#ait-output-document').evaluate('(el)=>getComputedStyle(el).visibility'),'visible')
+                    self.assertEqual(page.locator('.franchisee-header').evaluate('(el)=>getComputedStyle(el).display'),'none')
+                    page.emulate_media(media='screen')
+                    page.get_by_role('button',name='Email',exact=True).click()
+                    self.assertTrue(page.locator('#output-email-form').is_visible())
+                    self.assertEqual(page.locator('[name=to_email]').input_value(),'happiness@example.org')
+                    page.locator('[name=to_email]').fill('browser-recipient@example.org')
+                    page.locator('[name=subject]').fill('Browser subject')
+                    page.locator('[name=body_text]').fill('Browser message')
+                    page.get_by_role('button',name='Cancel',exact=True).click()
+                    self.assertTrue(page.locator('#output-email-form').is_hidden());self.assertFalse(self.messages)
+                    page.get_by_role('button',name='Email',exact=True).click()
+                    page.evaluate("document.querySelector('#output-email-form').requestSubmit();document.querySelector('#output-email-form').requestSubmit()")
+                    page.wait_for_url(origin+'/franchisees/output')
+                    self.assertIn('Mail transport accepted',page.locator('.franchisee-tile').inner_text())
+                    self.assertEqual(len(self.messages),1)
+                    self.assertEqual(self.messages[0].recipients,['browser-recipient@example.org'])
+                    self.assertEqual(self.Registration.query.filter_by(user_id=2).one().email,'happiness@example.org')
+                finally:browser.close()
+        finally:server.shutdown();thread.join(timeout=5);server.server_close()
 
     def test_legacy_invitation_requires_ait_login_and_uses_same_simplified_form(self):
         token=self.invite()
@@ -524,7 +703,7 @@ class FranchiseeTests(unittest.TestCase):
                     page.wait_for_url('**/franchisees/opportunities?area=register')
                     page.reload()
                     self.assertIn('Edited Name',table.inner_text());self.assertIn('FR-0001',table.inner_text())
-                    self.assertEqual(page.locator('.franchisee-menu a').all_text_contents(),['Available Franchise Programmes','Client Register'])
+                    self.assertEqual(page.locator('.franchisee-menu a').all_text_contents(),['Available Franchise Programmes','Client Register','Output'])
                     page.get_by_role('link',name='Available Franchise Programmes',exact=True).click()
                     self.assertEqual(page.locator('#working-area tbody tr td').first.inner_text(),'ProTrade')
                     page.get_by_role('link',name='Client Register',exact=True).click()

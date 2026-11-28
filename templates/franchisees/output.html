@@ -1,0 +1,21 @@
+{% extends 'layout.html' %}
+{% set hide_navbar = true %}{% block title %}Franchise Output{% endblock %}{% block flashes %}{% endblock %}
+{% block head %}{% include 'franchisees/_dashboard_style.html' %}
+<style>
+.ait-output-row{display:flex;gap:12px;align-items:end}.ait-output-row label{flex:1;min-width:0}.ait-output-selection select{width:100%;display:block;margin-top:6px;border:1px solid #94a3b8;border-radius:8px;background:white;padding:8px 12px;font-size:14px}.ait-output-period input{width:100%}.ait-output-period button{margin-left:auto;margin-bottom:14px;flex-shrink:0}.ait-output-actions{display:flex;justify-content:flex-end;gap:8px;margin:16px 0}.ait-output-row input:disabled{background:#e2e8f0}.ait-output-actions [disabled]{opacity:.5;cursor:default}#output-preview{margin-top:20px;border:1px solid #cbd5e1;overflow-x:auto}#output-email-form{border:1px solid #cbd5e1;border-radius:8px;padding:20px;margin-top:20px}#output-email-form input,#output-email-form textarea{width:100%;max-width:none}#output-email-form textarea{height:160px}#output-action-message{color:#0f172a}#output-email-form label{color:#0f172a}@media(max-width:640px){.ait-output-row{flex-wrap:wrap}.ait-output-row label{flex-basis:100%}}@media print{body *{visibility:hidden}#ait-output-document,#ait-output-document *{visibility:visible}#ait-output-document{position:absolute;left:0;top:0;width:100%;padding:0}header,footer,.franchisee-header,.ait-output-select,.ait-output-actions,#output-email-form,#output-action-message{display:none!important}#output-preview{border:0}}
+</style>{% endblock %}
+{% block content %}<div class="franchisee-tile"><div class="franchisee-strip"></div><div class="franchisee-body">
+<div class="franchisee-header"><h1>Franchise Output</h1><a class="franchisee-button" href="{{ url_for('franchisee_bp.opportunities') }}">Back</a></div>
+{% include 'partials/flash_messages.html' %}
+{% if error %}<p class="franchisee-error" role="alert">{{ error }}</p>{% endif %}
+{% with entity_label='Franchisee',entities=[(registration.id,registration.full_name ~ ' - ' ~ registration.franchisee_number)],categories=[('activity','Business Activity')],documents=[('client_activity','Client Activity Report')],period_help='Cumulative activity for all your ProTrade shops. Date filters do not apply.' %}{% include 'partials/output_controls.html' %}{% endwith %}
+{% if report %}<div id="output-preview">{{ document_html|safe }}</div>{% else %}<p>Choose Preview to display the Client Activity Report.</p>{% endif %}
+<p id="output-action-message" role="status" aria-live="polite"></p>
+{% if report %}<form id="output-email-form" method="post" {% if request.method!='POST' %}hidden{% endif %}>
+<h2>Email Client Activity Report</h2><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="preview_token" value="{{ preview_token }}"><input type="hidden" name="action" value="email">
+{% with default_email=request.form.get('to_email',current_user.email or ''),default_subject=request.form.get('subject','Client Activity Report - ' ~ registration.franchisee_number),default_body=request.form.get('body_text','Please find attached the Client Activity Report for ' ~ registration.full_name ~ ' (' ~ registration.franchisee_number ~ ').') %}{% include 'partials/email_composer_fields.html' %}{% endwith %}
+<p>Attachment: {{ filename }}. The displayed report is attached automatically. Editing this recipient does not change your registered email.</p>
+<div class="franchisee-actions"><button class="franchisee-button" type="button" id="output-email-cancel">Cancel</button><button class="franchisee-button franchisee-save" type="submit">Send Email</button></div>
+</form>{% endif %}
+<script src="{{ url_for('static',filename='js/ait_output_actions.js') }}" defer></script>
+</div></div>{% endblock %}

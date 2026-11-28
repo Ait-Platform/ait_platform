@@ -100,7 +100,7 @@ def audit(row, action, actor=None, **details):
 
 @franchisee_bp.before_request
 def guard():
-    if request.endpoint in {'franchisee_bp.opportunities', 'franchisee_bp.registration_start'}:
+    if request.endpoint in {'franchisee_bp.opportunities', 'franchisee_bp.registration_start', 'franchisee_bp.output'}:
         if not current_user.is_authenticated:
             abort(401)
     elif request.endpoint not in {'franchisee_bp.register', 'franchisee_bp.submitted'}:
@@ -138,6 +138,9 @@ def private_response(response):
     response.headers['X-Robots-Tag'] = 'noindex, nofollow'
     # Sensitive forms must not run third-party scripts from the global layout.
     response.headers['Content-Security-Policy'] = "default-src 'self'; script-src 'none'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; form-action 'self'; frame-ancestors 'none'; base-uri 'none'"
+    if request.endpoint == 'franchisee_bp.output':
+        # Local Output handlers only; profile forms retain script-src none.
+        response.headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; form-action 'self'; frame-ancestors 'none'; base-uri 'none'"
     return response
 
 
@@ -497,3 +500,9 @@ def review(identifier):
         db.session.commit()
         return redirect(url_for('franchisee_bp.review', identifier=row.id))
     return render_template('franchisees/review.html', row=row, identity=identity, address=address)
+
+
+@franchisee_bp.route('/franchisees/output', methods=['GET','POST'])
+def output():
+    from app.franchise_output import output_page
+    return output_page()

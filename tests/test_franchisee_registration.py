@@ -50,7 +50,7 @@ class FranchiseeTests(unittest.TestCase):
         self.conn = self.engine.connect();self.addCleanup(self.conn.close)
         self.conn.exec_driver_sql('CREATE TEMP TABLE "user"(id integer PRIMARY KEY,email text UNIQUE,name text,role text)')
         self.conn.exec_driver_sql('CREATE TEMP TABLE mech_shops(id integer PRIMARY KEY,user_id integer,business_name text,trade text)')
-        self.conn.exec_driver_sql('CREATE TEMP TABLE protrade_document(id integer PRIMARY KEY,user_id integer,shop_id integer,kind text,document_key text,snapshot json,created_at timestamp)')
+        self.conn.exec_driver_sql('CREATE TEMP TABLE protrade_document(id integer PRIMARY KEY,user_id integer,shop_id integer,kind text,document_key text,tokens integer,snapshot json,created_at timestamp)')
         self.conn.exec_driver_sql('CREATE TEMP TABLE auth_subject(id integer PRIMARY KEY,slug text,name text,is_active integer,is_hidden_on_bridge boolean)')
         self.conn.exec_driver_sql('CREATE TEMP TABLE user_enrollment(id integer PRIMARY KEY,user_id integer,subject_id integer,status text)')
         self.conn.exec_driver_sql('CREATE TEMP TABLE franchise_license(id integer PRIMARY KEY,user_id integer,subject_id integer,total_seats integer,used_seats integer)')
@@ -92,6 +92,7 @@ class FranchiseeTests(unittest.TestCase):
             shop_id=sa.Column(sa.Integer)
             kind=sa.Column(sa.Text)
             document_key=sa.Column(sa.Text)
+            tokens=sa.Column(sa.Integer)
             snapshot=sa.Column(sa.JSON)
             created_at=sa.Column(sa.DateTime)
         class Subject(base):
@@ -369,23 +370,71 @@ class FranchiseeTests(unittest.TestCase):
         self.assertNotIn('private statement',response.text)
         self.assertEqual(self.Registration.query.count(),0)
 
-    def test_existing_clients_earnings_and_programme_records_are_readonly(self):
+    def test_dashboard_menu_and_franchise_offerings_ignore_personal_enrolments(self):
+        self.login(2)
+        page=html.fromstring(self.client.get('/franchisees/opportunities').text)
+        self.assertEqual(page.xpath('//nav/a/text()'),['Available Franchise Programmes','Client Register','Register'])
         self.register_self()
-        self.session.add_all([self.Shop(id=11,user_id=2,business_name='Own business',trade='boq'),self.Shop(id=12,user_id=3,business_name='Private business',trade='boq'),
-            self.Subject(id=1,slug='reading',name='Reading',is_active=1,is_hidden_on_bridge=False),self.Enrollment(id=1,user_id=2,subject_id=1,status='active'),
-            self.License(id=1,user_id=2,subject_id=1,total_seats=10,used_seats=3),
-            self.Document(id=1,user_id=2,shop_id=11,kind='boq_section',document_key='own-section',snapshot={'commercial_terms':{'operator_retains_cents':3700}},created_at=self.flow.now()),
-            self.Document(id=2,user_id=3,shop_id=12,kind='boq_section',document_key='foreign-section',snapshot={'commercial_terms':{'operator_retains_cents':9900}},created_at=self.flow.now())])
+        self.session.add_all([self.Subject(id=1,slug='reading',name='Personal Reading',is_active=1,is_hidden_on_bridge=False),
+            self.Enrollment(id=1,user_id=2,subject_id=1,status='active'),
+            self.License(id=1,user_id=2,subject_id=1,total_seats=10,used_seats=3)])
         self.session.commit()
-        before=self.session.execute(sa.text('SELECT to_jsonb(d)::text FROM protrade_document d ORDER BY id')).all()
-        for area in ('clients','protrade'):
-            page=self.client.get('/franchisees/opportunities?area='+area)
-            self.assertIn('Own business',page.text);self.assertNotIn('Private business',page.text)
-        page=self.client.get('/franchisees/opportunities?area=earnings')
-        self.assertIn('R37.00',page.text);self.assertNotIn('R99.00',page.text)
-        self.assertIn('Reading',self.client.get('/franchisees/opportunities?area=programmes').text)
-        self.assertEqual(before,self.session.execute(sa.text('SELECT to_jsonb(d)::text FROM protrade_document d ORDER BY id')).all())
-        self.assertEqual(self.Shop.query.count(),2);self.assertEqual(self.License.query.count(),1)
+        page=html.fromstring(self.client.get('/franchisees/opportunities?area=programmes').text)
+        self.assertEqual(page.xpath('//nav/a/text()'),['Available Franchise Programmes','Client Register'])
+        self.assertEqual(page.xpath('//section[@id="working-area"]//tbody/tr/td[1]/text()'),['ProTrade'])
+        self.assertNotIn('Personal Reading',page.text_content())
+        self.assertFalse(page.xpath('//section[@id="working-area"]//a[contains(@href,"/modes/") or contains(@href,"/mechanic/")]'))
+        for area in ('earnings','protrade'):
+            response=self.client.get('/franchisees/opportunities?area='+area)
+            self.assertEqual(response.status_code,302)
+            self.assertTrue(response.location.endswith('area=clients'))
+        self.assertEqual(self.Enrollment.query.count(),1);self.assertEqual(self.License.query.one().used_seats,3)
+
+    def test_activity_counts_saved_receipts_and_historical_tokens_with_strict_isolation(self):
+        self.register_self()
+        self.session.add_all([self.Shop(id=11,user_id=2,business_name='Own business',trade='boq'),
+            self.Shop(id=12,user_id=3,business_name='Private business',trade='boq'),
+            self.Shop(id=13,user_id=2,business_name='Own business',trade='painting'),
+            self.Shop(id=14,user_id=2,business_name='Zero activity',trade='electrician')])
+        entries=[(2,11,'quote',10),(2,11,'invoice',13),(2,11,'soa',7),(2,11,'boq_section',25),
+                 (2,13,'quote',3),(3,12,'quote',99),(3,11,'invoice',888),(2,12,'soa',777),(2,None,'quote',444)]
+        for i,(user,shop,kind,tokens) in enumerate(entries,1):
+            self.session.add(self.Document(id=i,user_id=user,shop_id=shop,kind=kind,tokens=tokens,
+                document_key='record-'+str(i),snapshot={'commercial_terms':{'operator_retains_cents':3700}},created_at=self.flow.now()))
+        self.session.commit()
+        before={table:self.session.execute(sa.text('SELECT to_jsonb(r)::text FROM '+table+' r ORDER BY id')).all()
+                for table in ('franchise_registration','mech_shops','protrade_document')}
+        response=self.client.get('/franchisees/opportunities?area=clients');self.assertEqual(response.status_code,200)
+        tree=html.fromstring(response.text);table=tree.xpath('//table[@id="franchise-activity-table"]')[0]
+        rows=[[x.text_content() for x in r.xpath('td')] for r in table.xpath('tbody/tr')]
+        self.assertEqual(rows,[['Own business','Boq','1','1','1','55'],['Own business','Painting','1','0','0','3'],['Zero activity','Electrician','0','0','0','0']])
+        self.assertEqual(table.xpath('tfoot/tr/td/text()'),['2','1','1','58'])
+        self.assertEqual(len(table.xpath('tbody/tr/td[@class="numeric"]')),12)
+        self.assertIn('font-weight:700',table.xpath('tfoot/tr/@style')[0])
+        self.assertFalse(table.xpath('.//a|.//form|.//button'))
+        self.assertNotIn('Private business',response.text)
+        self.client.get('/franchisees/opportunities?area=clients') # repeated viewing is read-only
+        for name,records in before.items():
+            self.assertEqual(records,self.session.execute(sa.text('SELECT to_jsonb(r)::text FROM '+name+' r ORDER BY id')).all())
+        self.register_self(uid=3)
+        other=self.client.get('/franchisees/opportunities?area=clients')
+        self.assertIn('Private business',other.text);self.assertNotIn('Own business',other.text)
+        other_table=html.fromstring(other.text).xpath('//table[@id="franchise-activity-table"]')[0]
+        self.assertEqual(other_table.xpath('tfoot/tr/td/text()'),['1','0','0','99'])
+
+    def test_empty_activity_and_suspended_account_do_not_leak_businesses(self):
+        row=self.register_self()
+        response=self.client.get('/franchisees/opportunities?area=clients')
+        self.assertIn('No client businesses saved',response.text)
+        self.session.add(self.Shop(id=11,user_id=2,business_name='Empty shop',trade='painting'));self.session.commit()
+        response=self.client.get('/franchisees/opportunities?area=clients')
+        self.assertIn('No completed document activity',response.text)
+        self.flow.audit(row,'suspended',1);self.session.commit()
+        for area in ('clients','programmes'):
+            response=self.client.get('/franchisees/opportunities?area='+area)
+            self.assertIn('suspended by AIT Admin',response.text)
+            self.assertNotIn('Empty shop',response.text)
+            self.assertNotIn('franchise-activity-table',response.text)
 
     def test_legacy_invitation_requires_ait_login_and_uses_same_simplified_form(self):
         token=self.invite()
@@ -475,6 +524,14 @@ class FranchiseeTests(unittest.TestCase):
                     page.wait_for_url('**/franchisees/opportunities?area=register')
                     page.reload()
                     self.assertIn('Edited Name',table.inner_text());self.assertIn('FR-0001',table.inner_text())
-                    page.screenshot(path=str(ROOT/'tmp/franchise-simplified-registration.png'),full_page=True)
+                    self.assertEqual(page.locator('.franchisee-menu a').all_text_contents(),['Available Franchise Programmes','Client Register'])
+                    page.get_by_role('link',name='Available Franchise Programmes',exact=True).click()
+                    self.assertEqual(page.locator('#working-area tbody tr td').first.inner_text(),'ProTrade')
+                    page.get_by_role('link',name='Client Register',exact=True).click()
+                    self.assertIn('No client businesses saved',page.locator('#working-area').inner_text())
+                    self.assertEqual(page.locator('#franchise-activity-table tfoot td').first.evaluate('(el)=>getComputedStyle(el).textAlign'),'right')
+                    self.assertEqual(page.locator('#franchise-activity-table tfoot th').evaluate('(el)=>getComputedStyle(el).fontWeight'),'700')
+                    self.assertEqual(page.locator('#franchise-activity-table a,#franchise-activity-table button').count(),0)
+                    page.screenshot(path=str(ROOT/'tmp/franchise-activity-summary.png'),full_page=True)
                 finally:browser.close()
         finally:server.shutdown();thread.join(timeout=5);server.server_close()

@@ -14,13 +14,13 @@
     {% include 'partials/flash_messages.html' %}
     {% if registration and registration.franchisee_number %}<p>Franchisee number: <strong>{{ registration.franchisee_number }}</strong> &middot; {{ 'Suspended' if registration.is_suspended else 'Active' }}</p>{% endif %}
     <nav aria-label="Franchisee working areas" class="franchisee-menu">
-      {% for key,label,color,border in [('programmes','Available Programmes','#eff6ff','#93c5fd'),('clients','Client Register','#f5f3ff','#c4b5fd'),('earnings','Earnings','#f0fdfa','#5eead4'),('protrade','ProTrade','#fff7ed','#fdba74'),('register','Register','#fefce8','#fcd34d')] %}
+      {% for key,label,color,border in [('programmes','Available Franchise Programmes','#eff6ff','#93c5fd'),('clients','Client Register','#f5f3ff','#c4b5fd')] + ([('register','Register','#fefce8','#fcd34d')] if not registration or not registration.franchisee_number else []) %}
       <a href="{{ url_for('franchisee_bp.opportunities',area=key) }}" aria-controls="working-area" aria-expanded="{{ 'true' if area==key or key=='register' and editing else 'false' }}" class="franchisee-button" style="background-color:{{ color }};border-color:{{ border }};{% if area==key or key=='register' and editing %}box-shadow:inset 0 -3px #475569;{% endif %}">{{ label }}</a>
       {% endfor %}
     </nav>
     <section id="working-area" class="franchisee-working-area" {% if not area %}hidden{% endif %} aria-labelledby="working-area-title">
       <div class="franchisee-working-header">
-        <h2 id="working-area-title">{{ {'register':'Register','edit':'Edit Franchise Profile','clients':'Client Register','programmes':'Available Programmes','earnings':'Earnings','protrade':'ProTrade'}.get(area,'') }}</h2>
+        <h2 id="working-area-title">{{ {'register':'Register','edit':'Edit Franchise Profile','clients':'Client Register','programmes':'Available Franchise Programmes'}.get(area,'') }}</h2>
         <a class="franchisee-button" href="{{ url_for('franchisee_bp.opportunities',area='close') }}">Close</a>
       </div>
       {% if error %}<div class="franchisee-error" role="alert" id="franchise-save-error"><strong>{{ 'Profile changes were not confirmed.' if editing else 'Registration was not saved.' }}</strong><p>{{ error }}</p>{% if errors %}<ul>{% for field,message in errors.items() %}<li>{{ message }}</li>{% endfor %}</ul>{% endif %}<p>Correct the highlighted fields and choose Save again. A saved registration must appear in the Franchise Register below.</p></div>{% endif %}
@@ -59,25 +59,18 @@
       {% elif not registration or not registration.is_active %}
         <p>Complete Register to activate your franchisee account and use this area.</p>
       {% elif area=='programmes' %}
-        <p>These are AIT's available programmes with your existing enrolment information. Programme access and regulatory requirements remain separate from Franchise registration.</p>
-        <div class="franchisee-table-scroll"><table><thead><tr><th>Programme</th><th>Your enrolment</th><th>Action</th></tr></thead><tbody>
-          {% for item in programmes %}<tr><td>{{ item.subject.name }}</td><td>{{ item.enrolment.status|replace('_',' ')|title if item.enrolment else 'Not enrolled' }}</td><td><a class="franchisee-button" href="{{ url_for('modes_bp.modes_checkpoint_route',subject_slug=item.subject.slug) }}">Open</a></td></tr>
-          {% else %}<tr><td colspan="3">No programmes are currently available. Your existing Franchise registration remains saved.</td></tr>{% endfor %}
+        <p>Programmes specifically available under the AIT Franchise model. Programme permissions and regulatory requirements remain separate from Franchise registration.</p>
+        <div class="franchisee-table-scroll"><table><thead><tr><th>Programme</th><th>Description</th></tr></thead><tbody>
+          {% for item in programmes %}<tr><td>{{ item.name }}</td><td>{{ item.description }}</td></tr>
+          {% else %}<tr><td colspan="2">No Franchise programmes are currently available.</td></tr>{% endfor %}
         </tbody></table></div>
-        <p>Use the <a href="{{ url_for('bridge_bp.bridge') }}">AIT Bridge</a> for programme enrolment options. No SACE delivery authority or professional accreditation is granted by this register.</p>
-      {% elif area=='clients' or area=='protrade' %}
-        <p>{{ 'Existing ProTrade businesses associated with your AIT account.' if area=='clients' else 'Choose one of your existing ProTrade businesses to open its workspace.' }}</p>
-        <div class="franchisee-table-scroll"><table><thead><tr><th>Client business</th><th>Trade</th><th>Action</th></tr></thead><tbody>
-          {% for shop in shops %}<tr><td>{{ shop.business_name or 'Business' }}</td><td>{{ shop.trade|replace('_',' ')|title }}</td><td><a class="franchisee-button" href="{{ url_for('mechanic_bp.mechanic_dashboard',shop_id=shop.id,**({'action':'setup'} if area=='clients' else {})) }}">{{ 'Open Profile' if area=='clients' else 'Open ProTrade' }}</a></td></tr>
-          {% else %}<tr><td colspan="3">No client businesses saved in ProTrade for your AIT account.</td></tr>{% endfor %}
-        </tbody></table></div>
-        {% if area=='protrade' and not shops %}<p><a class="franchisee-button" href="{{ url_for('mechanic_bp.mechanic_dashboard') }}">Open ProTrade</a> to register your first business.</p>{% endif %}
-      {% elif area=='earnings' %}
-        <p>These are historical BOQ section earnings saved for your existing ProTrade businesses. Amounts retain their original commercial terms; payment receipt is not recorded here.</p>
-        <div class="franchisee-table-scroll"><table><thead><tr><th>Date</th><th>Client business</th><th>Document</th><th class="numeric">Agreed earnings</th></tr></thead><tbody>
-          {% for entry in earnings %}<tr><td>{{ entry.created_at.strftime('%Y-%m-%d') }}</td><td>{{ entry.business_name }}</td><td>{{ entry.document_key }}</td><td class="numeric">{% if entry.earnings_cents is not none %}R{{ '%.2f'|format(entry.earnings_cents/100) }}{% else %}Terms not recorded{% endif %}</td></tr>
-          {% else %}<tr><td colspan="4">No BOQ section earnings recorded for your AIT account. Other document totals are not treated as Franchise earnings.</td></tr>{% endfor %}
-        </tbody></table></div>
+      {% elif area=='clients' %}
+        <p>ProTrade business activity for your client shops. Counts reflect completed document receipts, excluding drafts, previews and reprints. Tokens Used includes recorded BOQ section charges; historical charges retain their original values.</p>
+        <div class="franchisee-table-scroll"><table id="franchise-activity-table"><thead><tr><th>Client / Shop</th><th>Trade</th><th class="numeric">Quotations</th><th class="numeric">Invoices</th><th class="numeric">SOAs</th><th class="numeric">Tokens Used</th></tr></thead><tbody>
+          {% for row in activity %}<tr><td>{{ row.business_name or 'Business' }}</td><td>{{ (row.trade or 'mechanic')|replace('_',' ')|title }}</td><td class="numeric">{{ row.quotations }}</td><td class="numeric">{{ row.invoices }}</td><td class="numeric">{{ row.soas }}</td><td class="numeric">{{ row.tokens_used }}</td></tr>
+          {% else %}<tr><td colspan="6">No client businesses saved in ProTrade for your AIT account.</td></tr>{% endfor %}
+        </tbody><tfoot><tr style="font-weight:700"><th scope="row" colspan="2" style="font-weight:700">TOTAL</th>{% for key in ['quotations','invoices','soas','tokens_used'] %}<td class="numeric">{{ activity_totals.get(key,0) }}</td>{% endfor %}</tr></tfoot></table></div>
+        {% if activity and not activity_totals.tokens_used %}<p>No completed document activity or token consumption has been recorded for these shops.</p>{% endif %}
       {% endif %}
     </section>
     <section aria-labelledby="franchise-register-title" class="franchisee-register">

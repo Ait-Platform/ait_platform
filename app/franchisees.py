@@ -11,7 +11,7 @@ from flask import Blueprint, abort, current_app, flash, g, redirect, render_temp
 from flask_login import current_user
 from flask_mail import Message
 from flask_wtf.csrf import CSRFError
-from sqlalchemy import func, or_, text
+from sqlalchemy import case, func, or_, text
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from app.extensions import db, mail
@@ -185,6 +185,9 @@ def opportunities():
     if area not in {'', 'register', 'edit', 'close', 'clients', 'earnings', 'protrade', 'programmes'}:
         abort(400)
     registration = current_registration()
+    # Retired dashboard bookmarks no longer expose operational/earnings interfaces.
+    if area in {'earnings','protrade'}:
+        return redirect(url_for('franchisee_bp.opportunities',area='clients'))
     if area == 'close':
         return dashboard_response(registration, '')
     if area == 'edit' and (not registration or registration.status == 'Invited'):
@@ -266,14 +269,36 @@ def database_failure(error, editing=False):
     return ('Profile changes' if editing else 'Registration') + ' could not be confirmed. Reload the saved register before trying again.'
 
 
+# Explicitly authorised Franchise offerings, independent of personal enrolments.
+# Add programmes only when their Franchise model is separately authorised.
+FRANCHISE_PROGRAMMES = (dict(name='ProTrade', description='Business document preparation for trade clients.'),)
+
+
 def programme_data():
-    # Educational seat licences are a separate legacy workflow, not a registration prerequisite.
-    from app.models.auth import AuthSubject, UserEnrollment
-    enrolments = {r.subject_id:r for r in UserEnrollment.query.filter_by(user_id=current_user.id).order_by(UserEnrollment.id).all()}
-    subjects = AuthSubject.query.filter(AuthSubject.is_active == 1,
-        AuthSubject.is_hidden_on_bridge == False).order_by(AuthSubject.name,AuthSubject.id).all()
-    return [dict(subject=row,enrolment=enrolments.get(row.id))
-        for row in subjects if row.slug not in {'admin','admin_general','staff','home_premium'}]
+    return FRANCHISE_PROGRAMMES
+
+
+def client_activity():
+    """Read completed, charged documents; never regenerate or charge a document."""
+    from app.models.mechanic import MechShop, ProTradeDocument
+    # Filter receipts and shops independently: a stale/mismatched shop association
+    # must never expose another consultant's activity, even on a same-named shop.
+    receipts = db.session.query(
+        ProTradeDocument.shop_id.label('shop_id'),
+        func.sum(case((ProTradeDocument.kind == 'quote', 1), else_=0)).label('quotations'),
+        func.sum(case((ProTradeDocument.kind == 'invoice', 1), else_=0)).label('invoices'),
+        func.sum(case((ProTradeDocument.kind == 'soa', 1), else_=0)).label('soas'),
+        func.sum(ProTradeDocument.tokens).label('tokens_used'),
+    ).filter(ProTradeDocument.user_id == current_user.id).group_by(ProTradeDocument.shop_id).subquery()
+    rows = db.session.query(
+        MechShop.business_name, MechShop.trade,
+        *(func.coalesce(getattr(receipts.c,key),0).label(key)
+          for key in ('quotations','invoices','soas','tokens_used')),
+    ).outerjoin(receipts,receipts.c.shop_id == MechShop.id).filter(
+        MechShop.user_id == current_user.id).order_by(MechShop.business_name,MechShop.id).all()
+    totals = {key:sum(getattr(row,key) for row in rows)
+              for key in ('quotations','invoices','soas','tokens_used')}
+    return rows, totals
 
 
 def dashboard_response(registration, area, error=None, status=200, errors=None):
@@ -288,24 +313,14 @@ def dashboard_response(registration, area, error=None, status=200, errors=None):
         else:
             values = dict(full_name=registration.full_name,cellphone=registration.cellphone,
                 occupation=registration.occupation or '',address=address)
-    shops, earnings, programmes = [], [], []
+    activity, totals, programmes = [], {}, []
     if registration and registration.is_active:
         if area == 'programmes':
             programmes = programme_data()
-        if area in {'clients','protrade','earnings'}:
-            from app.models.mechanic import MechShop, ProTradeDocument
-            # Existing businesses belong to the AIT account, never to a number or display name.
-            if area in {'clients','protrade'}:
-                shops = MechShop.query.filter_by(user_id=current_user.id).order_by(MechShop.business_name,MechShop.id).all()
-            else:
-                earnings = db.session.query(
-                    ProTradeDocument.document_key, ProTradeDocument.created_at, MechShop.business_name,
-                    ProTradeDocument.snapshot['commercial_terms']['operator_retains_cents'].as_integer().label('earnings_cents')
-                ).join(MechShop,MechShop.id==ProTradeDocument.shop_id).filter(
-                    ProTradeDocument.user_id==current_user.id,MechShop.user_id==current_user.id,
-                    ProTradeDocument.kind=='boq_section').order_by(ProTradeDocument.created_at.desc(),ProTradeDocument.id.desc()).all()
+        elif area == 'clients':
+            activity, totals = client_activity()
     return render_template('franchisees/opportunities.html',registration=registration,area=area,
-        shops=shops,earnings=earnings,programmes=programmes,error=error,errors=errors or {},
+        activity=activity,activity_totals=totals,programmes=programmes,error=error,errors=errors or {},
         identity=identity,address=address,editing=editing,registration_values=values,
         profile_unavailable=editing and registration is not None and not values,
         registration_unavailable=registration is None and status==503,

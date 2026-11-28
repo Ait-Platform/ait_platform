@@ -343,10 +343,32 @@ seat allocation. Preserve that table, fields, routes and existing records pendin
 a separately authorised educational licensing review. Global Franchise does not
 query or require it for registration or its Available Programmes interface.
 
-Current integration reuses the existing Franchise hub and ProTrade client/earnings
-adapters. Available Programmes links to ProTrade and to the AIT Bridge for existing
-educational and PM entry/enrolment. It does not manufacture new programme licences,
-copy PM client records or implement new commission/payment processing.
+### Franchise dashboard business activity (28 November 2026)
+
+- For registered franchisees the menu contains only **Available Franchise
+  Programmes | Client Register**. Retain Register for unregistered participants
+  and retain the saved Franchise Register with profile Edit. Remove Earnings and
+  ProTrade operational dashboard interfaces, preserving all underlying earnings,
+  financial records, registration and administrative functionality.
+- Available Franchise Programmes is an explicit Franchise offering list, currently
+  **ProTrade only**. Do not populate it from the general AIT subject catalogue,
+  personal enrolments or educational seat licences. Further programmes require
+  separate authorisation; this listing does not grant operational access.
+- Client Register is a read-only business activity summary, never a second
+  operational dashboard. Show one row per owned ProTrade shop with Client / Shop,
+  Trade, Quotations, Invoices, SOAs and Tokens Used; right-align numeric columns
+  and show a bold TOTAL row. Do not provide Open buttons or programme navigation.
+- Count completed quote/invoice/SOA receipts in `protrade_document`; exclude drafts,
+  previews and repeat access to the same receipt. Sum original recorded `tokens`
+  across all shop receipts, including BOQ section charges, without applying current
+  tariffs. Make the recorded-receipt basis visible; do not invent counts or charges
+  for historical documents lacking receipts. Preserve all historical records.
+- Independently scope receipts and shops to the authenticated franchisee's stable
+  AIT user ID. Keep same-named shops separate and exclude orphaned, unassigned or
+  mismatched-owner receipt associations. Empty shops show zero activity; missing
+  clients and inactive/suspended registrations show meaningful messages. Viewing
+  this summary must never generate documents, debit tokens or write financial data.
+- Folder Management and country-based architecture remain on HOLD.
 
 ## Deferred centralised Folder Management
 

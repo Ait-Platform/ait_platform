@@ -1,5 +1,8 @@
 # AIT Franchisee Register release
 
+> Historical release notes: current registration protection, table naming and deployment checks are documented in [franchise_registration_002.md](franchise_registration_002.md). New self-registration does not require Franchise-specific environment settings. Preserve the original legacy key for existing ciphertext. The rename requires separate production authorisation.
+
+
 ## Delivered scope
 
 AIT Admin Hub → **Franchisee Register** offers email invitations, registration status, private review, approval/rejection and explicit resend for unsubmitted invitations. The short form captures the requested name, SA ID, cellphone, email, residential address and optional occupation. Submission date is automatic; UI dates use South African time.

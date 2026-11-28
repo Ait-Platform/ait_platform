@@ -9,7 +9,7 @@ from zoneinfo import ZoneInfo
 
 from cryptography.fernet import Fernet, InvalidToken
 from email_validator import validate_email, EmailNotValidError
-from flask import Blueprint, abort, current_app, flash, redirect, render_template, request, url_for
+from flask import Blueprint, abort, current_app, flash, g, redirect, render_template, request, url_for
 from flask_login import current_user
 from flask_mail import Message
 from flask_wtf.csrf import CSRFError
@@ -17,9 +17,38 @@ from sqlalchemy import func, or_, text
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from app.extensions import db, mail
-from app.models.auth import User
-from app.models.franchisee import FranchiseeRegistration as Registration
 from app.utils.roles import is_admin
+from app.models.auth import User
+from app.models.franchisee import FranchiseeRegistration as CanonicalRegistration
+from app.franchise_crypto import (ProfileProtectionError, shared_key, encrypt_private,
+    decrypt_private, identity_digests)
+from werkzeug.local import LocalProxy
+from sqlalchemy import MetaData, Table, Column, Integer
+from sqlalchemy.orm import registry
+from threading import Lock
+
+_legacy_model = None
+_legacy_model_lock = Lock()
+
+
+def legacy_model():
+    # Separate metadata keeps the old table out of application create_all/autogeneration.
+    global _legacy_model
+    with _legacy_model_lock:
+        if _legacy_model is None:
+            metadata = MetaData()
+            Table('user',metadata,Column('id',Integer,primary_key=True))
+            table = CanonicalRegistration.__table__.to_metadata(metadata,name='ait_franchisee_registration')
+            class LegacyRegistration:
+                is_active = CanonicalRegistration.is_active
+                is_suspended = CanonicalRegistration.is_suspended
+                query = db.session.query_property(query_cls=type(CanonicalRegistration.query))
+            registry(metadata=metadata).map_imperatively(LegacyRegistration,table)
+            _legacy_model = LegacyRegistration
+    return _legacy_model
+
+
+Registration = LocalProxy(lambda: getattr(g,'franchise_registration_model',CanonicalRegistration))
 
 franchisee_bp = Blueprint('franchisee_bp', __name__)
 
@@ -47,29 +76,15 @@ TERMS_VERSION = '2026-11-27'
 
 
 def profile_key():
-    # Existing encrypted registrations retain their original configured key.
-    # New installations need only AIT's existing shared application secret.
-    key = current_app.config.get('FRANCHISEE_PII_KEY')
-    if not key:
-        secret = current_app.config.get('SECRET_KEY')
-        if not secret or secret == 'dev-secret':
-            abort(503, description='AIT secure configuration is unavailable. Contact AIT Admin.')
-        secret = secret.encode() if isinstance(secret, str) else secret
-        key = base64.urlsafe_b64encode(hmac.new(secret,
-            b'ait-global-franchise-profile-v1', hashlib.sha256).digest())
-    return key.encode() if isinstance(key, str) else key
+    return shared_key()
 
 
 def cipher():
-    try:
-        return Fernet(profile_key())
-    except (ValueError, TypeError):
-        abort(503, description='Private registration storage is unavailable. Contact AIT Admin.')
+    return Fernet(shared_key())
 
 
 def identity_key():
-    # Use the same key material as profile encryption; never hash an ID in plain text.
-    return base64.urlsafe_b64decode(profile_key())
+    return base64.urlsafe_b64decode(shared_key())
 
 
 def normal_email(raw):
@@ -103,9 +118,21 @@ def guard():
             abort(401)
         if not is_admin(current_user):
             abort(403)
-    if request.endpoint != 'franchisee_bp.submitted' and not db.session.execute(text(
-            "SELECT to_regclass('ait_franchisee_registration') IS NOT NULL AND to_regclass('ait_franchisee_number_seq') IS NOT NULL")).scalar():
-        abort(503, description='The Franchisee Register is awaiting its approved database migration.')
+    if request.endpoint != 'franchisee_bp.submitted':
+        canonical,legacy,sequence = db.session.execute(text(
+            "SELECT to_regclass('franchise_registration'),to_regclass('ait_franchisee_registration'),to_regclass('ait_franchisee_number_seq')")).one()
+        if not sequence or not (canonical or legacy) or (canonical and legacy):
+            abort(503,description='Franchise registration schema is unavailable or ambiguous. Contact AIT Admin; no migration is run automatically.')
+        g.franchise_registration_model = CanonicalRegistration if canonical else legacy_model()
+
+
+@franchisee_bp.errorhandler(ProfileProtectionError)
+def protection_error(error):
+    db.session.rollback()
+    if request.endpoint == 'franchisee_bp.opportunities':
+        registration = current_registration()
+        return dashboard_response(registration,'edit' if request.form.get('action')=='save_profile' else 'register',str(error),503)
+    return 'Private profile protection is unavailable. No changes were saved. Contact AIT Admin.',503
 
 
 @franchisee_bp.after_request
@@ -184,9 +211,9 @@ def opportunities():
             except IntegrityError:
                 db.session.rollback()
                 return dashboard_response(current_registration(), 'edit', 'These contact or identity details are already registered.', 409)
-            except SQLAlchemyError:
+            except SQLAlchemyError as exc:
                 db.session.rollback()
-                return dashboard_response(current_registration(), 'edit', 'Profile changes could not be confirmed. Reload the saved record before trying again.', 503)
+                return dashboard_response(current_registration(),'edit',database_failure(exc,editing=True),503)
             flash('Franchise profile updated. Your original registration number and date are unchanged.', 'success')
             return redirect(url_for('franchisee_bp.opportunities', area='register'))
         try:
@@ -221,10 +248,9 @@ def opportunities():
         except IntegrityError:
             db.session.rollback()
             error, status = 'A registration already exists for these details.', 409
-        except SQLAlchemyError:
+        except SQLAlchemyError as exc:
             db.session.rollback()
-            return dashboard_response(None, area,
-                                      'Registration could not be confirmed. Reload the dashboard before trying again.', 503)
+            return dashboard_response(current_registration(),area,database_failure(exc),503)
         else:
             flash('Registration complete. Your franchisee account is active.', 'success')
             return redirect(url_for('franchisee_bp.opportunities', area='register'))
@@ -232,15 +258,20 @@ def opportunities():
     return dashboard_response(registration, area, error, status, errors)
 
 
+def database_failure(error, editing=False):
+    code = getattr(getattr(error,'orig',None),'pgcode',None)
+    if code == '42501':
+        return 'The database role lacks a required registration permission. No save was confirmed. Contact AIT Admin.'
+    return ('Profile changes' if editing else 'Registration') + ' could not be confirmed. Reload the saved register before trying again.'
+
+
 def programme_data():
-    from app.models.auth import AuthSubject, UserEnrollment, FranchiseLicense
+    # Educational seat licences are a separate legacy workflow, not a registration prerequisite.
+    from app.models.auth import AuthSubject, UserEnrollment
     enrolments = {r.subject_id:r for r in UserEnrollment.query.filter_by(user_id=current_user.id).order_by(UserEnrollment.id).all()}
-    licences = {}
-    for row in FranchiseLicense.query.filter_by(user_id=current_user.id).all():
-        licences.setdefault(row.subject_id, []).append(row)
     subjects = AuthSubject.query.filter(AuthSubject.is_active == 1,
         AuthSubject.is_hidden_on_bridge == False).order_by(AuthSubject.name,AuthSubject.id).all()
-    return [dict(subject=row, enrolment=enrolments.get(row.id), licences=licences.get(row.id,[]))
+    return [dict(subject=row,enrolment=enrolments.get(row.id))
         for row in subjects if row.slug not in {'admin','admin_general','staff','home_premium'}]
 
 
@@ -250,9 +281,8 @@ def dashboard_response(registration, area, error=None, status=200, errors=None):
     values = {}
     if editing and registration and registration.identity_ciphertext:
         try:
-            encryption = cipher()
-            identity = encryption.decrypt(registration.identity_ciphertext.encode()).decode()
-            address = encryption.decrypt(registration.address_ciphertext.encode()).decode()
+            identity = decrypt_private(registration.identity_ciphertext)
+            address = decrypt_private(registration.address_ciphertext)
         except InvalidToken:
             error, status = 'Your registration is saved, but its private details could not be read. Contact AIT Admin.', 503
         else:
@@ -284,7 +314,7 @@ def dashboard_response(registration, area, error=None, status=200, errors=None):
 @franchisee_bp.route('/admin/franchisees', methods=['GET', 'POST'])
 def register_index():
     if request.method == 'POST':
-        cipher()  # Fail closed before issuing invitations without a persistent PII key.
+        cipher()  # Require shared AIT protection before issuing an optional legacy invitation.
         try:
             email = normal_email(request.form.get('email'))
         except ValueError as error:
@@ -384,11 +414,10 @@ def activate_registration(row, actor, automatic=False):
 
 
 def save_registration(row, activate=False, editing=False):
-    encryption = cipher()
     if editing:
         try:
-            previous_identity = encryption.decrypt(row.identity_ciphertext.encode()).decode()
-            previous_address = encryption.decrypt(row.address_ciphertext.encode()).decode()
+            previous_identity = decrypt_private(row.identity_ciphertext)
+            previous_address = decrypt_private(row.address_ciphertext)
         except InvalidToken:
             abort(503, description='Saved private details cannot be read; no changes were saved. Contact AIT Admin.')
     name = ' '.join((request.form.get('full_name') or '').split())
@@ -416,12 +445,18 @@ def save_registration(row, activate=False, editing=False):
         errors['sa_id'] = str(exc)
     if errors:
         raise RegistrationValidationError(errors)
+    digests = identity_digests(identity)
+    duplicate = Registration.query.filter(Registration.identity_digest.in_(digests))
+    if row.id is not None:
+        duplicate = duplicate.filter(Registration.id != row.id)
+    if duplicate.first():
+        raise RegistrationValidationError({'sa_id':'This identity number is already registered. No new registration was saved; contact AIT Admin if another account belongs to you.'})
     if editing:
         if identity != previous_identity:
-            row.identity_digest = hmac.new(identity_key(), b'franchisee-identity-v1:' + identity.encode(), hashlib.sha256).hexdigest()
-            row.identity_ciphertext = encryption.encrypt(identity.encode()).decode()
+            row.identity_digest = digests[0]
+            row.identity_ciphertext = encrypt_private(identity)
         if address != previous_address:
-            row.address_ciphertext = encryption.encrypt(address.encode()).decode()
+            row.address_ciphertext = encrypt_private(address)
         row.full_name,row.cellphone,row.occupation,row.email = name,phone,occupation or None,email
         row.user_id = current_user.id
         audit(row,'profile_updated',current_user.id)
@@ -429,9 +464,9 @@ def save_registration(row, activate=False, editing=False):
         return
     # HMAC, rather than a dictionary-attackable plain hash, identifies duplicates.
     user_id = linked_user(row.email)  # Resolve before mutations can trigger autoflush.
-    row.identity_digest = hmac.new(identity_key(), b'franchisee-identity-v1:' + identity.encode(), hashlib.sha256).hexdigest()
-    row.identity_ciphertext = encryption.encrypt(identity.encode()).decode()
-    row.address_ciphertext = encryption.encrypt(address.encode()).decode()
+    row.identity_digest = digests[0]
+    row.identity_ciphertext = encrypt_private(identity)
+    row.address_ciphertext = encrypt_private(address)
     row.full_name, row.cellphone, row.occupation = name, phone, occupation or None
     row.user_id = user_id
     row.status, row.submitted_at, row.invitation_digest = 'Submitted', now(), None
@@ -469,9 +504,8 @@ def review(identifier):
     identity = address = None
     if row.identity_ciphertext:
         try:
-            encryption = cipher()
-            identity = encryption.decrypt(row.identity_ciphertext.encode()).decode()
-            address = encryption.decrypt(row.address_ciphertext.encode()).decode()
+            identity = decrypt_private(row.identity_ciphertext)
+            address = decrypt_private(row.address_ciphertext)
         except InvalidToken:
             abort(503, description='Private registration details cannot be read. Contact AIT Admin.')
     if request.method == 'POST':

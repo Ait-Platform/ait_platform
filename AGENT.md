@@ -275,13 +275,43 @@ not change any programme's financial, professional or regulatory permissions.
   existing ciphertext and legacy invitation configuration where still retained;
   these are compatibility/security data, not activation switches. Never remove
   keys required to read existing encrypted records.
-- Reuse `ait_franchisee_registration`, its number sequence and audited status
+- Reuse `franchise_registration`, its preserved number sequence and audited status
   model. Internal legacy `Approved` represents active registration, not a manual
   approval prerequisite. Suspension/reinstatement remain audited history events.
   Preserve existing educational `FranchiseLicense` records and programme access.
 - Do not introduce fixed franchise fees, commissions or remuneration. Future
   commercial controls must be configurable through authorised administration.
   Existing historical earnings remain read-only at their original saved values.
+
+All Global Franchise Management tables must use the `franchise_` prefix. The
+forward-only `franchise_registration_002` migration renames
+`ait_franchisee_registration` to `franchise_registration` without rebuilding it.
+Preserve all existing rows, IDs, numbers, registration dates, ciphertext, audit
+history, constraints, indexes, grants, relationships and sequence values. Published
+migrations remain immutable. The application supports the physical legacy name
+until the separately authorised rename is applied; it never creates or migrates
+tables during registration.
+
+New registration and profile writes use versioned encryption derived from AIT's
+existing secure shared application configuration. No Franchise-specific Render
+variable is required for new registration. Original untagged ciphertext remains
+readable with its original legacy key; preserve that key for legacy reads and
+never silently replace it, rotate existing ciphertext or claim encrypted data can
+be recovered without the key. Malformed legacy configuration must not gate a new
+shared-key registration. Retain duplicate identity/email/account constraints and
+report field, terms, CSRF, duplicate or database-permission errors clearly. Do not
+announce registration success before commit. Trust first, accountability
+thereafter: one registration per AIT user, automatic activation and audited
+administrative suspension/reinstatement; programme-specific regulatory
+requirements remain separate.
+
+No franchise licence, invitation, allocated seat or prior approval is required
+for Global Franchise registration. `franchise_license` currently has a separate
+educational dependency in `/franchise/dashboard` and
+`/franchise/register_students`: it binds subjects and controls student enrolment
+seat allocation. Preserve that table, fields, routes and existing records pending
+a separately authorised educational licensing review. Global Franchise does not
+query or require it for registration or its Available Programmes interface.
 
 Current integration reuses the existing Franchise hub and ProTrade client/earnings
 adapters. Available Programmes links to ProTrade and to the AIT Bridge for existing

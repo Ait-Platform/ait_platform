@@ -23,7 +23,7 @@
         <h2 id="working-area-title">{{ {'register':'Register','edit':'Edit Franchise Profile','clients':'Client Register','programmes':'Available Programmes','earnings':'Earnings','protrade':'ProTrade'}.get(area,'') }}</h2>
         <a class="franchisee-button" href="{{ url_for('franchisee_bp.opportunities',area='close') }}">Close</a>
       </div>
-      {% if error %}<p class="franchisee-error" role="alert">{{ error }}</p>{% endif %}
+      {% if error %}<div class="franchisee-error" role="alert" id="franchise-save-error"><strong>{{ 'Profile changes were not confirmed.' if editing else 'Registration was not saved.' }}</strong><p>{{ error }}</p>{% if errors %}<ul>{% for field,message in errors.items() %}<li>{{ message }}</li>{% endfor %}</ul>{% endif %}<p>Correct the highlighted fields and choose Save again. A saved registration must appear in the Franchise Register below.</p></div>{% endif %}
       {% if area=='edit' %}
         {% if profile_unavailable %}<p>Your saved record remains in the register below. No profile values have been overwritten.</p>
         {% else %}
@@ -58,10 +58,10 @@
       {% elif not registration or not registration.is_active %}
         <p>Complete Register to activate your franchisee account and use this area.</p>
       {% elif area=='programmes' %}
-        <p>These are AIT's available programmes with your existing enrolment and licence information. Programme access and regulatory requirements remain separate from Franchise registration.</p>
-        <div class="franchisee-table-scroll"><table><thead><tr><th>Programme</th><th>Your enrolment</th><th>Existing franchise licences</th><th>Action</th></tr></thead><tbody>
-          {% for item in programmes %}<tr><td>{{ item.subject.name }}</td><td>{{ item.enrolment.status|replace('_',' ')|title if item.enrolment else 'Not enrolled' }}</td><td>{% for licence in item.licences %}{{ licence.used_seats }} / {{ licence.total_seats }} seats used{% if not loop.last %}<br>{% endif %}{% else %}None recorded{% endfor %}</td><td><a class="franchisee-button" href="{{ url_for('modes_bp.modes_checkpoint_route',subject_slug=item.subject.slug) }}">Open</a></td></tr>
-          {% else %}<tr><td colspan="4">No programmes are currently available. Your existing Franchise registration remains saved.</td></tr>{% endfor %}
+        <p>These are AIT's available programmes with your existing enrolment information. Programme access and regulatory requirements remain separate from Franchise registration.</p>
+        <div class="franchisee-table-scroll"><table><thead><tr><th>Programme</th><th>Your enrolment</th><th>Action</th></tr></thead><tbody>
+          {% for item in programmes %}<tr><td>{{ item.subject.name }}</td><td>{{ item.enrolment.status|replace('_',' ')|title if item.enrolment else 'Not enrolled' }}</td><td><a class="franchisee-button" href="{{ url_for('modes_bp.modes_checkpoint_route',subject_slug=item.subject.slug) }}">Open</a></td></tr>
+          {% else %}<tr><td colspan="3">No programmes are currently available. Your existing Franchise registration remains saved.</td></tr>{% endfor %}
         </tbody></table></div>
         <p>Use the <a href="{{ url_for('bridge_bp.bridge') }}">AIT Bridge</a> for programme enrolment options. No SACE delivery authority or professional accreditation is granted by this register.</p>
       {% elif area=='clients' or area=='protrade' %}

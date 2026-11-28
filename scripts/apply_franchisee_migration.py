@@ -18,7 +18,8 @@ try:
         raise RuntimeError('PostgreSQL required')
     config = Config('migrations/alembic.ini')
     config.attributes.update(skip_app_metadata=True, franchisee_registration_approved=True)
-    if ScriptDirectory.from_config(config).get_revision(TARGET).down_revision != PARENT:
+    scripts=ScriptDirectory.from_config(config)
+    if scripts.get_revision(TARGET).down_revision != PARENT:
         raise RuntimeError('Unexpected migration dependency')
     engine = create_engine(url, poolclass=NullPool, connect_args={'connect_timeout': 10})
     stage = 'database connection'
@@ -27,8 +28,9 @@ try:
         connection.exec_driver_sql("SET LOCAL statement_timeout = '60s'")
         connection.exec_driver_sql("SET LOCAL idle_in_transaction_session_timeout = '90s'")
         before = set(connection.execute(text('SELECT version_num FROM alembic_version')).scalars())
-        objects = connection.execute(text("SELECT to_regclass('ait_franchisee_registration') IS NOT NULL, to_regclass('ait_franchisee_number_seq') IS NOT NULL")).one()
-        if TARGET in before:
+        objects = connection.execute(text("SELECT (to_regclass('ait_franchisee_registration') IS NOT NULL) <> (to_regclass('franchise_registration') IS NOT NULL), to_regclass('ait_franchisee_number_seq') IS NOT NULL")).one()
+        ancestors={r.revision for head in before for r in scripts.walk_revisions(base='base',head=head)}
+        if TARGET in ancestors:
             if not all(objects):
                 raise RuntimeError('Recorded revision and schema disagree')
             expected = before
@@ -39,9 +41,10 @@ try:
         print('Revision heads before:', sorted(before), flush=True)
         config.attributes['connection'] = connection
         stage = 'Alembic upgrade'
-        command.upgrade(config, TARGET)
+        if TARGET not in ancestors:
+            command.upgrade(config, TARGET)
         after = set(connection.execute(text('SELECT version_num FROM alembic_version')).scalars())
-        objects = connection.execute(text("SELECT to_regclass('ait_franchisee_registration') IS NOT NULL, to_regclass('ait_franchisee_number_seq') IS NOT NULL")).one()
+        objects = connection.execute(text("SELECT (to_regclass('ait_franchisee_registration') IS NOT NULL) <> (to_regclass('franchise_registration') IS NOT NULL), to_regclass('ait_franchisee_number_seq') IS NOT NULL")).one()
         if after != expected or not all(objects):
             raise RuntimeError('Post-upgrade revision/schema check failed')
         stage = 'commit'

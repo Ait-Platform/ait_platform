@@ -1,5 +1,8 @@
 # Render memory investigation and approved franchisee migration procedure
 
+> Historical release notes: current registration protection, table naming and deployment checks are documented in [franchise_registration_002.md](franchise_registration_002.md). New self-registration does not require Franchise-specific environment settings. Preserve the original legacy key for existing ciphertext. The rename requires separate production authorisation.
+
+
 17 November 2026. **No production migration, Render setting or production secret was changed. Commands below remain subject to explicit production approval.**
 
 ## Findings and limits

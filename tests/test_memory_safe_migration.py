@@ -44,7 +44,9 @@ class MemorySafeMigrationTests(unittest.TestCase):
         self.config=Config(str(ROOT/'migrations/alembic.ini'))
         self.config.attributes.update(connection=self.conn,skip_app_metadata=True)
         self.script=ScriptDirectory.from_config(self.config)
-        self.initial=(set(self.script.get_heads())-{TARGET})|{PARENT}
+        # Controlled pre-001 baseline: future descendants must not be stamped as
+        # already applied alongside their own prerequisite.
+        self.initial={PARENT,'uip_p57','pm_soa_004'}
         # Fixture baseline only: framework-managed stamp in disposable temp schema.
         # Never used as a production migration procedure.
         command.stamp(self.config,list(self.initial))
@@ -150,12 +152,16 @@ class MemorySafeMigrationTests(unittest.TestCase):
         from cryptography.fernet import Fernet
         spec=importlib.util.spec_from_file_location('safe_franchisee_settings',ROOT/'scripts/verify_franchisee_environment.py')
         helper=importlib.util.module_from_spec(spec);spec.loader.exec_module(helper)
-        settings={'FRANCHISEE_PII_KEY':Fernet.generate_key().decode(),'FRANCHISEE_PUBLIC_ORIGIN':'https://ait.example.org'}
+        settings={'SECRET_KEY':'shared-secure-test-secret','FRANCHISEE_PII_KEY':Fernet.generate_key().decode(),'FRANCHISEE_PUBLIC_ORIGIN':'https://ait.example.org'}
         self.assertTrue(all(helper.verify(settings).values()))
         for origin in ['', 'http://ait.example.org','https://ait.example.org/path','https://user:password@ait.example.org','https://ait.example.org:99999']:
             self.assertFalse(helper.verify(dict(settings,FRANCHISEE_PUBLIC_ORIGIN=origin))['FRANCHISEE_PUBLIC_ORIGIN_valid'])
         self.assertFalse(helper.verify(dict(settings,FRANCHISEE_PII_KEY='invalid'))['FRANCHISEE_PII_KEY_valid'])
         self.assertNotIn(settings['FRANCHISEE_PII_KEY'],json.dumps(helper.verify(settings)))
+        self.assertTrue(helper.verify({'SECRET_KEY':'shared-secure-test-secret'})['new_registration_ready'])
+        self.assertTrue(helper.verify(dict(settings,FRANCHISEE_PII_KEY='invalid',FRANCHISEE_PUBLIC_ORIGIN=''))['new_registration_ready'])
+        self.assertFalse(helper.verify({'SECRET_KEY':'dev-secret'})['new_registration_ready'])
+        self.assertNotIn(settings['SECRET_KEY'],json.dumps(helper.verify(settings)))
 
     def run_predeploy_script(self):
         document=(ROOT/'docs/render_memory_franchisee_migration.md').read_text(encoding='utf-8')
@@ -178,6 +184,17 @@ class MemorySafeMigrationTests(unittest.TestCase):
         self.assertEqual(self.persistence('ait_franchisee_registration'),'t')
         self.assertIn('COMMITTED',self.run_predeploy_script())
         self.assertEqual(self.heads(),(self.initial-{PARENT})|{TARGET})
+
+    def test_historical_predeploy_helper_recognises_renamed_descendant_without_reapplying(self):
+        self.run_predeploy_script()
+        self.config.attributes['franchise_registration_rename_approved']=True
+        with self.transaction():command.upgrade(self.config,'franchise_registration_002')
+        expected=self.heads()
+        self.assertIsNone(self.persistence('ait_franchisee_registration'))
+        self.assertEqual(self.persistence('franchise_registration'),'t')
+        self.assertIn('COMMITTED',self.run_predeploy_script())
+        self.assertEqual(self.heads(),expected)
+        self.assertEqual(self.persistence('franchise_registration'),'t')
 
     def test_predeploy_script_failure_rolls_back_without_exposing_error_details(self):
         from contextlib import redirect_stderr

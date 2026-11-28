@@ -1,4 +1,7 @@
 """Check existing franchisee settings without loading AIT or printing their values."""
+import base64
+import hashlib
+import hmac
 import json
 import os
 import re
@@ -25,10 +28,20 @@ def verify(settings):
             and (parts.port is None or 1<=parts.port<=65535))
     except (ValueError,TypeError):
         pass
-    return {'FRANCHISEE_PII_KEY_valid':key_ok,'FRANCHISEE_PUBLIC_ORIGIN_valid':origin_ok}
+    shared_ok=False
+    try:
+        secret=settings.get('SECRET_KEY')
+        if secret and secret != 'dev-secret':
+            secret=secret.encode() if isinstance(secret,str) else secret
+            shared=base64.urlsafe_b64encode(hmac.new(secret,b'ait-global-franchise-profile-v1',hashlib.sha256).digest())
+            cipher=Fernet(shared);sample=b'ait-franchise-registration-check'
+            shared_ok=cipher.decrypt(cipher.encrypt(sample))==sample
+    except (TypeError,ValueError):
+        pass
+    return {'new_registration_ready':shared_ok,'FRANCHISEE_PII_KEY_valid':key_ok,'FRANCHISEE_PUBLIC_ORIGIN_valid':origin_ok}
 
 
 if __name__=='__main__':
     checks=verify(os.environ)
     print(json.dumps(checks,sort_keys=True))
-    raise SystemExit(0 if all(checks.values()) else 1)
+    raise SystemExit(0 if checks['new_registration_ready'] else 1)

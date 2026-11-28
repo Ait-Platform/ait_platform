@@ -67,7 +67,10 @@ class FranchiseeTests(unittest.TestCase):
         with EnvironmentContext(config,ScriptDirectory(str(ROOT/'migrations'))) as environment:
             environment.configure(connection=self.conn)
             migration.op=Operations(environment.get_context());migration.upgrade()
-        for name in ['ait_franchisee_registration','ait_franchisee_number_seq']:
+            config.attributes['franchise_registration_rename_approved']=True
+            rename=module('franchise_rename_setup','migrations/versions/franchise_registration_002.py')
+            rename.op=Operations(environment.get_context());rename.upgrade()
+        for name in ['franchise_registration','ait_franchisee_number_seq']:
             self.assertEqual(self.conn.execute(sa.text('SELECT relpersistence FROM pg_class WHERE oid=to_regclass(:name)'),{'name':name}).scalar(),'t')
         self.conn.commit()
         base = declarative_base()
@@ -118,7 +121,7 @@ class FranchiseeTests(unittest.TestCase):
         self.Subject,self.Enrollment,self.License=Subject,Enrollment,License
         self.Shop,self.Document=Shop,Document
         fake_db = types.SimpleNamespace(Model=base,session=sessions)
-        for name in ('Column','Integer','String','Text','ForeignKey','DateTime','JSON','CheckConstraint'):
+        for name in ('Column','Integer','String','Text','ForeignKey','DateTime','JSON','CheckConstraint','UniqueConstraint'):
             setattr(fake_db,name,getattr(sa,name))
         tree=ast.parse((ROOT/'app/models/franchisee.py').read_text())
         namespace={'db':fake_db}
@@ -254,7 +257,7 @@ class FranchiseeTests(unittest.TestCase):
         self.assertEqual(row.history[-1]['actor_id'],2)
         self.assertEqual(self.client.post('/franchisees/opportunities',data=self.fields()).status_code,409)
         self.login(3)
-        self.assertEqual(self.client.post('/franchisees/opportunities',data=self.fields(email='other@example.org')).status_code,409)
+        self.assertEqual(self.client.post('/franchisees/opportunities',data=self.fields(email='other@example.org')).status_code,400)
         self.assertEqual(self.Registration.query.count(),1)
         self.app.config['WTF_CSRF_ENABLED']=True
         self.assertEqual(self.client.post('/franchisees/opportunities',data=self.fields(email='other@example.org')).status_code,400)
@@ -391,11 +394,11 @@ class FranchiseeTests(unittest.TestCase):
         self.assertTrue(commits)
         self.session.remove()
         with sa.orm.Session(bind=self.conn) as reader:
-            saved=reader.execute(sa.text('SELECT user_id,status,franchisee_number,identity_ciphertext,address_ciphertext FROM ait_franchisee_registration')).one()
+            saved=reader.execute(sa.text('SELECT user_id,status,franchisee_number,identity_ciphertext,address_ciphertext FROM franchise_registration')).one()
             self.assertEqual((saved.user_id,saved.status,saved.franchisee_number),(2,'Approved','FR-0001'))
-            encryption=Fernet(self.app.config['FRANCHISEE_PII_KEY'].encode())
-            self.assertEqual(encryption.decrypt(saved.identity_ciphertext.encode()).decode(),valid_id())
-            self.assertEqual(encryption.decrypt(saved.address_ciphertext.encode()).decode(),'12 Synthetic Test Street')
+            with self.app.app_context():
+                self.assertEqual(self.flow.decrypt_private(saved.identity_ciphertext),valid_id())
+                self.assertEqual(self.flow.decrypt_private(saved.address_ciphertext),'12 Synthetic Test Street')
         fresh=self.app.test_client()
         with fresh.session_transaction() as values:
             values['_user_id']='2';values['_fresh']=True
@@ -657,12 +660,12 @@ class FranchiseeTests(unittest.TestCase):
         self.assertEqual(self.client.post('/franchisees/opportunities',data=self.fields()).status_code,409)
         # Database-level user uniqueness remains enforced independently of the route.
         with self.assertRaises(sa.exc.IntegrityError):
-            self.session.execute(sa.text("""INSERT INTO ait_franchisee_registration
+            self.session.execute(sa.text("""INSERT INTO franchise_registration
               (id,email,user_id,status,full_name,cellphone,identity_ciphertext,address_ciphertext,
                identity_digest,created_at,submitted_at,created_by,franchisee_number,history)
               SELECT 999,'different@example.org',user_id,status,full_name,cellphone,identity_ciphertext,
               address_ciphertext,'different-digest',created_at,submitted_at,created_by,'FR-9999',history
-              FROM ait_franchisee_registration LIMIT 1"""))
+              FROM franchise_registration LIMIT 1"""))
         self.session.rollback()
         self.assertEqual(self.Registration.query.count(),1)
 
@@ -679,8 +682,8 @@ class FranchiseeTests(unittest.TestCase):
         self.assertTrue(row.is_suspended)
         self.assertFalse(row.is_active)
         with self.app.app_context():
-            self.assertEqual(self.flow.cipher().decrypt(row.identity_ciphertext.encode()).decode(),updated_id)
-            self.assertEqual(self.flow.cipher().decrypt(row.address_ciphertext.encode()).decode(),'34 Updated Test Street')
+            self.assertEqual(self.flow.decrypt_private(row.identity_ciphertext),updated_id)
+            self.assertEqual(self.flow.decrypt_private(row.address_ciphertext),'34 Updated Test Street')
         edit=html.fromstring(self.client.get('/franchisees/opportunities?area=edit').text)
         self.assertEqual(edit.xpath('//input[@name="sa_id"]/@value'),[updated_id])
         self.assertIn('suspended by AIT Admin',self.client.get('/franchisees/opportunities?area=clients').text)
@@ -722,7 +725,7 @@ class FranchiseeTests(unittest.TestCase):
         self.session.commit()
         before=self.session.execute(sa.text('SELECT * FROM mech_shops ORDER BY id')).all()
         programmes=self.client.get('/franchisees/opportunities?area=programmes')
-        for value in ('Reading','Property Management','Active','3 / 10 seats used','/modes/reading'):
+        for value in ('Reading','Property Management','Active','/modes/reading'):
             self.assertIn(value,programmes.text)
         for value in ('Hidden programme','Inactive programme','private-other-state','888','999'):
             self.assertNotIn(value,programmes.text)
@@ -750,7 +753,8 @@ class FranchiseeTests(unittest.TestCase):
         self.assertNotIn('private database details',failed.text)
         row=self.Registration.query.one()
         self.assertEqual((row.full_name,row.cellphone,row.identity_ciphertext,row.address_ciphertext,row.history),original)
-        self.app.config['FRANCHISEE_PII_KEY']=Fernet.generate_key().decode()
+        self.app.config['SECRET_KEY']='changed-shared-secret-for-unreadable-test'
+        self.login(2)
         dashboard=self.client.get('/franchisees/opportunities')
         self.assertEqual(dashboard.status_code,200)
         self.assertIn('Happiness Example',dashboard.text)
@@ -762,6 +766,104 @@ class FranchiseeTests(unittest.TestCase):
         self.assertEqual(self.client.get('/franchisees/opportunities?area=edit').status_code,409)
         self.assertEqual(self.client.post('/franchisees/opportunities',data=self.fields(action='save_profile',user_id='2')).status_code,409)
         self.assertEqual(self.Registration.query.count(),1)
+
+    def test_legacy_644_and_new_645_survive_rename_and_configuration_independence(self):
+        # Synthetic fixtures use the production account IDs; no production data is copied.
+        self.session.add_all([self.User(id=644,email='bill-fixture@example.org',name='Bill fixture',role='learner'),
+                              self.User(id=645,email='pro-fixture@example.org',name='PRO fixture',role='learner')])
+        self.session.flush()
+        legacy_key=self.app.config['FRANCHISEE_PII_KEY'];legacy=Fernet(legacy_key.encode())
+        from app.franchise_crypto import identity_digests
+        with self.app.app_context():digest=identity_digests(valid_id())[1]
+        row=self.Registration(id=1,email='bill-fixture@example.org',user_id=644,status='Approved',full_name='Bill fixture',
+            cellphone='0821234567',identity_ciphertext=legacy.encrypt(valid_id().encode()).decode(),
+            address_ciphertext=legacy.encrypt(b'12 Original Test Street').decode(),identity_digest=digest,
+            created_at=self.flow.now(),submitted_at=self.flow.now(),created_by=644,franchisee_number='FR-0001',history=[])
+        self.session.add(row);self.session.commit()
+        self.session.execute(sa.text("SELECT setval('ait_franchisee_number_seq',1,true)"))
+        self.session.execute(sa.text("SELECT setval(pg_get_serial_sequence('franchise_registration','id'),1,true)"));self.session.commit()
+        before=self.session.execute(sa.text('SELECT to_jsonb(r)::text FROM franchise_registration r WHERE user_id=644')).scalar()
+        # Verify rolling deployment against the physical pre-rename table too.
+        self.session.execute(sa.text('ALTER TABLE franchise_registration RENAME TO ait_franchisee_registration'));self.session.commit()
+        self.login(644)
+        edit=self.client.get('/franchisees/opportunities?area=edit')
+        self.assertEqual(edit.status_code,200)
+        self.assertIn('12 Original Test Street',edit.text)
+        self.assertIn('FR-0001',edit.text)
+        # Corrupt legacy configuration must not prevent a NEW shared-key registration.
+        self.app.config['FRANCHISEE_PII_KEY']='obsolete-invalid-value'
+        self.app.config.pop('FRANCHISEE_PUBLIC_ORIGIN',None)
+        self.login(645)
+        payload=self.fields(email='pro-fixture@example.org',full_name='PRO fixture',sa_id=valid_id('800102500908'))
+        self.assertEqual(self.client.post('/franchisees/opportunities',data=payload).status_code,302)
+        fresh=self.app.test_client()
+        with fresh.session_transaction() as values:values['_user_id']='645';values['_fresh']=True
+        registered=fresh.get('/franchisees/opportunities')
+        self.assertIn('FR-0002',registered.text)
+        self.assertNotIn('Bill fixture',registered.text)
+        self.assertEqual(self.session.execute(sa.text('SELECT count(*) FROM ait_franchisee_registration')).scalar(),2)
+        # Apply the focused forward migration only to local temporary tables.
+        rename=module('franchise_rename_verification','migrations/versions/franchise_registration_002.py')
+        rename.op=Operations(MigrationContext.configure(self.conn,opts={'franchise_registration_rename_approved':True}))
+        rename.upgrade();self.session.commit();self.session.expire_all()
+        after=self.session.execute(sa.text('SELECT to_jsonb(r)::text FROM franchise_registration r WHERE user_id=644')).scalar()
+        self.assertEqual(before,after)
+        self.assertTrue(self.Registration.query.filter_by(user_id=645).one().identity_ciphertext.startswith('ait-shared-v1:'))
+        self.app.config['FRANCHISEE_PII_KEY']=legacy_key
+        self.login(644)
+        self.assertIn('12 Original Test Street',self.client.get('/franchisees/opportunities?area=edit').text)
+        self.assertNotIn('PRO fixture',self.client.get('/franchisees/opportunities').text)
+        self.assertEqual(self.Registration.query.filter_by(user_id=644).one().franchisee_number,'FR-0001')
+
+    def test_registration_validation_and_database_permission_failures_are_visible(self):
+        self.login(2)
+        invalid=self.client.post('/franchisees/opportunities',data=self.fields(sa_id='invalid'))
+        self.assertEqual(invalid.status_code,400)
+        self.assertIn('Registration was not saved.',invalid.text)
+        self.assertIn('13-digit SA ID',invalid.text)
+        self.assertEqual(self.Registration.query.count(),0)
+        origin=types.SimpleNamespace(pgcode='42501')
+        failure=sa.exc.OperationalError('private statement',{},origin)
+        with patch.object(self.session,'commit',side_effect=failure):
+            rejected=self.client.post('/franchisees/opportunities',data=self.fields())
+        self.assertEqual(rejected.status_code,503)
+        self.assertIn('lacks a required registration permission',rejected.text)
+        self.assertNotIn('private statement',rejected.text)
+        self.assertEqual(self.Registration.query.count(),0)
+
+    def test_forward_rename_preserves_oids_constraints_indexes_and_rolls_back(self):
+        self.login(2);self.client.post('/franchisees/opportunities',data=self.fields())
+        self.session.execute(sa.text('ALTER TABLE franchise_registration RENAME TO ait_franchisee_registration'));self.session.commit()
+        def snapshot():
+            return (
+                self.conn.scalar(sa.text("SELECT to_regclass('ait_franchisee_registration')::oid")),
+                self.conn.execute(sa.text("SELECT oid,conname,contype,convalidated FROM pg_constraint WHERE conrelid=to_regclass('ait_franchisee_registration') ORDER BY oid")).all(),
+                self.conn.execute(sa.text("SELECT indexrelid,indisunique,indisvalid FROM pg_index WHERE indrelid=to_regclass('ait_franchisee_registration') ORDER BY indexrelid")).all(),
+                self.conn.scalar(sa.text("SELECT md5(string_agg(to_jsonb(r)::text,'' ORDER BY id)) FROM ait_franchisee_registration r")))
+        before=snapshot();self.conn.rollback()
+        rename=module('rename_atomic_test','migrations/versions/franchise_registration_002.py')
+        rename.op=Operations(MigrationContext.configure(self.conn))
+        with self.assertRaisesRegex(RuntimeError,'explicit production migration authorisation'):
+            rename.upgrade()
+        self.conn.rollback()
+        with self.assertRaisesRegex(RuntimeError,'postcheck failed'):
+            with self.conn.begin():
+                rename.op=Operations(MigrationContext.configure(self.conn,opts={'franchise_registration_rename_approved':True}))
+                rename.upgrade()
+                raise RuntimeError('postcheck failed')
+        self.assertEqual(snapshot(),before)
+        self.assertIsNone(self.conn.scalar(sa.text("SELECT to_regclass('franchise_registration')")))
+        self.conn.rollback()
+        with self.conn.begin():
+            rename.op=Operations(MigrationContext.configure(self.conn,opts={'franchise_registration_rename_approved':True}))
+            rename.upgrade()
+        self.assertEqual(self.conn.scalar(sa.text("SELECT to_regclass('franchise_registration')::oid")),before[0])
+        self.assertEqual(self.conn.execute(sa.text("SELECT oid,conname,contype,convalidated FROM pg_constraint WHERE conrelid=to_regclass('franchise_registration') ORDER BY oid")).all(),before[1])
+        self.assertEqual(self.conn.execute(sa.text("SELECT indexrelid,indisunique,indisvalid FROM pg_index WHERE indrelid=to_regclass('franchise_registration') ORDER BY indexrelid")).all(),before[2])
+        self.assertEqual(self.conn.scalar(sa.text("SELECT md5(string_agg(to_jsonb(r)::text,'' ORDER BY id)) FROM franchise_registration r")),before[3])
+        cfg=Config(str(ROOT/'alembic.ini'));scripts=ScriptDirectory.from_config(cfg)
+        plan=scripts._upgrade_revs('franchise_registration_002',('ait_franchisee_001','protrade_output_email_022','uip_p57'))
+        self.assertEqual([step.revision.revision for step in plan],['franchise_registration_002'])
 
     def test_required_fields_and_identity_validation(self):
         token=self.invite()
@@ -783,7 +885,7 @@ class FranchiseeTests(unittest.TestCase):
         self.assertNotEqual(fresh,token);self.assertEqual(self.submit(token).status_code,400)
         self.assertEqual(self.submit(fresh).status_code,302)
         second=self.invite('second@example.org')
-        self.assertEqual(self.submit(second,email='second@example.org').status_code,409)
+        self.assertEqual(self.submit(second,email='second@example.org').status_code,400)
         self.assertEqual(self.Registration.query.filter_by(email='second@example.org').one().status,'Invited')
 
     def test_rejection_and_numbers_only_for_approved_records(self):
@@ -796,7 +898,7 @@ class FranchiseeTests(unittest.TestCase):
             self.assertEqual(row.status,'Rejected' if status=='reject' else 'Approved')
             self.assertEqual(row.franchisee_number,None if status=='reject' else f'FR-{index-1:04d}')
         with self.assertRaises(sa.exc.IntegrityError):
-            self.session.execute(sa.text("UPDATE ait_franchisee_registration SET franchisee_number='FR-0001' WHERE franchisee_number='FR-0002'"));self.session.commit()
+            self.session.execute(sa.text("UPDATE franchise_registration SET franchisee_number='FR-0001' WHERE franchisee_number='FR-0002'"));self.session.commit()
         self.session.rollback()
 
     def test_unauthorised_access_wrong_account_and_csrf(self):

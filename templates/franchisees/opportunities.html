@@ -1,47 +1,53 @@
 {% extends 'layout.html' %}
 {% set hide_navbar = true %}
-{% block title %}Franchisee Dashboard{% endblock %}
+{% block title %}Franchise Dashboard{% endblock %}
 {% block flashes %}{% endblock %}
-{% block head %}{% include 'franchisees/_admin_style.html' %}{% endblock %}
+{% block head %}{% include 'franchisees/_dashboard_style.html' %}{% endblock %}
 {% block content %}
-<div class="franchisee-tile overflow-hidden rounded-xl border border-slate-200 bg-white shadow">
-  <div class="franchisee-strip bg-slate-700"></div>
-  <div class="franchisee-body p-6">
-    <div class="franchisee-header flex items-center justify-between gap-4">
-      <h1 class="text-2xl font-semibold text-slate-900">Franchisee Dashboard</h1>
-      <a class="franchisee-button rounded-lg bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700" href="{{ url_for('bridge_bp.bridge') }}">Back to AIT Bridge</a>
+<div class="franchisee-tile">
+  <div class="franchisee-strip"></div>
+  <div class="franchisee-body">
+    <div class="franchisee-header">
+      <h1>Franchise Dashboard</h1>
+      <a class="franchisee-button" href="{{ url_for('bridge_bp.bridge') }}">Back</a>
     </div>
     {% include 'partials/flash_messages.html' %}
-    {% if registration and registration.franchisee_number %}<p class="mt-3 font-semibold">Franchisee number: {{ registration.franchisee_number }} &middot; {{ 'Suspended' if registration.is_suspended else 'Active' }}</p>{% endif %}
-    <nav aria-label="Franchisee working areas" class="mt-5 mb-6 flex gap-2 border-b border-slate-200" style="display:flex;flex-wrap:nowrap;gap:8px;overflow-x:auto;margin:20px 0 24px">
-      {% for key,label,color,border in [('register','My Profile' if registration and registration.franchisee_number else 'Register','#fefce8','#fcd34d'),('programmes','Available Programmes','#eff6ff','#93c5fd'),('clients','Client Register','#f5f3ff','#c4b5fd'),('earnings','Earnings','#f0fdfa','#5eead4'),('protrade','ProTrade','#fff7ed','#fdba74')] %}
-      <a href="{{ url_for('franchisee_bp.opportunities', area=key) }}" aria-controls="working-area" aria-expanded="{{ 'true' if area==key else 'false' }}" class="franchisee-button pm-menu-button inline-flex items-center justify-center rounded-lg border px-4 py-3 text-sm font-semibold text-slate-900" style="display:flex;align-items:center;justify-content:center;background-color:{{ color }};border-color:{{ border }};color:#0f172a;flex:1 1 0;min-width:max-content;min-height:46px;padding:10px 12px;font-size:14px;white-space:nowrap;{% if area==key %}box-shadow:inset 0 -3px #475569;{% endif %}">{{ label }}</a>
+    {% if registration and registration.franchisee_number %}<p>Franchisee number: <strong>{{ registration.franchisee_number }}</strong> &middot; {{ 'Suspended' if registration.is_suspended else 'Active' }}</p>{% endif %}
+    <nav aria-label="Franchisee working areas" class="franchisee-menu">
+      {% for key,label,color,border in [('programmes','Available Programmes','#eff6ff','#93c5fd'),('clients','Client Register','#f5f3ff','#c4b5fd'),('earnings','Earnings','#f0fdfa','#5eead4'),('protrade','ProTrade','#fff7ed','#fdba74'),('register','Register','#fefce8','#fcd34d')] %}
+      <a href="{{ url_for('franchisee_bp.opportunities',area=key) }}" aria-controls="working-area" aria-expanded="{{ 'true' if area==key or key=='register' and editing else 'false' }}" class="franchisee-button" style="background-color:{{ color }};border-color:{{ border }};{% if area==key or key=='register' and editing %}box-shadow:inset 0 -3px #475569;{% endif %}">{{ label }}</a>
       {% endfor %}
     </nav>
-    <section id="working-area" class="rounded-xl border border-slate-200 bg-slate-50 p-6 shadow-sm" style="border:1px solid #e2e8f0;border-radius:12px;background:#f8fafc;padding:20px" {% if not area %}hidden{% endif %} aria-labelledby="working-area-title">
-      <div class="franchisee-header flex items-center justify-between gap-4">
-        <h2 id="working-area-title" class="text-lg font-semibold text-slate-900" style="margin:0">{{ {'register':'My Profile' if registration and registration.franchisee_number else 'Register','clients':'Client Register','programmes':'Available Programmes','earnings':'Earnings','protrade':'ProTrade'}.get(area, '') }}</h2>
-        <a class="franchisee-button rounded-lg bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700" href="{{ url_for('franchisee_bp.opportunities') }}">Close</a>
+    <section id="working-area" class="franchisee-working-area" {% if not area %}hidden{% endif %} aria-labelledby="working-area-title">
+      <div class="franchisee-working-header">
+        <h2 id="working-area-title">{{ {'register':'Register','edit':'Edit Franchise Profile','clients':'Client Register','programmes':'Available Programmes','earnings':'Earnings','protrade':'ProTrade'}.get(area,'') }}</h2>
+        <a class="franchisee-button" href="{{ url_for('franchisee_bp.opportunities',area='close') }}">Close</a>
       </div>
       {% if error %}<p class="franchisee-error" role="alert">{{ error }}</p>{% endif %}
-      {% if area=='register' %}
+      {% if area=='edit' %}
+        {% if profile_unavailable %}<p>Your saved record remains in the register below. No profile values have been overwritten.</p>
+        {% else %}
+          {% set registration_action = url_for('franchisee_bp.opportunities',area='edit') %}
+          {% set registration_self_service = true %}
+          {% include 'franchisees/_registration_form.html' %}
+        {% endif %}
+      {% elif area=='register' %}
         {% if registration_unavailable %}
-          <p><a class="franchisee-button" href="{{ url_for('franchisee_bp.opportunities', area='register') }}">Reload dashboard</a></p>
+          <p><a class="franchisee-button" href="{{ url_for('franchisee_bp.opportunities',area='register') }}">Reload dashboard</a></p>
         {% elif registration and registration.status != 'Invited' %}
-          <p>Status: <strong>{{ 'Suspended' if registration.is_suspended else 'Active' if registration.is_active else registration.status }}</strong>{% if registration.franchisee_number %} &middot; {{ registration.franchisee_number }}{% endif %}</p>
-          <dl><dt>Name</dt><dd>{{ registration.full_name }}</dd><dt>Email</dt><dd>{{ registration.email }}</dd><dt>Cellphone</dt><dd>{{ registration.cellphone }}</dd><dt>Occupation</dt><dd>{{ registration.occupation or 'Not supplied' }}</dd>{% if identity is not none %}<dt>SA ID number</dt><dd>{{ identity }}</dd><dt>Residential address</dt><dd>{{ address }}</dd>{% endif %}</dl>
+          <p>Your saved Franchise profile is listed in the register below. Choose Edit to update the previously captured information.</p>
+          <p>Registration date: {{ franchisee_date(registration.submitted_at or registration.created_at) }}.</p>
           {% if registration.status=='Submitted' %}
             <p>Your details are saved. Complete registration to activate your franchisee account.</p>
-            <form method="post" action="{{ url_for('franchisee_bp.opportunities', area='register') }}">
+            <form method="post" action="{{ url_for('franchisee_bp.opportunities',area='register') }}">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               {% include 'franchisees/_participation_terms.html' %}
-              <button class="franchisee-button" name="action" value="activate">Complete Registration</button>
+              <div class="franchisee-actions"><button class="franchisee-button franchisee-save" name="action" value="activate">Complete Registration</button></div>
             </form>
           {% elif registration.is_suspended %}<p>Your franchisee access has been suspended by AIT Admin.</p>{% endif %}
         {% else %}
-          <p>Register to activate your franchisee account.</p>
-          <p>Your SA ID number and address are stored encrypted for authorised administration. <a href="/privacy-policy">Privacy policy</a></p>
-          {% set registration_action = url_for('franchisee_bp.opportunities', area='register') %}
+          <p>Registration is once-off. Your SA ID number and address are stored encrypted for authorised administration. <a href="/privacy-policy">Privacy policy</a></p>
+          {% set registration_action = url_for('franchisee_bp.opportunities',area='register') %}
           {% set registration_self_service = true %}
           {% set registration_name = current_user.name or '' %}
           {% set registration_email = current_user.email %}
@@ -52,28 +58,33 @@
       {% elif not registration or not registration.is_active %}
         <p>Complete Register to activate your franchisee account and use this area.</p>
       {% elif area=='programmes' %}
-        <p>Your single Franchise identity can participate in multiple AIT programmes. Registration does not grant programme access, professional accreditation or SACE delivery authority; programme-specific requirements apply independently.</p>
-        <ul class="mt-4 space-y-3">
-          <li><a class="franchisee-button" href="{{ url_for('mechanic_bp.mechanic_dashboard') }}">ProTrade</a></li>
-          <li><a class="franchisee-button" href="{{ url_for('bridge_bp.bridge') }}">Educational programmes</a></li>
-          <li><a class="franchisee-button" href="{{ url_for('bridge_bp.bridge') }}">Property Management</a></li>
-        </ul>
-        <p class="mt-3">Use the AIT Bridge for your available programme entry and enrolment options. Future programmes can use the same Franchise identity.</p>
-      {% elif area=='clients' %}
-        <div style="overflow-x:auto;margin-top:16px"><table><thead><tr><th>Client business</th><th>Trade</th><th>Action</th></tr></thead><tbody>
-          {% for shop in shops %}<tr><td>{{ shop.business_name or 'Business' }}</td><td>{{ shop.trade|replace('_',' ')|title }}</td><td><a class="franchisee-button" href="{{ url_for('mechanic_bp.mechanic_dashboard', shop_id=shop.id, action='setup') }}">Open Profile</a></td></tr>
-          {% else %}<tr><td colspan="3">No client businesses saved in ProTrade.</td></tr>{% endfor %}
+        <p>These are AIT's available programmes with your existing enrolment and licence information. Programme access and regulatory requirements remain separate from Franchise registration.</p>
+        <div class="franchisee-table-scroll"><table><thead><tr><th>Programme</th><th>Your enrolment</th><th>Existing franchise licences</th><th>Action</th></tr></thead><tbody>
+          {% for item in programmes %}<tr><td>{{ item.subject.name }}</td><td>{{ item.enrolment.status|replace('_',' ')|title if item.enrolment else 'Not enrolled' }}</td><td>{% for licence in item.licences %}{{ licence.used_seats }} / {{ licence.total_seats }} seats used{% if not loop.last %}<br>{% endif %}{% else %}None recorded{% endfor %}</td><td><a class="franchisee-button" href="{{ url_for('modes_bp.modes_checkpoint_route',subject_slug=item.subject.slug) }}">Open</a></td></tr>
+          {% else %}<tr><td colspan="4">No programmes are currently available. Your existing Franchise registration remains saved.</td></tr>{% endfor %}
         </tbody></table></div>
+        <p>Use the <a href="{{ url_for('bridge_bp.bridge') }}">AIT Bridge</a> for programme enrolment options. No SACE delivery authority or professional accreditation is granted by this register.</p>
+      {% elif area=='clients' or area=='protrade' %}
+        <p>{{ 'Existing ProTrade businesses associated with your AIT account.' if area=='clients' else 'Choose one of your existing ProTrade businesses to open its workspace.' }}</p>
+        <div class="franchisee-table-scroll"><table><thead><tr><th>Client business</th><th>Trade</th><th>Action</th></tr></thead><tbody>
+          {% for shop in shops %}<tr><td>{{ shop.business_name or 'Business' }}</td><td>{{ shop.trade|replace('_',' ')|title }}</td><td><a class="franchisee-button" href="{{ url_for('mechanic_bp.mechanic_dashboard',shop_id=shop.id,**({'action':'setup'} if area=='clients' else {})) }}">{{ 'Open Profile' if area=='clients' else 'Open ProTrade' }}</a></td></tr>
+          {% else %}<tr><td colspan="3">No client businesses saved in ProTrade for your AIT account.</td></tr>{% endfor %}
+        </tbody></table></div>
+        {% if area=='protrade' and not shops %}<p><a class="franchisee-button" href="{{ url_for('mechanic_bp.mechanic_dashboard') }}">Open ProTrade</a> to register your first business.</p>{% endif %}
       {% elif area=='earnings' %}
-        <p>BOQ section amounts below use the commercial terms saved when each section was generated. Contractor payment collection is managed directly; payment receipt is not recorded here.</p>
-        <div style="overflow-x:auto"><table><thead><tr><th>Date</th><th>Client business</th><th>Document</th><th>Agreed earnings</th></tr></thead><tbody>
-          {% for entry in earnings %}<tr><td>{{ entry.created_at.strftime('%Y-%m-%d') }}</td><td>{{ entry.business_name }}</td><td>{{ entry.document_key }}</td><td>{% if entry.earnings_cents is not none %}R{{ '%.2f'|format(entry.earnings_cents / 100) }}{% else %}Terms not recorded{% endif %}</td></tr>
-          {% else %}<tr><td colspan="4">No BOQ section earnings recorded.</td></tr>{% endfor %}
+        <p>These are historical BOQ section earnings saved for your existing ProTrade businesses. Amounts retain their original commercial terms; payment receipt is not recorded here.</p>
+        <div class="franchisee-table-scroll"><table><thead><tr><th>Date</th><th>Client business</th><th>Document</th><th class="numeric">Agreed earnings</th></tr></thead><tbody>
+          {% for entry in earnings %}<tr><td>{{ entry.created_at.strftime('%Y-%m-%d') }}</td><td>{{ entry.business_name }}</td><td>{{ entry.document_key }}</td><td class="numeric">{% if entry.earnings_cents is not none %}R{{ '%.2f'|format(entry.earnings_cents/100) }}{% else %}Terms not recorded{% endif %}</td></tr>
+          {% else %}<tr><td colspan="4">No BOQ section earnings recorded for your AIT account. Other document totals are not treated as Franchise earnings.</td></tr>{% endfor %}
         </tbody></table></div>
-      {% elif area=='protrade' %}
-        <p>Open your existing ProTrade workspace.</p>
-        <div class="franchisee-actions"><a class="franchisee-button" href="{{ url_for('mechanic_bp.mechanic_dashboard') }}">Open ProTrade</a></div>
       {% endif %}
+    </section>
+    <section aria-labelledby="franchise-register-title" class="franchisee-register">
+      <h2 id="franchise-register-title">Franchise Register</h2>
+      <div class="franchisee-table-scroll"><table id="franchise-register-table"><thead><tr><th>Franchisee Number</th><th>Full Name</th><th>Cellphone</th><th>Email</th><th>Status</th><th>Action</th></tr></thead><tbody>
+        {% if registration and registration.status != 'Invited' %}<tr><td>{{ registration.franchisee_number or 'Not assigned' }}</td><td>{{ registration.full_name }}</td><td>{{ registration.cellphone }}</td><td>{{ registration.email }}</td><td>{{ 'Suspended' if registration.is_suspended else 'Active' if registration.is_active else registration.status }}</td><td><a class="franchisee-button" href="{{ url_for('franchisee_bp.opportunities',area='edit') }}">Edit</a></td></tr>
+        {% else %}<tr><td colspan="6">No completed Franchise profile is saved for your AIT account. Choose Register to complete your once-off registration.</td></tr>{% endif %}
+      </tbody></table></div>
     </section>
   </div>
 </div>

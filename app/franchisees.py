@@ -119,8 +119,12 @@ def private_response(response):
     return response
 
 
-def current_registration():
-    row = Registration.query.filter_by(user_id=current_user.id).first()
+def current_registration(lock=False):
+    # Stable account identity takes precedence over editable contact details.
+    query = Registration.query
+    if lock:
+        query = query.populate_existing().with_for_update()
+    row = query.filter_by(user_id=current_user.id).first()
     if row:
         return row
     try:
@@ -129,8 +133,11 @@ def current_registration():
         return None
     if linked_user(email) != current_user.id:
         abort(409, description='The account link needs Admin review.')
-    # Invitations submitted before this AIT account existed retain their original identity.
-    return Registration.query.filter_by(user_id=None, email=email).first()
+    matches = query.filter(func.lower(func.trim(Registration.email)) == email).all()
+    if len(matches) > 1 or (matches and matches[0].user_id not in (None,current_user.id)):
+        abort(409, description='The account link needs Admin review.')
+    # Preserve older unlinked registrations; bind only on an explicit successful Save.
+    return matches[0] if matches else None
 
 
 @franchisee_bp.errorhandler(CSRFError)
@@ -151,9 +158,13 @@ def registration_start():
 @franchisee_bp.route('/franchisees/opportunities', methods=['GET', 'POST'])
 def opportunities():
     area = request.args.get('area', '')
-    if area not in {'', 'register', 'clients', 'earnings', 'protrade', 'programmes'}:
+    if area not in {'', 'register', 'edit', 'close', 'clients', 'earnings', 'protrade', 'programmes'}:
         abort(400)
     registration = current_registration()
+    if area == 'close':
+        return dashboard_response(registration, '')
+    if area == 'edit' and (not registration or registration.status == 'Invited'):
+        abort(409, description='Register before editing a saved profile.')
     if request.method == 'GET' and not area and not (registration and registration.franchisee_number):
         area = 'register'
     error, status, errors = None, 200, {}
@@ -161,6 +172,23 @@ def opportunities():
         area = 'register'
         # Serialize self-registration for this account, including double submissions.
         User.query.filter_by(id=current_user.id).with_for_update().one()
+        if request.form.get('action') == 'save_profile':
+            registration = current_registration(lock=True)
+            if not registration or registration.status == 'Invited':
+                abort(409, description='No saved Franchise profile is available to update.')
+            try:
+                save_registration(registration, editing=True)
+            except ValueError as exc:
+                db.session.rollback()
+                return dashboard_response(current_registration(), 'edit', str(exc), 400, getattr(exc,'errors',{}))
+            except IntegrityError:
+                db.session.rollback()
+                return dashboard_response(current_registration(), 'edit', 'These contact or identity details are already registered.', 409)
+            except SQLAlchemyError:
+                db.session.rollback()
+                return dashboard_response(current_registration(), 'edit', 'Profile changes could not be confirmed. Reload the saved record before trying again.', 503)
+            flash('Franchise profile updated. Your original registration number and date are unchanged.', 'success')
+            return redirect(url_for('franchisee_bp.opportunities', area='register'))
         try:
             email = normal_email(current_user.email)
         except ValueError:
@@ -168,7 +196,7 @@ def opportunities():
         if linked_user(email) != current_user.id:
             abort(409, description='The account link needs Admin review.')
         matches = Registration.query.filter(or_(Registration.user_id == current_user.id,
-                                                Registration.email == email)).with_for_update().all()
+                                                func.lower(func.trim(Registration.email)) == email)).with_for_update().all()
         if len(matches) > 1 or (matches and matches[0].user_id not in (None, current_user.id)):
             abort(409, description='The account link needs Admin review.')
         registration = matches[0] if matches else Registration(
@@ -204,31 +232,53 @@ def opportunities():
     return dashboard_response(registration, area, error, status, errors)
 
 
+def programme_data():
+    from app.models.auth import AuthSubject, UserEnrollment, FranchiseLicense
+    enrolments = {r.subject_id:r for r in UserEnrollment.query.filter_by(user_id=current_user.id).order_by(UserEnrollment.id).all()}
+    licences = {}
+    for row in FranchiseLicense.query.filter_by(user_id=current_user.id).all():
+        licences.setdefault(row.subject_id, []).append(row)
+    subjects = AuthSubject.query.filter(AuthSubject.is_active == 1,
+        AuthSubject.is_hidden_on_bridge == False).order_by(AuthSubject.name,AuthSubject.id).all()
+    return [dict(subject=row, enrolment=enrolments.get(row.id), licences=licences.get(row.id,[]))
+        for row in subjects if row.slug not in {'admin','admin_general','staff','home_premium'}]
+
+
 def dashboard_response(registration, area, error=None, status=200, errors=None):
     identity, address = None, None
-    if area == 'register' and registration and registration.identity_ciphertext:
+    editing = area == 'edit'
+    values = {}
+    if editing and registration and registration.identity_ciphertext:
         try:
             encryption = cipher()
             identity = encryption.decrypt(registration.identity_ciphertext.encode()).decode()
             address = encryption.decrypt(registration.address_ciphertext.encode()).decode()
         except InvalidToken:
             error, status = 'Your registration is saved, but its private details could not be read. Contact AIT Admin.', 503
-    shops, earnings = [], []
-    if registration and registration.is_active and area in {'clients', 'earnings'}:
-        from app.models.mechanic import MechShop, ProTradeDocument
-        if area == 'clients':
-            shops = MechShop.query.filter_by(user_id=current_user.id).order_by(MechShop.business_name, MechShop.id).all()
-        elif area == 'earnings':
-            # Read only the historical terms, never load PDF bytes or apply today's prices.
-            earnings = db.session.query(
-                ProTradeDocument.document_key, ProTradeDocument.created_at, MechShop.business_name,
-                ProTradeDocument.snapshot['commercial_terms']['operator_retains_cents'].as_integer().label('earnings_cents')
-            ).join(MechShop, MechShop.id == ProTradeDocument.shop_id).filter(
-                ProTradeDocument.user_id == current_user.id, MechShop.user_id == current_user.id,
-                ProTradeDocument.kind == 'boq_section').order_by(ProTradeDocument.created_at.desc(), ProTradeDocument.id.desc()).all()
-    return render_template('franchisees/opportunities.html', registration=registration, area=area,
-                           shops=shops, earnings=earnings, error=error, errors=errors or {}, identity=identity, address=address,
-                           registration_unavailable=registration is None and status == 503), status
+        else:
+            values = dict(full_name=registration.full_name,cellphone=registration.cellphone,
+                email=registration.email,occupation=registration.occupation or '',sa_id=identity,address=address)
+    shops, earnings, programmes = [], [], []
+    if registration and registration.is_active:
+        if area == 'programmes':
+            programmes = programme_data()
+        if area in {'clients','protrade','earnings'}:
+            from app.models.mechanic import MechShop, ProTradeDocument
+            # Existing businesses belong to the AIT account, never to a number or display name.
+            if area in {'clients','protrade'}:
+                shops = MechShop.query.filter_by(user_id=current_user.id).order_by(MechShop.business_name,MechShop.id).all()
+            else:
+                earnings = db.session.query(
+                    ProTradeDocument.document_key, ProTradeDocument.created_at, MechShop.business_name,
+                    ProTradeDocument.snapshot['commercial_terms']['operator_retains_cents'].as_integer().label('earnings_cents')
+                ).join(MechShop,MechShop.id==ProTradeDocument.shop_id).filter(
+                    ProTradeDocument.user_id==current_user.id,MechShop.user_id==current_user.id,
+                    ProTradeDocument.kind=='boq_section').order_by(ProTradeDocument.created_at.desc(),ProTradeDocument.id.desc()).all()
+    return render_template('franchisees/opportunities.html',registration=registration,area=area,
+        shops=shops,earnings=earnings,programmes=programmes,error=error,errors=errors or {},
+        identity=identity,address=address,editing=editing,registration_values=values,
+        profile_unavailable=editing and registration is not None and not values,
+        registration_unavailable=registration is None and status==503),status
 
 
 @franchisee_bp.route('/admin/franchisees', methods=['GET', 'POST'])
@@ -333,8 +383,14 @@ def activate_registration(row, actor, automatic=False):
           **({'terms_version':TERMS_VERSION, 'terms_accepted':True} if automatic else {}))
 
 
-def save_registration(row, activate=False):
+def save_registration(row, activate=False, editing=False):
     encryption = cipher()
+    if editing:
+        try:
+            previous_identity = encryption.decrypt(row.identity_ciphertext.encode()).decode()
+            previous_address = encryption.decrypt(row.address_ciphertext.encode()).decode()
+        except InvalidToken:
+            abort(503, description='Saved private details cannot be read; no changes were saved. Contact AIT Admin.')
     name = ' '.join((request.form.get('full_name') or '').split())
     phone = re.sub(r'[\s()-]', '', request.form.get('cellphone') or '')
     address = (request.form.get('address') or '').strip()
@@ -349,7 +405,8 @@ def save_registration(row, activate=False):
     if len(occupation) > 160:
         errors['occupation'] = 'Use up to 160 characters for your occupation.'
     try:
-        if normal_email(request.form.get('email')) != row.email:
+        email = normal_email(request.form.get('email'))
+        if not editing and email != row.email:
             errors['email'] = 'Use the email address for this registration account.'
     except ValueError as exc:
         errors['email'] = str(exc)
@@ -359,6 +416,17 @@ def save_registration(row, activate=False):
         errors['sa_id'] = str(exc)
     if errors:
         raise RegistrationValidationError(errors)
+    if editing:
+        if identity != previous_identity:
+            row.identity_digest = hmac.new(identity_key(), b'franchisee-identity-v1:' + identity.encode(), hashlib.sha256).hexdigest()
+            row.identity_ciphertext = encryption.encrypt(identity.encode()).decode()
+        if address != previous_address:
+            row.address_ciphertext = encryption.encrypt(address.encode()).decode()
+        row.full_name,row.cellphone,row.occupation,row.email = name,phone,occupation or None,email
+        row.user_id = current_user.id
+        audit(row,'profile_updated',current_user.id)
+        db.session.commit()
+        return
     # HMAC, rather than a dictionary-attackable plain hash, identifies duplicates.
     user_id = linked_user(row.email)  # Resolve before mutations can trigger autoflush.
     row.identity_digest = hmac.new(identity_key(), b'franchisee-identity-v1:' + identity.encode(), hashlib.sha256).hexdigest()
